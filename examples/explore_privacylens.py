@@ -27,15 +27,9 @@ Example Scenario (main2)
 Usage
 -----
     export OPENAI_API_KEY=your_key
+    python examples/explore_privacylens.py
 
-    # Interactive mode (browse examples)
-    python examples/evaluate_privacylens.py
-
-    # Evaluate a specific entry
-    python examples/evaluate_privacylens.py --entry 5
-
-    # Just browse without running evaluation
-    python examples/evaluate_privacylens.py --browse
+    # Then use commands: number to jump, 'e' to evaluate, 'q' to quit
 """
 
 import argparse
@@ -43,8 +37,6 @@ import json
 from openai import OpenAI
 from rich.console import Console
 from rich.panel import Panel
-from rich.text import Text
-from rich.table import Table
 
 console = Console()
 
@@ -212,34 +204,6 @@ def display_entry(entry, index, total):
         console.print(f"  [red]- {item}[/]")
 
 
-def display_entry_summary(entry, index, is_current=False):
-    """Display a one-line summary of an entry."""
-    seed = entry["seed"]
-    style = "bold white" if is_current else ""
-    marker = ">" if is_current else " "
-    console.print(
-        f"{marker} [{style}]{index:3d}.[/] [cyan]{entry['name']:6s}[/] "
-        f"[dim]{seed['data_type'][:30]:30s}[/] -> [dim]{seed['data_recipient'][:20]}[/]"
-    )
-
-
-def display_help():
-    """Display help for interactive mode."""
-    table = Table(title="Commands", show_header=True, header_style="bold cyan")
-    table.add_column("Command", style="cyan")
-    table.add_column("Description")
-
-    table.add_row("[number]", "View entry by index (1-493)")
-    table.add_row("n / next", "Next entry")
-    table.add_row("p / prev", "Previous entry")
-    table.add_row("v / view", "View current entry")
-    table.add_row("e / eval", "Evaluate current entry with LLM")
-    table.add_row("l / list", "List entries (shows 20 at a time)")
-    table.add_row("s / search", "Search entries by keyword")
-    table.add_row("h / help", "Show this help")
-    table.add_row("q / quit", "Exit")
-
-    console.print(table)
 
 
 def display_evaluation_result(result):
@@ -263,106 +227,54 @@ def display_evaluation_result(result):
 # Interactive Mode
 # =============================================================================
 
-def interactive_mode(dataset, client, browse_only=False):
+def interactive_mode(dataset, client):
     """Run interactive terminal interface."""
-    current_index = 0
     total = len(dataset)
 
     console.print()
     console.rule("[bold cyan]PRIVACYLENS DATASET BROWSER[/]", style="cyan")
-    console.print(f"\nLoaded [bold]{total}[/] entries.")
-    display_help()
+    console.print(f"\n{total} privacy scenarios from the PrivacyLens paper.\n")
 
     while True:
-        console.print(f"\n[dim][[/][cyan]Entry {current_index + 1}/{total}[/][dim]][/] ", end="")
+        # Step 1: Pick an entry
         try:
-            cmd = console.input("[cyan]Command (h for help):[/] ").strip().lower()
+            cmd = console.input(f"[cyan]Pick an entry (1-{total}):[/] ").strip()
         except (EOFError, KeyboardInterrupt):
-            console.print("\n[dim]Exiting.[/]")
+            console.print()
             break
 
         if not cmd:
             continue
 
-        # Quit
-        if cmd in ("q", "quit", "exit"):
-            console.print("[dim]Exiting.[/]")
+        if not cmd.isdigit():
+            continue
+
+        idx = int(cmd) - 1
+        if not (0 <= idx < total):
+            console.print(f"[yellow]Enter a number between 1 and {total}[/]")
+            continue
+
+        # Step 2: Show the entry
+        entry = dataset[idx]
+        display_entry(entry, idx, total)
+
+        # Step 3: Offer to evaluate
+        console.print()
+        try:
+            evaluate = console.input("[cyan]Evaluate this entry? (y/n):[/] ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            console.print()
             break
 
-        # Help
-        elif cmd in ("h", "help"):
-            display_help()
-
-        # Next
-        elif cmd in ("n", "next"):
-            current_index = (current_index + 1) % total
-            display_entry(dataset[current_index], current_index, total)
-
-        # Previous
-        elif cmd in ("p", "prev"):
-            current_index = (current_index - 1) % total
-            display_entry(dataset[current_index], current_index, total)
-
-        # View current
-        elif cmd in ("v", "view"):
-            display_entry(dataset[current_index], current_index, total)
-
-        # List entries
-        elif cmd in ("l", "list"):
-            console.print("\n[bold]Entries:[/]")
-            start = (current_index // 20) * 20
-            for i in range(start, min(start + 20, total)):
-                display_entry_summary(dataset[i], i + 1, is_current=(i == current_index))
-            console.print(f"\n[dim]Showing {start + 1}-{min(start + 20, total)} of {total}[/]")
-
-        # Search
-        elif cmd in ("s", "search"):
-            query = console.input("[cyan]Search keyword:[/] ").strip().lower()
-            if query:
-                console.print(f"\n[bold]Results for '[cyan]{query}[/]':[/]")
-                found = 0
-                for i, entry in enumerate(dataset):
-                    # Search in seed, vignette story, and sensitive items
-                    text = (
-                        str(entry["seed"]) +
-                        entry["vignette"]["story"] +
-                        str(entry["trajectory"]["sensitive_info_items"])
-                    ).lower()
-                    if query in text:
-                        display_entry_summary(entry, i + 1)
-                        found += 1
-                        if found >= 20:
-                            console.print(f"  [dim]... (showing first 20 matches)[/]")
-                            break
-                if found == 0:
-                    console.print("  [dim]No matches found.[/]")
-
-        # Evaluate
-        elif cmd in ("e", "eval"):
-            if browse_only:
-                console.print(
-                    "[yellow]Evaluation disabled in browse mode. "
-                    "Run without --browse to evaluate.[/]"
-                )
-            elif client is None:
-                console.print("[yellow]OpenAI client not initialized. Set OPENAI_API_KEY.[/]")
+        if evaluate == "y":
+            if client is None:
+                console.print("[yellow]Set OPENAI_API_KEY to enable evaluation.[/]")
             else:
                 console.print("\n[dim]Running evaluation...[/]")
-                entry = dataset[current_index]
                 result = evaluate_single(entry, client)
                 display_evaluation_result(result)
 
-        # Jump to entry by number
-        elif cmd.isdigit():
-            idx = int(cmd) - 1
-            if 0 <= idx < total:
-                current_index = idx
-                display_entry(dataset[current_index], current_index, total)
-            else:
-                console.print(f"[yellow]Invalid entry number. Must be 1-{total}.[/]")
-
-        else:
-            console.print(f"[yellow]Unknown command: {cmd}. Type 'h' for help.[/]")
+        console.print()
 
 
 # =============================================================================
@@ -371,15 +283,7 @@ def interactive_mode(dataset, client, browse_only=False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Evaluate LLM privacy behavior with PrivacyLens dataset"
-    )
-    parser.add_argument(
-        "--entry", "-e", type=int,
-        help="Evaluate a specific entry by index (1-493)"
-    )
-    parser.add_argument(
-        "--browse", "-b", action="store_true",
-        help="Browse mode only (no LLM evaluation)"
+        description="Explore and evaluate LLM privacy behavior with PrivacyLens dataset"
     )
     parser.add_argument(
         "--data", "-d", default="data/privacylens.json",
@@ -389,33 +293,16 @@ def main():
 
     dataset = load_dataset(args.data)
 
-    # Initialize OpenAI client (None if browse-only)
+    # Initialize OpenAI client
     client = None
-    if not args.browse:
-        try:
-            client = OpenAI()
-        except Exception as e:
-            console.print(f"[yellow]Warning: Could not initialize OpenAI client: {e}[/]")
-            console.print("[yellow]Running in browse-only mode.[/]\n")
-
-    # Single entry evaluation
-    if args.entry is not None:
-        idx = args.entry - 1
-        if not (0 <= idx < len(dataset)):
-            console.print(f"[red]Error: Entry must be between 1 and {len(dataset)}[/]")
-            return
-
-        entry = dataset[idx]
-        display_entry(entry, idx, len(dataset))
-
-        if client and not args.browse:
-            console.print("\n[dim]Running evaluation...[/]")
-            result = evaluate_single(entry, client)
-            display_evaluation_result(result)
-        return
+    try:
+        client = OpenAI()
+    except Exception as e:
+        console.print(f"[yellow]Warning: Could not initialize OpenAI client: {e}[/]")
+        console.print("[yellow]Evaluation disabled. Set OPENAI_API_KEY to enable.[/]\n")
 
     # Interactive mode
-    interactive_mode(dataset, client, browse_only=args.browse)
+    interactive_mode(dataset, client)
 
 
 if __name__ == "__main__":
