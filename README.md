@@ -1,3 +1,5 @@
-# Repository setup required :wave:
-    
-Please visit the website URL :point_right: for this repository to complete the setup of this repository and configure access controls.
+# SAGE
+
+Society of Agents Environment - evaluation datasets for multi-agent systems.
+
+- [`datasets/`](datasets/) - Evaluation benchmarks
