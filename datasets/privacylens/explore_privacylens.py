@@ -27,7 +27,7 @@ Example Scenario (main2)
 Usage
 -----
     export OPENAI_API_KEY=your_key
-    python examples/explore_privacylens.py
+    uv run python datasets/privacylens/explore_privacylens.py
 
     # Then use commands: number to jump, 'e' to evaluate, 'q' to quit
 """
@@ -45,7 +45,7 @@ console = Console()
 # STEP 1: Load the Dataset
 # =============================================================================
 
-def load_dataset(path="data/privacylens.json"):
+def load_dataset(path="datasets/privacylens/privacylens.json"):
     """
     Load the PrivacyLens dataset.
 
@@ -286,7 +286,7 @@ def main():
         description="Explore and evaluate LLM privacy behavior with PrivacyLens dataset"
     )
     parser.add_argument(
-        "--data", "-d", default="data/privacylens.json",
+        "--data", "-d", default="datasets/privacylens/privacylens.json",
         help="Path to dataset file"
     )
     args = parser.parse_args()
