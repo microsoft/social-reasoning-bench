@@ -46,3 +46,9 @@ import json
 with open("datasets/privacylens/privacylens.json") as f:
     dataset = json.load(f)
 ```
+
+## Evaluation
+
+The original paper uses LLM-as-judge to evaluate agent outputs. See [`original_prompts.py`](original_prompts.py) for the exact prompts used for:
+- **Leakage detection**: Does the agent's action reveal sensitive information?
+- **Helpfulness rating**: Did the agent accomplish the user's task?
