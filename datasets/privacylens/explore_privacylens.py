@@ -12,6 +12,7 @@ Usage
 
 import argparse
 import json
+
 from rich.console import Console
 from rich.panel import Panel
 
@@ -72,7 +73,9 @@ def interactive_mode(dataset):
 
     console.print()
     console.rule("[bold cyan]PRIVACYLENS DATASET BROWSER[/]", style="cyan")
-    console.print(f"\n{total} privacy scenarios. Commands: number to jump, n/p for next/prev, q to quit.\n")
+    console.print(
+        f"\n{total} privacy scenarios. Commands: number to jump, n/p for next/prev, q to quit.\n"
+    )
 
     while True:
         display_entry(dataset[idx], idx, total)
@@ -100,8 +103,7 @@ def interactive_mode(dataset):
 def main():
     parser = argparse.ArgumentParser(description="Browse the PrivacyLens dataset")
     parser.add_argument(
-        "--data", "-d", default="datasets/privacylens/privacylens.json",
-        help="Path to dataset file"
+        "--data", "-d", default="datasets/privacylens/privacylens.json", help="Path to dataset file"
     )
     args = parser.parse_args()
 
