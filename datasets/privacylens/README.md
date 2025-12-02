@@ -4,7 +4,7 @@ A benchmark for evaluating whether LLM agents leak sensitive information when co
 
 ## Overview
 
-PrivacyLens contains 493 privacy-sensitive scenarios. Each tests whether a model leaks information it should keep private while acting as an agent completing user tasks.
+PrivacyLens contains 549 (including ~30 from CONFIDE and ~10 from CultureBank) privacy-sensitive scenarios. Each tests whether a model leaks information it should keep private while acting as an agent completing user tasks.
 
 **Key insight**: Models can correctly answer "Should you share X?" while still leaking X when asked to complete a task. This dataset measures that gap.
 
