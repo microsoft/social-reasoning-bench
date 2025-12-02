@@ -28,16 +28,6 @@
 - number of rounds: single round communication + multi-round tool call
 - tools involved: Gmail, GoogleCalendar, Slack
 
-## Run Evaluation
-```
-pip install -r requirements.txt
-export OPENAI_API_KEY=''
-
-# run evaluation:
-python run_all.py --model_to_test gpt-4.1 --model_for_rating gpt-4.1 --dataset_name privacylens_data
-```
-
-
 ## Current Evaluation Results
 
 Two metrics:
