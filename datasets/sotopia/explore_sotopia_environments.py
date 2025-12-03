@@ -21,8 +21,16 @@ from rich.table import Table
 console = Console()
 
 
-def load_environments(path="datasets/sotopia/sotopia_episodes_part_*.jsonl"):
-    """Load unique environments from the Sotopia dataset."""
+def load_environments(path="datasets/sotopia/sotopia_environments.json"):
+    """Load unique environments from the Sotopia dataset JSON file."""
+    with open(path) as f:
+        environments = json.load(f)
+
+    return environments
+
+
+def load_environments_from_jsonl(path="datasets/sotopia/sotopia_episodes_part_*.jsonl"):
+    """Load unique environments from the Sotopia dataset JSONL files (legacy method)."""
     import glob
 
     # Use a dict to collect environment info, keyed by environment_id
@@ -190,7 +198,13 @@ def display_overview(environments):
     total_episodes = sum(env["episode_count"] for env in environments)
     avg_episodes = total_episodes / len(environments) if environments else 0
 
+    # Count by difficulty
+    hard_count = sum(1 for env in environments if env.get("difficulty") == "hard")
+    normal_count = sum(1 for env in environments if env.get("difficulty") == "normal")
+
     table.add_row("Total Unique Environments", f"{len(environments)}")
+    table.add_row("  ├─ [red]Hard[/red]", f"{hard_count}")
+    table.add_row("  └─ [green]Normal[/green]", f"{normal_count}")
     table.add_row("Total Episodes Across All", f"{total_episodes:,}")
     table.add_row("Avg Episodes per Environment", f"{avg_episodes:.1f}")
 
@@ -238,6 +252,17 @@ def display_environment(env, index, total):
     metadata_table.add_column("Value", style="white")
 
     metadata_table.add_row("Environment ID", env["id"])
+
+    # Add difficulty with color coding
+    difficulty = env.get("difficulty", "unknown")
+    if difficulty == "hard":
+        difficulty_display = "[red bold]HARD[/red bold]"
+    elif difficulty == "normal":
+        difficulty_display = "[green]normal[/green]"
+    else:
+        difficulty_display = "[dim]unknown[/dim]"
+    metadata_table.add_row("Difficulty", difficulty_display)
+
     metadata_table.add_row("Episodes with this scenario", f"{env['episode_count']}")
     metadata_table.add_row("Unique agent name pairs", f"{env['unique_agent_pairs']}")
 
@@ -293,8 +318,8 @@ def main():
     parser.add_argument(
         "--data",
         "-d",
-        default="datasets/sotopia/sotopia_episodes_part_*.jsonl",
-        help="Path to dataset file (supports glob patterns)",
+        default="datasets/sotopia/sotopia_environments.json",
+        help="Path to environments JSON file",
     )
     args = parser.parse_args()
 
