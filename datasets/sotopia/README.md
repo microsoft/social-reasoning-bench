@@ -1,8 +1,10 @@
 # Sotopia dataset
 
 Paper: https://arxiv.org/pdf/2310.11667
+
 Dataset: https://huggingface.co/datasets/cmu-lti/sotopia
-Labels: https://github.com/sotopia-lab/sotopia-rl/blob/main/data/env_ids.txt
+
+Difficulty Labels: https://github.com/sotopia-lab/sotopia-rl/blob/main/data/env_ids.txt
 
 ## Dataset Summary
 
