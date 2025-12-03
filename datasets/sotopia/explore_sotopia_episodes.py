@@ -11,6 +11,7 @@ Usage:
 import argparse
 import json
 from collections import Counter
+
 from rich.console import Console
 from rich.table import Table
 
@@ -23,7 +24,7 @@ def load_dataset(path="datasets/sotopia/sotopia_episodes_part_*.jsonl"):
 
     episodes = []
     # Handle both single file and glob pattern
-    if '*' in path:
+    if "*" in path:
         files = sorted(glob.glob(path))
     else:
         files = [path]
@@ -42,9 +43,7 @@ def calculate_statistics(dataset):
         "hard": sum(1 for ep in dataset if ep.get("difficulty") == "hard"),
         "normal": sum(1 for ep in dataset if ep.get("difficulty") == "normal"),
         "unique_env_ids": len(set(ep["environment_id"] for ep in dataset)),
-        "unique_agent_pairs": len(
-            set(tuple(sorted(ep["agent_ids"])) for ep in dataset)
-        ),
+        "unique_agent_pairs": len(set(tuple(sorted(ep["agent_ids"])) for ep in dataset)),
         "experiment_tags": Counter(ep["experiment_tag"] for ep in dataset),
         "conversation_lengths": [],
     }
@@ -58,9 +57,7 @@ def calculate_statistics(dataset):
     if stats["conversation_lengths"]:
         stats["min_turns"] = min(stats["conversation_lengths"])
         stats["max_turns"] = max(stats["conversation_lengths"])
-        stats["avg_turns"] = sum(stats["conversation_lengths"]) / len(
-            stats["conversation_lengths"]
-        )
+        stats["avg_turns"] = sum(stats["conversation_lengths"]) / len(stats["conversation_lengths"])
 
     return stats
 
@@ -159,9 +156,7 @@ def display_entry_readable(entry, index, total):
         info_table.add_row(f"Agent {i + 1}", f"{agent_name} ({agent_id})")
 
     info_table.add_row("Experiment Tag", entry.get("experiment_tag", "N/A"))
-    info_table.add_row(
-        "Models", ", ".join(entry.get("experiment_model_name_pairs", []))
-    )
+    info_table.add_row("Models", ", ".join(entry.get("experiment_model_name_pairs", [])))
 
     console.print(info_table)
     console.print()

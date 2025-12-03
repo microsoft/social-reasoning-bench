@@ -13,9 +13,10 @@ Usage:
 import argparse
 import json
 from collections import defaultdict
+
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
 console = Console()
 
@@ -30,7 +31,7 @@ def load_environments(path="datasets/sotopia/sotopia_episodes_part_*.jsonl"):
     env_agent_names = defaultdict(set)  # Track all agent name pairs per environment
 
     # Handle both single file and glob pattern
-    if '*' in path:
+    if "*" in path:
         files = sorted(glob.glob(path))
     else:
         files = [path]
@@ -70,14 +71,10 @@ def load_environments(path="datasets/sotopia/sotopia_episodes_part_*.jsonl"):
 
                                 # Extract scenario (same in all messages)
                                 if scenario is None and "Scenario:" in content:
-                                    scenario_start = content.find("Scenario:") + len(
-                                        "Scenario:"
-                                    )
+                                    scenario_start = content.find("Scenario:") + len("Scenario:")
                                     scenario_end = content.find("Participants:")
                                     if scenario_end != -1:
-                                        scenario = content[
-                                            scenario_start:scenario_end
-                                        ].strip()
+                                        scenario = content[scenario_start:scenario_end].strip()
 
                                 # Extract goals - look for pattern "NAME's goal: GOAL_TEXT"
                                 # Goals can span multiple lines until the next agent's goal line
@@ -99,9 +96,7 @@ def load_environments(path="datasets/sotopia/sotopia_episodes_part_*.jsonl"):
                                         next_goal = content.find("\n", goal_start)
                                         if next_goal != -1:
                                             # Check if there's another goal after this
-                                            next_goal_marker = content.find(
-                                                "'s goal:", next_goal
-                                            )
+                                            next_goal_marker = content.find("'s goal:", next_goal)
                                             if next_goal_marker != -1:
                                                 # Find the newline before this next goal marker
                                                 # by going back from the goal marker to find the agent name
@@ -213,15 +208,11 @@ def display_overview(environments):
 def display_environment(env, index, total):
     """Display a single environment."""
     console.print()
-    console.rule(
-        f"[bold cyan]ENVIRONMENT {index + 1}/{total}[/] [dim](ID: {env['id']})[/]"
-    )
+    console.rule(f"[bold cyan]ENVIRONMENT {index + 1}/{total}[/] [dim](ID: {env['id']})[/]")
     console.print()
 
     # Scenario section
-    console.print(
-        Panel(env["scenario"], title="[bold cyan]Scenario[/]", border_style="cyan")
-    )
+    console.print(Panel(env["scenario"], title="[bold cyan]Scenario[/]", border_style="cyan"))
     console.print()
 
     # Roles and Goals table
@@ -252,9 +243,7 @@ def display_environment(env, index, total):
 
     console.print(metadata_table)
     console.print()
-    console.print(
-        "[dim]Note: Agent names vary across episodes but roles/goals stay the same.[/]"
-    )
+    console.print("[dim]Note: Agent names vary across episodes but roles/goals stay the same.[/]")
     console.print()
 
 
