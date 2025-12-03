@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transcript Timeline Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .upload-zone {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-zone:hover {
+            border-color: #4CAF50;
+            background: #f9fff9;
+        }
+
+        .upload-zone.dragover {
+            border-color: #4CAF50;
+            background: #e8f5e9;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+        }
+
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #0b7dda;
+        }
+
+        .timeline-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        .timeline-wrapper {
+            display: flex;
+            min-width: fit-content;
+            position: relative;
+        }
+
+        .time-axis {
+            position: sticky;
+            left: 0;
+            z-index: 100;
+            background: white;
+            padding-right: 15px;
+            padding-top: 70px;
+            border-right: 2px solid #ddd;
+            min-width: 150px;
+            position: relative;
+        }
+
+        .time-tick {
+            position: absolute;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .time-label {
+            padding: 5px 10px;
+            font-size: 11px;
+            color: #666;
+            font-weight: 500;
+            position: relative;
+            background: white;
+            z-index: 1;
+        }
+
+        .time-tick-line {
+            position: absolute;
+            right: 0;
+            width: 10px;
+            height: 2px;
+            background: #999;
+            z-index: 2;
+        }
+
+        .chats-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+        }
+
+        .chat-column {
+            min-width: 300px;
+            max-width: 400px;
+            border-right: 1px solid #eee;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .chat-column.collapsed {
+            min-width: 60px;
+            max-width: 60px;
+        }
+
+        .chat-column.collapsed .message-container,
+        .chat-column.collapsed .participants {
+            display: none;
+        }
+
+        .chat-header {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            padding: 15px;
+            border-bottom: 2px solid #ddd;
+            cursor: pointer;
+            user-select: none;
+            z-index: 10;
+            height: 70px;
+            box-sizing: border-box;
+        }
+
+        .chat-header:hover {
+            background: #e9ecef;
+        }
+
+        .chat-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .collapse-icon {
+            font-size: 18px;
+            transition: transform 0.3s;
+        }
+
+        .chat-column.collapsed .collapse-icon {
+            transform: rotate(180deg);
+        }
+
+        .participants {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .message-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .message-wrapper {
+            position: absolute;
+            left: 0;
+            right: 0;
+            padding: 10px;
+        }
+
+        /* Row mode styles */
+        .row-mode .message-wrapper {
+            position: relative;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .row-mode .message-container {
+            position: static !important;
+            height: auto !important;
+        }
+
+        .row-mode .time-axis {
+            padding-top: 70px;
+        }
+
+        .row-mode .time-tick {
+            position: relative !important;
+            height: auto;
+            border-bottom: 1px solid #eee;
+            padding: 10px;
+        }
+
+        .row-mode .message {
+            max-height: none;
+        }
+
+        .row-mode .message-text {
+            -webkit-line-clamp: unset;
+            display: block;
+            white-space: pre-wrap;
+        }
+
+        .message {
+            background: #e3f2fd;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.4;
+            border-left: 3px solid #2196F3;
+            max-height: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .message:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+
+        .message-from {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #1976D2;
+            font-size: 12px;
+        }
+
+        .message-text {
+            color: #333;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .message-time {
+            font-size: 10px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .modal-message {
+            margin-top: 20px;
+        }
+
+        .modal-message .message-from {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .modal-message .message-time {
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+
+        .modal-message .message-text {
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            display: block;
+            -webkit-line-clamp: unset;
+        }
+
+        .stats {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        /* Color variations for different participants */
+        .message.participant-0 { background: #e3f2fd; border-left-color: #2196F3; }
+        .message.participant-1 { background: #f3e5f5; border-left-color: #9c27b0; }
+        .message.participant-2 { background: #e8f5e9; border-left-color: #4caf50; }
+        .message.participant-3 { background: #fff3e0; border-left-color: #ff9800; }
+        .message.participant-4 { background: #fce4ec; border-left-color: #e91e63; }
+        .message.participant-5 { background: #e0f2f1; border-left-color: #009688; }
+        .message.participant-6 { background: #fff9c4; border-left-color: #fbc02d; }
+        .message.participant-7 { background: #e1f5fe; border-left-color: #0288d1; }
+        .message.participant-8 { background: #fce4ec; border-left-color: #c2185b; }
+        .message.participant-9 { background: #f1f8e9; border-left-color: #689f38; }
+        .message.participant-10 { background: #ede7f6; border-left-color: #512da8; }
+        .message.participant-11 { background: #ffe0b2; border-left-color: #ef6c00; }
+        .message.participant-12 { background: #e0f7fa; border-left-color: #00838f; }
+        .message.participant-13 { background: #fce4ec; border-left-color: #ad1457; }
+        .message.participant-14 { background: #f3e5f5; border-left-color: #6a1b9a; }
+        .message.participant-15 { background: #e8eaf6; border-left-color: #3949ab; }
+
+        .scale-control {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .scale-label {
+            font-size: 14px;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .scale-value {
+            color: #2196F3;
+            font-family: monospace;
+        }
+
+        .scale-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .scale-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #2196F3;
+            cursor: pointer;
+        }
+
+        .scale-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #2196F3;
+            cursor: pointer;
+            border: none;
+        }
+
+        .scale-marks {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Transcript Timeline Viewer</h1>
+            <div class="upload-zone" id="uploadZone">
+                <div style="font-size: 48px; margin-bottom: 10px;">📁</div>
+                <p>Drag and drop YAML transcript files here</p>
+                <p style="margin-top: 10px; font-size: 14px; color: #666;">or click to select files</p>
+                <input type="file" id="fileInput" multiple accept=".yaml,.yml">
+            </div>
+            <div class="controls">
+                <button class="btn btn-primary" id="clearBtn">Clear All</button>
+                <button class="btn btn-secondary" id="expandAllBtn">Expand All</button>
+                <button class="btn btn-secondary" id="collapseAllBtn">Collapse All</button>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="timeScaleToggle" checked>
+                    <span>Time-scaled spacing</span>
+                </label>
+            </div>
+            <div class="stats" id="stats" style="display: none;">
+                <strong>Loaded:</strong> <span id="fileCount">0</span> chats,
+                <span id="messageCount">0</span> messages
+            </div>
+            <div class="scale-control" id="scaleControl" style="display: none;">
+                <div class="scale-label">
+                    <span>Vertical Scale</span>
+                    <span class="scale-value" id="scaleValue">1 px = 100 ms</span>
+                </div>
+                <input type="range" id="scaleSlider" class="scale-slider" min="0" max="100" value="50">
+                <div class="scale-marks">
+                    <span>1 px = 1 ms</span>
+                    <span>1 px = 10 ms</span>
+                    <span>1 px = 100 ms</span>
+                    <span>1 px = 1 sec</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-container" id="timelineContainer">
+            <div class="empty-state">
+                <div class="empty-state-icon">⏱️</div>
+                <h3>No transcripts loaded</h3>
+                <p>Upload YAML files to view the timeline</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for full message view -->
+    <div id="messageModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        let transcripts = [];
+        let allMessages = [];
+        let globalParticipants = [];
+        let participantColorMap = {};
+        let currentScale = 100; // Default: 1px = 100ms
+        let timeScaledMode = true; // Default: time-scaled mode on
+
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const timelineContainer = document.getElementById('timelineContainer');
+        const clearBtn = document.getElementById('clearBtn');
+        const expandAllBtn = document.getElementById('expandAllBtn');
+        const collapseAllBtn = document.getElementById('collapseAllBtn');
+        const messageModal = document.getElementById('messageModal');
+        const modalBody = document.getElementById('modalBody');
+        const modalClose = document.querySelector('.modal-close');
+        const scaleSlider = document.getElementById('scaleSlider');
+        const scaleValue = document.getElementById('scaleValue');
+        const scaleControl = document.getElementById('scaleControl');
+        const timeScaleToggle = document.getElementById('timeScaleToggle');
+
+        // Upload zone click
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        // Handle file uploads
+        async function handleFiles(files) {
+            const fileArray = Array.from(files);
+
+            for (const file of fileArray) {
+                if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
+                    const text = await file.text();
+                    try {
+                        const data = jsyaml.load(text);
+                        transcripts.push({
+                            filename: file.name,
+                            data: data
+                        });
+                    } catch (error) {
+                        console.error(`Error parsing ${file.name}:`, error);
+                        alert(`Error parsing ${file.name}: ${error.message}`);
+                    }
+                }
+            }
+
+            renderTimeline();
+        }
+
+        // Scale slider conversion: logarithmic scale from 1ms to 1000ms
+        function sliderToScale(value) {
+            // value ranges from 0 to 100
+            // 0 = 1ms, 50 = 100ms, 100 = 1000ms
+            // Using exponential scale: scale = 10^(value/50)
+            const scale = Math.pow(10, value / 50);
+            return scale;
+        }
+
+        function formatScale(msPerPixel) {
+            if (msPerPixel >= 1000) {
+                return `1 px = ${(msPerPixel / 1000).toFixed(1)} sec`;
+            } else if (msPerPixel >= 1) {
+                return `1 px = ${Math.round(msPerPixel)} ms`;
+            } else {
+                return `1 px = ${msPerPixel.toFixed(2)} ms`;
+            }
+        }
+
+        // Scale slider event
+        scaleSlider.addEventListener('input', (e) => {
+            currentScale = sliderToScale(parseFloat(e.target.value));
+            scaleValue.textContent = formatScale(currentScale);
+            if (transcripts.length > 0) {
+                renderTimeline();
+            }
+        });
+
+        // Time scale toggle event
+        timeScaleToggle.addEventListener('change', (e) => {
+            timeScaledMode = e.target.checked;
+            if (transcripts.length > 0) {
+                renderTimeline();
+            }
+        });
+
+        // Render the timeline
+        function renderTimeline() {
+            if (transcripts.length === 0) {
+                timelineContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⏱️</div>
+                        <h3>No transcripts loaded</h3>
+                        <p>Upload YAML files to view the timeline</p>
+                    </div>
+                `;
+                document.getElementById('stats').style.display = 'none';
+                scaleControl.style.display = 'none';
+                return;
+            }
+
+            // Show/hide scale control based on mode
+            scaleControl.style.display = timeScaledMode ? 'block' : 'none';
+
+            // Build global participant list and color mapping from actual message senders
+            globalParticipants = [];
+            participantColorMap = {};
+
+            // First pass: collect all unique message senders
+            transcripts.forEach((transcript) => {
+                if (transcript.data.messages) {
+                    transcript.data.messages.forEach((msg) => {
+                        const sender = msg.from;
+                        if (sender && !globalParticipants.includes(sender)) {
+                            globalParticipants.push(sender);
+                            participantColorMap[sender] = globalParticipants.length - 1;
+                        }
+                    });
+                }
+            });
+
+            // Collect all messages with metadata
+            allMessages = [];
+            transcripts.forEach((transcript, chatIndex) => {
+                if (transcript.data.messages) {
+                    transcript.data.messages.forEach((msg, msgIndex) => {
+                        allMessages.push({
+                            ...msg,
+                            chatIndex: chatIndex,
+                            chatTitle: transcript.data.title,
+                            participants: transcript.data.participants
+                        });
+                    });
+                }
+            });
+
+            // Sort all messages by timestamp
+            allMessages.sort((a, b) => {
+                return new Date(a.timestamp) - new Date(b.timestamp);
+            });
+
+            if (allMessages.length === 0) {
+                timelineContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⏱️</div>
+                        <h3>No messages found</h3>
+                        <p>The loaded transcripts contain no messages</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Branch based on mode
+            if (timeScaledMode) {
+                renderTimeScaledMode();
+            } else {
+                renderRowMode();
+            }
+        }
+
+        // Render time-scaled mode with absolute positioning
+        function renderTimeScaledMode() {
+            // Calculate time scale using currentScale (ms per pixel)
+            const HEADER_HEIGHT = 70; // Height of chat header
+            const startTime = new Date(allMessages[0].timestamp).getTime();
+            const endTime = new Date(allMessages[allMessages.length - 1].timestamp).getTime();
+
+            // Calculate position for each message
+            const messagePositions = allMessages.map(msg => {
+                const msgTime = new Date(msg.timestamp).getTime();
+                const offsetMs = msgTime - startTime;
+                const position = offsetMs / currentScale; // ms / (ms per pixel) = pixels
+                return {
+                    ...msg,
+                    position: position,
+                    time: new Date(msg.timestamp)
+                };
+            });
+
+            // Calculate total timeline height (including header offset)
+            const timelineHeight = (endTime - startTime) / currentScale + HEADER_HEIGHT + 100; // +100 for padding
+
+            // Build the timeline HTML
+            let html = '<div class="timeline-wrapper">';
+
+            // Time axis
+            html += `<div class="time-axis" style="height: ${timelineHeight}px;">`;
+            messagePositions.forEach((msgPos, index) => {
+                const time = msgPos.time;
+                const hours = String(time.getHours()).padStart(2, '0');
+                const minutes = String(time.getMinutes()).padStart(2, '0');
+                const seconds = String(time.getSeconds()).padStart(2, '0');
+                const ms = String(time.getMilliseconds()).padStart(3, '0');
+                const timeStr = `${hours}:${minutes}:${seconds}.${ms}`;
+
+                html += `
+                    <div class="time-tick" style="top: ${msgPos.position}px;">
+                        <div class="time-label">${timeStr}</div>
+                        <div class="time-tick-line"></div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            // Chat columns
+            html += '<div class="chats-container">';
+            transcripts.forEach((transcript, chatIndex) => {
+                const data = transcript.data;
+                const participants = data.participants ? data.participants.join(', ') : '';
+
+                html += `<div class="chat-column" data-chat-index="${chatIndex}">`;
+                html += `
+                    <div class="chat-header" onclick="toggleColumn(${chatIndex})">
+                        <div class="chat-title">
+                            <span>${data.title || transcript.filename}</span>
+                            <span class="collapse-icon">◀</span>
+                        </div>
+                        <div class="participants">${participants}</div>
+                    </div>
+                `;
+
+                // Message container with absolute positioning
+                html += `<div class="message-container" style="height: ${timelineHeight}px;">`;
+
+                // Wave counter for this chat (creates 0->60->0 pattern in 20px steps)
+                let waveIndex = 0;
+
+                messagePositions.forEach((msgPos, index) => {
+                    if (msgPos.chatIndex === chatIndex) {
+                        const participantIndex = getGlobalParticipantIndex(msgPos.from);
+                        const time = msgPos.time;
+                        const hours = String(time.getHours()).padStart(2, '0');
+                        const minutes = String(time.getMinutes()).padStart(2, '0');
+                        const seconds = String(time.getSeconds()).padStart(2, '0');
+                        const ms = String(time.getMilliseconds()).padStart(3, '0');
+                        const timeStr = `${hours}:${minutes}:${seconds}.${ms}`;
+
+                        // Calculate wave offset (0->60->0 in 20px steps)
+                        // waveIndex cycles 0-6: maps to offsets 0,1,2,3,2,1,0 (0,20,40,60,40,20,0px)
+                        const waveOffset = waveIndex <= 3 ? waveIndex : 6 - waveIndex;
+                        const leftMargin = waveOffset * 20; // Wave margin (0-60px)
+
+                        // Increment and wrap wave index (only for this chat's messages)
+                        waveIndex = (waveIndex + 1) % 7;
+
+                        html += `
+                            <div class="message-wrapper" style="top: ${msgPos.position}px; margin-left: ${leftMargin}px;">
+                                <div class="message participant-${participantIndex}"
+                                     onclick="showMessageModal(${chatIndex}, ${index})">
+                                    <div class="message-from">${escapeHtml(msgPos.from)}</div>
+                                    <div class="message-text">${escapeHtml(msgPos.message)}</div>
+                                    <div class="message-time">${timeStr}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                html += '</div>'; // close message-container
+                html += '</div>'; // close chat-column
+            });
+            html += '</div>'; // close chats-container
+            html += '</div>'; // close timeline-wrapper
+
+            timelineContainer.innerHTML = html;
+
+            // Update stats
+            const totalMessages = allMessages.length;
+            document.getElementById('fileCount').textContent = transcripts.length;
+            document.getElementById('messageCount').textContent = totalMessages;
+            document.getElementById('stats').style.display = 'block';
+        }
+
+        // Render row mode with sequential messages
+        function renderRowMode() {
+            let html = '<div class="timeline-wrapper row-mode">';
+
+            // Time axis with sequential rows
+            html += '<div class="time-axis">';
+            allMessages.forEach((msg, index) => {
+                const time = new Date(msg.timestamp);
+                const hours = String(time.getHours()).padStart(2, '0');
+                const minutes = String(time.getMinutes()).padStart(2, '0');
+                const seconds = String(time.getSeconds()).padStart(2, '0');
+                const ms = String(time.getMilliseconds()).padStart(3, '0');
+                const timeStr = `${hours}:${minutes}:${seconds}.${ms}`;
+
+                html += `
+                    <div class="time-tick">
+                        <div class="time-label">${timeStr}</div>
+                        <div class="time-tick-line"></div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            // Chat columns
+            html += '<div class="chats-container">';
+            transcripts.forEach((transcript, chatIndex) => {
+                const data = transcript.data;
+                const participants = data.participants ? data.participants.join(', ') : '';
+
+                html += `<div class="chat-column" data-chat-index="${chatIndex}">`;
+                html += `
+                    <div class="chat-header" onclick="toggleColumn(${chatIndex})">
+                        <div class="chat-title">
+                            <span>${data.title || transcript.filename}</span>
+                            <span class="collapse-icon">◀</span>
+                        </div>
+                        <div class="participants">${participants}</div>
+                    </div>
+                `;
+
+                // Message container with sequential rows
+                html += '<div class="message-container">';
+
+                allMessages.forEach((msg, index) => {
+                    if (msg.chatIndex === chatIndex) {
+                        const participantIndex = getGlobalParticipantIndex(msg.from);
+                        const time = new Date(msg.timestamp);
+                        const hours = String(time.getHours()).padStart(2, '0');
+                        const minutes = String(time.getMinutes()).padStart(2, '0');
+                        const seconds = String(time.getSeconds()).padStart(2, '0');
+                        const ms = String(time.getMilliseconds()).padStart(3, '0');
+                        const timeStr = `${hours}:${minutes}:${seconds}.${ms}`;
+
+                        html += `
+                            <div class="message-wrapper">
+                                <div class="message participant-${participantIndex}"
+                                     onclick="showMessageModal(${chatIndex}, ${index})">
+                                    <div class="message-from">${escapeHtml(msg.from)}</div>
+                                    <div class="message-text">${escapeHtml(msg.message)}</div>
+                                    <div class="message-time">${timeStr}</div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // Empty row for messages in other chats
+                        html += '<div class="message-wrapper"></div>';
+                    }
+                });
+
+                html += '</div>'; // close message-container
+                html += '</div>'; // close chat-column
+            });
+            html += '</div>'; // close chats-container
+            html += '</div>'; // close timeline-wrapper
+
+            timelineContainer.innerHTML = html;
+
+            // Update stats
+            const totalMessages = allMessages.length;
+            document.getElementById('fileCount').textContent = transcripts.length;
+            document.getElementById('messageCount').textContent = totalMessages;
+            document.getElementById('stats').style.display = 'block';
+        }
+
+        function getGlobalParticipantIndex(participantName) {
+            if (participantColorMap.hasOwnProperty(participantName)) {
+                return participantColorMap[participantName] % 16;
+            }
+            return 0;
+        }
+
+        function toggleColumn(chatIndex) {
+            const column = document.querySelector(`.chat-column[data-chat-index="${chatIndex}"]`);
+            column.classList.toggle('collapsed');
+        }
+
+        function showMessageModal(chatIndex, slotIndex) {
+            const message = allMessages[slotIndex];
+            const time = new Date(message.timestamp);
+            const timeStr = time.toLocaleString('en-US', {
+                dateStyle: 'medium',
+                timeStyle: 'medium'
+            });
+
+            modalBody.innerHTML = `
+                <div class="modal-message">
+                    <div class="message-from">${escapeHtml(message.from)}</div>
+                    <div class="message-time">${timeStr}</div>
+                    <div class="message-text">${escapeHtml(message.message)}</div>
+                </div>
+            `;
+            messageModal.style.display = 'block';
+        }
+
+        // Modal controls
+        modalClose.onclick = () => messageModal.style.display = 'none';
+        window.onclick = (e) => {
+            if (e.target === messageModal) {
+                messageModal.style.display = 'none';
+            }
+        };
+
+        // Clear all
+        clearBtn.addEventListener('click', () => {
+            if (confirm('Clear all loaded transcripts?')) {
+                transcripts = [];
+                allMessages = [];
+                globalParticipants = [];
+                participantColorMap = {};
+                fileInput.value = '';
+                renderTimeline();
+            }
+        });
+
+        // Expand all
+        expandAllBtn.addEventListener('click', () => {
+            document.querySelectorAll('.chat-column').forEach(col => {
+                col.classList.remove('collapsed');
+            });
+        });
+
+        // Collapse all
+        collapseAllBtn.addEventListener('click', () => {
+            document.querySelectorAll('.chat-column').forEach(col => {
+                col.classList.add('collapsed');
+            });
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

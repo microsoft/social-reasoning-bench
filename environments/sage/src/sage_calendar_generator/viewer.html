@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scenario Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .event-block:hover { z-index: 50 !important; }
+        .event-block:hover .event-tooltip { display: block; }
+        .event-tooltip { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="max-w-7xl mx-auto p-4">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow p-4 mb-4">
+            <h1 class="text-2xl font-bold text-gray-800 mb-3">Scenario Viewer</h1>
+            <div class="flex items-center gap-4">
+                <label class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    Load JSON
+                    <input type="file" id="fileInput" accept=".json" class="hidden">
+                </label>
+                <span id="fileName" class="text-gray-500 text-sm">No file loaded</span>
+            </div>
+        </div>
+
+        <!-- Content (hidden until file loaded) -->
+        <div id="content" class="hidden">
+            <!-- Goal Event Panel -->
+            <div id="goalPanel" class="bg-amber-50 border border-amber-200 rounded-lg shadow p-4 mb-4"></div>
+
+            <!-- Tabs -->
+            <div class="flex gap-2 mb-4">
+                <button id="tabCalendar" class="px-4 py-2 rounded font-medium bg-blue-600 text-white">Calendar</button>
+                <button id="tabParticipants" class="px-4 py-2 rounded font-medium bg-gray-200 text-gray-700 hover:bg-gray-300">Participants</button>
+            </div>
+
+            <!-- Calendar View -->
+            <div id="calendarView" class="bg-white rounded-lg shadow p-4"></div>
+
+            <!-- Participants View -->
+            <div id="participantsView" class="bg-white rounded-lg shadow p-4 hidden"></div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="bg-white rounded-lg shadow p-12 text-center">
+            <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <p class="text-gray-500">Load a scenario JSON file to visualize</p>
+        </div>
+    </div>
+
+    <script>
+        let scenarioData = null;
+        const COLORS = [
+            'bg-blue-200 border-blue-400',
+            'bg-green-200 border-green-400',
+            'bg-purple-200 border-purple-400',
+            'bg-pink-200 border-pink-400',
+            'bg-yellow-200 border-yellow-400',
+            'bg-cyan-200 border-cyan-400',
+            'bg-orange-200 border-orange-400',
+            'bg-indigo-200 border-indigo-400',
+        ];
+
+        const DAY_MAP = { MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6, SUNDAY: 0 };
+
+        // Assign columns to overlapping events
+        function assignOverlapColumns(events) {
+            if (events.length === 0) return [];
+
+            const result = events.map(event => ({
+                event,
+                start: new Date(event.start_datetime),
+                end: new Date(event.end_datetime),
+                column: 0,
+                totalColumns: 1
+            }));
+
+            // Sort by start time
+            result.sort((a, b) => a.start - b.start);
+
+            // Find overlapping groups and assign columns
+            for (let i = 0; i < result.length; i++) {
+                // Find all events that overlap with this one
+                const overlapping = [result[i]];
+                for (let j = 0; j < result.length; j++) {
+                    if (i !== j && eventsOverlap(result[i], result[j])) {
+                        overlapping.push(result[j]);
+                    }
+                }
+
+                // Assign columns within the overlap group
+                const usedColumns = new Set();
+                for (const ev of overlapping) {
+                    if (ev.column > 0 || ev === result[i]) continue;
+                    usedColumns.add(ev.column);
+                }
+
+                // Find first available column for current event
+                let col = 0;
+                while (usedColumns.has(col)) col++;
+                result[i].column = col;
+
+                // Update totalColumns for all overlapping events
+                const maxCol = Math.max(...overlapping.map(e => e.column)) + 1;
+                for (const ev of overlapping) {
+                    ev.totalColumns = Math.max(ev.totalColumns, maxCol);
+                }
+            }
+
+            // Second pass to equalize totalColumns within overlap groups
+            for (let i = 0; i < result.length; i++) {
+                for (let j = i + 1; j < result.length; j++) {
+                    if (eventsOverlap(result[i], result[j])) {
+                        const max = Math.max(result[i].totalColumns, result[j].totalColumns);
+                        result[i].totalColumns = max;
+                        result[j].totalColumns = max;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        function eventsOverlap(a, b) {
+            return a.start < b.end && b.start < a.end;
+        }
+
+        // File loading
+        document.getElementById('fileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                scenarioData = JSON.parse(text);
+                document.getElementById('fileName').textContent = file.name;
+                render();
+            } catch (err) {
+                alert('Failed to parse JSON: ' + err.message);
+            }
+        });
+
+        // Tab switching
+        document.getElementById('tabCalendar').addEventListener('click', () => switchTab('calendar'));
+        document.getElementById('tabParticipants').addEventListener('click', () => switchTab('participants'));
+
+        function switchTab(tab) {
+            const calBtn = document.getElementById('tabCalendar');
+            const partBtn = document.getElementById('tabParticipants');
+            const calView = document.getElementById('calendarView');
+            const partView = document.getElementById('participantsView');
+
+            if (tab === 'calendar') {
+                calBtn.className = 'px-4 py-2 rounded font-medium bg-blue-600 text-white';
+                partBtn.className = 'px-4 py-2 rounded font-medium bg-gray-200 text-gray-700 hover:bg-gray-300';
+                calView.classList.remove('hidden');
+                partView.classList.add('hidden');
+            } else {
+                partBtn.className = 'px-4 py-2 rounded font-medium bg-blue-600 text-white';
+                calBtn.className = 'px-4 py-2 rounded font-medium bg-gray-200 text-gray-700 hover:bg-gray-300';
+                partView.classList.remove('hidden');
+                calView.classList.add('hidden');
+            }
+        }
+
+        function render() {
+            if (!scenarioData) return;
+
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('content').classList.remove('hidden');
+
+            const participantColors = {};
+            scenarioData.scenario.participants.forEach((p, i) => {
+                participantColors[p.id] = COLORS[i % COLORS.length];
+            });
+
+            renderGoalEvent(scenarioData.scenario.goal_event, scenarioData.scenario.participants);
+            renderCalendar(scenarioData, participantColors);
+            renderParticipants(scenarioData, participantColors);
+        }
+
+        function renderGoalEvent(goal, participants) {
+            const panel = document.getElementById('goalPanel');
+            const attendeeNames = goal.required_attendees.map(id => {
+                const p = participants.find(p => p.id === id);
+                return p ? p.name : id;
+            }).join(', ');
+
+            const scheduledStart = new Date(goal.scheduled_start);
+            const scheduledEnd = new Date(goal.scheduled_end);
+            const durationMins = Math.round((scheduledEnd - scheduledStart) / (1000 * 60));
+            const scheduledTime = `
+                <p class="text-sm text-amber-700">
+                    <strong>Scheduled:</strong> ${scheduledStart.toLocaleDateString()} ${scheduledStart.toLocaleTimeString()} - ${scheduledEnd.toLocaleTimeString()} (${durationMins} min)
+                </p>
+            `;
+
+            panel.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="bg-amber-400 rounded-full p-2">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-amber-900">${goal.title}</h3>
+                        <p class="text-sm text-amber-800 mt-1">${goal.description}</p>
+                        ${scheduledTime}
+                        <p class="text-sm text-amber-700 mt-1"><strong>Attendees:</strong> ${attendeeNames}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function expandRecurringEvents(events, seedRange) {
+            const expanded = [];
+            const startDate = new Date(seedRange.start);
+            const endDate = new Date(seedRange.end);
+
+            for (const event of events) {
+                if (!event.recurrence_rule) {
+                    expanded.push(event);
+                    continue;
+                }
+
+                const rule = event.recurrence_rule;
+                const eventStart = new Date(event.start_datetime);
+                const eventEnd = new Date(event.end_datetime);
+                const duration = eventEnd - eventStart;
+
+                let current = new Date(eventStart);
+                let count = 0;
+                const maxCount = rule.end_condition?.count || 100;
+
+                while (current < endDate && count < maxCount) {
+                    if (current >= startDate) {
+                        // Check if this day matches the recurrence pattern
+                        let matches = true;
+
+                        if (rule.by_day && rule.by_day.length > 0) {
+                            const dayOfWeek = current.getDay();
+                            const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+                            matches = rule.by_day.includes(dayNames[dayOfWeek]);
+                        }
+
+                        if (matches) {
+                            const instanceStart = new Date(current);
+                            instanceStart.setHours(eventStart.getHours(), eventStart.getMinutes());
+
+                            expanded.push({
+                                ...event,
+                                id: `${event.id}_${current.toISOString().split('T')[0]}`,
+                                start_datetime: instanceStart.toISOString(),
+                                end_datetime: new Date(instanceStart.getTime() + duration).toISOString(),
+                                recurrence_rule: null,
+                                _isInstance: true
+                            });
+                            count++;
+                        }
+                    }
+
+                    // Advance to next occurrence
+                    if (rule.frequency === 'DAILY') {
+                        current.setDate(current.getDate() + (rule.interval || 1));
+                    } else if (rule.frequency === 'WEEKLY') {
+                        current.setDate(current.getDate() + 1);
+                    } else if (rule.frequency === 'MONTHLY') {
+                        current.setMonth(current.getMonth() + (rule.interval || 1));
+                    } else {
+                        current.setDate(current.getDate() + 1);
+                    }
+                }
+            }
+
+            return expanded;
+        }
+
+        function renderCalendar(data, participantColors) {
+            const container = document.getElementById('calendarView');
+            const events = expandRecurringEvents(data.events, data.seed_range);
+
+            // Get date range
+            const startDate = new Date(data.seed_range.start);
+            const endDate = new Date(data.seed_range.end);
+            const days = [];
+
+            for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
+                days.push(new Date(d));
+            }
+
+            // Group events by day
+            const eventsByDay = {};
+            for (const event of events) {
+                const date = new Date(event.start_datetime).toDateString();
+                if (!eventsByDay[date]) eventsByDay[date] = [];
+                eventsByDay[date].push(event);
+            }
+
+            // Build calendar HTML
+            let html = '<div class="grid gap-2" style="grid-template-columns: repeat(' + Math.min(days.length, 7) + ', minmax(0, 1fr))">';
+
+            for (const day of days) {
+                const dateStr = day.toDateString();
+                const dayEvents = (eventsByDay[dateStr] || []).sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
+                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+
+                // Calculate overlap columns for each event
+                const eventsWithColumns = assignOverlapColumns(dayEvents);
+
+                // Generate time grid lines
+                const timeGridLines = [8, 10, 12, 14, 16, 18, 20].map(hour => {
+                    const topPercent = ((hour - 6) * 60 / (16 * 60)) * 100;
+                    const label = hour <= 12 ? `${hour}${hour === 12 ? 'p' : 'a'}` : `${hour - 12}p`;
+                    return `<div class="absolute w-full border-t border-gray-100 text-xs text-gray-300" style="top: ${topPercent}%">${label}</div>`;
+                }).join('');
+
+                html += `
+                    <div class="border rounded p-2 ${isWeekend ? 'bg-gray-50' : ''}" style="min-height: 300px;">
+                        <div class="text-xs font-medium text-gray-500 mb-2">
+                            ${day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </div>
+                        <div class="relative" style="min-height: 280px;">
+                            ${timeGridLines}
+                `;
+
+                // Show goal event at its scheduled time
+                const goalEvent = data.scenario.goal_event;
+                const goalStart = new Date(goalEvent.scheduled_start);
+                const goalEnd = new Date(goalEvent.scheduled_end);
+                if (goalStart.toDateString() === day.toDateString()) {
+                    const dayStart = 6;
+                    const dayEnd = 22;
+                    const totalMinutes = (dayEnd - dayStart) * 60;
+                    const startMinutes = (goalStart.getHours() - dayStart) * 60 + goalStart.getMinutes();
+                    const durationMinutes = (goalEnd - goalStart) / (1000 * 60);
+                    const topPercent = Math.max(0, Math.min(100, (startMinutes / totalMinutes) * 100));
+                    const heightPercent = Math.max(3, Math.min(100 - topPercent, (durationMinutes / totalMinutes) * 100));
+                    const timeStr = goalStart.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+                    html += `
+                        <div class="event-block absolute" style="top: ${topPercent}%; height: ${heightPercent}%; left: 0; width: 100%; padding-right: 2px; z-index: 40;">
+                            <div class="text-xs p-1 rounded border-2 border-amber-500 bg-amber-200 cursor-pointer h-full overflow-hidden" title="${goalEvent.title} (GOAL)">
+                                <span class="font-bold">${timeStr}</span> ⭐ ${goalEvent.title}
+                            </div>
+                            <div class="event-tooltip absolute z-50 left-0 top-full mt-1 bg-white border-2 border-amber-500 shadow-lg rounded p-3 w-64 text-sm">
+                                <p class="font-bold text-amber-700">⭐ GOAL EVENT</p>
+                                <p class="font-bold mt-1">${goalEvent.title}</p>
+                                <p class="text-gray-500 text-xs mt-1">${goalStart.toLocaleTimeString()} - ${goalEnd.toLocaleTimeString()}</p>
+                                <p class="text-gray-600 mt-2">${goalEvent.description}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                for (const { event, column, totalColumns } of eventsWithColumns) {
+                    const start = new Date(event.start_datetime);
+                    const end = new Date(event.end_datetime);
+                    const timeStr = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                    const color = participantColors[event.organizer_id] || 'bg-gray-200 border-gray-400';
+                    const organizer = data.scenario.participants.find(p => p.id === event.organizer_id);
+
+                    // Calculate position based on time (6am-10pm = 16 hours)
+                    const dayStart = 6; // 6 AM
+                    const dayEnd = 22; // 10 PM
+                    const totalMinutes = (dayEnd - dayStart) * 60;
+                    const startMinutes = (start.getHours() - dayStart) * 60 + start.getMinutes();
+                    // Calculate duration directly from the event times
+                    const durationMinutes = (end - start) / (1000 * 60);
+                    const topPercent = Math.max(0, Math.min(100, (startMinutes / totalMinutes) * 100));
+                    const heightPercent = Math.max(3, Math.min(100 - topPercent, (durationMinutes / totalMinutes) * 100));
+
+                    // Calculate left indent for overlapping events
+                    const widthPercent = 100 / totalColumns;
+                    const leftPercent = column * widthPercent;
+
+                    html += `
+                        <div class="event-block absolute" style="top: ${topPercent}%; height: ${heightPercent}%; left: ${leftPercent}%; width: ${widthPercent}%; padding-right: 2px;">
+                            <div class="text-xs p-1 rounded border-l-2 ${color} cursor-pointer h-full overflow-hidden" title="${event.title}">
+                                <span class="font-medium">${timeStr}</span> ${event.title}
+                            </div>
+                            <div class="event-tooltip absolute z-10 left-0 top-full mt-1 bg-white border shadow-lg rounded p-3 w-64 text-sm">
+                                <p class="font-bold">${event.title}</p>
+                                <p class="text-gray-500 text-xs mt-1">${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}</p>
+                                <p class="text-gray-600 mt-2">${event.description}</p>
+                                <p class="text-gray-500 text-xs mt-2">Organizer: ${organizer?.name || event.organizer_id}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                html += '</div></div>';
+            }
+
+            html += '</div>';
+
+            // Legend
+            html += '<div class="mt-4 pt-4 border-t flex flex-wrap gap-3">';
+            for (const p of data.scenario.participants) {
+                const color = participantColors[p.id];
+                html += `<div class="flex items-center gap-1 text-sm">
+                    <div class="w-3 h-3 rounded ${color.split(' ')[0]}"></div>
+                    <span>${p.name}</span>
+                </div>`;
+            }
+            html += '</div>';
+
+            container.innerHTML = html;
+        }
+
+        function renderParticipants(data, participantColors) {
+            const container = document.getElementById('participantsView');
+            const events = data.events;
+
+            let html = '<div class="space-y-6">';
+
+            for (const p of data.scenario.participants) {
+                const color = participantColors[p.id];
+                const isGoalAttendee = data.scenario.goal_event.required_attendees.includes(p.id);
+                const isOrganizer = data.scenario.goal_event.organizer_id === p.id;
+                const pEvents = events.filter(e => e.organizer_id === p.id);
+
+                html += `
+                    <div class="border rounded-lg p-4 ${isGoalAttendee ? 'border-amber-300 bg-amber-50' : ''}">
+                        <div class="flex items-start gap-3">
+                            <div class="w-10 h-10 rounded-full ${color.split(' ')[0]} flex items-center justify-center font-bold text-gray-700">
+                                ${p.name.split(' ').map(n => n[0]).join('')}
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-bold text-lg">${p.name}</h3>
+                                    ${isOrganizer ? '<span class="text-xs bg-amber-500 text-white px-2 py-0.5 rounded">Goal Organizer</span>' : ''}
+                                    ${isGoalAttendee && !isOrganizer ? '<span class="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded">Required Attendee</span>' : ''}
+                                </div>
+                                <p class="text-sm text-gray-500">${p.timezone}</p>
+                                <p class="text-sm text-gray-600 mt-1">${p.description}</p>
+                                ${p.goal ? `<p class="text-sm text-blue-600 mt-2"><strong>Goal:</strong> ${p.goal}</p>` : ''}
+                            </div>
+                        </div>
+
+                        <div class="mt-4 ml-13">
+                            <h4 class="text-sm font-medium text-gray-500 mb-2">Events (${pEvents.length})</h4>
+                            <div class="space-y-1">
+                                ${pEvents.slice(0, 10).map(e => {
+                                    const start = new Date(e.start_datetime);
+                                    const isRecurring = e.recurrence_rule !== null;
+                                    return `
+                                        <div class="text-sm p-2 bg-gray-50 rounded flex items-center gap-2">
+                                            ${isRecurring ? '<span class="text-xs bg-blue-100 text-blue-700 px-1 rounded">recurring</span>' : ''}
+                                            <span class="text-gray-500">${start.toLocaleDateString()}</span>
+                                            <span class="font-medium">${e.title}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                                ${pEvents.length > 10 ? `<p class="text-xs text-gray-400">+ ${pEvents.length - 10} more</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
