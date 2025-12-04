@@ -34,13 +34,15 @@ def run_simulation(run_id, config_file, prefix, output_dir, working_dir=None):
     cmd = [
         sys.executable,  # python
         "main.py",
-        "--config", config_file,
-        "--experiment", experiment_name
+        "--config",
+        config_file,
+        "--experiment",
+        experiment_name,
     ]
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Running simulation {run_id}: {experiment_name}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     # Set environment variable to tell main.py where to save results
     env = os.environ.copy()
@@ -84,15 +86,15 @@ def run_batch_rollout(config_files, num_runs, prefix, start_from=1, workers=None
 
     total_tasks = len(task_queue)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("BATCH ROLLOUT")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Number of config files: {len(config_files)}")
     print(f"Runs per config: {num_runs}")
     print(f"Total simulations: {total_tasks}")
     print(f"Mode: {'Parallel (' + str(workers) + ' workers)' if workers else 'Sequential'}")
     print(f"Output directory: {output_dir}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Run simulations
     total_successful = 0
@@ -103,7 +105,9 @@ def run_batch_rollout(config_files, num_runs, prefix, start_from=1, workers=None
         with ProcessPoolExecutor(max_workers=workers) as executor:
             # Submit all tasks
             futures = {
-                executor.submit(run_simulation, run_id, config_file, batch_prefix, output_dir, "."): (run_id, config_file, batch_prefix)
+                executor.submit(
+                    run_simulation, run_id, config_file, batch_prefix, output_dir, "."
+                ): (run_id, config_file, batch_prefix)
                 for run_id, config_file, batch_prefix, output_dir in task_queue
             }
 
@@ -135,9 +139,9 @@ def run_batch_rollout(config_files, num_runs, prefix, start_from=1, workers=None
                 print(f"[{idx}/{total_tasks}] ✗ {batch_prefix}_{run_id} (failed)")
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("BATCH ROLLOUT SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Total configs: {len(config_files)}")
     print(f"Runs per config: {num_runs}")
     print(f"Total simulations: {total_tasks}")
@@ -145,7 +149,7 @@ def run_batch_rollout(config_files, num_runs, prefix, start_from=1, workers=None
     print(f"Failed: {total_failed}")
     print(f"\nResults saved in: {output_dir}")
     print(f"Database pattern: {output_dir}/marketplace_{prefix}_*.db")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     return output_dir
 
@@ -153,46 +157,40 @@ def run_batch_rollout(config_files, num_runs, prefix, start_from=1, workers=None
 def main():
     parser = argparse.ArgumentParser(description="Run multiple simulations in batch")
     parser.add_argument(
-        "--num-runs",
-        type=int,
-        default=10,
-        help="Number of simulations to run (default: 10)"
+        "--num-runs", type=int, default=10, help="Number of simulations to run (default: 10)"
     )
     parser.add_argument(
         "--config",
         type=str,
         default="config/config.yaml",
-        help="Path to configuration YAML file (default: config/config.yaml)"
+        help="Path to configuration YAML file (default: config/config.yaml)",
     )
     parser.add_argument(
         "--config-dir",
         type=str,
         default=None,
-        help="Directory containing multiple config files to run (overrides --config)"
+        help="Directory containing multiple config files to run (overrides --config)",
     )
     parser.add_argument(
         "--prefix",
         type=str,
         default=None,
-        help="Prefix for experiment names (default: timestamp-based)"
+        help="Prefix for experiment names (default: timestamp-based)",
     )
     parser.add_argument(
-        "--start-from",
-        type=int,
-        default=1,
-        help="Starting run number (default: 1)"
+        "--start-from", type=int, default=1, help="Starting run number (default: 1)"
     )
     parser.add_argument(
         "--workers",
         type=int,
         default=None,
-        help="Number of parallel workers (default: None, runs sequentially)"
+        help="Number of parallel workers (default: None, runs sequentially)",
     )
     parser.add_argument(
         "--pattern",
         type=str,
         default=None,
-        help="Regex pattern to filter config files (e.g., 'neg22' or 'neg2[0-5]')"
+        help="Regex pattern to filter config files (e.g., 'neg22' or 'neg2[0-5]')",
     )
 
     args = parser.parse_args()
@@ -205,12 +203,15 @@ def main():
         # Apply pattern filter if provided
         if args.pattern:
             import re
+
             pattern = re.compile(args.pattern)
             config_files = [f for f in config_files if pattern.search(f.stem)]
 
         if not config_files:
-            print(f"Error: No .yaml files found in {args.config_dir}" +
-                  (f" matching pattern '{args.pattern}'" if args.pattern else ""))
+            print(
+                f"Error: No .yaml files found in {args.config_dir}"
+                + (f" matching pattern '{args.pattern}'" if args.pattern else "")
+            )
             sys.exit(1)
     else:
         config_files = [Path(args.config)]
@@ -228,7 +229,7 @@ def main():
         num_runs=args.num_runs,
         prefix=base_prefix,
         start_from=args.start_from,
-        workers=args.workers
+        workers=args.workers,
     )
 
 

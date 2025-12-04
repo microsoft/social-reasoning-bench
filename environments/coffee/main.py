@@ -15,12 +15,8 @@ def main(config_file="config/config.yaml", overwrite=True, experiment_name=None)
         "config": config,
         "overwrite": overwrite,
         "experiment_name": experiment_name,
-        "market_state": {
-            "current_round": 1,
-            "current_agent_index": 0,
-            "agent_order": []
-        },
-        "db": None
+        "market_state": {"current_round": 1, "current_agent_index": 0, "agent_order": []},
+        "db": None,
     }
 
     # Create nodes
@@ -50,18 +46,18 @@ if __name__ == "__main__":
         "--config",
         type=str,
         default="config/config.yaml",
-        help="Path to configuration YAML file (default: config/config.yaml)"
+        help="Path to configuration YAML file (default: config/config.yaml)",
     )
     parser.add_argument(
         "--no-overwrite",
         action="store_true",
-        help="Do not overwrite existing database (default: overwrite enabled)"
+        help="Do not overwrite existing database (default: overwrite enabled)",
     )
     parser.add_argument(
         "--experiment",
         type=str,
         default=None,
-        help="Experiment name/ID to append to database filename (default: None)"
+        help="Experiment name/ID to append to database filename (default: None)",
     )
 
     args = parser.parse_args()

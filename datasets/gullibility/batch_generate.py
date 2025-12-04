@@ -10,7 +10,9 @@ from pathlib import Path
 from generate_strategies import generate_strategies
 
 
-def process_file(yaml_file: Path, output_dir: Path, overwrite: bool = False, provider: str = "gemini"):
+def process_file(
+    yaml_file: Path, output_dir: Path, overwrite: bool = False, provider: str = "gemini"
+):
     """Process a single YAML file."""
     try:
         result = generate_strategies(yaml_file, output_dir, overwrite=overwrite, provider=provider)
@@ -31,17 +33,23 @@ Examples:
   python batch_generate.py pages/ strategies/ --workers 10
   python batch_generate.py pages/ strategies/ --workers 5 --overwrite
   python batch_generate.py pages/ strategies/ --workers 10 --provider openai
-        """
+        """,
     )
     parser.add_argument("pages_dir", type=Path, help="Directory containing Wikipedia YAML files")
     parser.add_argument("output_dir", type=Path, help="Output directory for strategies")
-    parser.add_argument("--workers", type=int, default=10,
-                       help="Number of parallel workers (default: 10)")
-    parser.add_argument("--overwrite", action="store_true",
-                       help="Overwrite existing strategy files")
-    parser.add_argument("--provider", type=str, default="gemini",
-                       choices=["gemini", "openai", "trapi"],
-                       help="LLM provider to use (default: gemini)")
+    parser.add_argument(
+        "--workers", type=int, default=10, help="Number of parallel workers (default: 10)"
+    )
+    parser.add_argument(
+        "--overwrite", action="store_true", help="Overwrite existing strategy files"
+    )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        default="gemini",
+        choices=["gemini", "openai", "trapi"],
+        help="LLM provider to use (default: gemini)",
+    )
 
     args = parser.parse_args()
 
@@ -61,7 +69,9 @@ Examples:
     with ProcessPoolExecutor(max_workers=args.workers) as executor:
         # Submit all tasks
         futures = {
-            executor.submit(process_file, yaml_file, args.output_dir, args.overwrite, args.provider): yaml_file
+            executor.submit(
+                process_file, yaml_file, args.output_dir, args.overwrite, args.provider
+            ): yaml_file
             for yaml_file in yaml_files
         }
 

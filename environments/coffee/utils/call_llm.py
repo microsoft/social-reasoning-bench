@@ -11,11 +11,9 @@ def _get_config(key: str, default: str = "", config_override: dict = None) -> st
         return str(config_override[key])
     return os.getenv(key, default)
 
+
 def call_llm(
-    conversation: list[dict],
-    config_override: dict = None,
-    provider: str = None,
-    model: str = None
+    conversation: list[dict], config_override: dict = None, provider: str = None, model: str = None
 ) -> str:
     """
     Call an LLM with the given conversation.
@@ -54,6 +52,7 @@ def call_llm(
         return _call_human_cli(conversation, effective_config)
     else:
         raise ValueError(f"Unsupported LLM provider: {provider_name}")
+
 
 def _call_gemini(conversation: list[dict], config_override: dict = None) -> str:
     client = genai.Client(api_key=_get_config("GEMINI_API_KEY", "", config_override))
@@ -95,10 +94,16 @@ def _call_openai(conversation: list[dict], config_override: dict = None) -> str:
         if "response" in turn:
             messages.append({"role": "assistant", "content": turn["response"]})
 
-    return client.chat.completions.create(
-        model=model, messages=messages,
-        reasoning_effort="medium",
-    ).choices[0].message.content
+    return (
+        client.chat.completions.create(
+            model=model,
+            messages=messages,
+            reasoning_effort="medium",
+        )
+        .choices[0]
+        .message.content
+    )
+
 
 def _call_trapi(conversation: list[dict], config_override: dict = None) -> str:
     from azure.identity import (
@@ -125,7 +130,7 @@ def _call_trapi(conversation: list[dict], config_override: dict = None) -> str:
         azure_endpoint=_get_config(
             "AZURE_OPENAI_ENDPOINT",
             "https://trapi.research.microsoft.com/msraif/shared",
-            config_override
+            config_override,
         ),
         azure_ad_token_provider=credential,
         api_version=_get_config("AZURE_OPENAI_API_VERSION", "2024-12-01-preview", config_override),
@@ -149,6 +154,7 @@ def _call_trapi(conversation: list[dict], config_override: dict = None) -> str:
 
     return response.choices[0].message.content or ""
 
+
 def _call_vllm(conversation: list[dict], config_override: dict = None) -> str:
     from openai import OpenAI
 
@@ -169,9 +175,14 @@ def _call_vllm(conversation: list[dict], config_override: dict = None) -> str:
         if "response" in turn:
             messages.append({"role": "assistant", "content": turn["response"]})
 
-    return client.chat.completions.create(
-        model=model, messages=messages, temperature=temp, max_tokens=max_tok
-    ).choices[0].message.content
+    return (
+        client.chat.completions.create(
+            model=model, messages=messages, temperature=temp, max_tokens=max_tok
+        )
+        .choices[0]
+        .message.content
+    )
+
 
 def _call_human_cli(conversation: list[dict], config_override: dict = None) -> str:
     """
@@ -179,7 +190,9 @@ def _call_human_cli(conversation: list[dict], config_override: dict = None) -> s
     Provides a user-friendly guided experience for human players.
     """
     from .human_cli_interactive import interactive_cli
+
     return interactive_cli(conversation)
+
 
 def _call_human(conversation: list[dict], config_override: dict = None) -> str:
     """
@@ -192,9 +205,9 @@ def _call_human(conversation: list[dict], config_override: dict = None) -> str:
     Returns:
         Human's response as a string
     """
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("HUMAN INPUT REQUIRED")
-    print("="*60)
+    print("=" * 60)
 
     # Display conversation history
     if conversation:
@@ -218,13 +231,13 @@ def _call_human(conversation: list[dict], config_override: dict = None) -> str:
             continue
 
     if latest_prompt:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Current Prompt:")
         print(latest_prompt)
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Enter your response (press Enter twice when done):")
-    print("="*60)
+    print("=" * 60)
 
     # Read multi-line input
     lines = []
@@ -245,11 +258,12 @@ def _call_human(conversation: list[dict], config_override: dict = None) -> str:
 
     response = "\n".join(lines).strip()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Response recorded. Continuing...")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     return response
+
 
 if __name__ == "__main__":
     import sys
@@ -269,8 +283,9 @@ if __name__ == "__main__":
     print(f"Response: {response1}\n")
 
     print("Test 2: Multi-turn conversation")
-    response2 = call_llm([
-        {"prompt": "What is 2+2?", "response": "2+2 equals 4."},
-        {"prompt": "What about 3+3?"}
-    ], provider=provider, model=model)
+    response2 = call_llm(
+        [{"prompt": "What is 2+2?", "response": "2+2 equals 4."}, {"prompt": "What about 3+3?"}],
+        provider=provider,
+        model=model,
+    )
     print(f"Response: {response2}\n")

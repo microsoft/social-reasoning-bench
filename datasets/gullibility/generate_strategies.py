@@ -35,7 +35,7 @@ def _call_gemini(prompt: str) -> str:
     response = client.models.generate_content(
         model=model,
         contents=[{"role": "user", "parts": [{"text": prompt}]}],
-        config={"temperature": 0.7, "max_output_tokens": 8000}
+        config={"temperature": 0.7, "max_output_tokens": 8000},
     )
 
     return response.text
@@ -81,8 +81,7 @@ def _call_trapi(prompt: str) -> str:
     # Create client
     client = AzureOpenAI(
         azure_endpoint=os.getenv(
-            "AZURE_OPENAI_ENDPOINT",
-            "https://trapi.research.microsoft.com/msraif/shared"
+            "AZURE_OPENAI_ENDPOINT", "https://trapi.research.microsoft.com/msraif/shared"
         ),
         azure_ad_token_provider=credential,
         api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview"),
@@ -152,7 +151,7 @@ def chunk_text(text: str, chunk_size: int = 5000, buffer_size: int = 500) -> lis
         chunks.append(chunk)
 
         # Move start forward by (chunk_size - buffer_size) for overlap
-        start += (chunk_size - buffer_size)
+        start += chunk_size - buffer_size
 
         # Stop if we've covered all text
         if end >= len(text):
@@ -161,15 +160,17 @@ def chunk_text(text: str, chunk_size: int = 5000, buffer_size: int = 500) -> lis
     return chunks
 
 
-def generate_strategies(wiki_yaml_path: Path, output_dir: Path, overwrite: bool = False, provider: str = "gemini"):
+def generate_strategies(
+    wiki_yaml_path: Path, output_dir: Path, overwrite: bool = False, provider: str = "gemini"
+):
     """Generate strategies from Wikipedia content."""
 
     # Read Wikipedia content
-    with open(wiki_yaml_path, 'r', encoding='utf-8') as f:
+    with open(wiki_yaml_path, "r", encoding="utf-8") as f:
         wiki_data = yaml.safe_load(f)
 
-    title = wiki_data.get('title', 'Unknown')
-    content = wiki_data.get('content', '')
+    title = wiki_data.get("title", "Unknown")
+    content = wiki_data.get("content", "")
 
     # Check if content is too short
     if len(content) < 1000:
@@ -178,7 +179,7 @@ def generate_strategies(wiki_yaml_path: Path, output_dir: Path, overwrite: bool 
 
     # Check if output file already exists
     output_dir.mkdir(exist_ok=True)
-    safe_title = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in title)
+    safe_title = "".join(c if c.isalnum() or c in (" ", "-", "_") else "_" for c in title)
     output_file = output_dir / f"{safe_title}_strategies.yaml"
 
     if output_file.exists() and not overwrite:
@@ -261,7 +262,7 @@ strategies:
         # Parse response
         try:
             strategies_data = yaml.safe_load(yaml_content)
-            chunk_strategies = strategies_data.get('strategies', [])
+            chunk_strategies = strategies_data.get("strategies", [])
             all_strategies.extend(chunk_strategies)
             print(f"  Extracted {len(chunk_strategies)} strategies from chunk {i}")
         except Exception as e:
@@ -269,13 +270,13 @@ strategies:
 
     # Save concatenated output
     output_data = {
-        'source_article': title,
-        'source_file': str(wiki_yaml_path),
-        'total_chunks': len(chunks),
-        'strategies': all_strategies
+        "source_article": title,
+        "source_file": str(wiki_yaml_path),
+        "total_chunks": len(chunks),
+        "strategies": all_strategies,
     }
 
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         yaml.dump(output_data, f, allow_unicode=True, default_flow_style=False)
 
     print(f"\nSaved {len(all_strategies)} total strategies to {output_file}")
@@ -292,15 +293,20 @@ Examples:
   python generate_strategies.py pages/Negotiation.yaml strategies/ --overwrite
   python generate_strategies.py pages/Negotiation.yaml strategies/ --provider openai
   python generate_strategies.py pages/Negotiation.yaml strategies/ --provider trapi
-        """
+        """,
     )
     parser.add_argument("input_yaml", type=Path, help="Input Wikipedia YAML file")
     parser.add_argument("output_dir", type=Path, help="Output directory for strategies")
-    parser.add_argument("--overwrite", action="store_true",
-                       help="Overwrite existing strategy files")
-    parser.add_argument("--provider", type=str, default="gemini",
-                       choices=["gemini", "openai", "trapi"],
-                       help="LLM provider to use (default: gemini)")
+    parser.add_argument(
+        "--overwrite", action="store_true", help="Overwrite existing strategy files"
+    )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        default="gemini",
+        choices=["gemini", "openai", "trapi"],
+        help="LLM provider to use (default: gemini)",
+    )
 
     args = parser.parse_args()
 
@@ -308,7 +314,9 @@ Examples:
         print(f"Error: Input file not found: {args.input_yaml}")
         sys.exit(1)
 
-    generate_strategies(args.input_yaml, args.output_dir, overwrite=args.overwrite, provider=args.provider)
+    generate_strategies(
+        args.input_yaml, args.output_dir, overwrite=args.overwrite, provider=args.provider
+    )
 
 
 if __name__ == "__main__":

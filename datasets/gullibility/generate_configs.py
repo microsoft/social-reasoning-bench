@@ -14,11 +14,11 @@ import yaml
 def sanitize_filename(name):
     """Remove or replace characters that are invalid in filenames."""
     # Replace problematic characters with underscores
-    name = re.sub(r'[/\\:*?"<>|]', '_', name)
+    name = re.sub(r'[/\\:*?"<>|]', "_", name)
     # Replace multiple underscores with single underscore
-    name = re.sub(r'_+', '_', name)
+    name = re.sub(r"_+", "_", name)
     # Remove leading/trailing underscores and spaces
-    name = name.strip('_ ')
+    name = name.strip("_ ")
     return name
 
 
@@ -33,7 +33,7 @@ def main():
     config_dir.mkdir(exist_ok=True)
 
     # Load the template
-    with open(template_file, 'r') as f:
+    with open(template_file, "r") as f:
         template = yaml.safe_load(f)
 
     # Get all strategy files
@@ -49,24 +49,24 @@ def main():
         print(f"Processing: {strategy_file.name}")
 
         # Load the strategy file
-        with open(strategy_file, 'r') as f:
+        with open(strategy_file, "r") as f:
             strategy_data = yaml.safe_load(f)
 
         # Get the source article name (for naming)
-        source_article = strategy_data.get('source_article', strategy_file.stem)
+        source_article = strategy_data.get("source_article", strategy_file.stem)
 
         # Process each strategy in the file
-        strategies = strategy_data.get('strategies', [])
+        strategies = strategy_data.get("strategies", [])
 
         for idx, strategy in enumerate(strategies):
-            game_strategy = strategy.get('game_strategies', '')
+            game_strategy = strategy.get("game_strategies", "")
 
             if not game_strategy:
                 print(f"  Warning: Strategy {idx} has no game_strategies, skipping")
                 continue
 
             # Get grounding texts if available
-            grounding_texts = strategy.get('grounding_texts', '')
+            grounding_texts = strategy.get("grounding_texts", "")
 
             # Combine grounding texts and game strategy
             if grounding_texts:
@@ -78,9 +78,9 @@ def main():
             config = yaml.safe_load(yaml.dump(template))
 
             # Replace the private_strategy for buyer_1
-            for player in config['players']:
-                if player['name'] == 'buyer_1':
-                    player['private_strategy'] = combined_strategy
+            for player in config["players"]:
+                if player["name"] == "buyer_1":
+                    player["private_strategy"] = combined_strategy
                     break
 
             # Generate a unique filename
@@ -90,7 +90,7 @@ def main():
             config_path = config_dir / config_filename
 
             # Write the config file
-            with open(config_path, 'w') as f:
+            with open(config_path, "w") as f:
                 yaml.dump(config, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
             config_count += 1
