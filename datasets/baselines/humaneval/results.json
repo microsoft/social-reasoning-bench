@@ -1,0 +1,28 @@
+{
+  "accuracy": 1.0,
+  "correct": 3,
+  "total": 3,
+  "results": [
+    {
+      "task_id": "HumanEval/0",
+      "prompt": "from typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n",
+      "generated_code": "from typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\"Check if in given list of numbers, there are any two numbers closer to\n    each other than the given threshold.\n\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n    if len(numbers) < 2:\n        return False\n\n    sorted_numbers = sorted(numbers)\n    for i in range(len(sorted_numbers) - 1):\n        if abs(sorted_numbers[i + 1] - sorted_numbers[i]) < threshold:\n            return True\n    return False\n\n\nif __name__ == \"__main__\":\n    import doctest\n    doctest.testmod()\n",
+      "correct": true,
+      "error": null
+    },
+    {
+      "task_id": "HumanEval/1",
+      "prompt": "from typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n",
+      "generated_code": "from typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n    groups: List[str] = []\n    current_group: List[str] = []\n    depth = 0\n\n    for ch in paren_string:\n        if ch == ' ':\n            continue  # ignore spaces\n        if ch == '(':\n            depth += 1\n            current_group.append(ch)\n        elif ch == ')':\n            current_group.append(ch)\n            depth -= 1\n            if depth == 0:\n                # completed a balanced group\n                groups.append(''.join(current_group))\n                current_group = []\n        else:\n            # If there are unexpected characters, you could raise an error or ignore.\n            # Here we choose to ignore non-parenthesis, non-space characters.\n            continue\n\n    return groups\n\n\nif __name__ == \"__main__\":\n    # Simple manual test\n    print(separate_paren_groups('( ) (( )) (( )( ))'))  # Expected: ['()', '(())', '(()())']\n",
+      "correct": true,
+      "error": null
+    },
+    {
+      "task_id": "HumanEval/2",
+      "prompt": "\n\ndef truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n",
+      "generated_code": "from __future__ import annotations\nimport math\n\n\ndef truncate_number(number: float) -> float:\n    \"\"\"Given a positive floating point number, it can be decomposed into\n    an integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n    fractional_part, _ = math.modf(number)\n    return fractional_part\n\n\nif __name__ == \"__main__\":\n    # Example usage\n    print(truncate_number(3.5))  # Expected output: 0.5\n",
+      "correct": true,
+      "error": null
+    }
+  ]
+}
