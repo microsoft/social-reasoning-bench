@@ -20,3 +20,7 @@ Society of Agents Environment - datasets, environments, and evaluations for mult
 ## [Evaluations](evalutions/)
 
 - [privacy](evaluations/privacy/README.md) Privacy leakage evaluation across datasets
+
+## Code
+
+See [DEV.md](DEV.md) for general setup and running instructions.
