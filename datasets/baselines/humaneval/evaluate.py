@@ -34,7 +34,7 @@ def call_llm(prompt: str, schema: dict | None = None, model: str = "gpt-5.1") ->
     kwargs = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "reasoning_effort": "medium"
+        "reasoning_effort": "medium",
     }
 
     if schema:
@@ -60,13 +60,11 @@ def evaluate_humaneval(sample_size=10, output_file=None):
             "strict": True,
             "schema": {
                 "type": "object",
-                "properties": {
-                    "code": {"type": "string"}
-                },
+                "properties": {"code": {"type": "string"}},
                 "required": ["code"],
-                "additionalProperties": False
-            }
-        }
+                "additionalProperties": False,
+            },
+        },
     }
 
     # Evaluate
@@ -85,13 +83,15 @@ def evaluate_humaneval(sample_size=10, output_file=None):
         if is_correct:
             correct += 1
 
-        results.append({
-            "task_id": problem["task_id"],
-            "prompt": problem["prompt"],
-            "generated_code": generated_code,
-            "correct": is_correct,
-            "error": error_msg if not is_correct else None
-        })
+        results.append(
+            {
+                "task_id": problem["task_id"],
+                "prompt": problem["prompt"],
+                "generated_code": generated_code,
+                "correct": is_correct,
+                "error": error_msg if not is_correct else None,
+            }
+        )
 
         print(f"[{i}/{len(problems)}] {'✓' if is_correct else '✗'}")
 
@@ -101,13 +101,17 @@ def evaluate_humaneval(sample_size=10, output_file=None):
 
     # Save results
     if output_file:
-        with open(output_file, 'w') as f:
-            json.dump({
-                "accuracy": accuracy,
-                "correct": correct,
-                "total": len(problems),
-                "results": results
-            }, f, indent=2)
+        with open(output_file, "w") as f:
+            json.dump(
+                {
+                    "accuracy": accuracy,
+                    "correct": correct,
+                    "total": len(problems),
+                    "results": results,
+                },
+                f,
+                indent=2,
+            )
         print(f"Results saved to {output_file}")
 
     return accuracy

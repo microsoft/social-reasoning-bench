@@ -31,7 +31,7 @@ def call_llm(prompt: str, schema: dict | None = None, model: str = "gpt-5.1") ->
     kwargs = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "reasoning_effort": "medium"
+        "reasoning_effort": "medium",
     }
 
     if schema:
@@ -61,12 +61,12 @@ def evaluate_mmlu(sample_size=10, output_file=None):
                 "type": "object",
                 "properties": {
                     "reasoning": {"type": "string"},
-                    "answer": {"type": "string", "enum": ["A", "B", "C", "D"]}
+                    "answer": {"type": "string", "enum": ["A", "B", "C", "D"]},
                 },
                 "required": ["reasoning", "answer"],
-                "additionalProperties": False
-            }
-        }
+                "additionalProperties": False,
+            },
+        },
     }
 
     # Evaluate
@@ -77,7 +77,7 @@ def evaluate_mmlu(sample_size=10, output_file=None):
         # Format question with choices
         question = problem["question"]
         choices = problem["choices"]
-        choices_text = "\n".join([f"{chr(65+j)}. {choice}" for j, choice in enumerate(choices)])
+        choices_text = "\n".join([f"{chr(65 + j)}. {choice}" for j, choice in enumerate(choices)])
 
         ground_truth_idx = problem["answer"]
         ground_truth = chr(65 + ground_truth_idx)  # 0->A, 1->B, etc.
@@ -93,15 +93,17 @@ def evaluate_mmlu(sample_size=10, output_file=None):
         if is_correct:
             correct += 1
 
-        results.append({
-            "question": question,
-            "subject": problem["subject"],
-            "choices": choices,
-            "ground_truth": ground_truth,
-            "prediction": prediction,
-            "reasoning": result["reasoning"],
-            "correct": is_correct
-        })
+        results.append(
+            {
+                "question": question,
+                "subject": problem["subject"],
+                "choices": choices,
+                "ground_truth": ground_truth,
+                "prediction": prediction,
+                "reasoning": result["reasoning"],
+                "correct": is_correct,
+            }
+        )
 
         print(f"[{i}/{len(problems)}] {'✓' if is_correct else '✗'}")
 
@@ -111,13 +113,17 @@ def evaluate_mmlu(sample_size=10, output_file=None):
 
     # Save results
     if output_file:
-        with open(output_file, 'w') as f:
-            json.dump({
-                "accuracy": accuracy,
-                "correct": correct,
-                "total": len(problems),
-                "results": results
-            }, f, indent=2)
+        with open(output_file, "w") as f:
+            json.dump(
+                {
+                    "accuracy": accuracy,
+                    "correct": correct,
+                    "total": len(problems),
+                    "results": results,
+                },
+                f,
+                indent=2,
+            )
         print(f"Results saved to {output_file}")
 
     return accuracy

@@ -7,7 +7,9 @@ from sage_evals.gullibility import GullibilityMetric
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Evaluate gullibility in coffee trading simulations")
+    parser = argparse.ArgumentParser(
+        description="Evaluate gullibility in coffee trading simulations"
+    )
     parser.add_argument("--input", required=True, help="Path to .db file or directory of .db files")
     parser.add_argument("--agent", default="seller_1", help="Agent to evaluate (default: seller_1)")
     args = parser.parse_args()
@@ -33,7 +35,9 @@ def main():
             if is_gullible:
                 gullible_count += 1
 
-        print(f"\nSummary: {gullible_count}/{len(db_files)} ({100*gullible_count/len(db_files):.1f}%) gullible")
+        print(
+            f"\nSummary: {gullible_count}/{len(db_files)} ({100 * gullible_count / len(db_files):.1f}%) gullible"
+        )
     else:
         print(f"Error: {input_path} is not a file or directory")
 

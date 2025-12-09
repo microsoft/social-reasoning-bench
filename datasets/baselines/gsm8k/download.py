@@ -21,10 +21,10 @@ if test_path.exists():
 print("Downloading GSM-8K dataset...")
 dataset = load_dataset("openai/gsm8k", "main")
 
-with open(output_dir / "train.json", 'w') as f:
+with open(output_dir / "train.json", "w") as f:
     json.dump([dict(x) for x in dataset["train"]], f, indent=2)
 
-with open(output_dir / "test.json", 'w') as f:
+with open(output_dir / "test.json", "w") as f:
     json.dump([dict(x) for x in dataset["test"]], f, indent=2)
 
 print(f"✓ Saved train.json ({len(dataset['train'])} problems)")

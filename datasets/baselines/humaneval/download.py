@@ -21,7 +21,7 @@ if test_path.exists():
 print("Downloading HumanEval dataset...")
 dataset = load_dataset("openai/openai_humaneval")
 
-with open(output_dir / "test.json", 'w') as f:
+with open(output_dir / "test.json", "w") as f:
     json.dump([dict(x) for x in dataset["test"]], f, indent=2)
 
 print(f"✓ Saved test.json ({len(dataset['test'])} problems)")

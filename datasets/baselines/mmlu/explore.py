@@ -120,7 +120,9 @@ def main():
             idx = (idx - 1) % len(subject_df)
         elif cmd == "s":
             # Show subjects and let user pick
-            console.print("\n[bold cyan]Select a subject (0-{}):[/bold cyan]".format(len(subjects) - 1))
+            console.print(
+                "\n[bold cyan]Select a subject (0-{}):[/bold cyan]".format(len(subjects) - 1)
+            )
             for i, subject in enumerate(subjects):
                 count = len(df[df["subject"] == subject])
                 console.print(f"  {i}: {subject} ({count} questions)")

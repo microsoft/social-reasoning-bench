@@ -32,7 +32,7 @@ def call_llm(prompt: str, schema: dict | None = None, model: str = "gpt-5.1") ->
     kwargs = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "reasoning_effort": "medium"
+        "reasoning_effort": "medium",
     }
 
     if schema:
@@ -58,14 +58,11 @@ def evaluate_gsm8k(sample_size=10, output_file=None):
             "strict": True,
             "schema": {
                 "type": "object",
-                "properties": {
-                    "reasoning": {"type": "string"},
-                    "answer": {"type": "string"}
-                },
+                "properties": {"reasoning": {"type": "string"}, "answer": {"type": "string"}},
                 "required": ["reasoning", "answer"],
-                "additionalProperties": False
-            }
-        }
+                "additionalProperties": False,
+            },
+        },
     }
 
     # Evaluate
@@ -74,28 +71,31 @@ def evaluate_gsm8k(sample_size=10, output_file=None):
 
     for i, problem in enumerate(problems, 1):
         # Get ground truth
-        gt_match = re.search(r'####\s*(-?\d+(?:,\d+)*(?:\.\d+)?)', problem["answer"])
-        ground_truth = gt_match.group(1).replace(',', '') if gt_match else None
+        gt_match = re.search(r"####\s*(-?\d+(?:,\d+)*(?:\.\d+)?)", problem["answer"])
+        ground_truth = gt_match.group(1).replace(",", "") if gt_match else None
 
         # Get prediction
         prompt = f"Solve this math problem:\n\n{problem['question']}\n\nShow your reasoning and provide the final numerical answer."
         result = call_llm(prompt, schema)
-        prediction = re.sub(r'[^\d.-]', '', result["answer"])
+        prediction = re.sub(r"[^\d.-]", "", result["answer"])
 
         # Check correctness
-        is_correct = (ground_truth and prediction and
-                     abs(float(ground_truth) - float(prediction)) < 0.01)
+        is_correct = (
+            ground_truth and prediction and abs(float(ground_truth) - float(prediction)) < 0.01
+        )
 
         if is_correct:
             correct += 1
 
-        results.append({
-            "question": problem["question"],
-            "ground_truth": ground_truth,
-            "prediction": prediction,
-            "reasoning": result["reasoning"],
-            "correct": is_correct
-        })
+        results.append(
+            {
+                "question": problem["question"],
+                "ground_truth": ground_truth,
+                "prediction": prediction,
+                "reasoning": result["reasoning"],
+                "correct": is_correct,
+            }
+        )
 
         print(f"[{i}/{len(problems)}] {'✓' if is_correct else '✗'}")
 
@@ -105,13 +105,17 @@ def evaluate_gsm8k(sample_size=10, output_file=None):
 
     # Save results
     if output_file:
-        with open(output_file, 'w') as f:
-            json.dump({
-                "accuracy": accuracy,
-                "correct": correct,
-                "total": len(problems),
-                "results": results
-            }, f, indent=2)
+        with open(output_file, "w") as f:
+            json.dump(
+                {
+                    "accuracy": accuracy,
+                    "correct": correct,
+                    "total": len(problems),
+                    "results": results,
+                },
+                f,
+                indent=2,
+            )
         print(f"Results saved to {output_file}")
 
     return accuracy
