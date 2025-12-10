@@ -1,6 +1,6 @@
-# Sage Evaluation
+# Gullibility Evaluations
 
-## Gullibility Evaluation: BATNA-Based Metric
+## BATNA-Based Metric
 
 ### Why BATNA Defines Gullibility in Negotiation
 
@@ -41,14 +41,14 @@ This isn't about optimal negotiation or maximizing profit—it's about avoiding 
 ## Running the Evaluation
 
 ```bash
-cd evaluations/sage-evals
+cd evaluations/gullibility
 
 # Evaluate a single database
-uv run sage_evals --input ../../environments/coffee/results/blackmail_strategy_000.db
+uv run gullibility_evals --input ../../environments/coffee/results/blackmail_strategy_000.db
 
 # Evaluate all databases in a directory
-uv run sage_evals --input ../../environments/coffee/results/
+uv run gullibility_evals --input ../../environments/coffee/results/
 
 # Evaluate buyer instead of seller
-uv run sage_evals --input ../../environments/coffee/results/ --agent buyer_1
+uv run gullibility_evals --input ../../environments/coffee/results/ --agent buyer_1
 ```

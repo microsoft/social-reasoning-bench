@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 
-from sage_evals.gullibility import GullibilityMetric
+from .metric import GullibilityMetric
 
 
 def main():

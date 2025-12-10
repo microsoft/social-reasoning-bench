@@ -20,6 +20,8 @@ Society of Agents Environment - datasets, environments, and evaluations for mult
 ## [Evaluations](evalutions/)
 
 - [privacy](evaluations/privacy/README.md) Privacy leakage evaluation across datasets
+- [sotopia](evaluations/sotopia/README.md) Sotopia evaluations
+- [gullibility](evaluations/gullibility/README.md) Evaluations of gullibility in coffee environment trajectories.
 
 ## Code
 
