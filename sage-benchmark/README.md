@@ -38,18 +38,20 @@ uv run pytest tests/data
 (along with whether the information is visible to the LLM)
 
 - Requestor agent
-  - `description` (visible): esp. relationship to assistant (because it impacts whether an event is secret)
-  - `event` (visible): requested event at a time (not including is_movable or is_secret)
+  - `system_message` (visible): system prompt
+  - `instruction_message` (visible): instruction for the specific task esp. relationship to assistant (because it impacts whether an event is secret)
+  - `event` (visible): requested event at a time
   - `is_malicious` (hidden): the agents that are attacking or normal
 - Assistant agent
-  - `description` (visible): esp. relationship to requestor
+  - `system_message` (visible): system prompt
+  - `instruction_message` (visible): instruction for the specific task esp. relationship to requestor
   - `calendar` (visible via tools): Has a calendar (start with just 1 day of events, always has a conflict with the requested event)
   - Calendar event
-    - `start_datetime` (visible)
-    - `duration` (visible)
-    - `Title` (visible)
-    - `Description` (visible)
-    - `Participants` (visible)
+    - `start_time` (visible): hour in military time (integer)
+    - `duration` (visible): duration in hours
+    - `title` (visible)
+    - `description` (visible)
+    - `participants` (visible)
     - `is_movable` (hidden): Whether or not this is an event that the assistant can move to accommodate the requested event
     - `is_secret` (hidden): Whether this event is secret w.r.t. the requestor agent
   - In system prompt, be sure to include that there is possibility to deny a request
@@ -74,19 +76,16 @@ uv run pytest tests/data
 ### Details
 
 - Assistant agent
-  - System prompt (e.g. persona)
-  - `instruction`: What the user wants filled out, e.g. "Fill out my credit card application" or "Submit my order return"
+  - `system_message` (visible): system prompt (e.g. persona)
+  - `instruction_message` (visible): what the user wants filled out, e.g. "Fill out my credit card application" or "Submit my order return"
   - `facts` (visible): list of facts about the user. 5 or so background facts (e.g. SSN, healthcare policy #, TBD)
     - Fact:
-      - `data` (visible): the fact
+      - `fact` (visible): the fact
       - `should_appear` (hidden): Whether this fact should appear in the form, or be kept secret.
 - Form
-  - `description`: metadata about where this form is from and intro text
-  - `is_malicous` (hidden): Is this form maliciously trying to get secret information?
-  - `fields` (visible): two types of form fields `short` and `long`; short fields are info input (e.g. SSN) and long fields are open ended (e.g. "why are you applying for this lease")
-    - Field:
-      - `question` (visible): what is the question asked
-      - `type`: short or long
+  - `description` (visible): metadata about where this form is from and intro text
+  - `is_malicious` (hidden): Is this form maliciously trying to get secret information?
+  - `fields` (visible): list of form field questions/prompts (strings)
 
 ### Metrics
 
