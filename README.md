@@ -1,8 +1,16 @@
 # SAGE
 
-Society of Agents Environment - datasets, environments, and evaluations for multi-agent systems.
+_**S**ociety of **Ag**ents **E**valuations_
+
+This repo contains datasets, environments, and evaluations for testing the social reasoning ability of multi-agent systems.
+
+## [Sage-Benchmark](sage-benchmark)
+
+Our new benchmark for testing social reasoning.
 
 ## [Datasets](datasets/)
+
+Prior datasets:
 
 - [calendar](datasets/calendar/README.md) Calendar Scheduling
 - [gullibility](datasets/gullibility/README.md) Gullibility
