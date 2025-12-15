@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from .types import FormTask
+from .schemas import FormTask
 
 
 def load_form_tasks(yaml_path: str | Path) -> list[FormTask]:

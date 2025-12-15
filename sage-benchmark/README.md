@@ -2,7 +2,7 @@
 
 Benchmark your agent's social reasoning ability.
 
-## Installation
+## Setup & Installation
 
 From the root of this repo
 
@@ -10,9 +10,14 @@ From the root of this repo
 uv sync --all-groups
 ```
 
-## Quick Start
+Make sure you have API key environment variables set. The recommended approach is to put a .env file in the `sage-benchmark` folder. It will be loaded automatically.
 
-### Adding & Validating Tasks
+```bash
+export OPENAI_API_KEY="insert-key"
+export GEMINI_API_KEY="insert-key"
+```
+
+## Adding & Validating Tasks
 
 You can contribute new tasks by adding or extending yaml files in the [data](./data) folder.
 
@@ -23,7 +28,16 @@ cd sage-benchmark
 uv run pytest tests/data
 ```
 
-## Tasks
+## Run Evals
+
+Run full form evals:
+
+```bash
+cd sage-benchmark
+uv run sage_benchmark/form_filling/runner.py --model gpt-4.1 --data data/form-filling/form-tasks.yaml --judge-model gpt-4.1
+```
+
+## Data Format
 
 ## Calendar Scheduling
 
