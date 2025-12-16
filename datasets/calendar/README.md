@@ -4,7 +4,7 @@ A benchmark for evaluating whether LLM agents leak sensitive information in cale
 
 ## Overview
 
-CalendarScheduling contains 190 synthetic datapoints. 
+CalendarScheduling contains 210 synthetic datapoints. 
 
 **Key insight**: Though seemingly straightforward, models are actually terrible at protecting clients' private information.
 
