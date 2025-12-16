@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 from sage_benchmark.form_filling.loader import load_form_tasks
-from sage_benchmark.form_filling.types import FormTask
+from sage_benchmark.form_filling.schemas import FormTask
 
 # Path to data directory relative to project root
 DATA_DIR = Path(__file__).parent.parent.parent / "data" / "form-filling"

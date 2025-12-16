@@ -685,3 +685,9 @@ uv run form_filling_evaluation.py \
     --eval-model gpt-4.1 \
     --limit 10
 ```
+
+To convert `form_filling_scenarios.jsonl` to the format used in sage-benchmark you can run:
+
+```bash
+uv run convert_to_sage_benchmark.py
+```
