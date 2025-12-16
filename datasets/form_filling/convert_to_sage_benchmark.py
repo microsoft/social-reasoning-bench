@@ -14,10 +14,9 @@ from pathlib import Path
 from typing import Any, get_args, get_origin
 
 import yaml
+from form_filling_groundtruth import get_main_form_class, import_form_module
 from openai import OpenAI
 from pydantic import BaseModel, Field
-
-from form_filling_groundtruth import get_main_form_class, import_form_module
 
 # ============================================================================
 # LLM Judge for Determining Required Persona Fields
