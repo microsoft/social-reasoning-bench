@@ -7,14 +7,17 @@ expected by the sage-benchmark framework for evaluation.
 """
 
 import argparse
+import inspect
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args, get_origin
 
 import yaml
 from openai import OpenAI
 from pydantic import BaseModel, Field
+
+from form_filling_groundtruth import get_main_form_class, import_form_module
 
 # ============================================================================
 # LLM Judge for Determining Required Persona Fields
@@ -188,8 +191,120 @@ def extract_form_fields(ground_truth: dict[str, Any]) -> list[str]:
     return fields
 
 
+def extract_pydantic_fields(
+    form_id: int, generated_forms_dir: str = "generated_forms"
+) -> list[str]:
+    """
+    Extract form field questions from pydantic model with section prefixes.
+
+    Args:
+        form_id: ID of the form to load
+        generated_forms_dir: Directory containing generated_forms/*.py files
+
+    Returns:
+        List of field questions with section prefixes (e.g., "Personal Information: Name")
+    """
+
+    def remove_na_suffix(description: str) -> str:
+        """Remove the NA/blank hint suffix from field descriptions."""
+        # The exact suffix pattern from generated forms
+        suffix = '.If you cannot fill this, write "N/A". If this field should not be filled by you (for example, it belongs to another person or office), leave it blank (empty string "").'
+
+        if description.endswith(suffix):
+            return description[: -len(suffix)].strip()
+        return description.strip()
+
+    def extract_fields_recursive(model_class, section_prefix: str = "") -> list[str]:
+        """
+        Recursively extract field descriptions from a pydantic model.
+
+        Args:
+            model_class: Pydantic BaseModel class to extract from
+            section_prefix: Current section hierarchy (e.g., "Personal Information")
+
+        Returns:
+            List of formatted field strings
+        """
+        fields = []
+
+        # Get the model's field definitions
+        model_fields = model_class.model_fields
+
+        for field_name, field_info in model_fields.items():
+            # Get the field's description (from Field(..., description="..."))
+            description = field_info.description or field_name.replace("_", " ").title()
+
+            # Remove NA suffix from description
+            clean_description = remove_na_suffix(description)
+
+            # Get the field's type annotation
+            field_type = field_info.annotation
+
+            # Check if it's a nested BaseModel
+            if inspect.isclass(field_type) and issubclass(field_type, BaseModel):
+                # It's a nested model - recurse with updated section name
+                nested_section = (
+                    field_type.__doc__.strip().split("\n")[0]
+                    if field_type.__doc__
+                    else field_name.replace("_", " ").title()
+                )
+                nested_fields = extract_fields_recursive(field_type, nested_section)
+                fields.extend(nested_fields)
+
+            # Check if it's a List[BaseModel] (table rows)
+            elif get_origin(field_type) is list:
+                # It's a List type - check if it's a list of BaseModels
+                type_args = get_args(field_type)
+                if (
+                    type_args
+                    and inspect.isclass(type_args[0])
+                    and issubclass(type_args[0], BaseModel)
+                ):
+                    # List of nested models (e.g., List[TableRow])
+                    # Extract fields from the row model
+                    row_model = type_args[0]
+                    row_fields = extract_fields_recursive(row_model, section_prefix)
+                    fields.extend(row_fields)
+                else:
+                    # Regular list field
+                    formatted = (
+                        f"{section_prefix}: {clean_description}"
+                        if section_prefix
+                        else clean_description
+                    )
+                    fields.append(formatted)
+
+            else:
+                # Regular field (str, int, BooleanLike, Union, etc.)
+                formatted = (
+                    f"{section_prefix}: {clean_description}"
+                    if section_prefix
+                    else clean_description
+                )
+                fields.append(formatted)
+
+        return fields
+
+    # Load the pydantic model
+    form_file = os.path.join(generated_forms_dir, f"form_{form_id}.py")
+
+    if not os.path.exists(form_file):
+        raise FileNotFoundError(f"Form model not found: {form_file}")
+
+    module = import_form_module(form_file)
+    _, root_model_class = get_main_form_class(module)
+
+    # Start extraction from root model (no prefix at top level)
+    extracted_fields = extract_fields_recursive(root_model_class)
+    return extracted_fields
+
+
 def convert_scenario_to_task(
-    scenario: dict[str, Any], client: OpenAI | None = None, judge_model: str = "gpt-4o-mini"
+    scenario: dict[str, Any],
+    client: OpenAI | None = None,
+    judge_model: str = "gpt-4o-mini",
+    use_pydantic: bool = True,
+    generated_forms_dir: str = "generated_forms",
 ) -> dict[str, Any]:
     """
     Convert a single scenario to benchmark task format.
@@ -198,13 +313,23 @@ def convert_scenario_to_task(
         scenario: Scenario dictionary from JSONL
         client: OpenAI client for LLM judging (None = skip judging, all facts should_appear=True)
         judge_model: Model to use for judging required fields
+        use_pydantic: Extract form fields from pydantic models instead of JSONL ground_truth (default: True)
+        generated_forms_dir: Directory containing generated pydantic form models
 
     Returns:
         Task dictionary in benchmark format
     """
     # Extract form information
     form_title = scenario.get("form_info", {}).get("title", "Unknown Form")
-    form_fields = extract_form_fields(scenario.get("ground_truth", {}))
+
+    # Choose extraction method based on flag
+    if use_pydantic:
+        form_id = scenario.get("form_id")
+        if form_id is None:
+            raise ValueError("form_id is required when using --use-pydantic")
+        form_fields = extract_pydantic_fields(form_id, generated_forms_dir)
+    else:
+        form_fields = extract_form_fields(scenario.get("ground_truth", {}))
 
     # Use LLM judge to determine which persona fields are required
     required_fields = None
@@ -239,9 +364,11 @@ def convert_scenario_to_task(
 def convert_jsonl_to_yaml(
     input_path: Path,
     output_path: Path,
-    limit: int | None = None,
-    client: OpenAI | None = None,
-    judge_model: str = "gpt-4o-mini",
+    limit: int | None,
+    client: OpenAI | None,
+    judge_model: str,
+    use_pydantic: bool,
+    generated_forms_dir: str,
 ) -> None:
     """
     Convert form_filling_scenarios.jsonl to benchmark YAML format.
@@ -252,6 +379,8 @@ def convert_jsonl_to_yaml(
         limit: Optional limit on number of scenarios to convert (None = all)
         client: OpenAI client for LLM judging (None = skip judging)
         judge_model: Model to use for judging required fields
+        use_pydantic: Extract form fields from pydantic models instead of JSONL ground_truth
+        generated_forms_dir: Directory containing generated pydantic form models
     """
     tasks = []
 
@@ -265,7 +394,9 @@ def convert_jsonl_to_yaml(
             if client is not None:
                 print(f"  Processing scenario {i + 1} (calling LLM judge)...", end="\r")
 
-            task = convert_scenario_to_task(scenario, client, judge_model)
+            task = convert_scenario_to_task(
+                scenario, client, judge_model, use_pydantic, generated_forms_dir
+            )
             tasks.append(task)
 
     # Write YAML output
@@ -281,6 +412,10 @@ def convert_jsonl_to_yaml(
     print(f"✓ Converted {len(tasks)} scenarios{limit_msg} to {output_path}")
     print(f"  Input:  {input_path}")
     print(f"  Output: {output_path}")
+    if use_pydantic:
+        print(f"  Source: Pydantic models from {generated_forms_dir}/")
+    else:
+        print(f"  Source: JSONL ground_truth data")
 
 
 def main():
@@ -331,6 +466,20 @@ def main():
         help="Model to use for LLM judging (default: gpt-4.1)",
     )
 
+    parser.add_argument(
+        "--no-pydantic",
+        action="store_false",
+        dest="use_pydantic",
+        help="Extract form fields from JSONL ground_truth instead of pydantic models (default: use pydantic)",
+    )
+
+    parser.add_argument(
+        "--generated-forms-dir",
+        type=str,
+        default="generated_forms",
+        help="Directory containing generated pydantic form models (default: generated_forms)",
+    )
+
     args = parser.parse_args()
 
     # Validate input file exists
@@ -357,7 +506,13 @@ def main():
 
     # Convert
     convert_jsonl_to_yaml(
-        args.input, args.output, limit=args.limit, client=client, judge_model=args.judge_model
+        args.input,
+        args.output,
+        limit=args.limit,
+        client=client,
+        judge_model=args.judge_model,
+        use_pydantic=args.use_pydantic,
+        generated_forms_dir=args.generated_forms_dir,
     )
 
     return 0
