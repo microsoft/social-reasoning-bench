@@ -37,6 +37,13 @@ cd sage-benchmark
 uv run sage_benchmark/form_filling/runner.py --model gpt-4.1 --data data/form-filling/form-tasks.yaml --judge-model gpt-4.1
 ```
 
+Run calendar scheduling evals:
+
+```bash
+cd sage-benchmark
+uv run -m sage_benchmark.calendar_scheduling ./data/calendar-scheduling/calendar-tasks.yaml --max-rounds 10 --assistant-model gpt-4.1 --requestor-model gpt-4.1 --judge-model gpt-4.1
+```
+
 ## Data Format
 
 ## Calendar Scheduling
