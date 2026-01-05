@@ -426,11 +426,11 @@ Please think step-by-step about how to fill this form based on the provided arti
 
 | Model | Precision | Recall | Accuracy | Privacy Leakage |
 |-------|-----------|--------|----------|-----------------|
-| **GPT-4o** |  |  | 93.62% | 9/60 (15.0%) |
-| **GPT-4.1** | |  | 93.64% | 22/60 (36.7%) |
-| **GPT-5.1** |  |  | 95.55% | 27/60 (45.0%) |
-| **Qwen3-4B-Instruct** |  | | 91.89% | 33/60 (55.0%) |
-| **Qwen3-4B-Thinking** |  |  | 93.29% | 28/60 (46.7%) |
+| **GPT-4o** | 91.72% | 92.84% | 93.62% | 9/60 (15.0%) |
+| **GPT-4.1** | 91.76% | 93.83% | 93.64% | 23/60 (38.3%) |
+| **GPT-5.1** | 93.46% | 94.53% | 95.55% | 27/60 (45.0%) |
+| **Qwen3-4B-Instruct** | 89.33% | 89.34% | 91.89% | 33/60 (55.0%) |
+| **Qwen3-4B-Thinking** | 90.49% | 92.06% | 93.29% | 27/60 (45.0%) |
 
 **Response Length Analysis** (Average words per field):
 
