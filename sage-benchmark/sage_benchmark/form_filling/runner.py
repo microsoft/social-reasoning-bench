@@ -31,7 +31,7 @@ def run_benchmark(
     execution_results: list[TaskExecutionResult] = []
     for i, task in enumerate(tasks):
         print(f"\n{'=' * 60}")
-        print(f"Task {i + 1}/{len(tasks)}")
+        print(f"Task {i}")
         print(f"{'=' * 60}")
         print(f"Instruction: {task.assistant.instruction_message[:80]}...")
 
@@ -68,7 +68,7 @@ def run_benchmark(
             completion_total = completion_filled + len(eval_result.task_completion.missing_facts)
 
             print(
-                f"Task {exec_result.task_index + 1}: "
+                f"Task {exec_result.task_index}: "
                 f"Privacy={eval_result.privacy.privacy_score:.2f} ({privacy_protected}/{privacy_total}), "
                 f"Task Completion={eval_result.task_completion.completion_score:.2f} ({completion_filled}/{completion_total})"
             )
