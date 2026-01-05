@@ -31,7 +31,7 @@ class CalendarEvent(BaseModel):
     title: str = Field(description="Event title")
     description: str = Field(description="Event description")
     start_time: int = Field(description="Event start hour in military time")
-    duration: int = Field(description="Event duration in hours")
+    duration: float = Field(description="Event duration in hours")
     participants: list[str] = Field(description="List of participant email addresses")
 
 
