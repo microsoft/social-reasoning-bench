@@ -18,6 +18,17 @@ from form_filling_groundtruth import get_main_form_class, import_form_module
 from openai import OpenAI
 from pydantic import BaseModel
 
+
+def load_jsonl(file_path: str) -> List[Dict]:
+    """Load all scenarios from JSONL file."""
+    data = []
+    with open(file_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                data.append(json.loads(line))
+    return data
+
+
 # ============================================================================
 # Client Configuration
 # ============================================================================
@@ -671,7 +682,7 @@ Respond in JSON format:
 # ============================================================================
 
 
-def evaluate_single_scenario(
+def generate_and_evaluate_single_scenario(
     scenario_data: Dict,
     agent_client: OpenAI,
     eval_client: OpenAI,
@@ -680,7 +691,7 @@ def evaluate_single_scenario(
     agent_model: str = "gpt-4.1",
     eval_model: str = "gpt-4o",
 ) -> Dict:
-    """Evaluate a single form filling scenario.
+    """Generate answer and evaluate for a single form filling scenario.
 
     Args:
         scenario_data: Scenario data from JSONL
@@ -730,6 +741,62 @@ def evaluate_single_scenario(
     # Get validation info if available
     validation = scenario_data.get("validation")
 
+    return evaluation_function(
+        generated_form,
+        ground_truth_form,
+        background_info,
+        eval_client,
+        eval_model,
+        validation,
+        form_id,
+        agent_model,
+        model_name,
+        scenario_data,
+    )
+
+
+def evaluation_function(
+    generated_form: Dict,
+    ground_truth_form: Dict,
+    background_info: str,
+    eval_client: OpenAI,
+    eval_model: str,
+    validation: Optional[Dict],
+    form_id: int,
+    agent_model: str,
+    pydantic_model: str,
+    scenario_data: Dict,
+) -> Dict:
+    """Evaluate form filling correctness and privacy for a completed form.
+
+    This function performs comprehensive evaluation by:
+    1. Assessing form correctness with precision and recall metrics
+    2. Evaluating privacy leakage by checking for inappropriate disclosure of secrets
+
+    Args:
+        generated_form: Form data filled by the agent, as a dictionary
+        ground_truth_form: Ground truth filled form data for comparison
+        background_info: Background information/artifacts available to the agent (formatted as text)
+        eval_client: OpenAI client instance for making evaluation API calls
+        eval_model: Name of the model to use for evaluation (e.g., "gpt-4o")
+        validation: Optional validation metadata containing field_coverage and secret_embedding info
+        form_id: ID of the form being evaluated
+        agent_model: Model used by the agent to fill the form
+        pydantic_model: Name of the Pydantic model class
+        scenario_data: Full scenario data containing persona and secrets
+
+    Returns:
+        Dictionary containing:
+            - form_id: ID of the evaluated form
+            - agent_model: Model used by the agent to fill the form
+            - eval_model: Model used for evaluation
+            - pydantic_model: Name of the Pydantic model class
+            - generated_form: The agent's filled form data
+            - ground_truth_form: The ground truth form data
+            - correctness_evaluation: Metrics including precision, recall, and field-level comparisons
+            - privacy_evaluation: Privacy leakage assessment with severity ratings
+            - scenario_summary: High-level scenario metadata
+    """
     correctness_eval = evaluate_form_correctness(
         generated_form, ground_truth_form, background_info, eval_client, eval_model, validation
     )
@@ -759,7 +826,7 @@ def evaluate_single_scenario(
         "form_id": form_id,
         "agent_model": agent_model,
         "eval_model": eval_model,
-        "pydantic_model": model_name,
+        "pydantic_model": pydantic_model,
         "generated_form": generated_form,
         "ground_truth_form": ground_truth_form,
         "correctness_evaluation": correctness_eval,
@@ -773,14 +840,60 @@ def evaluate_single_scenario(
     return result
 
 
-def load_scenarios(file_path: str) -> List[Dict]:
-    """Load all scenarios from JSONL file."""
-    scenarios = []
-    with open(file_path, "r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                scenarios.append(json.loads(line))
-    return scenarios
+def evaluate_single_scenario(
+    prev_result: Dict,
+    scenario_data: Dict,
+    eval_client: OpenAI,
+    groundtruth_dir: str = "groundtruth_forms",
+    eval_model: str = "gpt-4o",
+) -> Dict:
+    """Evaluate a previously generated form (evaluation only, no generation).
+
+    Args:
+        prev_result: Previously generated result containing generated_form
+        scenario_data: Scenario data for context
+        eval_client: OpenAI client for evaluation
+        groundtruth_dir: Directory with ground truth forms
+        eval_model: Model to use for evaluation
+
+    Returns:
+        Complete evaluation result
+    """
+    form_id = prev_result["form_id"]
+
+    print(f"\n{'=' * 60}")
+    print(f"[Form {form_id}] Evaluating...")
+    print(f"{'=' * 60}")
+
+    # Extract generated form and metadata
+    generated_form = prev_result["generated_form"]
+    agent_model = prev_result.get("agent_model", "unknown")
+    pydantic_model = prev_result.get("pydantic_model", "unknown")
+
+    # Load ground truth
+    print(f"[Form {form_id}] Loading ground truth...")
+    ground_truth_path = os.path.join(groundtruth_dir, f"filled_form_{form_id}.json")
+    with open(ground_truth_path, "r", encoding="utf-8") as f:
+        ground_truth_form = json.load(f)
+
+    # Get background info and validation
+    print(f"[Form {form_id}] Evaluating with {eval_model}...")
+    background_info = format_artifacts_as_text(scenario_data["artifacts"]["artifacts"])
+    validation = scenario_data.get("validation")
+
+    # Use evaluation_function for consistent evaluation logic
+    return evaluation_function(
+        generated_form,
+        ground_truth_form,
+        background_info,
+        eval_client,
+        eval_model,
+        validation,
+        form_id,
+        agent_model,
+        pydantic_model,
+        scenario_data,
+    )
 
 
 def evaluate_all_scenarios(
@@ -792,6 +905,7 @@ def evaluate_all_scenarios(
     eval_model: str = "gpt-4o",
     start_idx: int = 0,
     limit: Optional[int] = None,
+    eval_only: bool = False,
 ):
     """Evaluate all scenarios and save results.
 
@@ -804,36 +918,60 @@ def evaluate_all_scenarios(
         eval_model: Model for evaluation
         start_idx: Starting index
         limit: Maximum number to evaluate
+        eval_only: If True, re-evaluate existing results without regenerating
     """
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY environment variable not set")
 
-    # Create appropriate clients based on model names
-    agent_client = get_openai_client(agent_model, api_key)
     eval_client = get_openai_client(eval_model, api_key)
 
-    print(f"\n{'=' * 60}")
-    print(f"Form Filling Evaluation Pipeline")
-    print(f"{'=' * 60}")
-    print(f"Input: {input_file}")
-    print(f"Output: {output_file}")
-    print(f"Generated forms: {generated_forms_dir}")
-    print(f"Ground truth: {groundtruth_dir}")
-    print(f"Agent model: {agent_model}")
-    print(f"Eval model: {eval_model}")
-    print(f"{'=' * 60}")
-
+    # Load scenarios
     print(f"\nLoading scenarios from {input_file}...")
-    scenarios = load_scenarios(input_file)
+    scenarios = load_jsonl(input_file)
     print(f"Loaded {len(scenarios)} scenarios")
+    scenario_map = {s["form_id"]: s for s in scenarios}
+
+    if eval_only:
+        # Eval-only mode: load existing results
+        assert os.path.exists(output_file), (
+            f"Output file with generated form filling answers not found: {output_file}"
+        )
+
+        print(f"\n{'=' * 60}")
+        print(f"Form Filling Re-Evaluation (Evaluation Only)")
+        print(f"{'=' * 60}")
+        print(f"Generated results: {output_file}")
+        print(f"Ground truth: {groundtruth_dir}")
+        reeval_output_file = output_file.replace(".jsonl", "_reeval.jsonl")
+        print(f"Output: {reeval_output_file}")
+        print(f"Eval model: {eval_model}")
+        print(f"{'=' * 60}")
+
+        items = load_jsonl(output_file)
+    else:
+        # Normal mode: generate and evaluate
+        agent_client = get_openai_client(agent_model, api_key)
+
+        print(f"\n{'=' * 60}")
+        print(f"Form Filling Evaluation Pipeline")
+        print(f"{'=' * 60}")
+        print(f"Input: {input_file}")
+        print(f"Output: {output_file}")
+        print(f"Generated forms: {generated_forms_dir}")
+        print(f"Ground truth: {groundtruth_dir}")
+        print(f"Agent model: {agent_model}")
+        print(f"Eval model: {eval_model}")
+        print(f"{'=' * 60}")
+
+        items = scenarios
 
     if limit:
-        scenarios = scenarios[start_idx : start_idx + limit]
+        items = items[start_idx : start_idx + limit]
     else:
-        scenarios = scenarios[start_idx:]
+        items = items[start_idx:]
 
-    print(f"Evaluating {len(scenarios)} scenarios (starting from index {start_idx})")
+    print(f"\nProcessing {len(items)} items (starting from index {start_idx})")
 
     success_count = 0
     failed_count = 0
@@ -841,22 +979,40 @@ def evaluate_all_scenarios(
     total_recall = 0
     leakage_count = 0
 
-    for i, scenario in enumerate(scenarios, start=start_idx):
+    for i, item in enumerate(items, start=start_idx):
         try:
-            print(f"\n[Progress: {i - start_idx + 1}/{len(scenarios)}]")
-            result = evaluate_single_scenario(
-                scenario,
-                agent_client,
-                eval_client,
-                generated_forms_dir,
-                groundtruth_dir,
-                agent_model,
-                eval_model,
-            )
+            print(f"\n[Progress: {i - start_idx + 1}/{len(items)}]")
 
-            # Save result
-            with open(output_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(result, ensure_ascii=False) + "\n")
+            if eval_only:
+                # Evaluate existing result
+                form_id = item["form_id"]
+                scenario = scenario_map.get(form_id)
+                if not scenario:
+                    print(f"  ⚠️  Warning: Scenario not found for form {form_id}, skipping...")
+                    failed_count += 1
+                    continue
+
+                result = evaluate_single_scenario(
+                    item, scenario, eval_client, groundtruth_dir, eval_model
+                )
+                # Save result
+                with open(reeval_output_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(result, ensure_ascii=False) + "\n")
+            else:
+                # Generate and evaluate
+                result = generate_and_evaluate_single_scenario(
+                    item,
+                    agent_client,
+                    eval_client,
+                    generated_forms_dir,
+                    groundtruth_dir,
+                    agent_model,
+                    eval_model,
+                )
+
+                # Save result
+                with open(output_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(result, ensure_ascii=False) + "\n")
 
             success_count += 1
             total_precision += result["correctness_evaluation"].get("precision", 0)
@@ -885,68 +1041,6 @@ def evaluate_all_scenarios(
         )
     print(f"Output: {output_file}")
     print("=" * 60)
-
-
-# ============================================================================
-# Analysis and Reporting
-# ============================================================================
-
-
-def generate_summary_report(evaluations_file: str, output_file: str = "evaluation_summary.json"):
-    """Generate a summary report from all evaluations.
-
-    Args:
-        evaluations_file: File containing evaluation results
-        output_file: Output summary file
-    """
-    evaluations = load_scenarios(evaluations_file)
-
-    total = len(evaluations)
-
-    # Precision/recall metrics
-    total_precision = sum(e["correctness_evaluation"].get("precision", 0) for e in evaluations)
-    total_recall = sum(e["correctness_evaluation"].get("recall", 0) for e in evaluations)
-
-    total_recall_failures = sum(
-        e["correctness_evaluation"].get("recall_failures", 0) for e in evaluations
-    )
-    total_fields_should_fill = sum(
-        e["correctness_evaluation"].get("total_fields_should_fill", 0) for e in evaluations
-    )
-
-    # Privacy metrics
-    leakage_detected = sum(1 for e in evaluations if e["privacy_evaluation"]["leakage_detected"])
-
-    severity_counts = {"none": 0, "low": 0, "medium": 0, "high": 0}
-
-    for eval_result in evaluations:
-        severity = eval_result["privacy_evaluation"]["overall_severity"]
-        severity_counts[severity] = severity_counts.get(severity, 0) + 1
-
-    summary = {
-        "total_scenarios": total,
-        "correctness": {
-            "average_precision": total_precision / total if total > 0 else 0,
-            "average_recall": total_recall / total if total > 0 else 0,
-            "total_recall_failures": total_recall_failures,
-            "total_fields_should_fill": total_fields_should_fill,
-        },
-        "privacy": {
-            "leakage_detected_count": leakage_detected,
-            "leakage_rate": leakage_detected / total if total > 0 else 0,
-            "severity_distribution": severity_counts,
-        },
-        "models": {
-            "agent_model": evaluations[0]["agent_model"] if evaluations else None,
-            "eval_model": evaluations[0]["eval_model"] if evaluations else None,
-        },
-    }
-
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(summary, f, indent=2, ensure_ascii=False)
-
-    print(f"\nSummary report saved to {output_file}")
-    print(json.dumps(summary, indent=2))
 
 
 if __name__ == "__main__":
@@ -985,7 +1079,9 @@ if __name__ == "__main__":
     parser.add_argument("--start", type=int, default=0, help="Starting index")
     parser.add_argument("--limit", type=int, default=None, help="Maximum number to evaluate")
     parser.add_argument(
-        "--summary", action="store_true", help="Generate summary report from existing evaluations"
+        "--eval-only",
+        action="store_true",
+        help="Re-evaluate existing generated forms without regenerating them",
     )
 
     args = parser.parse_args()
@@ -996,16 +1092,14 @@ if __name__ == "__main__":
     args.output = output_name + f"_{agent_model_name}_eval_with_{eval_model_name}.jsonl"
     args.output = os.path.join("output", args.output)
 
-    if args.summary:
-        generate_summary_report(args.input, "evaluation_summary.json")
-    else:
-        evaluate_all_scenarios(
-            args.input,
-            args.output,
-            args.generated_forms_dir,
-            args.groundtruth_dir,
-            args.agent_model,
-            args.eval_model,
-            args.start,
-            args.limit,
-        )
+    evaluate_all_scenarios(
+        args.input,
+        args.output,
+        args.generated_forms_dir,
+        args.groundtruth_dir,
+        args.agent_model,
+        args.eval_model,
+        args.start,
+        args.limit,
+        eval_only=args.eval_only,
+    )
