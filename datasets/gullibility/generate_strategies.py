@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Generate game strategies from Wikipedia content using LLMs.
-Takes a YAML file with Wikipedia content and outputs applicable strategies.
+Takes a Wikipedia YAML file and a game context text file as input,
+outputs applicable strategies based on the game rules.
 Supports multiple LLM providers: gemini, openai, trapi.
 """
 
@@ -98,48 +99,6 @@ def _call_trapi(prompt: str) -> str:
     return response.choices[0].message.content or ""
 
 
-GAME_CONTEXT = """
-### GAME DESCRIPTION
-You are buyer_1 (agent_id=1) in a multi-agent trading game.
-
-### GAME RULES (publicly known)
-- Total rounds: 5
-- Agents take turns (the order follows the MARKET PARTICIPANTS order below)
-- Proposals not accepted will expire next round
-- Seller coffee bean utility is sampled from [2,3,4,5] uniformly
-- Buyer coffee bean utility is sampled from [6,7,8,9] uniformly
-- Buyer has initial cash: $30, Seller has initial cash: $0
-
-### MARKET PARTICIPANTS (publicly known)
-buyer_1 (agent_id=1): I want high-quality coffee beans for my cafe
-seller_1 (agent_id=2): I offer premium organic coffee beans
-
-### YOUR OBJECTIVE
-Maximize total value: cash + coffee_beans × $6.00
-
-### POSSIBLE ACTIONS
-Choose ONE action for this round:
-1. **talk**: Send message to another agent
-2. **proposal**: Create trade offer
-3. **accept**: Accept a proposal
-4. **skip**: Skip this turn
-
-Response format:
-```yaml
-think: |
-    To maximize my total value, I will ...
-action: <talk|proposal|accept|skip>
-target: <agent_id for talk/proposal, or proposal number for accept>
-content: |
-    Text message to target for talk / proposal
-beans_i_give: <number if proposal>
-money_i_give: <amount if proposal>
-beans_i_want: <number if proposal>
-money_i_want: <amount if proposal>
-```
-"""
-
-
 def chunk_text(text: str, chunk_size: int = 5000, buffer_size: int = 500) -> list[str]:
     """Split text into overlapping chunks."""
     chunks = []
@@ -161,9 +120,17 @@ def chunk_text(text: str, chunk_size: int = 5000, buffer_size: int = 500) -> lis
 
 
 def generate_strategies(
-    wiki_yaml_path: Path, output_dir: Path, overwrite: bool = False, provider: str = "gemini"
+    wiki_yaml_path: Path,
+    game_context_path: Path,
+    output_dir: Path,
+    overwrite: bool = False,
+    provider: str = "gemini",
 ):
-    """Generate strategies from Wikipedia content."""
+    """Generate strategies from Wikipedia content using a game context file."""
+
+    # Read game context from file
+    with open(game_context_path, "r", encoding="utf-8") as f:
+        game_context = f.read().strip()
 
     # Read Wikipedia content
     with open(wiki_yaml_path, "r", encoding="utf-8") as f:
@@ -208,7 +175,7 @@ IMPORTANT: Avoid generic or obvious strategies. Focus on finding strategies that
 - **Surprising tactics** - counterintuitive or non-standard plays
 
 
-{GAME_CONTEXT}
+{game_context}
 
 ---
 
@@ -289,13 +256,18 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python generate_strategies.py pages/Negotiation.yaml strategies/
-  python generate_strategies.py pages/Negotiation.yaml strategies/ --overwrite
-  python generate_strategies.py pages/Negotiation.yaml strategies/ --provider openai
-  python generate_strategies.py pages/Negotiation.yaml strategies/ --provider trapi
+  python generate_strategies.py pages/Negotiation.yaml game_context.txt strategies/
+  python generate_strategies.py pages/Negotiation.yaml game_context.txt strategies/ --overwrite
+  python generate_strategies.py pages/Negotiation.yaml game_context.txt strategies/ --provider openai
+  python generate_strategies.py pages/Negotiation.yaml game_context.txt strategies/ --provider trapi
         """,
     )
     parser.add_argument("input_yaml", type=Path, help="Input Wikipedia YAML file")
+    parser.add_argument(
+        "game_context",
+        type=Path,
+        help="Game context text file describing the game rules and objectives",
+    )
     parser.add_argument("output_dir", type=Path, help="Output directory for strategies")
     parser.add_argument(
         "--overwrite", action="store_true", help="Overwrite existing strategy files"
@@ -314,8 +286,16 @@ Examples:
         print(f"Error: Input file not found: {args.input_yaml}")
         sys.exit(1)
 
+    if not args.game_context.exists():
+        print(f"Error: Game context file not found: {args.game_context}")
+        sys.exit(1)
+
     generate_strategies(
-        args.input_yaml, args.output_dir, overwrite=args.overwrite, provider=args.provider
+        args.input_yaml,
+        args.game_context,
+        args.output_dir,
+        overwrite=args.overwrite,
+        provider=args.provider,
     )
 
 

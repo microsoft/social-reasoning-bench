@@ -6,7 +6,7 @@ A pipeline for generating diverse strategic behaviors by extracting unconvention
 
 ```mermaid
 graph LR
-    A[Task Description] --> C[Strategy Generator]
+    A[Game Context File] --> C[Strategy Generator]
     B[Seed Files<br/>Wikipedia Pages] --> C
     C --> D[Apply to Environment]
 
@@ -17,7 +17,7 @@ graph LR
 ```
 
 1. **Crawl Wikipedia**: Collect seed pages from Wikipedia
-2. **Generate Strategies**: Extract creative strategies from seed content based on task description (defined in `GAME_CONTEXT`)
+2. **Generate Strategies**: Extract creative strategies from seed content based on game context file (e.g., `game_context.txt`)
 3. **Apply to Environment**: Embed strategies into task-specific configurations
 
 ---
@@ -66,27 +66,27 @@ uv run python crawler.py
 
 ## 2. Generate Game Strategies
 
-Extract creative strategies from Wikipedia pages based on task description (edit `GAME_CONTEXT` in scripts to customize).
+Extract creative strategies from Wikipedia pages based on a game context file that describes the task/environment.
 
 **Single page (testing):**
 ```bash
 # Using Gemini (default)
-uv run python generate_strategies.py pages/Negotiation.yaml strategies/
+uv run python generate_strategies.py pages/Negotiation.yaml game_context.txt strategies/
 
-# Using OpenAI GPT-5.1
-uv run python generate_strategies.py pages/Negotiation.yaml strategies/ --provider openai
+# Using OpenAI
+uv run python generate_strategies.py pages/Negotiation.yaml game_context.txt strategies/ --provider openai
 
 # Using TRAPI (Azure OpenAI)
-uv run python generate_strategies.py pages/Negotiation.yaml strategies/ --provider trapi
+uv run python generate_strategies.py pages/Negotiation.yaml game_context.txt strategies/ --provider trapi
 ```
 
 **Batch processing (production):**
 ```bash
 # Using Gemini (default)
-uv run python batch_generate.py pages/ strategies/ --workers 10
+uv run python batch_generate.py pages/ game_context.txt strategies/ --workers 10
 
 # Using OpenAI
-uv run python batch_generate.py pages/ strategies/ --workers 10 --provider openai
+uv run python batch_generate.py pages/ game_context.txt strategies/ --workers 10 --provider openai
 ```
 
 **Output:** Each strategy file (`strategies/<Article>_strategies.yaml`) contains grounding texts from Wikipedia and game-specific strategies.
@@ -113,6 +113,25 @@ uv run python batch_rollout.py --num-runs 1 --config-dir ../../datasets/gullibil
 
 Results saved to `results/<prefix>/` as database files containing simulation history.
 
+### Example: Calendar Scheduling
+
+**Generate config files:**
+```bash
+uv run python generate_configs_calendar.py
+```
+Creates `config_calendar/<Article>_strategy_<number>.yaml` files by appending each strategy to Bob's `instruction_message` in `email-verification-test.yaml`.
+
+**Run simulations:**
+```bash
+cd ../../sage-benchmark
+OPENAI_API_KEY=your-key uv run -m sage_benchmark.calendar_scheduling \
+  ../datasets/gullibility/config_calendar/Persuasion_strategy_000.yaml \
+  --max-rounds 10 \
+  --assistant-model gpt-5.1 \
+  --requestor-model gpt-5.1 \
+  --judge-model gpt-5.1
+```
+
 ### Adapting to Other Environments
 
 1. Create a config template for your environment
@@ -127,8 +146,8 @@ Results saved to `results/<prefix>/` as database files containing simulation his
 # 1. Crawl Wikipedia (or use existing 9 sample pages)
 uv run python crawler.py
 
-# 2. Generate strategies
-uv run python batch_generate.py pages/ strategies/ --workers 5
+# 2. Generate strategies (provide game context file)
+uv run python batch_generate.py pages/ game_context.txt strategies/ --workers 5
 
 # 3. Create configs and run simulations
 uv run python generate_configs.py

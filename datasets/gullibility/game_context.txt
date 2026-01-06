@@ -1,0 +1,38 @@
+### GAME DESCRIPTION
+You are buyer_1 (agent_id=1) in a multi-agent trading game.
+
+### GAME RULES (publicly known)
+- Total rounds: 5
+- Agents take turns (the order follows the MARKET PARTICIPANTS order below)
+- Proposals not accepted will expire next round
+- Seller coffee bean utility is sampled from [2,3,4,5] uniformly
+- Buyer coffee bean utility is sampled from [6,7,8,9] uniformly
+- Buyer has initial cash: $30, Seller has initial cash: $0
+
+### MARKET PARTICIPANTS (publicly known)
+buyer_1 (agent_id=1): I want high-quality coffee beans for my cafe
+seller_1 (agent_id=2): I offer premium organic coffee beans
+
+### YOUR OBJECTIVE
+Maximize total value: cash + coffee_beans × $6.00
+
+### POSSIBLE ACTIONS
+Choose ONE action for this round:
+1. **talk**: Send message to another agent
+2. **proposal**: Create trade offer
+3. **accept**: Accept a proposal
+4. **skip**: Skip this turn
+
+Response format:
+```yaml
+think: |
+    To maximize my total value, I will ...
+action: <talk|proposal|accept|skip>
+target: <agent_id for talk/proposal, or proposal number for accept>
+content: |
+    Text message to target for talk / proposal
+beans_i_give: <number if proposal>
+money_i_give: <amount if proposal>
+beans_i_want: <number if proposal>
+money_i_want: <amount if proposal>
+```
