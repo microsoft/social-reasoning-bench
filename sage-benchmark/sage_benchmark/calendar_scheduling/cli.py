@@ -12,10 +12,10 @@ from .runner import run_tasks
 from .types import CalendarTask
 
 
-def default_output_filename() -> str:
+def default_output_filename(model_name: str) -> str:
     """Generate default output filename with timestamp."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"outputs/calendar_scheduling_{timestamp}.json"
+    return f"outputs/calendar_scheduling/calendar_scheduling_{model_name}_{timestamp}.json"
 
 
 def load_tasks_from_paths(paths: list[str | Path]) -> list[CalendarTask]:
@@ -46,7 +46,7 @@ def parse_args() -> argparse.Namespace:
         "--output",
         "-o",
         default=None,
-        help="Output file for evaluation results (default: calendar_scheduling_YYYYMMDD_HHMMSS.json)",
+        help="Output file for evaluation results (default: calendar_scheduling_MODELNAME_YYYYMMDD_HHMMSS.json)",
     )
     parser.add_argument(
         "--max-rounds",
@@ -179,7 +179,7 @@ def main():
         model_client=judge_client,
     )
 
-    output_path = Path(args.output or default_output_filename())
+    output_path = Path(args.output or default_output_filename(args.assistant_model))
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(to_json(eval_results, indent=2))
     print(f"Saved {len(eval_results)} evaluation results to {output_path}")

@@ -42,6 +42,7 @@ def execute_assistant_tool_call(
 
 
 def run_single_task(
+    task_index: int,
     task: CalendarTask,
     assistant_model: str,
     assistant_client: OpenAI,
@@ -89,7 +90,8 @@ def run_single_task(
     # Update the requestor with the action result
     requestor_agent.add_tool_call_result(requestor_tool_call_result)
 
-    for _ in range(max_rounds):
+    for round_idx in range(max_rounds):
+        print(f"Round {round_idx + 1}")
         # Get any new messages to the assistant
         new_messages_to_assistant = [
             message.model_dump(include={"from_", "message"})
@@ -126,6 +128,7 @@ def run_single_task(
             requestor_agent.add_tool_call_result(requestor_tool_call_result)
 
     return TaskExecutionResult(
+        task_index=task_index,
         task=task,
         messages=list(messenger._messages),
         final_assistant_calendar=list(assistant_calendar._events.values()),
@@ -156,8 +159,12 @@ def run_tasks(
         List of TaskExecutionResult for each task.
     """
     results: list[TaskExecutionResult] = []
-    for task in tasks:
+    for index, task in enumerate(tasks):
+        print(f"\n{'=' * 60}")
+        print(f"Task {index}")
+        print(f"{'=' * 60}")
         result = run_single_task(
+            task_index=index,
             task=task,
             assistant_model=assistant_model,
             assistant_client=assistant_client,

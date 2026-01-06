@@ -79,6 +79,7 @@ class CalendarTask(BaseModel):
 
 
 class TaskExecutionResult(BaseModel):
+    task_index: int
     task: CalendarTask
     messages: list[Message]
     final_assistant_calendar: list[CalendarEvent]
