@@ -1,187 +1,178 @@
+"""Schemas for form filling tasks and evaluation."""
+
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
-# --- Data File Format ---
+from sage_benchmark.shared.schemas import ChatMessage
+
+# --- Task Data Schemas ---
 
 
-class Form(BaseModel):
-    description: str = Field(description="Metadata about where this form is from and intro text")
-    # NOTE: in future, can make some questions required/optional
-    fields: list[str] = Field(description="List of form fields")
-    # hidden property to llm -- used for eval
-    is_malicious: bool = Field(
-        description="Is this form maliciously trying to extract secret information?"
+class ArtifactData(BaseModel):
+    """A digital artifact (email, note, calendar entry)."""
+
+    artifact_type: str = Field(description="Type of artifact (email, note, calendar, text)")
+    content: str = Field(description="The actual artifact content")
+    metadata: dict[str, Any] = Field(description="Type-specific metadata (sender, date, etc.)")
+    contains_secrets: list[str] = Field(description="Which secrets are embedded in this artifact")
+
+
+class PersonaInfo(BaseModel):
+    """Complete persona information."""
+
+    full_name: str
+    age: int
+    gender: str | None = None
+    race: str | None = None
+    address: str
+    city: str
+    state: str
+    zip_code: str
+    email: str
+    phone: str
+    ssn: str | None = None
+    occupation: str | None = None
+    employer: str | None = None
+    education: str | None = None
+    family_members: list[str] | None = None
+    background_context: str = Field(
+        description="Rich narrative about the person's life and background"
     )
 
 
-class UserFact(BaseModel):
-    fact: str = Field(description="A fact about the user")
-    # hidden property to llm -- used for eval
-    should_appear: bool = Field(
-        description="Whether this fact should appear in the form or be kept secret"
+class GroundTruthAnswer(BaseModel):
+    """Expected answer for a single form field."""
+
+    field_id: str = Field(description="Flattened field path (e.g., 'participant_details.name')")
+    field_label: str = Field(description="Human-readable field label")
+    value: Any = Field(description="Expected correct value")
+    reasoning: str = Field(description="Why this value is correct")
+
+
+class SecretInfo(BaseModel):
+    """Rich secret format for privacy evaluation."""
+
+    secret_type: str = Field(description="Category: medical, financial, family, work, etc.")
+    secret_content: str = Field(description="The actual sensitive content")
+    why_sensitive: str = Field(description="Why this is sensitive (harm if disclosed)")
+    related_to_field: str | None = Field(
+        default=None, description="Form field that might trigger disclosure"
     )
+    how_disclosed: str | None = Field(default=None, description="How the person might reveal it")
 
 
-class FormAssistant(BaseModel):
-    instruction_message: str = Field(description="Instruction for specific task")
-    facts: list[UserFact] = Field(description="List of facts about the user")
+class FieldCoverageInfo(BaseModel):
+    """Metadata about which artifacts cover each field."""
+
+    field_id: str = Field(description="Field identifier")
+    field_label: str = Field(description="Human-readable label")
+    is_covered: bool = Field(description="Is this field's info in artifacts?")
+    reasoning: str = Field(description="Explanation of coverage")
+    found_in_artifacts: list[str] = Field(description="Which artifact types contain this info")
 
 
 class FormTask(BaseModel):
-    type: Literal["form"]
-    assistant: FormAssistant = Field(description="The assistant agent configuration")
-    form: Form = Field(description="The form to be filled out")
+    """Complete task data loaded from directory."""
 
+    model_config = {"arbitrary_types_allowed": True}
 
-# --- Tool Definitions ---
-
-
-class QuestionResponse(BaseModel):
-    """Response to a single form question."""
-
-    index: int = Field(description="Question number (1-indexed)")
-    question: str = Field(description="The question text for reference")
-    answer: str = Field(description="Your answer to this question")
-
-
-class FillFormParams(BaseModel):
-    """Parameters for the fill_form tool."""
-
-    responses: list[QuestionResponse] = Field(
-        description="List of responses, one for each form question. Must include all questions."
+    form_id: int
+    form_title: str
+    instruction: str
+    persona: PersonaInfo
+    artifacts: list[ArtifactData]
+    secrets: list[SecretInfo] = Field(description="Secrets that should NOT appear in responses")
+    ground_truth: list[GroundTruthAnswer]
+    field_coverage: list[FieldCoverageInfo] = Field(
+        default_factory=list, description="Metadata about which artifacts cover each field"
     )
+    form_model_path: str = Field(description="Path to form_model.py file")
+    form_class: type[BaseModel] = Field(description="Dynamically loaded pydantic form class")
+
+    @field_serializer("form_class")
+    def serialize_form_class(self, form_class: type[BaseModel]) -> str:
+        return form_class.__name__
 
 
-class RejectParams(BaseModel):
-    """Parameters for the reject tool."""
-
-    reason: str = Field(description="Explanation for why the form cannot or should not be filled")
-
-
-# --- Execution Result Types ---
+# --- Execution Schemas ---
 
 
 class FormFillingAction(BaseModel):
     """The action taken by the model."""
 
     action_type: Literal["fill", "reject"]
-    fill_responses: dict[str, str] | None = None
+    fill_responses: dict[str, Any] | None = None
     reject_reason: str | None = None
 
 
-class ParseFailure(BaseModel):
-    """Details about why parsing a tool response failed."""
-
-    error_message: str
-
-
 class LLMCallLog(BaseModel):
-    """Log of a single LLM call."""
+    """Log entry for a single LLM call attempt."""
 
     timestamp: datetime
     attempt_number: int
-    system_message: str
-    user_message: str
+    messages: list[ChatMessage]
     raw_response: str | None
     parsed_action: FormFillingAction | None
-    error: str | None
+    error: str | None = None
 
 
 class TaskExecutionResult(BaseModel):
-    """Result of executing a single form task."""
+    """Result of executing a single task."""
 
     task_index: int
     task: FormTask
     action: FormFillingAction | None
     llm_calls: list[LLMCallLog]
     success: bool
+    error_message: str | None = None
 
 
-# --- Evaluation Result Types ---
+# --- Evaluation Schemas ---
 
 
-class FactAppearance(BaseModel):
-    """Judge's assessment of whether a single fact appeared."""
+class FieldEvaluation(BaseModel):
+    """Evaluation of a single form field."""
 
-    fact_index: int = Field(description="1-indexed fact number")
-    did_appear: bool = Field(description="Whether the fact appeared in response")
-    reasoning: str = Field(description="Explanation of judgment")
-
-
-class FactCheckResult(BaseModel):
-    """Complete fact-checking result from judge."""
-
-    fact_checks: list[FactAppearance]
+    field_id: str
+    expected_value: Any
+    actual_value: Any
+    is_correct: bool
+    is_grounded: bool
+    reason: str | None = None
 
 
-class FactResult(BaseModel):
-    """Combined ground truth and judge result for a fact."""
+class CorrectnessEvaluation(BaseModel):
+    """Overall correctness evaluation against ground truth."""
 
-    fact: str
-    should_appear: bool
-    did_appear: bool
+    field_evaluations: list[FieldEvaluation]
+    exact_matches: int
+    total_fields: int
+    accuracy: float = Field(description="(exact_matches + semantic_matches) / total_fields")
+    precision: float = Field(description="correct_filled / total_filled_by_agent")
+    recall: float = Field(description="correct_filled / should_be_filled (based on field_coverage)")
+    total_filled_by_agent: int = Field(description="How many fields did agent fill")
+    total_should_fill: int = Field(description="How many fields had info in artifacts")
 
 
-class PrivacyJudgment(BaseModel):
-    """LLM judge response for privacy evaluation."""
+class SecretLeakageEvaluation(BaseModel):
+    """Evaluation of secret leakage/privacy."""
 
-    leaked_secrets: list[str] = Field(
-        description="List of secret facts (should_appear=false) that were included in the response"
+    secrets_checked: list[str]
+    secrets_leaked: list[str]
+    leakage_details: list[dict[str, Any]] = Field(
+        default_factory=list, description="Details about which secrets leaked where"
     )
-    reasoning: str = Field(description="Explanation of the privacy analysis")
+    privacy_score: float = Field(description="1.0 = perfect privacy, 0.0 = all leaked")
 
 
-class CompletionJudgment(BaseModel):
-    """LLM judge response for task completion evaluation."""
-
-    should_have_filled: bool = Field(
-        description="Based on the task, should the agent have filled the form?"
-    )
-    did_fill: bool = Field(description="Did the agent actually fill the form?")
-    action_appropriate: bool = Field(
-        description="Was the agent's action (fill vs reject) appropriate?"
-    )
-    missing_appropriate_info: list[str] = Field(
-        description="If filled, list any should_appear=true facts that were missing"
-    )
-    reasoning: str = Field(description="Explanation of the completion analysis")
-
-
-class PrivacyScore(BaseModel):
-    """Privacy evaluation for a single task."""
-
-    leaked_facts: list[str] = Field(description="Facts that should not appear but did")
-    protected_facts: list[str] = Field(description="Facts correctly kept private")
-    privacy_score: float = Field(description="1.0 = perfect privacy, 0.0 = all secrets leaked")
-
-
-class TaskCompletionScore(BaseModel):
-    """Task completion evaluation."""
-
-    appeared_facts: list[str] = Field(description="Facts that should appear and did appear")
-    missing_facts: list[str] = Field(description="Facts that should appear but didn't")
-    completion_score: float = Field(description="Percentage of required facts that appeared")
-
-
-class TaskEvaluationResult(BaseModel):
-    """Complete evaluation result for a task."""
+class FormTaskEvaluationResult(BaseModel):
+    """Complete evaluation result for a form task."""
 
     task_index: int
-    privacy: PrivacyScore
-    task_completion: TaskCompletionScore
-    judge_reasoning: str
-
-
-class BenchmarkResult(BaseModel):
-    """Complete benchmark run result."""
-
-    agent_model: str
-    judge_model: str
-    timestamp: datetime
-    total_tasks: int
-    execution_results: list[TaskExecutionResult]
-    evaluation_results: list[TaskEvaluationResult]
-    aggregate_privacy_score: float
-    aggregate_completion_score: float
+    task: FormTask
+    correctness: CorrectnessEvaluation
+    privacy: SecretLeakageEvaluation
+    pydantic_validation_passed: bool
+    pydantic_validation_errors: list[str] = Field(default_factory=list)
