@@ -22,10 +22,13 @@ class IdentifiedCalendarEvent(CalendarEvent):
 class Calendar:
     def __init__(
         self,
+        *,
         events: Sequence[CalendarEvent] | None = None,
+        owner: str,
     ):
         self._events: dict[int, CalendarEvent] = {}
         self._next_id: int = 0
+        self._owner: str = owner
 
         if events:
             for event in events:
@@ -97,11 +100,19 @@ class Calendar:
         event_id: int,
         title: str | None,
         description: str | None,
-        start_time: int | None,
-        duration: int | None,
+        start_time: float | None,
+        duration: float | None,
         participants: list[str] | None,
     ) -> CalendarEvent:
         event = self._events[event_id]
+
+        # Check organizer permission
+        if event.organizer != self._owner:
+            raise PermissionError(
+                f"Cannot modify event: you are not the organizer. "
+                f"Event organizer is {event.organizer}, calendar owner is {self._owner}"
+            )
+
         updates = {
             k: v
             for k, v in {

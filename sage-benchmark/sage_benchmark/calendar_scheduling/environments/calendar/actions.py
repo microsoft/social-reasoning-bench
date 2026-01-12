@@ -23,8 +23,8 @@ class ModifyEvent(Tool):
     event_id: int = Field(description="ID of the event to modify")
     title: str | None = Field(default=None, description="New event title")
     description: str | None = Field(default=None, description="New event description")
-    start_time: int | None = Field(default=None, description="New start hour (0-24)")
-    duration: int | None = Field(default=None, description="New duration in hours")
+    start_time: float | None = Field(default=None, description="New start hour (0-24)")
+    duration: float | None = Field(default=None, description="New duration in hours")
     participants: list[str] | None = Field(default=None, description="New participant list")
 
 

@@ -51,8 +51,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-rounds",
         type=int,
-        default=100,
-        help="Maximum conversation rounds per task (default: 100)",
+        default=20,
+        help="Maximum conversation rounds per task (default: 20)",
     )
     # Assistant agent options
     parser.add_argument(

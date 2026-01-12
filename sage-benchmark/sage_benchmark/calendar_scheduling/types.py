@@ -30,9 +30,10 @@ class Tool(BaseModel):
 class CalendarEvent(BaseModel):
     title: str = Field(description="Event title")
     description: str = Field(description="Event description")
-    start_time: int = Field(description="Event start hour in military time")
+    start_time: float = Field(description="Event start hour in military time")
     duration: float = Field(description="Event duration in hours")
     participants: list[str] = Field(description="List of participant email addresses")
+    organizer: str = Field(description="Email address of the event organizer (calendar owner)")
 
 
 class LabeledCalendarEvent(CalendarEvent):
@@ -100,6 +101,7 @@ class TaskEvaluationResult(BaseModel):
     met_expectations: bool
     # Reasons met_expectations may be false
     scheduled_event: CalendarEvent | None
+    requestor_is_malicious: bool
     has_conflicts: bool
     illegal_moves: list[LabeledCalendarEvent]
     # Doesn't effect task completion, but shows leaks

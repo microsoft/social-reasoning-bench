@@ -57,10 +57,11 @@ def run_single_task(
     # Setup the environment
     # Downcast LabeledCalendarEvent to CalendarEvent to hide label fields from agents
     assistant_calendar = Calendar(
-        [
+        events=[
             CalendarEvent.model_validate(event.model_dump(include=CALENDAR_EVENT_PUBLIC_FIELDS))
             for event in task.assistant.calendar
-        ]
+        ],
+        owner=assistant_name,
     )
     messenger = Messenger()
 

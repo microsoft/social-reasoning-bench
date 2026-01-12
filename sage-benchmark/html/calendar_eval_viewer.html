@@ -13,11 +13,14 @@
       border-radius: 4px;
       padding: 2px 6px;
       font-size: 11px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .timeline-event .event-label {
+      display: block;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      cursor: pointer;
-      transition: opacity 0.2s;
     }
     .timeline-event:hover {
       opacity: 0.85;
@@ -117,6 +120,7 @@
             <span id="badge-conflicts" class="px-3 py-1 rounded-full text-sm font-medium"></span>
             <span id="badge-illegal" class="px-3 py-1 rounded-full text-sm font-medium hidden"></span>
             <span id="badge-leaks" class="px-3 py-1 rounded-full text-sm font-medium hidden"></span>
+            <span id="badge-malicious" class="px-3 py-1 rounded-full text-sm font-medium hidden"></span>
           </div>
         </div>
 
@@ -132,7 +136,7 @@
           <!-- Initial Calendar -->
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Initial Calendar</h2>
-            <div id="initial-calendar" class="relative h-40 bg-gray-50 dark:bg-gray-700 rounded overflow-hidden">
+            <div id="initial-calendar" class="relative h-40 bg-gray-50 dark:bg-gray-700 rounded overflow-visible">
             </div>
             <div id="initial-legend" class="mt-2 text-xs text-gray-500 dark:text-gray-400"></div>
           </div>
@@ -140,7 +144,7 @@
           <!-- Final Calendar -->
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Final Calendar</h2>
-            <div id="final-calendar" class="relative h-40 bg-gray-50 dark:bg-gray-700 rounded overflow-hidden">
+            <div id="final-calendar" class="relative h-40 bg-gray-50 dark:bg-gray-700 rounded overflow-visible">
             </div>
             <div id="final-legend" class="mt-2 text-xs text-gray-500 dark:text-gray-400"></div>
           </div>
@@ -299,6 +303,16 @@
         badgeLeaks.classList.remove('hidden');
       } else {
         badgeLeaks.classList.add('hidden');
+      }
+
+      // Malicious badge
+      const badgeMalicious = document.getElementById('badge-malicious');
+      if (result.is_malicious) {
+        badgeMalicious.textContent = 'Malicious Task';
+        badgeMalicious.className = 'px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        badgeMalicious.classList.remove('hidden');
+      } else {
+        badgeMalicious.classList.add('hidden');
       }
 
       // Requested event
@@ -493,15 +507,18 @@
           bgColor = 'bg-purple-500';
         }
 
-        if (event.is_movable === false && isInitial) {
+        if (event.is_movable === false) {
           border = 'border-2 border-dashed border-gray-600';
         }
 
         // Check if this is the scheduled event (in final calendar)
+        // Use ring highlight but preserve the background color (e.g., purple for secrets)
         if (!isInitial && scheduledEvent &&
             event.title === scheduledEvent.title &&
             event.start_time === scheduledEvent.start_time) {
-          bgColor = 'bg-emerald-500';
+          if (!event.is_secret) {
+            bgColor = 'bg-emerald-500';
+          }
           border = 'ring-2 ring-emerald-300';
         }
 
@@ -526,7 +543,7 @@
         `;
 
         return `<div class="timeline-event ${bgColor} ${textColor} ${border}"
-                     style="left: ${left}%; width: ${width}%;">${label}${popupHtml}</div>`;
+                     style="left: ${left}%; width: ${width}%;"><span class="event-label">${label}</span>${popupHtml}</div>`;
       }).join('');
 
       container.innerHTML = markersHtml + '<div class="absolute inset-0">' + eventsHtml + '</div>';
@@ -541,9 +558,14 @@
           <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 border-2 border-dashed border-gray-500 rounded"></span> Non-movable</span>
         `;
       } else {
-        legendContainer.innerHTML = scheduledEvent
-          ? `<span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-emerald-500 rounded ring-2 ring-emerald-300"></span> Scheduled Event</span>`
-          : `<span class="text-gray-400">No new event scheduled</span>`;
+        legendContainer.innerHTML = `
+          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span> Regular</span>
+          <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-purple-500 rounded"></span> Secret</span>
+          <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 border-2 border-dashed border-gray-500 rounded"></span> Non-movable</span>
+          ${scheduledEvent
+            ? `<span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-emerald-500 rounded ring-2 ring-emerald-300"></span> Scheduled</span>`
+            : `<span class="ml-3 text-gray-400">(No new event scheduled)</span>`}
+        `;
       }
     }
 
