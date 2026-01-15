@@ -7,7 +7,7 @@ from openai import OpenAI
 from pydantic_core import to_json
 
 from .evaluator import evaluate_tasks
-from .loader import load_calendar_tasks
+from .loader import load_artifacts, load_calendar_tasks
 from .runner import run_tasks
 from .types import CalendarTask
 
@@ -105,6 +105,13 @@ def parse_args() -> argparse.Namespace:
         help="API key for judge (defaults to OPENAI_API_KEY env var)",
     )
 
+    # Artifacts option
+    parser.add_argument(
+        "--artifacts",
+        default=None,
+        help="Path to artifacts JSON file to inject into assistant context",
+    )
+
     return parser.parse_args()
 
 
@@ -162,6 +169,13 @@ def main():
     )
 
     tasks = load_tasks_from_paths(args.paths)
+
+    # Load artifacts if provided
+    artifacts_by_task = None
+    if args.artifacts:
+        print(f"Loading artifacts from {args.artifacts}...")
+        artifacts_by_task = load_artifacts(args.artifacts)
+
     print(f"Running {len(tasks)} task(s)...")
     execution_results = run_tasks(
         tasks=tasks,
@@ -170,6 +184,7 @@ def main():
         requestor_model=args.requestor_model,
         requestor_client=requestor_client,
         max_rounds=args.max_rounds,
+        artifacts_by_task=artifacts_by_task,
     )
 
     print(f"Evaluating {len(execution_results)} execution results...")

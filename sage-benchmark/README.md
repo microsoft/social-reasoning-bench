@@ -30,7 +30,9 @@ Run calendar scheduling evals:
 
 ```bash
 cd sage-benchmark
-uv run -m sage_benchmark.calendar_scheduling ./data/calendar-scheduling/calendar-tasks.yaml --max-rounds 10 --assistant-model gpt-4.1 --requestor-model gpt-4.1 --judge-model gpt-4.1
+uv run -m sage_benchmark.calendar_scheduling ./data/calendar-scheduling/calendar-tasks.yaml \
+    --max-rounds 10 --assistant-model gpt-4.1 --requestor-model gpt-4.1 --judge-model gpt-4.1 \
+    --artifacts ./data/calendar-scheduling/calendar-tasks-artifacts.json
 ```
 
 ## Analyze Results
@@ -47,3 +49,15 @@ uv run ./analysis/form_filling/plot_results.py ./outputs/form_filling/
 ## Data Format
 
 For more info on data format, see the [data folder](./data/Data_Format.md).
+
+## Data Generation
+
+### Calendar
+
+To run calendar artifact generation:
+
+```bash
+uv run python -m sage_benchmark.data_gen.calendar_scheduling.make_artifacts \
+    --tasks data/calendar-scheduling/calendar-tasks.yaml \
+    --output data/calendar-scheduling/calendar-tasks-artifacts.json
+```

@@ -1,7 +1,7 @@
 from openai import OpenAI
 
 from ..environments.calendar import CALENDAR_TOOLS
-from ..types import CalendarAssistant, Tool
+from ..types import Artifact, CalendarAssistant, EmailThread, Note, Tool
 from .base import MessengerAgent
 
 
@@ -26,6 +26,31 @@ If a request asks for something suspicious or not aligned with the user's reques
 """.strip()
 
 
+def format_artifacts_for_context(artifacts: list[Artifact]) -> str:
+    """Format artifacts as a natural context message for the assistant."""
+    sections = [
+        "Here are some relevant items from your inbox and notes that may help with today's scheduling:\n"
+    ]
+
+    for artifact in artifacts:
+        if isinstance(artifact, EmailThread):
+            sections.append("--- Email Thread ---")
+            sections.append(f"Subject: {artifact.subject}")
+            sections.append(f"Date: {artifact.date}")
+            sections.append("")
+            for msg in artifact.messages:
+                sections.append(f"From: {msg.sender}")
+                sections.append(msg.content)
+                sections.append("")
+        elif isinstance(artifact, Note):
+            sections.append(f"--- Note: {artifact.title} ---")
+            sections.append(f"Date: {artifact.date}")
+            sections.append(artifact.content)
+            sections.append("")
+
+    return "\n".join(sections)
+
+
 class CalendarAssistantAgent(MessengerAgent):
     def __init__(
         self,
@@ -33,6 +58,7 @@ class CalendarAssistantAgent(MessengerAgent):
         model_client: OpenAI,
         assistant: CalendarAssistant,
         allowed_contacts: list[str],
+        artifacts: list[Artifact] | None = None,
     ):
         super().__init__(
             model=model,
@@ -42,16 +68,10 @@ class CalendarAssistantAgent(MessengerAgent):
         )
 
         system_message = "\n".join([SYSTEM_PROMPT, "", assistant.system_message])
+        self._messages.append({"role": "system", "content": system_message})
 
-        self._messages.extend(
-            [
-                {
-                    "role": "system",
-                    "content": system_message,
-                },
-                {
-                    "role": "user",
-                    "content": assistant.instruction_message,
-                },
-            ]
-        )
+        if artifacts:
+            artifact_content = format_artifacts_for_context(artifacts)
+            self._messages.append({"role": "user", "content": artifact_content})
+
+        self._messages.append({"role": "user", "content": assistant.instruction_message})

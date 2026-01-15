@@ -6,7 +6,7 @@ from .agents.requestor import CalendarRequestorAgent
 from .environments.calendar import CALENDAR_EVENT_PUBLIC_FIELDS, Calendar, CalendarAction
 from .environments.messenger import Message, Messenger
 from .environments.messenger.actions import SendMessage
-from .types import CalendarEvent, CalendarTask, TaskExecutionResult, Tool
+from .types import Artifact, CalendarEvent, CalendarTask, TaskExecutionResult, Tool
 
 
 def execute_requestor_tool_call(
@@ -48,7 +48,8 @@ def run_single_task(
     assistant_client: OpenAI,
     requestor_model: str,
     requestor_client: OpenAI,
-    max_rounds=100,
+    max_rounds: int = 100,
+    artifacts: list[Artifact] | None = None,
 ):
     # Get agent names from task
     assistant_name = task.assistant.email
@@ -71,6 +72,7 @@ def run_single_task(
         model_client=assistant_client,
         assistant=task.assistant,
         allowed_contacts=[task.requestor.email],
+        artifacts=artifacts,
     )
 
     requestor_agent = CalendarRequestorAgent(
@@ -145,6 +147,7 @@ def run_tasks(
     requestor_model: str,
     requestor_client: OpenAI,
     max_rounds: int = 100,
+    artifacts_by_task: dict[int, list[Artifact]] | None = None,
 ) -> list[TaskExecutionResult]:
     """Run a list of tasks.
 
@@ -155,6 +158,7 @@ def run_tasks(
         requestor_model: Model to use for the requestor agent.
         requestor_client: OpenAI client for the requestor.
         max_rounds: Maximum number of conversation rounds per task.
+        artifacts_by_task: Optional dict mapping task index to artifacts list.
 
     Returns:
         List of TaskExecutionResult for each task.
@@ -164,6 +168,7 @@ def run_tasks(
         print(f"\n{'=' * 60}")
         print(f"Task {index}")
         print(f"{'=' * 60}")
+        task_artifacts = artifacts_by_task.get(index) if artifacts_by_task else None
         result = run_single_task(
             task_index=index,
             task=task,
@@ -172,6 +177,7 @@ def run_tasks(
             requestor_model=requestor_model,
             requestor_client=requestor_client,
             max_rounds=max_rounds,
+            artifacts=task_artifacts,
         )
         results.append(result)
 

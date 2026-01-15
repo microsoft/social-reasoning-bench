@@ -1,8 +1,10 @@
+import json
 from pathlib import Path
 
 import yaml
+from pydantic import TypeAdapter
 
-from .types import CalendarTask
+from .types import Artifact, CalendarTask
 
 
 def load_calendar_tasks(yaml_path: str | Path) -> list[CalendarTask]:
@@ -24,12 +26,23 @@ def load_calendar_tasks(yaml_path: str | Path) -> list[CalendarTask]:
     return [CalendarTask(**task) for task in data["tasks"]]
 
 
-if __name__ == "__main__":
-    tasks = load_calendar_tasks("calendar-tasks.yaml")
-    print(f"Loaded {len(tasks)} calendar tasks\n")
-    for i, task in enumerate(tasks, 1):
-        print(f"{'=' * 80}")
-        print(f"Task {i}")
-        print(f"{'=' * 80}")
-        print(task.model_dump_json(indent=2))
-        print()
+def load_artifacts(json_path: str | Path) -> dict[int, list[Artifact]]:
+    """Load artifacts from a JSON file.
+
+    Args:
+        json_path: Path to the artifacts JSON file
+
+    Returns:
+        Dict mapping task_index to list of Artifact objects
+    """
+    with open(json_path) as f:
+        data = json.load(f)
+
+    artifact_adapter = TypeAdapter(Artifact)
+    result: dict[int, list[Artifact]] = {}
+    for task_artifacts in data.get("task_artifacts", []):
+        task_index = task_artifacts["task_index"]
+        artifacts = [artifact_adapter.validate_python(a) for a in task_artifacts["artifacts"]]
+        result[task_index] = artifacts
+
+    return result
