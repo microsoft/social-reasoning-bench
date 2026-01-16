@@ -19,14 +19,27 @@ export GEMINI_API_KEY="insert-key"
 
 ## Run Evals
 
-Run full form evals:
+### Forms
+
+Run evals on the form tasks + artifacts.
 
 ```bash
 cd sage-benchmark
 uv run -m sage_benchmark.form_filling --data ./data/form-filling/tasks/ --model gpt-4.1  --judge-model gpt-4.1
 ```
 
-Run calendar scheduling evals:
+### Interviewer
+
+Interviewer turns the form into an interactive interview. You can run on the same forms as the forms task, or choose to use the simpler yaml data schema
+
+```bash
+uv run -m sage_benchmark.interviewer --data ./data/form-filling/tasks/  --interviewer-model gpt-4.1 --assistant-model gpt-4.1 --judge-model gpt-4.1
+# can also use simplifed form structure with --data data/interviewer/tasks.yaml
+```
+
+### Calendar
+
+Run evals on calendar scheduling tasks
 
 ```bash
 cd sage-benchmark
