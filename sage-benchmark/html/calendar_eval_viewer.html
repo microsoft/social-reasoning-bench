@@ -19,8 +19,8 @@
     .timeline-event .event-label {
       display: block;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
     .timeline-event:hover {
       opacity: 0.85;
@@ -88,16 +88,28 @@
               <span id="stat-total" class="font-semibold text-gray-800 dark:text-gray-100 ml-1">0</span>
             </div>
             <div class="bg-green-100 dark:bg-green-900 px-3 py-1.5 rounded">
-              <span class="text-green-600 dark:text-green-400">Completed:</span>
-              <span id="stat-completed" class="font-semibold text-green-700 dark:text-green-300 ml-1">0%</span>
+              <span class="text-green-600 dark:text-green-400">Met Expectations:</span>
+              <span id="stat-met-expectations" class="font-semibold text-green-700 dark:text-green-300 ml-1">0/0</span>
+            </div>
+            <div class="bg-red-100 dark:bg-red-900 px-3 py-1.5 rounded">
+              <span class="text-red-600 dark:text-red-400">Conflicts:</span>
+              <span id="stat-conflicts" class="font-semibold text-red-700 dark:text-red-300 ml-1">0</span>
+            </div>
+            <div class="bg-orange-100 dark:bg-orange-900 px-3 py-1.5 rounded">
+              <span class="text-orange-600 dark:text-orange-400">Illegal Moves:</span>
+              <span id="stat-illegal-moves" class="font-semibold text-orange-700 dark:text-orange-300 ml-1">0</span>
+            </div>
+            <div class="bg-yellow-100 dark:bg-yellow-900 px-3 py-1.5 rounded">
+              <span class="text-yellow-600 dark:text-yellow-400">Missing Events:</span>
+              <span id="stat-missing-events" class="font-semibold text-yellow-700 dark:text-yellow-300 ml-1">0</span>
+            </div>
+            <div class="bg-amber-100 dark:bg-amber-900 px-3 py-1.5 rounded">
+              <span class="text-amber-600 dark:text-amber-400">Unwanted Events:</span>
+              <span id="stat-unwanted-events" class="font-semibold text-amber-700 dark:text-amber-300 ml-1">0</span>
             </div>
             <div class="bg-purple-100 dark:bg-purple-900 px-3 py-1.5 rounded">
-              <span class="text-purple-600 dark:text-purple-400">Avg Privacy:</span>
-              <span id="stat-privacy" class="font-semibold text-purple-700 dark:text-purple-300 ml-1">0%</span>
-            </div>
-            <div class="bg-blue-100 dark:bg-blue-900 px-3 py-1.5 rounded">
-              <span class="text-blue-600 dark:text-blue-400">Satisfiable:</span>
-              <span id="stat-satisfiable" class="font-semibold text-blue-700 dark:text-blue-300 ml-1">0/0</span>
+              <span class="text-purple-600 dark:text-purple-400">Avg Leakage:</span>
+              <span id="stat-leakage" class="font-semibold text-purple-700 dark:text-purple-300 ml-1">0%</span>
             </div>
           </div>
         </div>
@@ -106,8 +118,8 @@
       <!-- Task Selector -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Task</label>
-        <select id="task-selector" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-        </select>
+        <div id="task-selector" class="max-h-48 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm">
+        </div>
       </div>
 
       <!-- Task Detail View -->
@@ -117,6 +129,7 @@
           <div class="flex flex-wrap gap-3 items-center">
             <span id="badge-completed" class="px-3 py-1 rounded-full text-sm font-medium"></span>
             <span id="badge-satisfiable" class="px-3 py-1 rounded-full text-sm font-medium"></span>
+            <span id="badge-requestor" class="px-3 py-1 rounded-full text-sm font-medium"></span>
             <span id="badge-conflicts" class="px-3 py-1 rounded-full text-sm font-medium"></span>
             <span id="badge-illegal" class="px-3 py-1 rounded-full text-sm font-medium hidden"></span>
             <span id="badge-leaks" class="px-3 py-1 rounded-full text-sm font-medium hidden"></span>
@@ -213,9 +226,17 @@
     });
 
     // Task selector handler
-    taskSelector.addEventListener('change', (e) => {
-      currentTaskIndex = parseInt(e.target.value);
-      renderTask(evaluationData[currentTaskIndex]);
+    taskSelector.addEventListener('click', (e) => {
+      const taskItem = e.target.closest('.task-item');
+      if (taskItem) {
+        currentTaskIndex = parseInt(taskItem.dataset.index);
+        renderTask(evaluationData[currentTaskIndex]);
+        // Update active styling
+        document.querySelectorAll('.task-item').forEach(item => {
+          item.classList.remove('bg-blue-50', 'dark:bg-blue-900/50');
+        });
+        taskItem.classList.add('bg-blue-50', 'dark:bg-blue-900/50');
+      }
     });
 
     function initializeViewer() {
@@ -236,21 +257,52 @@
 
     function updateStats() {
       const total = evaluationData.length;
-      const completed = evaluationData.filter(r => r.met_expectations).length;
-      const avgPrivacy = evaluationData.reduce((sum, r) => sum + (1 - r.privacy_score), 0) / total;
-      const satisfiable = evaluationData.filter(r => r.task_satisfiable).length;
+      const metExpectations = evaluationData.filter(r => r.met_expectations).length;
+      const conflicts = evaluationData.filter(r => r.has_conflicts).length;
+      const illegalMoves = evaluationData.filter(r => r.illegal_moves && r.illegal_moves.length > 0).length;
+      const missingEvents = evaluationData.filter(r => r.task_satisfiable && !(r.scheduled_event_found || r.scheduled_meeting_found)).length;
+      const unwantedEvents = evaluationData.filter(r => !r.task_satisfiable && (r.scheduled_event_found || r.scheduled_meeting_found)).length;
+      const avgLeakage = evaluationData.reduce((sum, r) => sum + (r.leakage_rate || 0), 0) / total;
 
       document.getElementById('stat-total').textContent = total;
-      document.getElementById('stat-completed').textContent = `${completed}/${total} (${Math.round(completed/total*100)}%)`;
-      document.getElementById('stat-privacy').textContent = `${Math.round(avgPrivacy * 100)}%`;
-      document.getElementById('stat-satisfiable').textContent = `${satisfiable}/${total}`;
+      document.getElementById('stat-met-expectations').textContent = `${metExpectations}/${total} (${Math.round(metExpectations/total*100)}%)`;
+      document.getElementById('stat-conflicts').textContent = conflicts;
+      document.getElementById('stat-illegal-moves').textContent = illegalMoves;
+      document.getElementById('stat-missing-events').textContent = missingEvents;
+      document.getElementById('stat-unwanted-events').textContent = unwantedEvents;
+      document.getElementById('stat-leakage').textContent = `${(avgLeakage * 100).toFixed(1)}%`;
     }
 
     function populateTaskSelector() {
       taskSelector.innerHTML = evaluationData.map((result, idx) => {
-        const title = result.original_requested_event?.title || result.execution?.task?.requestor?.event?.title || 'Unknown';
-        const status = result.met_expectations ? '\u2705' : '\u274C';
-        return `<option value="${idx}">${status} Task ${idx + 1}: ${title}</option>`;
+        const title = result.original_requested_event?.title || result.original_requested_meeting?.title || result.execution?.task?.requestor?.event?.title || result.execution?.task?.requestor?.requested_meeting?.title || 'Unknown';
+        const metBadge = result.met_expectations
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Met</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Failed</span>';
+        const satisfiableBadge = result.task_satisfiable
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Satisfiable</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Unsatisfiable</span>';
+        const requestorBadge = result.execution?.task?.requestor?.is_malicious
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Malicious</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300">Benign</span>';
+        const conflictsBadge = result.has_conflicts
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Conflicts</span>'
+          : '';
+        const leaksBadge = (result.leaked_secrets && result.leaked_secrets.length > 0)
+          ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">${result.leaked_secrets.length} Leak${result.leaked_secrets.length > 1 ? 's' : ''}</span>`
+          : '';
+        const activeClass = idx === currentTaskIndex ? 'bg-blue-50 dark:bg-blue-900/50' : '';
+        return `<div class="task-item p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600 last:border-b-0 ${activeClass}" data-index="${idx}">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-medium text-gray-800 dark:text-gray-100">Task ${idx + 1}:</span>
+            <span class="text-gray-600 dark:text-gray-300 break-words">${escapeHtml(title)}</span>
+            ${metBadge}
+            ${satisfiableBadge}
+            ${requestorBadge}
+            ${conflictsBadge}
+            ${leaksBadge}
+          </div>
+        </div>`;
       }).join('');
     }
 
@@ -276,6 +328,16 @@
       } else {
         badgeSatisfiable.textContent = 'Unsatisfiable';
         badgeSatisfiable.className = 'px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      }
+
+      // Requestor badge (always visible)
+      const badgeRequestor = document.getElementById('badge-requestor');
+      if (result.execution?.task?.requestor?.is_malicious) {
+        badgeRequestor.textContent = 'Malicious Requestor';
+        badgeRequestor.className = 'px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      } else {
+        badgeRequestor.textContent = 'Benign Requestor';
+        badgeRequestor.className = 'px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
       }
 
       // Conflicts badge
@@ -315,14 +377,15 @@
         badgeMalicious.classList.add('hidden');
       }
 
-      // Requested event
-      const requestedEvent = result.original_requested_event || result.execution?.task?.requestor?.event;
+      // Requested event - support both 'event' and 'requested_meeting' formats
+      const rawRequestedEvent = result.original_requested_event || result.original_requested_meeting || result.execution?.task?.requestor?.event || result.execution?.task?.requestor?.requested_meeting;
+      const requestedEvent = normalizeEvent(rawRequestedEvent);
       document.getElementById('requested-event').innerHTML = requestedEvent ? `
-        <div class="font-medium text-gray-800 dark:text-gray-100">${requestedEvent.title}</div>
-        <div class="text-gray-600 dark:text-gray-400 mt-1">${requestedEvent.description || ''}</div>
+        <div class="font-medium text-gray-800 dark:text-gray-100">${escapeHtml(requestedEvent.title)}</div>
+        <div class="text-gray-600 dark:text-gray-400 mt-1">${escapeHtml(requestedEvent.description || '')}</div>
         <div class="mt-2 flex flex-wrap gap-4">
-          <span class="text-gray-500 dark:text-gray-400">Time: <span class="text-gray-700 dark:text-gray-300">${formatTime(requestedEvent.start_time)} - ${formatTime(requestedEvent.start_time + requestedEvent.duration)}</span></span>
-          <span class="text-gray-500 dark:text-gray-400">Duration: <span class="text-gray-700 dark:text-gray-300">${requestedEvent.duration}h</span></span>
+          <span class="text-gray-500 dark:text-gray-400">Time: <span class="text-gray-700 dark:text-gray-300">${formatTime(requestedEvent.start_time_24h)} - ${formatTime(requestedEvent.end_time_24h)}</span></span>
+          <span class="text-gray-500 dark:text-gray-400">Duration: <span class="text-gray-700 dark:text-gray-300">${formatDuration(requestedEvent.duration_minutes)}</span></span>
         </div>
         <div class="mt-1 text-gray-500 dark:text-gray-400">Participants: <span class="text-gray-700 dark:text-gray-300">${(requestedEvent.participants || []).join(', ')}</span></div>
       ` : '<span class="text-gray-500">No event data</span>';
@@ -330,9 +393,13 @@
       // Calendars
       const initialCalendar = result.execution?.task?.assistant?.calendar || [];
       const finalCalendar = result.execution?.final_assistant_calendar || [];
+      const calendarOwner = result.execution?.task?.assistant?.email;
 
-      renderCalendar('initial-calendar', initialCalendar, true);
-      renderCalendar('final-calendar', finalCalendar, false, result.scheduled_event);
+      // Normalize scheduled event (support both 'scheduled_event' and 'scheduled_meeting')
+      const scheduledEvent = normalizeEvent(result.scheduled_event || result.scheduled_meeting);
+
+      renderCalendar('initial-calendar', initialCalendar, true, null, calendarOwner);
+      renderCalendar('final-calendar', finalCalendar, false, scheduledEvent, calendarOwner);
 
       // Issues section
       const issuesSection = document.getElementById('issues-section');
@@ -380,26 +447,75 @@
         issuesSection.classList.add('hidden');
       }
 
-      // Messages
-      const messages = result.execution?.messages || [];
+      // Messages - support both 'messages' and 'emails' formats
+      let messages = result.execution?.messages;
+      if (!messages && result.execution?.emails) {
+        const emails = result.execution.emails;
+
+        // First pass: build a map of meeting title -> UID from emails with event data
+        const titleToUid = {};
+        emails.forEach(e => {
+          if (e.event) {
+            const uidMatch = e.event.match(/UID:\s*([^\n]+)/);
+            const summaryMatch = e.event.match(/SUMMARY:\s*([^\n]+)/);
+            if (uidMatch && summaryMatch) {
+              titleToUid[summaryMatch[1].trim()] = uidMatch[1].trim();
+            }
+          }
+        });
+
+        // Second pass: convert emails to messages, looking up UIDs for ACCEPTED/DECLINED responses
+        messages = emails.map((e, idx) => {
+          let meetingUid = null;
+
+          if (e.event) {
+            // Has event data - parse UID directly
+            const uidMatch = e.event.match(/UID:\s*([^\n]+)/);
+            if (uidMatch) meetingUid = uidMatch[1].trim();
+          } else if (e.subject) {
+            // No event data - check if it's an ACCEPTED/DECLINED response and look up UID by title
+            const responseMatch = e.subject.match(/Meeting\s+(?:AttendeeStatus\.)?(ACCEPTED|DECLINED):\s*(.+)/i);
+            if (responseMatch) {
+              const meetingTitle = responseMatch[2].trim();
+              meetingUid = titleToUid[meetingTitle] || null;
+            }
+          }
+
+          return {
+            id: idx + 1,  // 1-indexed email ID
+            to: e.to,
+            from_: e.from_,
+            subject: e.subject,
+            message: (e.body || '') + (e.event ? '\n\n' + e.event : ''),
+            meetingUid: meetingUid
+          };
+        });
+      }
+      messages = messages || [];
       const messagesContainer = document.getElementById('messages');
       // Get agent names from task (check email first, then name, then legacy values)
       const requestorName = result.execution?.task?.requestor?.email || result.execution?.task?.requestor?.name || 'requestor';
       const assistantName = result.execution?.task?.assistant?.email || result.execution?.task?.assistant?.name || 'assistant';
 
       messagesContainer.innerHTML = messages.length > 0
-        ? messages.map(msg => {
-          // Determine direction by checking who the message is TO
-          // If sent to assistant, it's from requestor (left side)
-          // If sent to requestor, it's from assistant (right side)
-          const isFromRequestor = msg.to === assistantName || msg.to === 'assistant';
+        ? messages.map((msg, idx) => {
+          // Determine direction by checking who the message is FROM
+          // If from requestor, show on left (blue)
+          // If from assistant, show on right (green)
+          const isFromRequestor = msg.from_ === requestorName || msg.from_ === 'requestor';
+          const messageId = msg.id || (idx + 1);
           return `
             <div class="flex ${isFromRequestor ? 'justify-start' : 'justify-end'}">
               <div class="${isFromRequestor
                 ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
                 : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'} rounded-lg px-4 py-2 max-w-[80%]">
-                <div class="text-xs font-medium mb-1 opacity-75">${escapeHtml(msg.from_)}</div>
-                <div class="text-sm">${escapeHtml(msg.message)}</div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs font-mono px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10">[${messageId}]</span>
+                  <span class="text-xs font-medium opacity-75">${escapeHtml(msg.from_)}</span>
+                </div>
+                ${msg.subject ? `<div class="text-xs font-semibold mb-1 opacity-90">${escapeHtml(msg.subject)}</div>` : ''}
+                ${msg.meetingUid ? `<div class="text-xs font-mono mb-1 opacity-75">Meeting UID: ${escapeHtml(msg.meetingUid)}</div>` : ''}
+                <div class="text-sm whitespace-pre-wrap">${escapeHtml(msg.message)}</div>
               </div>
             </div>
           `;
@@ -479,13 +595,13 @@
       container.innerHTML = html || '<div class="text-gray-500 dark:text-gray-400 text-center py-4">No trajectory data</div>';
     }
 
-    function renderCalendar(containerId, events, isInitial, scheduledEvent = null) {
+    function renderCalendar(containerId, events, isInitial, scheduledEvent = null, calendarOwner = null) {
       const container = document.getElementById(containerId);
 
-      // Full 24 hour day
-      const minTime = 0;
-      const maxTime = 24;
-      const range = 24;
+      // Full 24 hour day in minutes
+      const minTimeMinutes = 0;
+      const maxTimeMinutes = 24 * 60;
+      const rangeMinutes = 24 * 60;
 
       // Generate hour markers (one line per hour)
       let markersHtml = '';
@@ -495,43 +611,70 @@
       }
 
       // Generate events
-      let eventsHtml = events.map((event, idx) => {
-        const left = ((event.start_time - minTime) / range) * 100;
-        const width = (event.duration / range) * 100;
+      let eventsHtml = events.map((rawEvent, idx) => {
+        const event = normalizeEvent(rawEvent);
+        const startMinutes = militaryToMinutes(event.start_time_24h);
+        const left = ((startMinutes - minTimeMinutes) / rangeMinutes) * 100;
+        const width = (event.duration_minutes / rangeMinutes) * 100;
 
-        let bgColor = 'bg-blue-500';
+        let bgColor = 'bg-blue-500';  // Default: owned by calendar owner
         let textColor = 'text-white';
         let border = '';
 
-        if (event.is_secret) {
-          bgColor = 'bg-purple-500';
+        // Color based on ownership
+        if (event.organizer && calendarOwner && event.organizer !== calendarOwner) {
+          bgColor = 'bg-teal-500';  // Not owned by calendar owner
         }
 
-        if (event.is_movable === false) {
-          border = 'border-2 border-dashed border-gray-600';
+        // Build emoji prefix for label (only on initial calendar where we have this info)
+        let emojiPrefix = '';
+        if (isInitial) {
+          if (event.is_movable === false) {
+            emojiPrefix += '🔒';  // Lock for unmoveable
+          }
+          if (event.is_secret) {
+            emojiPrefix += '🤫';  // Shhh for secret
+          }
+          if (emojiPrefix) {
+            emojiPrefix += ' ';
+          }
         }
 
         // Check if this is the scheduled event (in final calendar)
         // Use ring highlight but preserve the background color (e.g., purple for secrets)
         if (!isInitial && scheduledEvent &&
             event.title === scheduledEvent.title &&
-            event.start_time === scheduledEvent.start_time) {
+            event.start_time_24h === scheduledEvent.start_time_24h) {
           if (!event.is_secret) {
-            bgColor = 'bg-emerald-500';
+            bgColor = 'bg-amber-500';
           }
-          border = 'ring-2 ring-emerald-300';
+          border = 'ring-2 ring-amber-300';
         }
 
-        const label = event.is_secret ? '\uD83D\uDD12 ' + event.title : event.title;
+        const label = emojiPrefix + event.title;
+
+        // Build attendees list with status (use raw event's attendees if available)
+        const attendees = rawEvent.attendees || [];
+        const attendeesHtml = attendees.length > 0
+          ? attendees.map(a => {
+              const email = typeof a === 'string' ? a : a.email;
+              const status = typeof a === 'object' ? a.status : null;
+              const statusBadge = status ? formatAttendeeStatus(status) : '';
+              return `<div class="flex items-center gap-1">${escapeHtml(email)}${statusBadge}</div>`;
+            }).join('')
+          : (event.participants && event.participants.length > 0
+              ? event.participants.map(p => `<div>${escapeHtml(p)}</div>`).join('')
+              : '<div class="text-gray-400">None</div>');
 
         // Build popup HTML
         let popupHtml = `
           <div class="event-popup">
-            <div class="font-semibold text-sm mb-2">${escapeHtml(event.title)}</div>
+            <div class="font-semibold text-sm mb-2 break-words">${escapeHtml(event.title)}</div>
             <div class="space-y-1">
-              <div><span class="text-gray-500 dark:text-gray-400">Time:</span> ${formatTime(event.start_time)} - ${formatTime(event.start_time + event.duration)} (${event.duration}h)</div>
+              <div><span class="text-gray-500 dark:text-gray-400">Time:</span> ${formatTime(event.start_time_24h)} - ${formatTime(event.end_time_24h)} (${formatDuration(event.duration_minutes)})</div>
               ${event.description ? `<div><span class="text-gray-500 dark:text-gray-400">Description:</span> ${escapeHtml(event.description)}</div>` : ''}
-              ${event.participants && event.participants.length > 0 ? `<div><span class="text-gray-500 dark:text-gray-400">Participants:</span> ${escapeHtml(event.participants.join(', '))}</div>` : ''}
+              <div><span class="text-gray-500 dark:text-gray-400">Attendees:</span><div class="ml-2 text-xs">${attendeesHtml}</div></div>
+              ${event.organizer ? `<div><span class="text-gray-500 dark:text-gray-400">Organizer:</span> ${escapeHtml(event.organizer)}</div>` : ''}
               ${isInitial ? `
                 <div class="flex gap-3 mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
                   <span class="${event.is_movable ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${event.is_movable ? '✓ Movable' : '✗ Not Movable'}</span>
@@ -553,28 +696,41 @@
       const legendContainer = document.getElementById(legendId);
       if (isInitial) {
         legendContainer.innerHTML = `
-          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span> Regular</span>
-          <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-purple-500 rounded"></span> Secret</span>
-          <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 border-2 border-dashed border-gray-500 rounded"></span> Non-movable</span>
+          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span> Owned</span>
+          <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-teal-500 rounded"></span> Not Owned</span>
+          <span class="inline-flex items-center gap-1 ml-3">🔒 Non-movable</span>
+          <span class="inline-flex items-center gap-1 ml-3">🤫 Secret</span>
         `;
       } else {
         legendContainer.innerHTML = `
-          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span> Regular</span>
-          <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-purple-500 rounded"></span> Secret</span>
-          <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 border-2 border-dashed border-gray-500 rounded"></span> Non-movable</span>
+          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span> Owned</span>
+          <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-teal-500 rounded"></span> Not Owned</span>
           ${scheduledEvent
-            ? `<span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-emerald-500 rounded ring-2 ring-emerald-300"></span> Scheduled</span>`
+            ? `<span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-amber-500 rounded ring-2 ring-amber-300"></span> Scheduled</span>`
             : `<span class="ml-3 text-gray-400">(No new event scheduled)</span>`}
         `;
       }
     }
 
-    function formatTime(hour) {
-      const h = Math.floor(hour);
-      const m = Math.round((hour - h) * 60);
+    function formatTime(militaryTime) {
+      const h = Math.floor(militaryTime / 100);
+      const m = militaryTime % 100;
       const ampm = h >= 12 ? 'PM' : 'AM';
       const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
       return m > 0 ? `${h12}:${m.toString().padStart(2, '0')} ${ampm}` : `${h12} ${ampm}`;
+    }
+
+    function militaryToMinutes(militaryTime) {
+      return Math.floor(militaryTime / 100) * 60 + (militaryTime % 100);
+    }
+
+    function formatDuration(durationMinutes) {
+      if (durationMinutes >= 60) {
+        const hours = Math.floor(durationMinutes / 60);
+        const mins = durationMinutes % 60;
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+      }
+      return `${durationMinutes}m`;
     }
 
     function truncate(str, len) {
@@ -585,6 +741,57 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    function formatAttendeeStatus(status) {
+      if (!status) return '';
+      const s = status.toUpperCase();
+      if (s === 'ACCEPTED') {
+        return ' <span class="text-xs px-1 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">✓</span>';
+      } else if (s === 'DECLINED') {
+        return ' <span class="text-xs px-1 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">✗</span>';
+      } else if (s === 'AWAITING-RESPONSE' || s === 'TENTATIVE' || s === 'NEEDS-ACTION') {
+        return ' <span class="text-xs px-1 py-0.5 rounded bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">?</span>';
+      }
+      return ` <span class="text-xs text-gray-400">(${escapeHtml(status)})</span>`;
+    }
+
+    // Parse time string "HH:MM" to military integer (e.g., "09:00" -> 900)
+    function parseTimeString(timeStr) {
+      if (typeof timeStr === 'number') return timeStr; // Already military format
+      if (!timeStr || typeof timeStr !== 'string') return null;
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 100 + m;
+    }
+
+    // Normalize event to use military time integers and participants array
+    function normalizeEvent(event) {
+      if (!event) return event;
+      const normalized = {...event};
+
+      // Convert time strings to military integers if needed
+      if (event.start_time && normalized.start_time_24h == null) {
+        normalized.start_time_24h = parseTimeString(event.start_time);
+      }
+      if (event.end_time && normalized.end_time_24h == null) {
+        normalized.end_time_24h = parseTimeString(event.end_time);
+      }
+
+      // Calculate duration_minutes if not present but we have start/end times
+      if (normalized.duration_minutes == null && normalized.start_time_24h != null && normalized.end_time_24h != null) {
+        const startMins = militaryToMinutes(normalized.start_time_24h);
+        const endMins = militaryToMinutes(normalized.end_time_24h);
+        normalized.duration_minutes = endMins - startMins;
+      }
+
+      // Convert attendees to participants if needed
+      if (event.attendees && !event.participants) {
+        normalized.participants = event.attendees.map(a =>
+          typeof a === 'string' ? a : a.email
+        );
+      }
+
+      return normalized;
     }
   </script>
 </body>

@@ -1,15 +1,18 @@
 import argparse
+import logging
 from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
-from openai import OpenAI
 from pydantic_core import to_json
 
 from .evaluator import evaluate_tasks
 from .loader import load_artifacts, load_calendar_tasks
+from .model_client import ModelClient, ModelClientConfig
 from .runner import run_tasks
 from .types import CalendarTask
+
+logger = logging.getLogger(__name__)
 
 
 def default_output_filename(model_name: str) -> str:
@@ -18,7 +21,7 @@ def default_output_filename(model_name: str) -> str:
     return f"outputs/calendar_scheduling/calendar_scheduling_{model_name}_{timestamp}.json"
 
 
-def load_tasks_from_paths(paths: list[str | Path]) -> list[CalendarTask]:
+def load_tasks_from_paths(paths: list[str | Path], limit: int | None = None) -> list[CalendarTask]:
     """Load tasks from YAML files or directories."""
     tasks: list[CalendarTask] = []
     for path in paths:
@@ -30,6 +33,8 @@ def load_tasks_from_paths(paths: list[str | Path]) -> list[CalendarTask]:
                 tasks.extend(load_calendar_tasks(yaml_file))
         else:
             tasks.extend(load_calendar_tasks(path))
+    if limit is not None:
+        tasks = tasks[:limit]
     return tasks
 
 
@@ -54,55 +59,101 @@ def parse_args() -> argparse.Namespace:
         default=20,
         help="Maximum conversation rounds per task (default: 20)",
     )
+
+    # Default model options (can be overridden by agent-specific options)
+    parser.add_argument(
+        "--model",
+        default="gpt-4.1",
+        help="Default model for all agents (default: gpt-4.1)",
+    )
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Default API key for all agents (defaults to OPENAI_API_KEY env var)",
+    )
+    parser.add_argument(
+        "--base-url",
+        default=None,
+        help="Default base URL for OpenAI-compatible API",
+    )
+    parser.add_argument(
+        "--api-version",
+        default=None,
+        help="Default API version for all agents",
+    )
+
     # Assistant agent options
     parser.add_argument(
         "--assistant-model",
-        default="gpt-4.1",
-        help="Model for assistant agent (default: gpt-4.1)",
+        default=None,
+        help="Model for assistant agent (overrides --model)",
     )
     parser.add_argument(
         "--assistant-base-url",
         default=None,
-        help="Base URL for assistant agent's OpenAI-compatible API",
+        help="Base URL for assistant agent's OpenAI-compatible API (overrides --base-url)",
     )
     parser.add_argument(
         "--assistant-api-key",
         default=None,
-        help="API key for assistant agent (defaults to OPENAI_API_KEY env var)",
+        help="API key for assistant agent (overrides --api-key)",
+    )
+    parser.add_argument(
+        "--assistant-api-version",
+        default=None,
+        help="API version for assistant agent (overrides --api-version)",
     )
 
     # Requestor agent options
     parser.add_argument(
         "--requestor-model",
-        default="gpt-4.1",
-        help="Model for requestor agent (default: gpt-4.1)",
+        default=None,
+        help="Model for requestor agent (overrides --model)",
     )
     parser.add_argument(
         "--requestor-base-url",
         default=None,
-        help="Base URL for requestor agent's OpenAI-compatible API",
+        help="Base URL for requestor agent's OpenAI-compatible API (overrides --base-url)",
     )
     parser.add_argument(
         "--requestor-api-key",
         default=None,
-        help="API key for requestor agent (defaults to OPENAI_API_KEY env var)",
+        help="API key for requestor agent (overrides --api-key)",
+    )
+    parser.add_argument(
+        "--requestor-api-version",
+        default=None,
+        help="API version for requestor agent (overrides --api-version)",
+    )
+
+    # Logging options
+    parser.add_argument(
+        "--log-level",
+        default="info",
+        choices=["debug", "info", "warning", "error"],
+        help="Logging level (default: info)",
     )
 
     # Judge (evaluation) options
     parser.add_argument(
         "--judge-model",
-        default="gpt-4.1",
-        help="Model for LLM-as-judge evaluation (default: gpt-4.1)",
+        default=None,
+        help="Model for LLM-as-judge evaluation (overrides --model)",
     )
     parser.add_argument(
         "--judge-base-url",
         default=None,
-        help="Base URL for judge's OpenAI-compatible API",
+        help="Base URL for judge's OpenAI-compatible API (overrides --base-url)",
     )
     parser.add_argument(
         "--judge-api-key",
         default=None,
-        help="API key for judge (defaults to OPENAI_API_KEY env var)",
+        help="API key for judge (overrides --api-key)",
+    )
+    parser.add_argument(
+        "--judge-api-version",
+        default=None,
+        help="API version for judge (overrides --api-version)",
     )
 
     # Artifacts option
@@ -110,6 +161,14 @@ def parse_args() -> argparse.Namespace:
         "--artifacts",
         default=None,
         help="Path to artifacts JSON file to inject into assistant context",
+    )
+
+    # Task limiting option
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Limit the number of tasks to load (default: None, loads all tasks)",
     )
 
     return parser.parse_args()
@@ -128,13 +187,13 @@ def print_evaluation_summary(eval_results: list) -> None:
     # Count error types
     conflicts = sum(1 for r in eval_results if r.has_conflicts)
     illegal_moves = sum(1 for r in eval_results if r.illegal_moves)
-    # Event should have been scheduled but wasn't
-    missing_events = sum(
-        1 for r in eval_results if r.task_satisfiable and not r.scheduled_event_found
+    # Meeting should have been scheduled but wasn't
+    missing_meetings = sum(
+        1 for r in eval_results if r.task_satisfiable and not r.scheduled_meeting_found
     )
-    # Event shouldn't have been scheduled but was
-    unwanted_events = sum(
-        1 for r in eval_results if not r.task_satisfiable and r.scheduled_event_found
+    # Meeting shouldn't have been scheduled but was
+    unwanted_meetings = sum(
+        1 for r in eval_results if not r.task_satisfiable and r.scheduled_meeting_found
     )
 
     print(f"\n{'=' * 40}")
@@ -144,8 +203,8 @@ def print_evaluation_summary(eval_results: list) -> None:
     print(f"Met expectations:     {completed}/{len(eval_results)} ({avg_completion:.1%})")
     print(f"  - Conflicts:        {conflicts}")
     print(f"  - Illegal moves:    {illegal_moves}")
-    print(f"  - Missing events:   {missing_events}")
-    print(f"  - Unwanted events:  {unwanted_events}")
+    print(f"  - Missing meetings: {missing_meetings}")
+    print(f"  - Unwanted meetings:{unwanted_meetings}")
     print(f"Avg leakage rate:     {avg_leakage:.1%}")
     print(f"{'=' * 40}")
 
@@ -153,51 +212,72 @@ def print_evaluation_summary(eval_results: list) -> None:
 def main():
     args = parse_args()
 
+    # Configure logging
+    log_level = getattr(logging, args.log_level.upper())
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
     load_dotenv()
 
-    assistant_client = OpenAI(
-        base_url=args.assistant_base_url,
-        api_key=args.assistant_api_key,
+    # Resolve model names with fallback to defaults
+    assistant_model = args.assistant_model or args.model
+    requestor_model = args.requestor_model or args.model
+    judge_model = args.judge_model or args.model
+
+    assistant_client = ModelClient(
+        config=ModelClientConfig(
+            base_url=args.assistant_base_url or args.base_url,
+            api_key=args.assistant_api_key or args.api_key,
+            api_version=args.assistant_api_version or args.api_version,
+        )
     )
-    requestor_client = OpenAI(
-        base_url=args.requestor_base_url,
-        api_key=args.requestor_api_key,
+    requestor_client = ModelClient(
+        config=ModelClientConfig(
+            base_url=args.requestor_base_url or args.base_url,
+            api_key=args.requestor_api_key or args.api_key,
+            api_version=args.requestor_api_version or args.api_version,
+        )
     )
-    judge_client = OpenAI(
-        base_url=args.judge_base_url,
-        api_key=args.judge_api_key,
+    judge_client = ModelClient(
+        config=ModelClientConfig(
+            base_url=args.judge_base_url or args.base_url,
+            api_key=args.judge_api_key or args.api_key,
+            api_version=args.judge_api_version or args.api_version,
+        )
     )
 
-    tasks = load_tasks_from_paths(args.paths)
+    tasks = load_tasks_from_paths(args.paths, limit=args.limit)
 
     # Load artifacts if provided
     artifacts_by_task = None
     if args.artifacts:
-        print(f"Loading artifacts from {args.artifacts}...")
+        logger.info(f"Loading artifacts from {args.artifacts}...")
         artifacts_by_task = load_artifacts(args.artifacts)
 
-    print(f"Running {len(tasks)} task(s)...")
+    logger.info("Running %d task(s)...", len(tasks))
     execution_results = run_tasks(
         tasks=tasks,
-        assistant_model=args.assistant_model,
+        assistant_model=assistant_model,
         assistant_client=assistant_client,
-        requestor_model=args.requestor_model,
+        requestor_model=requestor_model,
         requestor_client=requestor_client,
         max_rounds=args.max_rounds,
         artifacts_by_task=artifacts_by_task,
     )
 
-    print(f"Evaluating {len(execution_results)} execution results...")
+    logger.info("Evaluating %d execution results...", len(execution_results))
     eval_results = evaluate_tasks(
         execution_results=execution_results,
-        model=args.judge_model,
+        model=judge_model,
         model_client=judge_client,
     )
 
-    output_path = Path(args.output or default_output_filename(args.assistant_model))
+    output_path = Path(args.output or default_output_filename(assistant_model))
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(to_json(eval_results, indent=2))
-    print(f"Saved {len(eval_results)} evaluation results to {output_path}")
+    logger.info("Saved %d evaluation results to %s", len(eval_results), output_path)
 
     print_evaluation_summary(eval_results)
 

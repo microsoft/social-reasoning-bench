@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendar Scheduling Evaluation Comparison</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .file-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      background: #e5e7eb;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+    }
+    .dark .file-tag {
+      background: #374151;
+    }
+    .file-tag button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 9999px;
+      background: #9ca3af;
+      color: white;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .file-tag button:hover {
+      background: #ef4444;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+  <div id="app" class="max-w-7xl mx-auto p-4">
+    <!-- Header -->
+    <div class="text-center py-6">
+      <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Calendar Scheduling Evaluation Comparison</h1>
+      <p class="mt-2 text-gray-500 dark:text-gray-400 text-sm">Compare evaluation results across multiple models</p>
+    </div>
+
+    <!-- File Upload Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
+      <div class="flex flex-wrap items-center gap-4">
+        <label class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg cursor-pointer transition">
+          Load Files
+          <input type="file" id="file-input" accept=".json" multiple class="hidden">
+        </label>
+        <button id="add-more-btn" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-lg transition hidden">
+          Add More Files
+        </button>
+        <div id="loaded-files" class="flex flex-wrap gap-2">
+          <span class="text-gray-500 dark:text-gray-400 text-sm">No files loaded</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls Section (hidden until files loaded) -->
+    <div id="controls-section" class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 hidden">
+      <div class="flex flex-wrap items-center gap-4">
+        <span class="text-gray-700 dark:text-gray-300 font-medium">Group by:</span>
+        <div class="flex flex-wrap gap-2">
+          <button class="grouping-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-600 text-white" data-group="none">None</button>
+          <button class="grouping-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300" data-group="satisfiability">Satisfiability</button>
+          <button class="grouping-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300" data-group="maliciousness">Maliciousness</button>
+          <button class="grouping-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300" data-group="both">Both</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Task List Section (hidden until files loaded) -->
+    <div id="task-list-section" class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 hidden">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Tasks</h2>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-gray-500 dark:text-gray-400">
+            <span id="included-count">0</span> / <span id="total-count">0</span> included
+          </span>
+          <button id="select-all-btn" class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition">
+            Select All
+          </button>
+          <button id="select-none-btn" class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition">
+            Select None
+          </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <div id="task-list-container" class="max-h-72 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded">
+          <table class="w-full text-sm">
+            <thead class="sticky top-0 bg-gray-100 dark:bg-gray-700 z-10">
+              <tr id="task-list-header">
+                <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-medium w-8">
+                  <input type="checkbox" id="toggle-all-checkbox" class="rounded cursor-pointer" checked>
+                </th>
+                <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-medium w-8">#</th>
+                <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-medium min-w-[200px]">Task</th>
+                <th class="text-center py-2 px-2 text-gray-600 dark:text-gray-400 font-medium w-32">Type</th>
+                <!-- Model columns added dynamically -->
+              </tr>
+            </thead>
+            <tbody id="task-list-body">
+            </tbody>
+          </table>
+        </div>
+        <!-- Legend -->
+        <div class="mt-3 flex flex-wrap gap-4 text-xs text-gray-600 dark:text-gray-400">
+          <span class="font-medium">Legend:</span>
+          <span class="flex items-center gap-1">
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs font-bold">✓</span>
+            Met expectations
+          </span>
+          <span class="flex items-center gap-1">
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 text-xs font-bold">✗</span>
+            Failed
+          </span>
+          <span class="flex items-center gap-1">
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 text-xs">🤫</span>
+            Leaked secrets
+          </span>
+          <span class="flex items-center gap-1">
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 text-xs font-bold">C</span>
+            Conflicts
+          </span>
+          <span class="flex items-center gap-1">
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300 text-xs">🔒</span>
+            Illegal moves
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Section (hidden until files loaded) -->
+    <div id="charts-section" class="hidden">
+      <div class="grid md:grid-cols-2 gap-6 mb-6">
+        <!-- Leakage Rate (Aggregate) -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Leakage Rate (Aggregate)</h2>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Average leakage rate across all tasks</p>
+          <div class="relative h-64">
+            <canvas id="chart-leakage-aggregate"></canvas>
+          </div>
+        </div>
+
+        <!-- Leakage Rate (by Task) -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Leakage Rate (by Task)</h2>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Percentage of tasks with any leaked secrets</p>
+          <div class="relative h-64">
+            <canvas id="chart-leakage-task"></canvas>
+          </div>
+        </div>
+
+        <!-- Met Expectations Rate -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Met Expectations Rate</h2>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Percentage of tasks meeting expectations</p>
+          <div class="relative h-64">
+            <canvas id="chart-met-expectations"></canvas>
+          </div>
+        </div>
+
+        <!-- Failures by Type -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Failures by Type</h2>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Count of each failure type per model</p>
+          <div class="relative h-64">
+            <canvas id="chart-failures"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary Table -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Summary Statistics</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-200 dark:border-gray-700">
+                <th class="text-left py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Model</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Tasks</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Met %</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Leakage (per secret)</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Leakage (per task)</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Conflicts</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Illegal Moves</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Missing</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Unwanted</th>
+              </tr>
+            </thead>
+            <tbody id="summary-table-body">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let loadedModels = []; // { modelName: string, data: TaskEvaluationResult[], filename: string }[]
+    let currentGrouping = 'none';
+    let charts = {};
+    let includedTasks = new Set(); // Set of task indices included in charts
+
+    // Color palette
+    const colors = {
+      green: { bg: 'rgba(34, 197, 94, 0.7)', border: 'rgb(34, 197, 94)' },
+      red: { bg: 'rgba(239, 68, 68, 0.7)', border: 'rgb(239, 68, 68)' },
+      purple: { bg: 'rgba(168, 85, 247, 0.7)', border: 'rgb(168, 85, 247)' },
+      orange: { bg: 'rgba(249, 115, 22, 0.7)', border: 'rgb(249, 115, 22)' },
+      yellow: { bg: 'rgba(234, 179, 8, 0.7)', border: 'rgb(234, 179, 8)' },
+      amber: { bg: 'rgba(245, 158, 11, 0.7)', border: 'rgb(245, 158, 11)' },
+      blue: { bg: 'rgba(59, 130, 246, 0.7)', border: 'rgb(59, 130, 246)' },
+      gray: { bg: 'rgba(107, 114, 128, 0.7)', border: 'rgb(107, 114, 128)' },
+      teal: { bg: 'rgba(20, 184, 166, 0.7)', border: 'rgb(20, 184, 166)' },
+      pink: { bg: 'rgba(236, 72, 153, 0.7)', border: 'rgb(236, 72, 153)' },
+    };
+
+    // Group colors for stacked/grouped charts
+    const groupColors = {
+      'Satisfiable': colors.blue,
+      'Unsatisfiable': colors.yellow,
+      'Benign': colors.gray,
+      'Malicious': colors.red,
+      'Satisfiable + Benign': colors.blue,
+      'Satisfiable + Malicious': colors.pink,
+      'Unsatisfiable + Benign': colors.yellow,
+      'Unsatisfiable + Malicious': colors.orange,
+    };
+
+    // Failure type colors - distinct colors for each type
+    const failureColors = {
+      'Conflicts': colors.red,
+      'Illegal Moves': colors.purple,
+      'Missing Events': colors.teal,
+      'Unwanted Events': colors.orange,
+    };
+
+    // DOM Elements
+    const fileInput = document.getElementById('file-input');
+    const addMoreBtn = document.getElementById('add-more-btn');
+    const loadedFilesDiv = document.getElementById('loaded-files');
+    const controlsSection = document.getElementById('controls-section');
+    const chartsSection = document.getElementById('charts-section');
+    const taskListSection = document.getElementById('task-list-section');
+    const taskListHeader = document.getElementById('task-list-header');
+    const taskListBody = document.getElementById('task-list-body');
+    const includedCountSpan = document.getElementById('included-count');
+    const totalCountSpan = document.getElementById('total-count');
+    const selectAllBtn = document.getElementById('select-all-btn');
+    const selectNoneBtn = document.getElementById('select-none-btn');
+    const toggleAllCheckbox = document.getElementById('toggle-all-checkbox');
+    const groupingBtns = document.querySelectorAll('.grouping-btn');
+
+    // File input handler
+    fileInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+      loadFiles(files);
+      fileInput.value = ''; // Reset input so same files can be added again
+    });
+
+    // Add more files button
+    addMoreBtn.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    // Grouping button handlers
+    groupingBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentGrouping = btn.dataset.group;
+        updateGroupingButtons();
+        renderAllCharts();
+      });
+    });
+
+    function updateGroupingButtons() {
+      groupingBtns.forEach(btn => {
+        if (btn.dataset.group === currentGrouping) {
+          btn.className = 'grouping-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-600 text-white';
+        } else {
+          btn.className = 'grouping-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
+        }
+      });
+    }
+
+    async function loadFiles(files) {
+      for (const file of files) {
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          const modelName = extractModelName(file.name);
+
+          // Check if model already loaded
+          const existingIndex = loadedModels.findIndex(m => m.filename === file.name);
+          if (existingIndex >= 0) {
+            loadedModels[existingIndex] = { modelName, data, filename: file.name };
+          } else {
+            loadedModels.push({ modelName, data, filename: file.name });
+          }
+        } catch (err) {
+          alert(`Error loading ${file.name}: ${err.message}`);
+        }
+      }
+
+      updateUI();
+    }
+
+    function extractModelName(filename) {
+      // Pattern: calendar_scheduling_{model}_{timestamp}.json
+      const match = filename.match(/calendar_scheduling_(.+?)_\d{8}/);
+      if (match) {
+        return match[1];
+      }
+      // Fallback: remove extension and use filename
+      return filename.replace('.json', '');
+    }
+
+    function removeModel(filename) {
+      loadedModels = loadedModels.filter(m => m.filename !== filename);
+      updateUI();
+    }
+
+    function updateUI() {
+      // Update loaded files display
+      if (loadedModels.length === 0) {
+        loadedFilesDiv.innerHTML = '<span class="text-gray-500 dark:text-gray-400 text-sm">No files loaded</span>';
+        addMoreBtn.classList.add('hidden');
+        controlsSection.classList.add('hidden');
+        taskListSection.classList.add('hidden');
+        chartsSection.classList.add('hidden');
+        includedTasks.clear();
+      } else {
+        loadedFilesDiv.innerHTML = loadedModels.map(m => `
+          <span class="file-tag">
+            <span class="text-black dark:text-white font-medium">${escapeHtml(m.modelName)}</span>
+            <span class="text-gray-500 dark:text-gray-400">(${m.data.length} tasks)</span>
+            <button onclick="removeModel('${escapeHtml(m.filename)}')" title="Remove">&times;</button>
+          </span>
+        `).join('');
+        addMoreBtn.classList.remove('hidden');
+        controlsSection.classList.remove('hidden');
+        taskListSection.classList.remove('hidden');
+        chartsSection.classList.remove('hidden');
+        // Initialize included tasks if empty (first load)
+        if (includedTasks.size === 0) {
+          initializeIncludedTasks();
+        }
+        renderTaskList();
+        renderAllCharts();
+        renderSummaryTable();
+      }
+    }
+
+    // Data processing functions
+    function getFilteredData(modelData) {
+      return modelData.filter((_, idx) => includedTasks.has(idx));
+    }
+
+    function filterByGroup(results, groupKey) {
+      switch (groupKey) {
+        case 'Satisfiable':
+          return results.filter(r => r.task_satisfiable);
+        case 'Unsatisfiable':
+          return results.filter(r => !r.task_satisfiable);
+        case 'Benign':
+          return results.filter(r => !r.requestor_is_malicious);
+        case 'Malicious':
+          return results.filter(r => r.requestor_is_malicious);
+        case 'Satisfiable + Benign':
+          return results.filter(r => r.task_satisfiable && !r.requestor_is_malicious);
+        case 'Satisfiable + Malicious':
+          return results.filter(r => r.task_satisfiable && r.requestor_is_malicious);
+        case 'Unsatisfiable + Benign':
+          return results.filter(r => !r.task_satisfiable && !r.requestor_is_malicious);
+        case 'Unsatisfiable + Malicious':
+          return results.filter(r => !r.task_satisfiable && r.requestor_is_malicious);
+        default:
+          return results;
+      }
+    }
+
+    function getGroupKeys(grouping) {
+      switch (grouping) {
+        case 'satisfiability':
+          return ['Satisfiable', 'Unsatisfiable'];
+        case 'maliciousness':
+          return ['Benign', 'Malicious'];
+        case 'both':
+          return ['Satisfiable + Benign', 'Satisfiable + Malicious', 'Unsatisfiable + Benign', 'Unsatisfiable + Malicious'];
+        default:
+          return ['All'];
+      }
+    }
+
+    function getLeakageRateAggregate(results) {
+      if (results.length === 0) return 0;
+      const sum = results.reduce((acc, r) => acc + (r.leakage_rate || 0), 0);
+      return (sum / results.length) * 100;
+    }
+
+    function getLeakageRateByTask(results) {
+      if (results.length === 0) return 0;
+      const withLeaks = results.filter(r => r.leaked_secrets && r.leaked_secrets.length > 0).length;
+      return (withLeaks / results.length) * 100;
+    }
+
+    function getMetExpectationsRate(results) {
+      if (results.length === 0) return 0;
+      const met = results.filter(r => r.met_expectations).length;
+      return (met / results.length) * 100;
+    }
+
+    function getFailuresByType(results) {
+      const conflicts = results.filter(r => r.has_conflicts).length;
+      const illegalMoves = results.filter(r => r.illegal_moves && r.illegal_moves.length > 0).length;
+      const missingEvents = results.filter(r => r.task_satisfiable && !r.requestor_is_malicious && !(r.scheduled_event_found || r.scheduled_meeting_found)).length;
+      const unwantedEvents = results.filter(r => (!r.task_satisfiable || r.requestor_is_malicious) && (r.scheduled_event_found || r.scheduled_meeting_found)).length;
+      return { conflicts, illegalMoves, missingEvents, unwantedEvents };
+    }
+
+    // Chart rendering
+    function renderAllCharts() {
+      renderLeakageAggregateChart();
+      renderLeakageTaskChart();
+      renderMetExpectationsChart();
+      renderFailuresChart();
+    }
+
+    function destroyChart(chartId) {
+      if (charts[chartId]) {
+        charts[chartId].destroy();
+        delete charts[chartId];
+      }
+    }
+
+    function renderLeakageAggregateChart() {
+      destroyChart('leakage-aggregate');
+      const ctx = document.getElementById('chart-leakage-aggregate').getContext('2d');
+      const groupKeys = getGroupKeys(currentGrouping);
+
+      const datasets = groupKeys.map((groupKey, idx) => {
+        const data = loadedModels.map(m => {
+          const filteredByInclusion = getFilteredData(m.data);
+          const filtered = filterByGroup(filteredByInclusion, groupKey);
+          return getLeakageRateAggregate(filtered);
+        });
+        const color = groupKey === 'All' ? colors.purple : groupColors[groupKey];
+        return {
+          label: groupKey,
+          data,
+          backgroundColor: color.bg,
+          borderColor: color.border,
+          borderWidth: 1,
+        };
+      });
+
+      charts['leakage-aggregate'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: loadedModels.map(m => m.modelName),
+          datasets,
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              title: { display: true, text: 'Leakage Rate (%)' },
+            },
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`,
+              },
+            },
+          },
+        },
+      });
+    }
+
+    function renderLeakageTaskChart() {
+      destroyChart('leakage-task');
+      const ctx = document.getElementById('chart-leakage-task').getContext('2d');
+      const groupKeys = getGroupKeys(currentGrouping);
+
+      const datasets = groupKeys.map((groupKey, idx) => {
+        const data = loadedModels.map(m => {
+          const filteredByInclusion = getFilteredData(m.data);
+          const filtered = filterByGroup(filteredByInclusion, groupKey);
+          return getLeakageRateByTask(filtered);
+        });
+        const color = groupKey === 'All' ? colors.purple : groupColors[groupKey];
+        return {
+          label: groupKey,
+          data,
+          backgroundColor: color.bg,
+          borderColor: color.border,
+          borderWidth: 1,
+        };
+      });
+
+      charts['leakage-task'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: loadedModels.map(m => m.modelName),
+          datasets,
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              title: { display: true, text: 'Tasks with Leakage (%)' },
+            },
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`,
+              },
+            },
+          },
+        },
+      });
+    }
+
+    function renderMetExpectationsChart() {
+      destroyChart('met-expectations');
+      const ctx = document.getElementById('chart-met-expectations').getContext('2d');
+      const groupKeys = getGroupKeys(currentGrouping);
+
+      const datasets = groupKeys.map((groupKey, idx) => {
+        const data = loadedModels.map(m => {
+          const filteredByInclusion = getFilteredData(m.data);
+          const filtered = filterByGroup(filteredByInclusion, groupKey);
+          return getMetExpectationsRate(filtered);
+        });
+        const color = groupKey === 'All' ? colors.green : groupColors[groupKey];
+        return {
+          label: groupKey,
+          data,
+          backgroundColor: color.bg,
+          borderColor: color.border,
+          borderWidth: 1,
+        };
+      });
+
+      charts['met-expectations'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: loadedModels.map(m => m.modelName),
+          datasets,
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              title: { display: true, text: 'Met Expectations (%)' },
+            },
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`,
+              },
+            },
+          },
+        },
+      });
+    }
+
+    function renderFailuresChart() {
+      destroyChart('failures');
+      const ctx = document.getElementById('chart-failures').getContext('2d');
+
+      // For failures, we always show stacked by failure type
+      // If grouping is enabled, we show grouped bars with stacked failure types
+      const groupKeys = getGroupKeys(currentGrouping);
+      const failureTypes = ['Conflicts', 'Illegal Moves', 'Missing Events', 'Unwanted Events'];
+
+      if (currentGrouping === 'none') {
+        // Simple stacked bar by failure type
+        const datasets = failureTypes.map(failureType => {
+          const data = loadedModels.map(m => {
+            const filteredByInclusion = getFilteredData(m.data);
+            const failures = getFailuresByType(filteredByInclusion);
+            switch (failureType) {
+              case 'Conflicts': return failures.conflicts;
+              case 'Illegal Moves': return failures.illegalMoves;
+              case 'Missing Events': return failures.missingEvents;
+              case 'Unwanted Events': return failures.unwantedEvents;
+            }
+          });
+          return {
+            label: failureType,
+            data,
+            backgroundColor: failureColors[failureType].bg,
+            borderColor: failureColors[failureType].border,
+            borderWidth: 1,
+          };
+        });
+
+        charts['failures'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: loadedModels.map(m => m.modelName),
+            datasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { stacked: true },
+              y: {
+                stacked: true,
+                beginAtZero: true,
+                title: { display: true, text: 'Failure Count' },
+              },
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}`,
+                },
+              },
+            },
+          },
+        });
+      } else {
+        // For grouped view, show total failures per group
+        const datasets = groupKeys.map((groupKey, idx) => {
+          const data = loadedModels.map(m => {
+            const filteredByInclusion = getFilteredData(m.data);
+            const filtered = filterByGroup(filteredByInclusion, groupKey);
+            const failures = getFailuresByType(filtered);
+            return failures.conflicts + failures.illegalMoves + failures.missingEvents + failures.unwantedEvents;
+          });
+          const color = groupColors[groupKey];
+          return {
+            label: groupKey,
+            data,
+            backgroundColor: color.bg,
+            borderColor: color.border,
+            borderWidth: 1,
+          };
+        });
+
+        charts['failures'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: loadedModels.map(m => m.modelName),
+            datasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: 'Total Failures' },
+              },
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} failures`,
+                },
+              },
+            },
+          },
+        });
+      }
+    }
+
+    function renderSummaryTable() {
+      const tbody = document.getElementById('summary-table-body');
+      tbody.innerHTML = loadedModels.map(m => {
+        const filteredData = getFilteredData(m.data);
+        const total = filteredData.length;
+        const metRate = getMetExpectationsRate(filteredData);
+        const leakageAgg = getLeakageRateAggregate(filteredData);
+        const leakageTask = getLeakageRateByTask(filteredData);
+        const failures = getFailuresByType(filteredData);
+
+        return `
+          <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+            <td class="py-2 px-3 font-medium text-gray-800 dark:text-gray-200">${escapeHtml(m.modelName)}</td>
+            <td class="py-2 px-3 text-right text-gray-600 dark:text-gray-400">${total}</td>
+            <td class="py-2 px-3 text-right ${metRate >= 80 ? 'text-green-600 dark:text-green-400' : metRate >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'} font-medium">${metRate.toFixed(1)}%</td>
+            <td class="py-2 px-3 text-right ${leakageAgg <= 10 ? 'text-green-600 dark:text-green-400' : leakageAgg <= 30 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}">${leakageAgg.toFixed(1)}%</td>
+            <td class="py-2 px-3 text-right ${leakageTask <= 20 ? 'text-green-600 dark:text-green-400' : leakageTask <= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}">${leakageTask.toFixed(1)}%</td>
+            <td class="py-2 px-3 text-right ${failures.conflicts === 0 ? 'text-gray-400' : 'text-red-600 dark:text-red-400'}">${failures.conflicts}</td>
+            <td class="py-2 px-3 text-right ${failures.illegalMoves === 0 ? 'text-gray-400' : 'text-orange-600 dark:text-orange-400'}">${failures.illegalMoves}</td>
+            <td class="py-2 px-3 text-right ${failures.missingEvents === 0 ? 'text-gray-400' : 'text-yellow-600 dark:text-yellow-400'}">${failures.missingEvents}</td>
+            <td class="py-2 px-3 text-right ${failures.unwantedEvents === 0 ? 'text-gray-400' : 'text-amber-600 dark:text-amber-400'}">${failures.unwantedEvents}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Task list functions
+    function initializeIncludedTasks() {
+      includedTasks.clear();
+      if (loadedModels.length > 0) {
+        const taskCount = loadedModels[0].data.length;
+        for (let i = 0; i < taskCount; i++) {
+          includedTasks.add(i);
+        }
+      }
+    }
+
+    function updateIncludedCount() {
+      const total = loadedModels.length > 0 ? loadedModels[0].data.length : 0;
+      includedCountSpan.textContent = includedTasks.size;
+      totalCountSpan.textContent = total;
+      toggleAllCheckbox.checked = includedTasks.size === total;
+      toggleAllCheckbox.indeterminate = includedTasks.size > 0 && includedTasks.size < total;
+    }
+
+    function renderTaskList() {
+      if (loadedModels.length === 0) return;
+
+      // Build header with model columns
+      const baseHeaders = `
+        <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-medium w-8">
+          <input type="checkbox" id="toggle-all-checkbox" class="rounded cursor-pointer" ${includedTasks.size === loadedModels[0].data.length ? 'checked' : ''}>
+        </th>
+        <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-medium w-8">#</th>
+        <th class="text-left py-2 px-2 text-gray-600 dark:text-gray-400 font-medium min-w-[200px]">Task</th>
+        <th class="text-center py-2 px-2 text-gray-600 dark:text-gray-400 font-medium w-32">Type</th>
+      `;
+      const modelHeaders = loadedModels.map(m =>
+        `<th class="text-center py-2 px-2 text-gray-600 dark:text-gray-400 font-medium min-w-[100px]">${escapeHtml(m.modelName)}</th>`
+      ).join('');
+      taskListHeader.innerHTML = baseHeaders + modelHeaders;
+
+      // Re-attach toggle all checkbox listener
+      const newToggleAll = document.getElementById('toggle-all-checkbox');
+      newToggleAll.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          selectAll();
+        } else {
+          selectNone();
+        }
+      });
+
+      // Build rows
+      const taskCount = loadedModels[0].data.length;
+      let rowsHtml = '';
+
+      for (let i = 0; i < taskCount; i++) {
+        const firstModelTask = loadedModels[0].data[i];
+        const title = firstModelTask.original_requested_event?.title ||
+                      firstModelTask.original_requested_meeting?.title ||
+                      firstModelTask.execution?.task?.requestor?.event?.title ||
+                      firstModelTask.execution?.task?.requestor?.requested_meeting?.title ||
+                      'Unknown';
+        const isSatisfiable = firstModelTask.task_satisfiable;
+        const isMalicious = firstModelTask.requestor_is_malicious;
+        const isIncluded = includedTasks.has(i);
+
+        // Type badges
+        const satBadge = isSatisfiable
+          ? '<span class="px-1.5 py-0.5 text-xs rounded bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">Sat</span>'
+          : '<span class="px-1.5 py-0.5 text-xs rounded bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">Unsat</span>';
+        const malBadge = isMalicious
+          ? '<span class="px-1.5 py-0.5 text-xs rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">Mal</span>'
+          : '<span class="px-1.5 py-0.5 text-xs rounded bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300">Ben</span>';
+
+        // Model result columns
+        const modelCells = loadedModels.map(m => {
+          const result = m.data[i];
+          if (!result) return '<td class="py-1.5 px-2 text-center">-</td>';
+
+          const badges = [];
+
+          // Met/Failed badge
+          if (result.met_expectations) {
+            badges.push('<span class="inline-flex items-center justify-center w-5 h-5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs font-bold" title="Met expectations">✓</span>');
+          } else {
+            badges.push('<span class="inline-flex items-center justify-center w-5 h-5 rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 text-xs font-bold" title="Failed">✗</span>');
+          }
+
+          // Leakage badge
+          if (result.leaked_secrets && result.leaked_secrets.length > 0) {
+            badges.push('<span class="inline-flex items-center justify-center w-5 h-5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 text-xs" title="Leaked secrets">🤫</span>');
+          }
+
+          // Conflicts badge
+          if (result.has_conflicts) {
+            badges.push('<span class="inline-flex items-center justify-center w-5 h-5 rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 text-xs font-bold" title="Has conflicts">C</span>');
+          }
+
+          // Illegal moves badge
+          if (result.illegal_moves && result.illegal_moves.length > 0) {
+            badges.push('<span class="inline-flex items-center justify-center w-5 h-5 rounded bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300 text-xs" title="Illegal moves">🔒</span>');
+          }
+
+          return `<td class="py-1.5 px-2 text-center"><div class="flex items-center justify-center gap-1">${badges.join('')}</div></td>`;
+        }).join('');
+
+        const rowClass = isIncluded ? '' : 'opacity-50';
+        rowsHtml += `
+          <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${rowClass}" data-task-index="${i}">
+            <td class="py-1.5 px-2">
+              <input type="checkbox" class="task-checkbox rounded cursor-pointer" data-index="${i}" ${isIncluded ? 'checked' : ''}>
+            </td>
+            <td class="py-1.5 px-2 text-gray-500 dark:text-gray-400">${i + 1}</td>
+            <td class="py-1.5 px-2 text-gray-800 dark:text-gray-200 truncate max-w-[250px]" title="${escapeHtml(title)}">${escapeHtml(title)}</td>
+            <td class="py-1.5 px-2 text-center"><div class="flex items-center justify-center gap-1">${satBadge}${malBadge}</div></td>
+            ${modelCells}
+          </tr>
+        `;
+      }
+
+      taskListBody.innerHTML = rowsHtml;
+
+      // Attach checkbox listeners
+      document.querySelectorAll('.task-checkbox').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+          const idx = parseInt(e.target.dataset.index);
+          if (e.target.checked) {
+            includedTasks.add(idx);
+          } else {
+            includedTasks.delete(idx);
+          }
+          updateRowOpacity(idx, e.target.checked);
+          updateIncludedCount();
+          renderAllCharts();
+          renderSummaryTable();
+        });
+      });
+
+      updateIncludedCount();
+    }
+
+    function updateRowOpacity(index, included) {
+      const row = document.querySelector(`tr[data-task-index="${index}"]`);
+      if (row) {
+        if (included) {
+          row.classList.remove('opacity-50');
+        } else {
+          row.classList.add('opacity-50');
+        }
+      }
+    }
+
+    function selectAll() {
+      if (loadedModels.length === 0) return;
+      const taskCount = loadedModels[0].data.length;
+      for (let i = 0; i < taskCount; i++) {
+        includedTasks.add(i);
+      }
+      document.querySelectorAll('.task-checkbox').forEach(cb => {
+        cb.checked = true;
+        updateRowOpacity(parseInt(cb.dataset.index), true);
+      });
+      updateIncludedCount();
+      renderAllCharts();
+      renderSummaryTable();
+    }
+
+    function selectNone() {
+      includedTasks.clear();
+      document.querySelectorAll('.task-checkbox').forEach(cb => {
+        cb.checked = false;
+        updateRowOpacity(parseInt(cb.dataset.index), false);
+      });
+      updateIncludedCount();
+      renderAllCharts();
+      renderSummaryTable();
+    }
+
+    // Event listeners for select all/none buttons
+    selectAllBtn.addEventListener('click', selectAll);
+    selectNoneBtn.addEventListener('click', selectNone);
+  </script>
+</body>
+</html>
