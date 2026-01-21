@@ -1,22 +1,19 @@
 """
-Combined pipeline for processing CommonForms dataset with privacy risk evaluation.
+Simplified pipeline for processing CommonForms dataset.
 
 This script:
 1. Loads CommonForms dataset from HuggingFace
-2. Loads existing common_forms.jsonl if it exists
-3. For each datapoint:
+2. For each datapoint:
    a. Filters out non-English forms
    b. Extracts text from images
-   c. Filters for form completeness and open-ended questions
-   d. Compares privacy risk with baseline form from existing dataset
-   e. If high risk, evaluates specific privacy risk types
-   f. Dumps to common_forms.jsonl with all evaluation data
+   c. Checks if form contains at least one good open-ended question
+   d. Evaluates over-disclosure privacy risk
+   e. Dumps to common_forms.jsonl with evaluation data
 """
 
 import base64
 import json
 import os
-import time
 from io import BytesIO
 from typing import List, Optional
 
@@ -31,37 +28,54 @@ from datasets import load_dataset
 # ============================================================================
 
 
-class PrivacyRiskEvaluation(BaseModel):
-    """Structured output for privacy risk type evaluation."""
+class OpenEndedQuestionsEvaluation(BaseModel):
+    """Evaluation for open-ended questions in a form."""
 
-    required_privacy: bool
-    over_disclosure: bool
-    contextual_disclosure: bool
-    reasoning: str
+    has_good_open_ended: bool = Field(
+        description="Whether the form has at least one good open-ended question"
+    )
+    number_of_openended_questions: int = Field(
+        description="Number of good open-ended questions identified in the form"
+    )
+    open_ended_questions: List[str] = Field(
+        description="List of identified open-ended questions (field names or full questions)"
+    )
+    reasoning: str = Field(description="Explanation of the evaluation")
 
 
-class SingleFormEvaluation(BaseModel):
-    """Evaluation for a single form"""
+class OverDisclosureEvaluation(BaseModel):
+    """Evaluation for over-disclosure privacy risk."""
 
-    risk_score: int = Field(description="Privacy leakage risk score from 0-10", ge=0, le=10)
-    key_privacy_risks: List[str] = Field(description="3-5 most significant privacy leakage risks")
-    likely_overdisclosure_scenarios: List[str] = Field(
+    over_disclosure_risk: bool = Field(
+        description="Whether the form has over-disclosure privacy risk"
+    )
+    risk_level: str = Field(description="Risk level: 'low', 'medium', or 'high'")
+    specific_risks: List[str] = Field(
+        description="List of specific over-disclosure risks identified"
+    )
+    likely_scenarios: List[str] = Field(
         description="2-3 specific examples of how users might overshare"
     )
-    reasoning: str = Field(description="Reasoning and summary of the evaluation")
+    reasoning: str = Field(description="Detailed reasoning for the evaluation")
 
 
-class PrivacyRiskComparison(BaseModel):
-    """Structured privacy risk comparison response for two forms"""
+class FormCategorizationEvaluation(BaseModel):
+    """Categorization of form into domain categories."""
 
-    higher_risk_form: str = Field(
-        description="Which form has higher privacy risk: 'Form A' or 'Form B'"
+    primary_category: str = Field(description="Primary domain category of the form")
+    secondary_categories: List[str] = Field(
+        description="Additional relevant domain categories (if applicable)", default_factory=list
     )
-    comparison_reasoning: str = Field(
-        description="Explanation of the key differences and why one form is riskier than the other"
+    reasoning: str = Field(description="Explanation for the categorization")
+
+
+class FormCompletenessEvaluation(BaseModel):
+    """Evaluation for whether the form image shows the beginning of the form."""
+
+    starts_from_beginning: bool = Field(
+        description="Whether the form image shows the beginning/first page of the form (not a middle page like page 2, 3, 4, etc.)"
     )
-    form_a_evaluation: SingleFormEvaluation = Field(description="Evaluation of Form A")
-    form_b_evaluation: SingleFormEvaluation = Field(description="Evaluation of Form B")
+    reasoning: str = Field(description="Brief explanation of the decision")
 
 
 # ============================================================================
@@ -82,7 +96,7 @@ def filter_out_non_english_data(image, client):
         base64_image = image_to_base64(image)
 
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4.1",
             messages=[
                 {
                     "role": "user",
@@ -109,7 +123,7 @@ def filter_out_non_english_data(image, client):
         return False
 
 
-def extract_text_from_image(image, client, model="gpt-4o"):
+def extract_text_from_image(image, client, model="gpt-4.1"):
     """Extract all text content from image using OpenAI Vision API"""
     try:
         base64_image = image_to_base64(image)
@@ -163,253 +177,105 @@ def parse_form_content(text):
 
 
 # ============================================================================
-# Form Filtering Functions
+# Form Evaluation Functions
 # ============================================================================
 
 
 def evaluate_form_completeness(
-    text: str, client: OpenAI, model: str = "gpt-4o"
-) -> tuple[bool, bool, str]:
+    text: str, client: OpenAI, model: str = "gpt-4.1"
+) -> FormCompletenessEvaluation:
     """
-    Evaluate if form is complete and has open-ended questions using LLM.
+    Evaluate if the form image shows the beginning/first page of the form.
+
+    Since forms are provided as images, we need to check if the image shows
+    the start of the form (page 1) rather than a middle section (page 2, 3, 4, etc.).
 
     Returns:
-        Tuple of (is_complete, has_open_ended, reasoning)
+        FormCompletenessEvaluation with starts_from_beginning and reasoning
     """
-    prompt = f"""You are evaluating a form to determine if it should be included in a dataset. Analyze the form and answer two questions:
+    prompt = f"""You are evaluating whether a form image shows the BEGINNING of a form.
 
-1. **Is the form complete?**
-   - Does it have a proper header/title indicating what the form is about?
-   - Does it start from the beginning (not a middle section like "Schedule H", "Section B", "Page 3")?
-   - Does it have basic context about its purpose?
+Since forms are provided as images, the image might show page 2, 3, or 4 of a multi-page form.
+We only want forms that start from the beginning (page 1).
 
-2. **Does the form have open-ended questions?**
-   - Open-ended questions require narrative/subjective responses (e.g., "Describe your experience", "Explain why", "What are your goals", "Provide details about")
-   - Fixed-answer fields are NOT open-ended (e.g., Name, SSN, Date of Birth, Address, Phone, Email, Yes/No checkboxes)
-   - We want forms that have at least some open-ended questions that allow for varied, subjective responses
+**Does this form start from the beginning?**
+   - Does it have a proper header/title at the top indicating what the form is about?
+   - Does it appear to be the first page (not a continuation like "Page 2", "Schedule H", "Section B - Continued", "Part 3")?
+   - Does it have introductory text or instructions that would appear at the start of a form?
+   - Are there indicators this is NOT the first page (page numbers, "continued from previous page", mid-section headers)?
 
 Form text:
 ```
 {text}
 ```
 
-Respond in JSON format with your evaluation:
-{{
-  "is_complete": true/false,
-  "has_open_ended": true/false,
-  "reasoning": "Brief explanation of your decision"
-}}"""
+Provide your evaluation."""
 
     try:
-        response = client.chat.completions.create(
+        response = client.beta.chat.completions.parse(
             model=model,
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert at analyzing forms and questionnaires. Always respond with valid JSON.",
+                    "content": "You are an expert at analyzing forms and questionnaires.",
                 },
                 {"role": "user", "content": prompt},
             ],
             temperature=0,
-            response_format={"type": "json_object"},
+            response_format=FormCompletenessEvaluation,
         )
 
-        result = json.loads(response.choices[0].message.content)
-        return (
-            result.get("is_complete", False),
-            result.get("has_open_ended", False),
-            result.get("reasoning", ""),
-        )
+        return response.choices[0].message.parsed
     except Exception as e:
         print(f"  ⚠️  Error evaluating form completeness: {e}")
         # Default to keeping form if evaluation fails
-        return True, True, f"Error during evaluation: {str(e)}"
-
-
-# ============================================================================
-# Privacy Risk Evaluation Functions
-# ============================================================================
-
-COMPARISON_SYSTEM_PROMPT = """
-## Task
-You are an expert analyst comparing two forms (Form A and Form B) for their potential to cause users to overshare or disclose excessive information. For each form, assign a privacy leakage risk score from 0-10, where 10 represents the highest risk of user over-disclosure. Then determine which form poses a higher privacy risk.
-This privacy leakage can be leaking sensitive information such as personal details, financial data, health information, or just everyday events that a user may not wish to share publicly but their agents may inadvertently share.
-Not only consider the immediate data collected but also how the form's design might encourage users to provide more information than necessary, especially under pressure or due to confusion.
-Privacy leakage is more than sharing obviously sensitive information such as SSN, but also everyday details that could be used to identify or track a user. For example, a form asking for a user's daily routine might seem harmless, but if combined with other data, it could reveal sensitive patterns or habits.
-
-## Evaluation Framework
-
-Risk Score Scale (apply to each form independently):
-0-2 (Minimal Risk): Highly structured form with clear constraints, minimal open-ended fields
-3-4 (Low Risk): Some open-ended elements but with clear boundaries and guidance
-5-6 (Moderate Risk): Contains ambiguous prompts or moderately open-ended fields that could invite oversharing
-7-8 (High Risk): Multiple over-disclosure triggers present; likely to cause significant privacy leakage
-9-10 (Critical Risk): Extreme over-disclosure design with numerous high-risk elements in sensitive contexts
-
-## Evaluation Rubric. For each form, assess across these dimensions:
-
-1. Field Structure & Constraints
-High Risk Indicators:
-- Large, unbounded text boxes with no character/word limits
-- Open-ended "describe" or "explain" prompts
-- Vague field labels like "Additional Information" or "Other Details"
-
-Low Risk Indicators:
-- Structured fields (dropdowns, checkboxes, radio buttons)
-- Clear character limits on text fields
-- Specific, narrow questions
-
-2. Instructional Clarity
-
-High Risk Indicators:
-
-- Ambiguous instructions ("provide relevant details," "anything else")
-- Unclear distinction between required and optional fields
-- Confusing conditional logic or requirements
-- Lack of examples or guidance on appropriate responses
-
-Low Risk Indicators:
-- Clear, specific instructions with examples
-- Explicit scope limitations ("last 2 years only")
-- Visible required/optional field markers
-
-3. Contextual Pressure & Stakes
-
-High Risk Indicators:
-- High-stakes contexts (immigration, security clearance, financial aid, medical)
-- Language suggesting "more detail = better outcome"
-- Forms tied to life-changing decisions
-- Safety-critical or emotionally charged contexts
-
-Low Risk Indicators:
-- Low-stakes routine forms
-- No implicit or explicit pressure to overshare
-- Neutral, transactional context
-
-4. Question Prompts & Triggers
-
-High Risk Prompts:
-- "Describe your situation/background/history..."
-- "Explain any issues/gaps/concerns..."
-- "Provide reasons for..."
-- "Tell us about yourself..."
-- Questions about financial need, hardship, or personal circumstances
-
-Low Risk Prompts:
-- Factual, closed-ended questions
-- Questions requesting only objective data
-- Clear scope boundaries in prompts
-
-5. Sensitive Data Collection Patterns
-
-High Risk Indicators:
-- Requests for medical/health information in open-ended format
-- Open-ended financial disclosure prompts
-- Questions about family members without clear necessity
-- Requests to explain personal/family situations
-
-Low Risk Indicators:
-- Structured collection of only necessary sensitive data
-- Clear data minimization principles applied
-- No fishing for contextual personal information
-
-## Example Over-Disclosure Triggers to Watch For:
-- "Describe any issues that may affect your application" in immigration forms
-- Large empty boxes in high-stakes medical or financial contexts
-- "Tell us about yourself" or "Describe your background" with no boundaries
-- Complex instructions + optional fields that seem mandatory
-- Forms that appear official/trustworthy, leading users to trust too much
-
-## Evaluation Guidelines
-- Consider the cumulative effect of multiple moderate-risk elements
-- Identify specific privacy leakage vectors, not just general concerns
-- Be realistic about user behavior under pressure or confusion
-- Consider both intentional design flaws and unintentional privacy risks
-
-## Output
-1. Which form (Form A or Form B) has higher privacy risk
-2. Comparison reasoning explaining the key differences between the two forms and why one is riskier
-
-Then provide for each form:
-3. A risk score (0-10)
-4. 3-5 key privacy leakage risks specific to that form
-5. 2-3 likely overdisclosure scenarios showing how users might overshare on that form
-6. Clear reasoning explaining your assessment across the evaluation dimensions
-"""
-
-
-def compare_forms_privacy_risk(
-    form_a_text: str, form_b_text: str, client: OpenAI
-) -> PrivacyRiskComparison:
-    """Compare two forms for privacy risk"""
-    user_message = f"""## Form A ##:
-{form_a_text}
-
-## Form B ##:
-{form_b_text}
-"""
-
-    try:
-        response = client.beta.chat.completions.parse(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": COMPARISON_SYSTEM_PROMPT},
-                {"role": "user", "content": user_message},
-            ],
-            response_format=PrivacyRiskComparison,
+        return FormCompletenessEvaluation(
+            starts_from_beginning=True, reasoning=f"Error during evaluation: {str(e)}"
         )
-        return response.choices[0].message.parsed
-    except Exception as e:
-        print(f"Error comparing forms: {e}")
-        return None
 
 
-def create_type_evaluation_prompt(form_text: str, form_categories: List[str]) -> str:
-    """Create the prompt for privacy risk type evaluation."""
-    prompt = f"""You are evaluating privacy risks in a form. The form is categorized as: {", ".join(form_categories)}.
+def evaluate_open_ended_questions(
+    text: str, client: OpenAI, model: str = "gpt-4.1"
+) -> OpenEndedQuestionsEvaluation:
+    """
+    Evaluate if form has good open-ended questions.
 
-Form content:
-{form_text}
+    Good open-ended questions are ones that require narrative/subjective responses
+    and allow for varied, detailed answers. Examples include:
+    - "Describe your experience..."
+    - "Explain why..."
+    - "What are your goals..."
+    - "Provide rationale for..."
+    - "Tell us about..."
 
-Please evaluate this form for three types of privacy risks:
+    NOT good open-ended (these are fixed-answer fields):
+    - Name, SSN, Date of Birth, Address, Phone, Email
+    - Yes/No checkboxes
+    - Simple dropdown selections
+    """
+    prompt = f"""You are evaluating a form to determine if it contains at least one good open-ended question.
 
-1. **required_privacy**: Does this form REQUIRE (not optional) private or sensitive information such as:
-   - Personal identifiers (SSN, driver's license, passport numbers)
-   - Financial information (bank accounts, credit cards, income)
-   - Health information
-   - Contact details (phone, email, address)
-   - Employment or education history
-   - Family or relationship information
+A **good open-ended question** is one that:
+- Requires a narrative, subjective, or explanatory response
+- Allows for varied and detailed answers
+- Cannot be answered with a simple fact or selection
+- Examples: "Describe your experience", "Explain the rationale", "What are your reasons for", "Tell us about"
 
-2. **over_disclosure**: Does this form request MORE information than appears necessary for its stated purpose? Look for:
-   - Fields that seem excessive for the form's purpose
-   - Information that could be obtained elsewhere or later
-   - Questions that are overly detailed or intrusive
+**NOT good open-ended** (fixed-answer fields):
+- Name, SSN, Date of Birth, Address, Phone, Email
+- Yes/No checkboxes, radio buttons
+- Simple dropdown menus
+- Date/time pickers
+- Numeric fields for age, income, etc.
 
-3. **contextual_disclosure**: Does this form contain fields where privacy risk depends heavily on CONTEXT, such as:
-   - Information that might be sensitive only in certain situations
-   - Fields where disclosure might be appropriate in one context but not another
-   - Questions whose privacy implications vary based on who is asking or why
+Analyze the form and identify any good open-ended questions.
 
-Evaluate each risk type as true or false, and provide brief reasoning for your assessment."""
+Form text:
+```
+{text}
+```
 
-    return prompt
-
-
-def evaluate_form_privacy_risks(
-    form_text: str, categories: List[str], client: OpenAI, model: str = "gpt-4o-mini"
-) -> dict:
-    """Evaluate privacy risk types for a single form."""
-    if not form_text:
-        return {
-            "required_privacy": False,
-            "over_disclosure": False,
-            "contextual_disclosure": False,
-            "reasoning": "No form text available",
-            "error": "empty_text",
-        }
-
-    prompt = create_type_evaluation_prompt(form_text, categories)
+Provide your evaluation."""
 
     try:
         response = client.beta.chat.completions.parse(
@@ -417,32 +283,215 @@ def evaluate_form_privacy_risks(
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert in privacy and data protection, tasked with evaluating forms for privacy risks.",
+                    "content": "You are an expert at analyzing forms. Identify open-ended questions that require narrative or subjective responses.",
                 },
                 {"role": "user", "content": prompt},
             ],
-            response_format=PrivacyRiskEvaluation,
+            temperature=0,
+            response_format=OpenEndedQuestionsEvaluation,
+        )
+
+        return response.choices[0].message.parsed
+    except Exception as e:
+        print(f"  ⚠️  Error evaluating open-ended questions: {e}")
+        # Return default evaluation on error
+        return OpenEndedQuestionsEvaluation(
+            has_good_open_ended=False,
+            open_ended_questions=[],
+            reasoning=f"Error during evaluation: {str(e)}",
+        )
+
+
+# ============================================================================
+# Extra Evaluation on Domain Categorization and Over-Disclosure Risk
+# ============================================================================
+
+
+def categorize_form_domain(
+    text: str, client: OpenAI, model: str = "gpt-4.1"
+) -> FormCategorizationEvaluation:
+    """
+    Categorize the form into one or more domain categories.
+
+    Available domains:
+    1. Healthcare & Medical
+    2. Financial Services & Banking
+    3. Insurance
+    4. Legal & Court Documents
+    5. Immigration & Visa
+    6. Employment & HR
+    7. Education & Academic
+    8. Government Services
+    9. Tax & Accounting
+    10. Real Estate & Housing
+    11. Transportation & DMV
+    12. Social Services & Welfare
+    13. Veterans Affairs
+    14. Small Business & Licensing
+    15. Non-Profit & Charitable Organizations
+    16. Events & Registration
+    17. Travel & Tourism
+    18. Consumer Services
+    19. Utilities & Infrastructure
+    20. Environmental & Permits
+    21. Sports & Recreation
+    22. Arts & Culture
+    23. Research & Surveys
+    24. Membership & Subscriptions
+    25. Technology & IT Services
+    26. Telecommunications
+    27. Food & Beverage Services
+    28. Pet & Animal Services
+    29. Personal Development & Training
+    30. Other
+    """
+
+    domains = [
+        "Healthcare & Medical",
+        "Financial Services & Banking",
+        "Insurance",
+        "Legal & Court Documents",
+        "Immigration & Visa",
+        "Employment & HR",
+        "Education & Academic",
+        "Government Services",
+        "Tax & Accounting",
+        "Real Estate & Housing",
+        "Transportation & DMV",
+        "Social Services & Welfare",
+        "Veterans Affairs",
+        "Small Business & Licensing",
+        "Non-Profit & Charitable Organizations",
+        "Events & Registration",
+        "Travel & Tourism",
+        "Consumer Services",
+        "Utilities & Infrastructure",
+        "Environmental & Permits",
+        "Sports & Recreation",
+        "Arts & Culture",
+        "Research & Surveys",
+        "Membership & Subscriptions",
+        "Technology & IT Services",
+        "Telecommunications",
+        "Food & Beverage Services",
+        "Pet & Animal Services",
+        "Personal Development & Training",
+        "Other",
+    ]
+
+    prompt = f"""You are categorizing a form into domain categories. Analyze the form and determine which domain(s) it belongs to.
+
+Available domains:
+{", ".join(f"{i + 1}. {d}" for i, d in enumerate(domains))}
+
+Instructions:
+- Select ONE primary category that best describes the form's main purpose
+- Optionally select 1-2 secondary categories if the form spans multiple domains
+- Provide reasoning for your categorization
+
+Form content:
+```
+{text}
+```
+
+Provide your categorization."""
+
+    try:
+        response = client.beta.chat.completions.parse(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert at analyzing and categorizing forms and documents into domain categories.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+            response_format=FormCategorizationEvaluation,
+        )
+
+        return response.choices[0].message.parsed
+    except Exception as e:
+        print(f"  ⚠️  Error categorizing form: {e}")
+        # Return default categorization on error
+        return FormCategorizationEvaluation(
+            primary_category="Other",
+            secondary_categories=[],
+            reasoning=f"Error during categorization: {str(e)}",
+        )
+
+
+def evaluate_over_disclosure_risk(
+    form_text: str, categories: List[str], client: OpenAI, model: str = "gpt-4.1"
+) -> OverDisclosureEvaluation:
+    """
+    Evaluate if the form has over-disclosure privacy risk.
+
+    Over-disclosure occurs when forms encourage users to share more information
+    than necessary, through:
+    - Large unbounded text fields
+    - Vague prompts like "additional information" or "anything else"
+    - Ambiguous instructions that don't clarify boundaries
+    - High-stakes contexts that pressure users to overshare
+    """
+    prompt = f"""You are evaluating a form for over-disclosure privacy risk. The form is categorized as: {", ".join(categories)}.
+
+**Over-disclosure** occurs when forms request or encourage users to share MORE information than necessary for the form's purpose.
+
+Look for these indicators:
+
+**High Risk Indicators:**
+- Large, unbounded text boxes with no character/word limits
+- Vague field labels like "Additional Information", "Other Details", "Comments"
+- Ambiguous prompts: "provide relevant details", "describe your situation", "anything else"
+- Open-ended "explain" or "describe" questions without clear boundaries
+- High-stakes contexts (immigration, medical, financial, legal) that pressure oversharing
+- Language suggesting "more detail = better outcome"
+
+**Low Risk Indicators:**
+- Structured fields with clear constraints (dropdowns, checkboxes, character limits)
+- Specific, narrow questions with clear scope
+- Explicit instructions about what information is needed
+- Clear distinction between required and optional fields
+
+Evaluate the form and determine:
+1. Whether it has over-disclosure risk (true/false)
+2. Risk level (low/medium/high)
+3. Specific over-disclosure risks
+4. 2-3 likely scenarios where users might overshare
+
+Form content:
+```
+{form_text}
+```
+
+Provide your evaluation."""
+
+    try:
+        response = client.beta.chat.completions.parse(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert in privacy and data protection, specializing in identifying over-disclosure risks in forms.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            response_format=OverDisclosureEvaluation,
             temperature=0.0,
         )
 
-        result = response.choices[0].message.parsed
-
-        return {
-            "required_privacy": result.required_privacy,
-            "over_disclosure": result.over_disclosure,
-            "contextual_disclosure": result.contextual_disclosure,
-            "reasoning": result.reasoning,
-        }
+        return response.choices[0].message.parsed
 
     except Exception as e:
-        print(f"Error evaluating form privacy types: {e}")
-        return {
-            "required_privacy": False,
-            "over_disclosure": False,
-            "contextual_disclosure": False,
-            "reasoning": f"Error during evaluation: {str(e)}",
-            "error": str(e),
-        }
+        print(f"Error evaluating over-disclosure risk: {e}")
+        return OverDisclosureEvaluation(
+            over_disclosure_risk=False,
+            risk_level="low",
+            specific_risks=[],
+            likely_scenarios=[],
+            reasoning=f"Error during evaluation: {str(e)}",
+        )
 
 
 # ============================================================================
@@ -450,28 +499,8 @@ def evaluate_form_privacy_risks(
 # ============================================================================
 
 
-def load_existing_forms(file_path: str) -> tuple[list, Optional[dict]]:
-    """Load existing forms from common_forms.jsonl if it exists."""
-    if not os.path.exists(file_path):
-        print(f"No existing file found at {file_path}")
-        return [], None
-
-    forms = []
-    with open(file_path, "r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                forms.append(json.loads(line))
-
-    print(f"Loaded {len(forms)} existing forms from {file_path}")
-
-    # Use the first form as baseline (index 0) if available
-    baseline_form = forms[0] if len(forms) > 0 else None
-
-    return forms, baseline_form
-
-
 def process_single_form(
-    data: dict, idx: int, baseline_form: Optional[dict], client: OpenAI, output_file: str
+    data: dict, idx: int, client: OpenAI, output_file: str, dataset_split: str = "train"
 ) -> bool:
     """
     Process a single form through the entire pipeline.
@@ -486,9 +515,7 @@ def process_single_form(
                 data["objects"]["area"][i] > 100000 for i in range(len(data["objects"]["area"]))
             )
         ):
-            print(
-                f"\n[{idx}] Too few boxes to fill in or box to fill too small for extensive information, discarding"
-            )
+            print(f"\n[{idx}] Too few boxes to fill in or box too small, discarding")
             return False
 
     # Step 1: Check if English
@@ -515,83 +542,73 @@ def process_single_form(
 
     print(f"  ✓ Text extracted ({len(extracted_text)} chars)")
 
-    # Step 2.5: Filter form for completeness and open-ended questions
-    print(f"[{idx}] Filtering form (completeness & open-ended questions)...")
-    is_complete, has_open_ended, filter_reasoning = evaluate_form_completeness(
-        extracted_text, client
-    )
+    # Step 3: Check for good open-ended questions
+    print(f"[{idx}] Evaluating open-ended questions...")
+    open_ended_eval = evaluate_open_ended_questions(extracted_text, client)
 
-    if not is_complete or not has_open_ended:
-        filter_reasons = []
-        if not is_complete:
-            filter_reasons.append("incomplete")
-        if not has_open_ended:
-            filter_reasons.append("no open-ended questions")
-        print(f"  ❌ Form filtered out: {', '.join(filter_reasons)}")
-        print(f"  Reason: {filter_reasoning}")
+    if not open_ended_eval.has_good_open_ended:
+        print(f"  ❌ No good open-ended questions found")
+        print(f"  Reason: {open_ended_eval.reasoning}")
         return False
 
-    print(f"  ✓ Form passed filtering (complete & has open-ended questions)")
+    # Step 4: Filter form for completeness
+    print(f"[{idx}] Checking if form starts from beginning...")
+    completeness_eval = evaluate_form_completeness(extracted_text, client)
 
-    # Step 3: Compare with baseline if available
-    if baseline_form is None:
-        print(f"[{idx}] No baseline form available, saving as first form...")
-        result = {
-            "id": data.get("id", idx),
-            "extracted_text": extracted_text,
-            "categories": data.get("categories", []),
-            "is_baseline": True,
-        }
-
-        with open(output_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(result, ensure_ascii=False) + "\n")
-
-        print(f"  ✓ Saved as baseline form")
-        return True
-
-    print(f"[{idx}] Comparing privacy risk with baseline...")
-    comparison = compare_forms_privacy_risk(baseline_form["extracted_text"], extracted_text, client)
-
-    if comparison is None:
-        print(f"  ❌ Comparison failed, discarding")
+    if not completeness_eval.starts_from_beginning:
+        print(f"  ❌ Form does not start from beginning (likely page 2+)")
+        print(f"  Reason: {completeness_eval.reasoning}")
         return False
 
-    print(f"  Risk comparison: {comparison.higher_risk_form}")
-    print(f"  Form B risk score: {comparison.form_b_evaluation.risk_score}/10")
+    print(f"  ✓ Found {len(open_ended_eval.open_ended_questions)} good open-ended question(s)")
+    for q in open_ended_eval.open_ended_questions[:3]:  # Print first 3
+        print(f"    - {q[:80]}..." if len(q) > 80 else f"    - {q}")
 
-    # Step 4: Only proceed if Form B (current form) is higher risk
-    if comparison.higher_risk_form != "Form B":
-        print(f"  ❌ Not higher risk than baseline, discarding")
-        return False
+    # Step 5: Categorize form domain
+    print(f"[{idx}] Categorizing form domain...")
+    categorization_eval = categorize_form_domain(extracted_text, client)
 
-    print(f"  ✓ Higher risk than baseline!")
+    print(f"  ✓ Primary category: {categorization_eval.primary_category}")
+    if categorization_eval.secondary_categories:
+        print(f"  Secondary categories: {', '.join(categorization_eval.secondary_categories)}")
 
-    # Step 5: Evaluate privacy risk types
-    print(f"[{idx}] Evaluating privacy risk types...")
-    privacy_evaluation = evaluate_form_privacy_risks(
-        extracted_text, data.get("categories", []), client
+    # Step 6: Evaluate over-disclosure risk
+    print(f"[{idx}] Evaluating over-disclosure risk...")
+    # Build categories list for over-disclosure evaluation
+    categories_for_eval = [categorization_eval.primary_category]
+    if categorization_eval.secondary_categories:
+        categories_for_eval.extend(categorization_eval.secondary_categories)
+
+    over_disclosure_eval = evaluate_over_disclosure_risk(
+        extracted_text, categories_for_eval, client
     )
 
-    print(
-        f"  Privacy types: required={privacy_evaluation['required_privacy']}, "
-        f"over_disclosure={privacy_evaluation['over_disclosure']}, "
-        f"contextual={privacy_evaluation['contextual_disclosure']}"
-    )
+    print(f"  Over-disclosure risk: {over_disclosure_eval.over_disclosure_risk}")
+    print(f"  Risk level: {over_disclosure_eval.risk_level}")
 
-    # Step 6: Compile and save result
+    # Step 7: Compile and save result
     result = {
         "id": data.get("id", idx),
         "extracted_text": extracted_text,
-        "categories": data.get("categories", []),
-        "privacy_risk_comparison": {
-            "higher_risk_form": comparison.higher_risk_form,
-            "comparison_reasoning": comparison.comparison_reasoning,
-            "risk_score": comparison.form_b_evaluation.risk_score,
-            "key_privacy_risks": comparison.form_b_evaluation.key_privacy_risks,
-            "likely_overdisclosure_scenarios": comparison.form_b_evaluation.likely_overdisclosure_scenarios,
-            "reasoning": comparison.form_b_evaluation.reasoning,
+        "categorization_evaluation": {
+            "primary_category": categorization_eval.primary_category,
+            "secondary_categories": categorization_eval.secondary_categories,
+            "reasoning": categorization_eval.reasoning,
         },
-        "privacy_evaluation": privacy_evaluation,
+        "open_ended_evaluation": {
+            "has_good_open_ended": open_ended_eval.has_good_open_ended,
+            "number_of_openended_questions": open_ended_eval.number_of_openended_questions,
+            "open_ended_questions": open_ended_eval.open_ended_questions,
+            "reasoning": open_ended_eval.reasoning,
+        },
+        "over_disclosure_evaluation": {
+            "over_disclosure_risk": over_disclosure_eval.over_disclosure_risk,
+            "risk_level": over_disclosure_eval.risk_level,
+            "specific_risks": over_disclosure_eval.specific_risks,
+            "likely_scenarios": over_disclosure_eval.likely_scenarios,
+            "reasoning": over_disclosure_eval.reasoning,
+        },
+        "split": dataset_split,
     }
 
     with open(output_file, "a", encoding="utf-8") as f:
@@ -603,9 +620,10 @@ def process_single_form(
 
 def main(
     dataset_split: str = "train",
-    output_file: str = "common_forms.jsonl",
+    output_file: str = "common_forms_simplified.jsonl",
     start_idx: int = 0,
     limit: Optional[int] = None,
+    forms_needed: Optional[int] = None,
 ):
     """
     Main pipeline function.
@@ -622,10 +640,6 @@ def main(
         raise ValueError("OPENAI_API_KEY environment variable not set")
 
     client = OpenAI(api_key=api_key)
-
-    # Load existing forms
-    existing_forms, baseline_form = load_existing_forms(output_file)
-    print(f"Baseline form: {'Available' if baseline_form else 'None'}")
 
     # Load dataset
     print(f"\nLoading CommonForms dataset (split: {dataset_split})...")
@@ -646,13 +660,10 @@ def main(
 
     for idx, data in enumerate(tqdm(dataset, desc="Processing forms"), start=start_idx):
         try:
-            was_saved = process_single_form(data, idx, baseline_form, client, output_file)
+            was_saved = process_single_form(data, idx, client, output_file, dataset_split)
 
             if was_saved:
                 saved_count += 1
-                # Update baseline if this was the first form
-                if baseline_form is None:
-                    existing_forms, baseline_form = load_existing_forms(output_file)
             else:
                 discarded_count += 1
 
@@ -660,6 +671,11 @@ def main(
             print(f"  ❌ Error processing datapoint {idx}: {e}")
             discarded_count += 1
             continue
+
+        if forms_needed:
+            if saved_count >= forms_needed:
+                print(f"\nReached desired number of valid forms: {forms_needed}")
+                break
 
     # Print summary
     print("\n" + "=" * 60)
@@ -676,20 +692,20 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Process CommonForms dataset with privacy risk evaluation"
+        description="Process CommonForms dataset with simplified open-ended question check"
     )
     parser.add_argument(
         "--split",
         type=str,
-        default="train",
+        default="test",
         choices=["train", "test"],
-        help="Dataset split to process (default: train)",
+        help="Dataset split to process (default: test)",
     )
     parser.add_argument(
         "--output",
         type=str,
-        default="common_forms.jsonl",
-        help="Output JSONL file (default: common_forms.jsonl)",
+        default="common_forms_simplified.jsonl",
+        help="Output JSONL file (default: common_forms_simplified.jsonl)",
     )
     parser.add_argument(
         "--start", type=int, default=0, help="Start index (for resuming, default: 0)"
@@ -697,7 +713,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--limit", type=int, default=None, help="Maximum number of forms to process (default: all)"
     )
+    parser.add_argument(
+        "--forms-needed",
+        type=int,
+        default=None,
+        help="Number of valid forms to process (default: all)",
+    )
 
     args = parser.parse_args()
 
-    main(dataset_split=args.split, output_file=args.output, start_idx=args.start, limit=args.limit)
+    main(
+        dataset_split=args.split,
+        output_file=args.output,
+        start_idx=args.start,
+        limit=args.limit,
+        forms_needed=args.forms_needed,
+    )

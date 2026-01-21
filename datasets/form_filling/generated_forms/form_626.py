@@ -16,17 +16,15 @@ class ForOfficeUseOnly(BaseModel):
     """Internal processing details completed by office staff"""
 
     date_received_month_day_year: str = Field(
-        default="",
-        description="Date the form was received, in month/day/year format (office use only)",
+        default="", description="Date the form was received by the office"
     )  # YYYY-MM-DD format
 
     received_by: str = Field(
         default="",
         description=(
-            "Name or initials of the person who received the form (office use only) .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Name or initials of the person who received the form .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -46,7 +44,7 @@ class CustomerInformation(BaseModel):
     agency_number: str = Field(
         ...,
         description=(
-            "Official agency identification or number .If you cannot fill this, write "
+            "Official identifying number for the agency .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -90,108 +88,115 @@ class CustomerInformation(BaseModel):
 
 
 class JobInformation(BaseModel):
-    """Details about the print/mail job and handling instructions"""
+    """Print job details, handling instructions, and comments"""
 
     job_number: str = Field(
-        default="",
+        ...,
         description=(
-            "Identifier or reference number for the print job, if applicable .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Identifier or reference number for the print job .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    pickup_by: BooleanLike = Field(
+    pickup_by: str = Field(
         default="",
-        description="Check this box if samples, overprints, or misprints should be picked up",
+        description=(
+            "Name of the person or entity who will pick up samples, overprints, or "
+            'misprints .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
+        ),
     )
 
     name_of_contact_if_different_from_above: str = Field(
         default="",
         description=(
-            "Name of the person who will handle pickup if different from the main contact "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
+            "Alternate contact name if different from the primary contact listed above .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     telephone_number: str = Field(
         default="",
         description=(
-            "Telephone number for the pickup contact .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Telephone number for the pickup or delivery contact .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     e_mail_address: str = Field(
         default="",
         description=(
-            'Email address for the pickup contact .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Email address for the pickup or delivery contact .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     deliver_to: str = Field(
         default="",
         description=(
-            "Delivery address or instructions if items should be delivered .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Full delivery address or location where items should be delivered .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     destroy: BooleanLike = Field(
         default="",
-        description="Check this box if samples, overprints, or misprints should be destroyed",
+        description="Indicates that samples, overprints, and/or misprints should be destroyed",
     )
 
     print_job_is_one_time: BooleanLike = Field(
-        ..., description="Select if this print job will occur only once"
+        ..., description="Indicates that the print job is a one-time job"
     )
 
     print_job_is_ongoing: BooleanLike = Field(
-        ..., description="Select if this print job will be ongoing or recurring"
+        ..., description="Indicates that the print job is ongoing or recurring"
     )
 
-    time_frame_if_print_job_is_ongoing: str = Field(
+    if_print_job_is_ongoing_please_provide_the_time_frame: str = Field(
         default="",
         description=(
-            "Describe the time frame or schedule if the print job is ongoing .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Description of the schedule or duration for an ongoing print job .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     comments_additional_details_line_1: str = Field(
         default="",
         description=(
-            "First line for any comments or additional job details .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "First line for any additional comments or details about the job .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
     comments_additional_details_line_2: str = Field(
         default="",
         description=(
-            "Second line for any comments or additional job details .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Second line for any additional comments or details about the job .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     comments_additional_details_line_3: str = Field(
         default="",
         description=(
-            "Third line for any comments or additional job details .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Third line for any additional comments or details about the job .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -201,7 +206,6 @@ class pythonConfidentialPrintMailServicesInfoSubmission(BaseModel):
         CONFIDENTIAL PRINT AND MAIL SERVICES
     SUBMISSION OF CONFIDENTIAL INFORMATION
 
-        Please submit this form at least forty-eight (48) hours before job submittal to your agency’s assigned Account Manager and Lora Robinson (lrobinson@blueoctopusprinting.com) with the e-mail subject as NEW CONFIDENTIAL FILE (in all caps) and the Indiana Department of Administration (IDOA) Print / Mail Services Inbox at Printmailservices@idoa.in.gov.
         *** The purpose of this document is to outline and discuss how Indiana Department of Administration (IDOA) will work with the agencies to assist in fulfilling the requirements pursuant to 10 IAC 5-3-1(14); the Contractor and the State agree to comply with the provisions of IC 4-1-10 and IC 4-1-11. The Contractor shall report all unauthorized disclosures of Social Security numbers and confidential information to the State Contract Representative.
     """
 

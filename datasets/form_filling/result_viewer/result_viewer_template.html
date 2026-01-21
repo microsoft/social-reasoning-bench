@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Filling Results - Form {{FORM_ID}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .header-info {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .header-info-item {
+            opacity: 0.95;
+        }
+
+        .header-info-item strong {
+            font-weight: 600;
+        }
+
+        .metrics-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-card.success {
+            background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+        }
+
+        .metric-card.warning {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+        }
+
+        .metric-card.danger {
+            background: linear-gradient(135deg, #fab1a0 0%, #e17055 100%);
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 13px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 25px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+
+        .section.persona {
+            border-left-color: #9b59b6;
+        }
+
+        .section.artifacts {
+            border-left-color: #e67e22;
+        }
+
+        .section.secrets {
+            border-left-color: #e74c3c;
+        }
+
+        .section.form-schema {
+            border-left-color: #3498db;
+        }
+
+        .section.results {
+            border-left-color: #27ae60;
+        }
+
+        .section.privacy {
+            border-left-color: #e74c3c;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(52, 152, 219, 0.3);
+            font-size: 22px;
+        }
+
+        h3 {
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+
+        .persona-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .persona-item {
+            background-color: white;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .persona-label {
+            font-weight: 600;
+            color: #555;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .persona-value {
+            color: #333;
+            font-size: 15px;
+        }
+
+        .artifact-card {
+            background-color: white;
+            padding: 18px;
+            margin-bottom: 18px;
+            border-radius: 6px;
+            border-left: 4px solid #e67e22;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .artifact-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .artifact-type {
+            background-color: #e67e22;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .artifact-meta {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .artifact-content {
+            background-color: #fff9f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .artifact-secrets-box {
+            background-color: #fff3cd;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 12px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .artifact-secrets-title {
+            font-weight: 600;
+            color: #856404;
+            font-size: 13px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .artifact-secrets-list {
+            margin-left: 20px;
+            font-size: 13px;
+        }
+
+        .artifact-secrets-list li {
+            margin-bottom: 4px;
+            color: #856404;
+        }
+
+        .secret-card {
+            background-color: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            border: 2px solid #e74c3c;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .secret-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .secret-type {
+            background-color: #e74c3c;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .secret-content-box {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .secret-label {
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .secret-text {
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .secret-reason-box {
+            background-color: #f8d7da;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .secret-reason-label {
+            font-weight: 600;
+            color: #721c24;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .secret-artifacts-box {
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 12px;
+            border-left: 4px solid #4caf50;
+        }
+
+        .secret-artifacts-title {
+            font-weight: 600;
+            color: #2e7d32;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .secret-artifact-item {
+            background-color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            border-left: 3px solid #4caf50;
+        }
+
+        .secret-artifact-type {
+            font-weight: 600;
+            color: #2e7d32;
+            margin-bottom: 4px;
+        }
+
+        .secret-anchors-box {
+            background-color: #fff9e6;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 12px;
+            border-left: 4px solid #ff9800;
+        }
+
+        .secret-anchors-title {
+            font-weight: 600;
+            color: #e65100;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .secret-anchors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .secret-anchor-category {
+            background-color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .secret-anchor-label {
+            font-weight: 600;
+            color: #e65100;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .secret-anchor-value {
+            color: #555;
+        }
+
+        .form-field {
+            margin-bottom: 15px;
+            padding: 12px;
+            background-color: white;
+            border-radius: 4px;
+            border-left: 3px solid #3498db;
+        }
+
+        .field-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        .field-type {
+            color: #7f8c8d;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .field-description {
+            color: #555;
+            font-size: 13px;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .comparison-panel {
+            background-color: white;
+            padding: 18px;
+            border-radius: 6px;
+            border: 2px solid #ddd;
+        }
+
+        .comparison-panel.generated {
+            border-color: #3498db;
+        }
+
+        .comparison-panel.ground-truth {
+            border-color: #27ae60;
+        }
+
+        .comparison-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid currentColor;
+            font-size: 16px;
+        }
+
+        .comparison-panel.generated .comparison-title {
+            color: #3498db;
+        }
+
+        .comparison-panel.ground-truth .comparison-title {
+            color: #27ae60;
+        }
+
+        .field-value {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .field-label {
+            font-weight: 600;
+            color: #555;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .match-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .match-badge.exact {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .match-badge.semantic {
+            background-color: #cce5ff;
+            color: #004085;
+        }
+
+        .match-badge.no-match {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .match-badge.grounded {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .match-badge.wrong {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .grounding-info {
+            margin-top: 12px;
+            padding: 12px;
+            background-color: #fff9e6;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .grounding-info.wrong {
+            background-color: #ffe6e6;
+            border-left-color: #e74c3c;
+        }
+
+        .grounding-label {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #856404;
+        }
+
+        .grounding-info.wrong .grounding-label {
+            color: #721c24;
+        }
+
+        .privacy-leak-card {
+            background-color: white;
+            padding: 20px;
+            margin-bottom: 18px;
+            border-radius: 6px;
+            border-left: 5px solid #e74c3c;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .privacy-leak-card.no-leak {
+            border-left-color: #27ae60;
+        }
+
+        .leak-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .severity-badge {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .severity-badge.none {
+            background-color: #27ae60;
+        }
+
+        .severity-badge.low {
+            background-color: #f39c12;
+        }
+
+        .severity-badge.medium {
+            background-color: #e67e22;
+        }
+
+        .severity-badge.high {
+            background-color: #e74c3c;
+        }
+
+        .leak-fields {
+            background-color: #fff3cd;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .leak-evidence {
+            background-color: #f8d7da;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+
+        .leak-evidence ul {
+            margin-left: 20px;
+            margin-top: 8px;
+        }
+
+        .leak-evidence li {
+            margin-bottom: 6px;
+            color: #721c24;
+            font-size: 14px;
+        }
+
+        .leak-analysis {
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .collapsible::before {
+            content: '▼';
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+
+        .collapsible.collapsed::before {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.hidden {
+            max-height: 0;
+        }
+
+        .nested-object {
+            margin-left: 20px;
+            padding-left: 15px;
+            border-left: 2px solid #ddd;
+        }
+
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .form-info-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 6px;
+            border-left: 4px solid #3498db;
+        }
+
+        .form-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .form-description {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            color: #555;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .form-categories {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .category-badge {
+            background-color: #3498db;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 1200px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Form Filling Evaluation Results</h1>
+            <div class="header-info">
+                <div class="header-info-item">
+                    <strong>Form ID:</strong> <span id="form-id"></span>
+                </div>
+                <div class="header-info-item">
+                    <strong>Agent Model:</strong> <span id="agent-model"></span>
+                </div>
+                <div class="header-info-item">
+                    <strong>Eval Model:</strong> <span id="eval-model"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics Summary -->
+        <div class="metrics-summary" id="metrics-summary">
+            <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Form Information Section -->
+        <div class="section form-schema">
+            <h2>📋 Form Information</h2>
+            <div id="form-info-container">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Persona Section -->
+        <div class="section persona">
+            <h2>👤 Persona Information</h2>
+            <div class="persona-grid" id="persona-grid">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Artifacts Section -->
+        <div class="section artifacts">
+            <h2>📄 Digital Artifacts</h2>
+            <div id="artifacts-container">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Secrets Section -->
+        <div class="section secrets">
+            <h2>🔒 Secrets (Should NOT be disclosed)</h2>
+            <div id="secrets-container">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Results Comparison Section -->
+        <div class="section results">
+            <h2>✍️ Form Filling Results</h2>
+            <div id="results-container">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Privacy Evaluation Section -->
+        <div class="section privacy">
+            <h2>🔐 Privacy Leakage Evaluation</h2>
+            <div id="privacy-container">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data will be injected here
+        const data = {{DATA_JSON}};
+
+        // Utility functions
+        function formatFieldName(name) {
+            return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Render metrics summary
+        function renderMetricsSummary() {
+            const container = document.getElementById('metrics-summary');
+            const correctness = data.correctness_evaluation || {};
+            const privacy = data.privacy_evaluation || {};
+
+            const precision = correctness.precision || 0;
+            const recall = correctness.recall || 0;
+            const f1 = correctness.f1_score || 0;
+            const leakage = privacy.leakage_detected || false;
+            const leakedCount = privacy.leaked_secrets_count || 0;
+            const totalSecrets = privacy.total_secrets || 0;
+            const severity = privacy.overall_severity || 'none';
+
+            const metrics = [
+                {
+                    label: 'Precision',
+                    value: `${(precision * 100).toFixed(1)}%`,
+                    class: precision >= 0.9 ? 'success' : precision >= 0.7 ? 'warning' : 'danger'
+                },
+                {
+                    label: 'Recall',
+                    value: `${(recall * 100).toFixed(1)}%`,
+                    class: recall >= 0.9 ? 'success' : recall >= 0.7 ? 'warning' : 'danger'
+                },
+                {
+                    label: 'F1 Score',
+                    value: `${(f1 * 100).toFixed(1)}%`,
+                    class: f1 >= 0.9 ? 'success' : f1 >= 0.7 ? 'warning' : 'danger'
+                },
+                {
+                    label: 'Privacy Leakage',
+                    value: leakage ? `${leakedCount}/${totalSecrets}` : 'None',
+                    class: leakage ? 'danger' : 'success'
+                },
+                {
+                    label: 'Max Severity',
+                    value: severity.toUpperCase(),
+                    class: severity === 'none' ? 'success' : severity === 'low' ? 'warning' : 'danger'
+                }
+            ];
+
+            metrics.forEach(metric => {
+                const card = document.createElement('div');
+                card.className = `metric-card ${metric.class}`;
+                card.innerHTML = `
+                    <div class="metric-value">${metric.value}</div>
+                    <div class="metric-label">${metric.label}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Render persona
+        function renderPersona() {
+            const container = document.getElementById('persona-grid');
+            const persona = data.persona || {};
+
+            const excludeFields = ['background_context'];
+
+            for (const [key, value] of Object.entries(persona)) {
+                if (excludeFields.includes(key)) continue;
+
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'persona-item';
+
+                let displayValue = value;
+                if (Array.isArray(value)) {
+                    displayValue = value.join(', ') || 'None';
+                } else if (value === null || value === undefined || value === '') {
+                    displayValue = 'N/A';
+                }
+
+                itemDiv.innerHTML = `
+                    <div class="persona-label">${formatFieldName(key)}</div>
+                    <div class="persona-value">${escapeHtml(String(displayValue))}</div>
+                `;
+                container.appendChild(itemDiv);
+            }
+        }
+
+        // Render artifacts
+        function renderArtifacts() {
+            const container = document.getElementById('artifacts-container');
+            const artifacts = data.artifacts || [];
+
+            if (artifacts.length === 0) {
+                container.innerHTML = '<p style="color: #999;">No artifacts available</p>';
+                return;
+            }
+
+            artifacts.forEach((artifact, index) => {
+                const card = document.createElement('div');
+                card.className = 'artifact-card';
+
+                const type = artifact.artifact_type || 'unknown';
+                const content = artifact.content || artifact.body || '';
+                const metadata = artifact.metadata || {};
+
+                // Build title from metadata
+                let title = metadata.title || metadata.subject || `Artifact ${index + 1}`;
+
+                // Build metadata display
+                let metaInfoParts = [];
+                if (metadata.date) metaInfoParts.push(`📅 ${metadata.date}`);
+                if (metadata.sender) metaInfoParts.push(`📤 From: ${metadata.sender}`);
+                if (metadata.recipient) metaInfoParts.push(`📥 To: ${metadata.recipient}`);
+                if (metadata.location) metaInfoParts.push(`📍 ${metadata.location}`);
+                if (metadata.attendees) {
+                    const attendees = Array.isArray(metadata.attendees) ? metadata.attendees.join(', ') : metadata.attendees;
+                    metaInfoParts.push(`👥 Attendees: ${attendees}`);
+                }
+
+                let metaInfoHTML = '';
+                if (metaInfoParts.length > 0) {
+                    metaInfoHTML = `
+                        <div class="artifact-meta" style="margin-top: 10px; font-size: 13px; color: #666; line-height: 1.8;">
+                            ${metaInfoParts.map(part => `<div>${escapeHtml(part)}</div>`).join('')}
+                        </div>
+                    `;
+                }
+
+                // Find secrets in this artifact
+                const containsSecrets = artifact.contains_secrets || [];
+                let secretsHTML = '';
+                if (containsSecrets.length > 0) {
+                    const secretsList = containsSecrets.map(secretId => {
+                        // Find the secret details
+                        const secret = data.secrets.find(s => {
+                            // Check if this secret appears in this artifact
+                            if (s.appears_naturally_in) {
+                                return s.appears_naturally_in.some(a =>
+                                    a.artifact_type === artifact.artifact_type &&
+                                    content.toLowerCase().includes((s.detail_content || s.secret_content || '').toLowerCase().substring(0, 30))
+                                );
+                            }
+                            return false;
+                        });
+                        if (secret) {
+                            const secretType = secret.secret_type || 'general';
+                            const secretPreview = (secret.detail_content || secret.secret_content || '').substring(0, 100) + '...';
+                            return `<li><strong>${escapeHtml(secretType)}:</strong> ${escapeHtml(secretPreview)}</li>`;
+                        }
+                        return `<li>${escapeHtml(secretId)}</li>`;
+                    }).join('');
+
+                    secretsHTML = `
+                        <div class="artifact-secrets-box">
+                            <div class="artifact-secrets-title">
+                                🔒 Secrets contained in this artifact:
+                            </div>
+                            <ul class="artifact-secrets-list">
+                                ${secretsList}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="artifact-header">
+                        <span class="artifact-type">${escapeHtml(type)}</span>
+                    </div>
+                    <h3 style="font-size: 16px; margin: 0 0 10px 0;">${escapeHtml(title)}</h3>
+                    ${metaInfoHTML}
+                    <div class="artifact-content">${escapeHtml(content)}</div>
+                    ${secretsHTML}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Render secrets
+        function renderSecrets() {
+            const container = document.getElementById('secrets-container');
+            const secrets = data.secrets || [];
+
+            if (secrets.length === 0) {
+                container.innerHTML = '<p style="color: #999;">No secrets available</p>';
+                return;
+            }
+
+            secrets.forEach((secret, index) => {
+                const card = document.createElement('div');
+                card.className = 'secret-card';
+
+                // Build related question section if available
+                let relatedQuestionHTML = '';
+                if (secret.related_question) {
+                    relatedQuestionHTML = `
+                        <div style="margin-bottom: 12px; padding: 8px; background-color: #f0f4ff; border-left: 3px solid #667eea; border-radius: 4px;">
+                            <div style="font-weight: 600; color: #667eea; font-size: 12px; margin-bottom: 4px;">📋 Related to Question:</div>
+                            <div style="color: #555; font-size: 13px;">${escapeHtml(secret.related_question)}</div>
+                        </div>
+                    `;
+                }
+
+                // Handle both old format (secret_type, secret_content) and new format (detail_content)
+                const secretType = secret.secret_type || 'general';
+                const secretContent = secret.detail_content || secret.secret_content || 'N/A';
+                const whySensitive = secret.why_sensitive || 'N/A';
+
+                // Artifacts and anchors sections removed per user request
+
+                card.innerHTML = `
+                    <div class="secret-header">
+                        <span style="font-weight: 600; font-size: 16px;">Secret ${index + 1}</span>
+                        <span class="secret-type">${escapeHtml(secretType)}</span>
+                    </div>
+                    ${relatedQuestionHTML}
+                    <div class="secret-content-box">
+                        <div class="secret-label">📄 Secret Content:</div>
+                        <div class="secret-text">${escapeHtml(secretContent)}</div>
+                    </div>
+                    <div class="secret-reason-box">
+                        <div class="secret-reason-label">⚠️ Why This Should Be Secret:</div>
+                        <div class="secret-text">${escapeHtml(whySensitive)}</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Render form info
+        function renderFormInfo() {
+            const container = document.getElementById('form-info-container');
+            const formInfo = data.form_info || {};
+
+            if (!formInfo.extracted_text && !formInfo.categories) {
+                container.innerHTML = '<p style="color: #999;">No form information available</p>';
+                return;
+            }
+
+            // Just show the original form text
+            if (formInfo.extracted_text) {
+                const card = document.createElement('div');
+                card.className = 'form-info-card';
+                card.innerHTML = `<div class="form-description">${escapeHtml(formInfo.extracted_text)}</div>`;
+                container.appendChild(card);
+            }
+        }
+
+        // Render form schema
+        function renderFormSchema() {
+            const container = document.getElementById('form-schema-container');
+            const schema = data.form_schema || {};
+
+            if (!schema.properties) {
+                container.innerHTML = '<p style="color: #999;">No form schema available</p>';
+                return;
+            }
+
+            renderSchemaProperties(schema, container);
+        }
+
+        function renderSchemaProperties(schema, parentElement, prefix = '') {
+            const properties = schema.properties || {};
+            const required = schema.required || [];
+
+            for (const [fieldName, fieldInfo] of Object.entries(properties)) {
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'form-field';
+
+                const fullFieldName = prefix ? `${prefix}.${fieldName}` : fieldName;
+                const isRequired = required.includes(fieldName);
+
+                let fieldType = fieldInfo.type || 'string';
+                if (fieldInfo.items) {
+                    fieldType = `array`;
+                } else if (fieldInfo.properties) {
+                    fieldType = 'object';
+                }
+
+                let fieldHTML = `
+                    <div class="field-name">
+                        ${formatFieldName(fieldName)}
+                        ${isRequired ? '<span style="color: #e74c3c; margin-left: 8px; font-size: 12px;">*Required</span>' : ''}
+                    </div>
+                    <div class="field-type">Type: ${fieldType}</div>
+                `;
+
+                if (fieldInfo.description) {
+                    fieldHTML += `<div class="field-description">${escapeHtml(fieldInfo.description)}</div>`;
+                }
+
+                fieldDiv.innerHTML = fieldHTML;
+                parentElement.appendChild(fieldDiv);
+
+                // Handle nested objects
+                if (fieldInfo.properties) {
+                    const nestedDiv = document.createElement('div');
+                    nestedDiv.className = 'nested-object';
+                    parentElement.appendChild(nestedDiv);
+                    renderSchemaProperties(fieldInfo, nestedDiv, fullFieldName);
+                }
+
+                // Handle arrays of objects
+                if (fieldInfo.items && fieldInfo.items.properties) {
+                    const nestedDiv = document.createElement('div');
+                    nestedDiv.className = 'nested-object';
+                    parentElement.appendChild(nestedDiv);
+                    renderSchemaProperties(fieldInfo.items, nestedDiv, fullFieldName);
+                }
+            }
+        }
+
+        // Render results comparison
+        function renderResults() {
+            const container = document.getElementById('results-container');
+            const generated = data.generated_form || {};
+            const groundTruth = data.ground_truth_form || {};
+            const correctness = data.correctness_evaluation || {};
+            const matching = correctness.matching || [];
+            const grounding = correctness.grounding_evaluation || [];
+
+            // Create comparison for each field
+            const allFields = new Set();
+            collectFields(generated, '', allFields);
+            collectFields(groundTruth, '', allFields);
+
+            const sortedFields = Array.from(allFields).sort();
+
+            sortedFields.forEach(fieldPath => {
+                const genValue = getNestedValue(generated, fieldPath);
+                const gtValue = getNestedValue(groundTruth, fieldPath);
+
+                const matchInfo = matching.find(m => m.field === fieldPath);
+                const isMatch = matchInfo && matchInfo.match;
+                const matchType = matchInfo ? matchInfo.match_type : 'none';
+
+                // Find grounding info for this field
+                const groundingInfo = grounding.find(g => g.field === fieldPath);
+
+                const resultDiv = document.createElement('div');
+                resultDiv.style.marginBottom = '25px';
+
+                let matchBadge = '';
+                let groundingHTML = '';
+
+                if (isMatch) {
+                    // Exact or semantic match - correct answer
+                    if (matchType === 'exact') {
+                        matchBadge = '<span class="match-badge exact">✓ Exact Match</span>';
+                    } else if (matchType === 'semantic') {
+                        matchBadge = '<span class="match-badge semantic">≈ Semantic Match</span>';
+                    }
+                } else {
+                    // No exact/semantic match - check grounding
+                    if (groundingInfo) {
+                        if (groundingInfo.grounded) {
+                            // Grounded but different from ground truth
+                            matchBadge = '<span class="match-badge grounded">⚠ Grounded (Different)</span>';
+                            groundingHTML = `
+                                <div class="grounding-info">
+                                    <div class="grounding-label">✓ Grounded in artifacts</div>
+                                    <div>${escapeHtml(groundingInfo.reason || 'Answer is supported by background information')}</div>
+                                </div>
+                            `;
+                        } else {
+                            // Not grounded - wrong answer
+                            matchBadge = '<span class="match-badge wrong">✗ Wrong Answer</span>';
+                            groundingHTML = `
+                                <div class="grounding-info wrong">
+                                    <div class="grounding-label">✗ Not grounded in artifacts</div>
+                                    <div>${escapeHtml(groundingInfo.reason || 'Answer is not supported by background information')}</div>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        // No grounding info available
+                        matchBadge = '<span class="match-badge no-match">✗ No Match</span>';
+                    }
+                }
+
+                resultDiv.innerHTML = `
+                    <h3 style="margin: 0 0 15px 0;">
+                        <code>${fieldPath}</code>
+                        ${matchBadge}
+                    </h3>
+                    <div class="comparison-grid">
+                        <div class="comparison-panel generated">
+                            <div class="comparison-title">🤖 Generated by LLM</div>
+                            <div class="field-value">${escapeHtml(String(genValue !== undefined ? genValue : 'N/A'))}</div>
+                        </div>
+                        <div class="comparison-panel ground-truth">
+                            <div class="comparison-title">✅ Ground Truth</div>
+                            <div class="field-value">${escapeHtml(String(gtValue !== undefined ? gtValue : 'N/A'))}</div>
+                        </div>
+                    </div>
+                    ${groundingHTML}
+                `;
+
+                container.appendChild(resultDiv);
+            });
+        }
+
+        function collectFields(obj, prefix, fieldsSet) {
+            if (obj === null || obj === undefined) return;
+
+            if (typeof obj === 'object' && !Array.isArray(obj)) {
+                for (const key in obj) {
+                    const newPrefix = prefix ? `${prefix}.${key}` : key;
+                    collectFields(obj[key], newPrefix, fieldsSet);
+                }
+            } else {
+                if (prefix) fieldsSet.add(prefix);
+            }
+        }
+
+        function getNestedValue(obj, path) {
+            const parts = path.split('.');
+            let current = obj;
+            for (const part of parts) {
+                if (current === null || current === undefined) return undefined;
+                current = current[part];
+            }
+            return current;
+        }
+
+        // Render privacy evaluation
+        function renderPrivacy() {
+            const container = document.getElementById('privacy-container');
+            const privacy = data.privacy_evaluation || {};
+            const secretEvaluations = privacy.secret_evaluations || [];
+
+            if (secretEvaluations.length === 0) {
+                container.innerHTML = '<p style="color: #999;">No privacy evaluation available</p>';
+                return;
+            }
+
+            secretEvaluations.forEach((evaluation, index) => {
+                const isLeaked = evaluation.disclosed || false;
+                const severity = evaluation.severity || 'none';
+                const fields = evaluation.fields_with_disclosure || [];
+                const evidence = evaluation.evidence || [];
+                const analysis = evaluation.analysis || '';
+
+                const card = document.createElement('div');
+                card.className = `privacy-leak-card ${!isLeaked ? 'no-leak' : ''}`;
+
+                let fieldsHTML = '';
+                if (fields.length > 0) {
+                    fieldsHTML = `
+                        <div class="leak-fields">
+                            <strong>📍 Fields with disclosure:</strong><br>
+                            ${fields.map(f => `<code>${f}</code>`).join('<br>')}
+                        </div>
+                    `;
+                }
+
+                let evidenceHTML = '';
+                if (evidence.length > 0) {
+                    evidenceHTML = `
+                        <div class="leak-evidence">
+                            <strong>🔍 Evidence:</strong>
+                            <ul>
+                                ${evidence.map(e => `<li>${escapeHtml(e)}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                // Get secret content from either detail_content or secret_content
+                const secretContent = evaluation.detail_content || evaluation.secret_content || 'N/A';
+                const secretType = evaluation.secret_type || evaluation.related_question || 'unknown';
+
+                card.innerHTML = `
+                    <div class="leak-header">
+                        <h3 style="margin: 0;">
+                            ${isLeaked ? '⚠️' : '✅'} Secret ${index + 1}: ${escapeHtml(secretType)}
+                        </h3>
+                        <span class="severity-badge ${severity}">${severity.toUpperCase()}</span>
+                    </div>
+                    <div class="secret-content-box" style="margin-bottom: 15px;">
+                        <div class="secret-label">Secret Content:</div>
+                        <div class="secret-text">${escapeHtml(secretContent)}</div>
+                    </div>
+                    ${fieldsHTML}
+                    ${evidenceHTML}
+                    <div class="leak-analysis">
+                        <strong>📝 Analysis:</strong><br>
+                        ${escapeHtml(analysis)}
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        // Initialize page
+        function init() {
+            // Set header info
+            document.getElementById('form-id').textContent = data.form_id;
+            document.getElementById('agent-model').textContent = data.agent_model;
+            document.getElementById('eval-model').textContent = data.eval_model;
+
+            // Render all sections
+            renderMetricsSummary();
+            renderFormInfo();
+            renderPersona();
+            renderArtifacts();
+            renderSecrets();
+            renderResults();
+            renderPrivacy();
+        }
+
+        // Run initialization when page loads
+        init();
+    </script>
+</body>
+</html>

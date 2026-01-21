@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class ExemptionType(BaseModel):
-    """Selection of exemption category and associated fee"""
+    """Selected exemption category for the division of land"""
 
     exemption_unimproved_1100: BooleanLike = Field(
         ..., description="Select if the property is unimproved for this exemption type."
@@ -44,33 +44,29 @@ class OwnerInformation(BaseModel):
         ),
     )
 
-    mailing_address_owner: str = Field(
+    mailing_address: str = Field(
         ...,
         description=(
-            'Mailing address for the owner(s). .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Mailing street address for the owner(s). .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    city_owner_mailing_address: str = Field(
+    city: str = Field(
         ...,
         description=(
-            'City for the owner mailing address. .If you cannot fill this, write "N/A". '
+            'City for the owner\'s mailing address. .If you cannot fill this, write "N/A". '
             "If this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
-    state_owner_mailing_address: str = Field(
-        ..., description="State for the owner mailing address."
-    )
+    state: str = Field(..., description="State for the owner's mailing address.")
 
-    zip_owner_mailing_address: str = Field(
-        ..., description="ZIP code for the owner mailing address."
-    )
+    zip: str = Field(..., description="ZIP code for the owner's mailing address.")
 
-    email_address_owner: str = Field(
+    email_address: str = Field(
         default="",
         description=(
             'Email address for the owner(s). .If you cannot fill this, write "N/A". If '
@@ -79,7 +75,7 @@ class OwnerInformation(BaseModel):
         ),
     )
 
-    home_phone_owner: str = Field(
+    home_phone: str = Field(
         default="",
         description=(
             'Home phone number for the owner(s). .If you cannot fill this, write "N/A". '
@@ -88,7 +84,7 @@ class OwnerInformation(BaseModel):
         ),
     )
 
-    work_phone_owner: str = Field(
+    work_phone: str = Field(
         default="",
         description=(
             'Work phone number for the owner(s). .If you cannot fill this, write "N/A". '
@@ -114,27 +110,27 @@ class ApplicantInformation(BaseModel):
     mailing_address_applicant: str = Field(
         default="",
         description=(
-            'Mailing address for the applicant(s). .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    city_applicant_mailing_address: str = Field(
-        default="",
-        description=(
-            "City for the applicant mailing address. .If you cannot fill this, write "
+            "Mailing street address for the applicant(s). .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    state_applicant_mailing_address: str = Field(
-        default="", description="State for the applicant mailing address."
+    city_applicant: str = Field(
+        default="",
+        description=(
+            "City for the applicant's mailing address. .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
     )
 
-    zip_applicant_mailing_address: str = Field(
-        default="", description="ZIP code for the applicant mailing address."
+    state_applicant: str = Field(
+        default="", description="State for the applicant's mailing address."
+    )
+
+    zip_applicant: str = Field(
+        default="", description="ZIP code for the applicant's mailing address."
     )
 
     email_address_applicant: str = Field(
@@ -168,13 +164,13 @@ class ApplicantInformation(BaseModel):
 class PropertyInformation(BaseModel):
     """Details about the property and lots involved in the request"""
 
-    legal_description_of_property: str = Field(
+    legal_description_of_property_1_4_section_section_township_range_or_subdivision_lot_block: str = Field(
         ...,
         description=(
-            "Full legal description of the property, including 1/4 Section & "
-            "Section-Township-Range or Subdivision-Lot & Block. .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Full legal description of the property, including 1/4 section and "
+            "section-township-range or subdivision, lot, and block. .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -191,7 +187,7 @@ class PropertyInformation(BaseModel):
         ..., description="Current total number of lots involved."
     )
 
-    acreage_of_each_current_lots: str = Field(
+    acreage_of_each_current: str = Field(
         ...,
         description=(
             'Acreage of each current lot. .If you cannot fill this, write "N/A". If this '
@@ -204,7 +200,7 @@ class PropertyInformation(BaseModel):
         ..., description="Number of lots proposed to be legalized."
     )
 
-    acreage_of_each_proposed_lots: str = Field(
+    acreage_of_each_proposed: str = Field(
         ...,
         description=(
             'Acreage of each proposed lot. .If you cannot fill this, write "N/A". If this '
@@ -223,10 +219,10 @@ class PropertyInformation(BaseModel):
     )
 
 
-class CertificationandSignatures(BaseModel):
-    """Owner and applicant signatures certifying the application"""
+class Signatures(BaseModel):
+    """Owner and applicant signatures and dates"""
 
-    owners_signature_line_1: str = Field(
+    owners_signature_1: str = Field(
         ...,
         description=(
             "Signature of owner (first signature line). .If you cannot fill this, write "
@@ -235,11 +231,11 @@ class CertificationandSignatures(BaseModel):
         ),
     )
 
-    date_for_owners_signature_line_1: str = Field(
+    date_owner_signature_1: str = Field(
         ..., description="Date of first owner signature."
     )  # YYYY-MM-DD format
 
-    owners_signature_line_2: str = Field(
+    owners_signature_2: str = Field(
         default="",
         description=(
             "Signature of additional owner (second signature line), if applicable. .If you "
@@ -249,20 +245,20 @@ class CertificationandSignatures(BaseModel):
         ),
     )
 
-    date_for_owners_signature_line_2: str = Field(
+    date_owner_signature_2: str = Field(
         default="", description="Date of second owner signature, if applicable."
     )  # YYYY-MM-DD format
 
     applicants_signature: str = Field(
         default="",
         description=(
-            "Signature of applicant(s), if different from owner(s). .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Signature of applicant, if different from owner. .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    date_for_applicants_signature: str = Field(
+    date_applicant_signature: str = Field(
         default="", description="Date of applicant signature."
     )  # YYYY-MM-DD format
 
@@ -279,6 +275,4 @@ class ClearCreekCountyLandDivisionExemption(BaseModel):
     owner_information: OwnerInformation = Field(..., description="Owner Information")
     applicant_information: ApplicantInformation = Field(..., description="Applicant Information")
     property_information: PropertyInformation = Field(..., description="Property Information")
-    certification_and_signatures: CertificationandSignatures = Field(
-        ..., description="Certification and Signatures"
-    )
+    signatures: Signatures = Field(..., description="Signatures")

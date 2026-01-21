@@ -985,7 +985,7 @@ if __name__ == "__main__":
         "--output", default="generated_forms", help="Output directory for generated Python files"
     )
     parser.add_argument(
-        "--limit", type=int, default=50, help="Number of forms to process (default: 5)"
+        "--limit", type=int, default=60, help="Number of forms to process (default: 5)"
     )
     parser.add_argument("--model", default="gpt-5.1", help="Model to use")
     parser.add_argument(

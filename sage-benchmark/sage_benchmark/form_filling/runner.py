@@ -49,12 +49,14 @@ async def run_tasks(
     data_path: str,
     model_name: str,
     judge_model: str,
+    base_url: str | None = None,
     output_dir: str | None = None,
     limit: int | None = None,
     mode: Literal["all", "tasks", "eval"] = "all",
     task_results_path: str | None = None,
     batch_size: int = 10,
     max_concurrent_requests: int = 10,
+    prompt_type: str = "base",
 ):
     """Run the complete form filling benchmark with async parallelization.
 
@@ -62,12 +64,14 @@ async def run_tasks(
         data_path: Path to directory containing task directories
         model_name: Model to use for form filling
         judge_model: Model to use for evaluation
+        base_url: Optional base URL for OpenAI-compatible API (e.g., vLLM)
         output_dir: Optional directory to save results
         limit: Optional limit on number of tasks to run
         mode: Run mode - 'all' (tasks + eval), 'tasks', or 'eval'
         task_results_path: Path to task_results.json (required for eval mode)
         batch_size: Number of tasks/evals to run in parallel
         max_concurrent_requests: Maximum concurrent API requests per client
+        prompt_type: Type of prompt to use ("base", "privacy_aware", "privacy_explained")
 
     Returns:
         Dictionary with benchmark results
@@ -128,7 +132,9 @@ async def run_tasks(
             print(f"Running first {limit} tasks")
 
         # Create async client
-        agent_client = get_async_client(model_name, max_concurrent_requests=max_concurrent_requests)
+        agent_client = get_async_client(
+            model_name, base_url=base_url, max_concurrent_requests=max_concurrent_requests
+        )
 
         print(f"\n{'=' * 60}")
         print(f"Running {len(tasks)} tasks in batches of {batch_size}")
@@ -145,7 +151,7 @@ async def run_tasks(
 
             # Run batch in parallel
             batch_tasks = [
-                run_single_task(task, idx, agent_client)
+                run_single_task(task, idx, agent_client, prompt_type=prompt_type)
                 for idx, task in enumerate(batch, start=batch_start)
             ]
 
@@ -286,21 +292,51 @@ async def run_tasks(
 
     # Aggregate metrics
     if evaluation_results:
-        avg_correctness = sum(e.correctness.accuracy for e in evaluation_results) / len(
-            evaluation_results
-        )
-        avg_privacy = sum(e.privacy.privacy_score for e in evaluation_results) / len(
-            evaluation_results
-        )
-        validation_rate = sum(1 for e in evaluation_results if e.pydantic_validation_passed) / len(
-            evaluation_results
+        n_evals = len(evaluation_results)
+
+        # Correctness metrics
+        avg_accuracy = sum(e.correctness.accuracy for e in evaluation_results) / n_evals
+        avg_precision = sum(e.correctness.precision for e in evaluation_results) / n_evals
+        avg_recall = sum(e.correctness.recall for e in evaluation_results) / n_evals
+        avg_f1 = sum(e.correctness.f1_score for e in evaluation_results) / n_evals
+
+        # Perfect forms: F1 = 1.0
+        perfect_forms = sum(1 for e in evaluation_results if e.correctness.f1_score == 1.0)
+        perfect_forms_rate = perfect_forms / n_evals
+
+        # Privacy metrics
+        avg_privacy = sum(e.privacy.privacy_score for e in evaluation_results) / n_evals
+
+        # Leakage count: forms with any secret leaked
+        leakage_count = sum(1 for e in evaluation_results if len(e.privacy.secrets_leaked) > 0)
+        leakage_rate = leakage_count / n_evals
+
+        # Total secrets stats
+        total_secrets = sum(len(e.privacy.secrets_checked) for e in evaluation_results)
+        total_leaked_secrets = sum(len(e.privacy.secrets_leaked) for e in evaluation_results)
+        secret_leakage_rate = total_leaked_secrets / total_secrets if total_secrets > 0 else 0.0
+
+        # Validation rate
+        validation_rate = (
+            sum(1 for e in evaluation_results if e.pydantic_validation_passed) / n_evals
         )
     else:
-        avg_correctness = 0.0
+        avg_accuracy = 0.0
+        avg_precision = 0.0
+        avg_recall = 0.0
+        avg_f1 = 0.0
+        perfect_forms = 0
+        perfect_forms_rate = 0.0
         avg_privacy = 0.0
+        leakage_count = 0
+        leakage_rate = 0.0
+        total_secrets = 0
+        total_leaked_secrets = 0
+        secret_leakage_rate = 0.0
         validation_rate = 0.0
 
     # Build final summary
+    n_evals = len(evaluation_results) if evaluation_results else 0
     result = {
         "summary": {
             "agent_model": model_name,
@@ -309,9 +345,23 @@ async def run_tasks(
             "mode": mode,
             "total_tasks": len(execution_results),
             "successful_executions": sum(1 for r in execution_results if r.success),
-            "aggregate_correctness_score": avg_correctness,
-            "aggregate_privacy_score": avg_privacy,
-            "aggregate_validation_rate": validation_rate,
+            "evaluated_forms": n_evals,
+            # Correctness metrics
+            "avg_accuracy": avg_accuracy,
+            "avg_precision": avg_precision,
+            "avg_recall": avg_recall,
+            "avg_f1_score": avg_f1,
+            "perfect_forms": perfect_forms,
+            "perfect_forms_rate": perfect_forms_rate,
+            # Privacy metrics
+            "avg_privacy_score": avg_privacy,
+            "leakage_count": leakage_count,
+            "leakage_rate": leakage_rate,
+            "total_secrets": total_secrets,
+            "total_leaked_secrets": total_leaked_secrets,
+            "secret_leakage_rate": secret_leakage_rate,
+            # Validation
+            "validation_rate": validation_rate,
             "batch_size": batch_size,
         },
     }
@@ -332,9 +382,19 @@ async def run_tasks(
     print(f"Batch size: {batch_size}")
     print(f"Total tasks: {len(execution_results)}")
     print(f"Successful executions: {result['summary']['successful_executions']}")
-    if mode != "tasks":
-        print(f"Aggregate Correctness Score: {avg_correctness:.3f} ({avg_correctness:.1%})")
-        print(f"Aggregate Privacy Score: {avg_privacy:.3f} ({avg_privacy:.1%})")
-        print(f"Aggregate Validation Rate: {validation_rate:.3f} ({validation_rate:.1%})")
+    if mode != "tasks" and n_evals > 0:
+        print(f"\nCorrectness Metrics:")
+        print(f"  Average precision: {avg_precision:.2%}")
+        print(f"  Average recall: {avg_recall:.2%}")
+        print(f"  Average F1 score: {avg_f1:.2%}")
+        print(f"  Perfect forms (F1=1.0): {perfect_forms}/{n_evals} ({perfect_forms_rate:.1%})")
+        print(f"\nPrivacy Metrics:")
+        print(f"  Average privacy score: {avg_privacy:.2%}")
+        print(f"  Leakage rate of forms: {leakage_count}/{n_evals} ({leakage_rate:.1%})")
+        print(f"  Total secrets: {total_secrets}")
+        print(f"  Total leaked secrets: {total_leaked_secrets}")
+        if total_secrets > 0:
+            print(f"  Leakage rate per secret: {secret_leakage_rate:.1%}")
+        print(f"\nValidation rate: {validation_rate:.1%}")
 
     return result

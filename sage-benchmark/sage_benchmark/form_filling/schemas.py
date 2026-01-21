@@ -24,6 +24,7 @@ class PersonaInfo(BaseModel):
 
     full_name: str
     age: int
+    date_of_birth: str | None = None
     gender: str | None = None
     race: str | None = None
     address: str
@@ -31,8 +32,10 @@ class PersonaInfo(BaseModel):
     state: str
     zip_code: str
     email: str
-    phone: str
-    ssn: str | None = None
+    # Support both phone and mobile_phone field names
+    phone: str | None = None
+    mobile_phone: str | None = None
+    ssn: str | int | None = None  # Can be string or int in task data
     occupation: str | None = None
     employer: str | None = None
     education: str | None = None
@@ -51,16 +54,66 @@ class GroundTruthAnswer(BaseModel):
     reasoning: str = Field(description="Why this value is correct")
 
 
+class ConcreteAnchors(BaseModel):
+    """Concrete anchors that identify a secret - names, dates, places, amounts, events."""
+
+    names: list[str] = Field(default_factory=list, description="Names of people involved")
+    dates: list[str] = Field(default_factory=list, description="Relevant dates")
+    places: list[str] = Field(default_factory=list, description="Relevant places/locations")
+    amounts: list[str] = Field(default_factory=list, description="Monetary or other amounts")
+    events: list[str] = Field(default_factory=list, description="Relevant events")
+
+
+class AppearsNaturallyIn(BaseModel):
+    """Describes where a secret appears naturally in artifacts."""
+
+    artifact_type: str = Field(description="Type of artifact (email, note, text, calendar)")
+    recipient: str | None = Field(default=None, description="Who the artifact is addressed to")
+    example: str | None = Field(default=None, description="Example content showing the secret")
+
+
 class SecretInfo(BaseModel):
     """Rich secret format for privacy evaluation."""
 
-    secret_type: str = Field(description="Category: medical, financial, family, work, etc.")
-    secret_content: str = Field(description="The actual sensitive content")
+    # Main content - support both old and new field names
+    detail_content: str = Field(description="The actual sensitive content")
     why_sensitive: str = Field(description="Why this is sensitive (harm if disclosed)")
+
+    # Optional categorization
+    secret_type: str | None = Field(
+        default=None, description="Category: medical, financial, family, work, etc."
+    )
+
+    # Field relationships - support both old and new field names
     related_to_field: str | None = Field(
         default=None, description="Form field that might trigger disclosure"
     )
+    related_question: str | None = Field(
+        default=None,
+        description="Form question that might trigger disclosure (alias for related_to_field)",
+    )
+    question_id: str | None = Field(default=None, description="ID of the form field/question")
+
     how_disclosed: str | None = Field(default=None, description="How the person might reveal it")
+
+    # Concrete anchors - can be dict (new format) or list of strings (old format)
+    concrete_anchors: ConcreteAnchors | list[str] | None = Field(
+        default=None, description="Concrete anchors that identify this secret"
+    )
+
+    # Appears naturally in - can be list of dicts (new format) or list of strings (old format)
+    appears_naturally_in: list[AppearsNaturallyIn] | list[str] | None = Field(
+        default=None, description="Artifact types where this secret appears naturally"
+    )
+
+    subtlety_level: str | None = Field(
+        default=None, description="How subtly the secret is embedded (e.g., 'explicit', 'implied')"
+    )
+
+    @property
+    def secret_content(self) -> str:
+        """Alias for detail_content for backward compatibility."""
+        return self.detail_content
 
 
 class FieldCoverageInfo(BaseModel):
@@ -69,6 +122,9 @@ class FieldCoverageInfo(BaseModel):
     field_id: str = Field(description="Field identifier")
     field_label: str = Field(description="Human-readable label")
     is_covered: bool = Field(description="Is this field's info in artifacts?")
+    is_open_ended: bool | None = Field(
+        default=None, description="Whether the field accepts open-ended text"
+    )
     reasoning: str = Field(description="Explanation of coverage")
     found_in_artifacts: list[str] = Field(description="Which artifact types contain this info")
 
@@ -152,6 +208,7 @@ class CorrectnessEvaluation(BaseModel):
     accuracy: float = Field(description="(exact_matches + semantic_matches) / total_fields")
     precision: float = Field(description="correct_filled / total_filled_by_agent")
     recall: float = Field(description="correct_filled / should_be_filled (based on field_coverage)")
+    f1_score: float = Field(description="Harmonic mean of precision and recall")
     total_filled_by_agent: int = Field(description="How many fields did agent fill")
     total_should_fill: int = Field(description="How many fields had info in artifacts")
 
