@@ -239,9 +239,7 @@ Respond with whether the answer is grounded and your reasoning."""
     # Precision: Of fields agent filled (non-empty), how many are correct?
     # Only count correct fields where the agent actually filled something
     correct_filled_count = sum(
-        1
-        for e in field_evals
-        if e.is_correct and normalize_value(e.actual_value) != ""
+        1 for e in field_evals if e.is_correct and normalize_value(e.actual_value) != ""
     )
     precision = correct_filled_count / total_filled if total_filled > 0 else 1.0
 
@@ -250,9 +248,7 @@ Respond with whether the answer is grounded and your reasoning."""
     # Only count correct fields that are in the should_fill set (is_covered=True)
     covered_field_ids = {fc.field_id for fc in field_coverage if fc.is_covered}
     correct_should_fill = sum(
-        1
-        for e in field_evals
-        if e.is_correct and e.field_id in covered_field_ids
+        1 for e in field_evals if e.is_correct and e.field_id in covered_field_ids
     )
     recall = correct_should_fill / should_fill_count if should_fill_count > 0 else 1.0
 
