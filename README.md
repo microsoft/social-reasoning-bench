@@ -34,3 +34,7 @@ Prior datasets:
 ## Code
 
 See [DEV.md](DEV.md) for general setup and running instructions.
+
+## Sync Results to Azure
+
+See [SYNC.md](SYNC.md) for syncing experiment results to/from Azure Blob Storage.
