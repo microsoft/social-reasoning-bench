@@ -39,14 +39,7 @@ uv run -m sage_benchmark.interviewer --data ./data/form-filling/tasks/  --interv
 
 ### Calendar
 
-Run evals on calendar scheduling tasks
-
-```bash
-cd sage-benchmark
-uv run -m sage_benchmark.calendar_scheduling ./data/calendar-scheduling/calendar-tasks.yaml \
-    --max-rounds 10 --assistant-model gpt-4.1 --requestor-model gpt-4.1 --judge-model gpt-4.1 \
-    --artifacts ./data/calendar-scheduling/calendar-tasks-artifacts.json
-```
+See [calendar scheduling README](./sage_benchmark/calendar_scheduling/README.md) for details.
 
 ## Analyze Results
 
