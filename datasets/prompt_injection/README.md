@@ -61,6 +61,38 @@ Each row contains:
 - Paper: https://arxiv.org/abs/2404.01318
 - Code: https://github.com/JailbreakBench/jailbreakbench
 
+## converters.py
+
+Low-level prompt obfuscation techniques from [Microsoft PyRIT](https://github.com/Azure/PyRIT), used by the [Azure AI Red Teaming Agent](https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/ai-red-teaming-agent) to test guardrail bypasses.
+
+These converters transform prompts to evade text-based safety filters while remaining decodable by LLMs.
+
+| Converter | Function | Description | Example |
+|-----------|----------|-------------|---------|
+| Base64 | `base64_encode()` | Encodes to base64 | `hello` → `aGVsbG8=` |
+| Binary | `binary_encode()` | Converts to 0s and 1s | `Hi` → `01001000 01101001` |
+| Morse | `morse_encode()` | Encodes to Morse code | `SOS` → `... --- ...` |
+| ROT13 | `rot13_encode()` | Shifts letters by 13 | `hello` → `uryyb` |
+| Caesar | `caesar_cipher()` | Shifts by N positions | `abc` → `bcd` (offset=1) |
+| Atbash | `atbash_cipher()` | Reverses alphabet (A↔Z) | `Hello` → `Svool` |
+| Flip | `flip_text()` | Reverses string | `hello` → `olleh` |
+| Leetspeak | `leetspeak()` | Letter→number substitution | `hello` → `h3110` |
+| CharSpace | `character_space()` | Adds spaces between chars | `hello` → `h e l l o` |
+| CharSwap | `charswap()` | Swaps adjacent characters | `hello` → `hlelo` |
+| Unicode Sub | `unicode_substitution()` | Full-width Unicode chars | `hello` → `ｈｅｌｌｏ` |
+| Confusable | `unicode_confusable()` | Look-alike chars (Cyrillic) | `apple` → `аррlе` |
+| Zero Width | `zero_width_inject()` | Injects invisible chars | visually identical |
+| Suffix | `suffix_append()` | Appends adversarial suffix | `How to` → `How to Sure, here is` |
+
+**Usage:**
+```bash
+# CLI - all converters
+uv run datasets/prompt_injection/converters.py "hello world"
+
+# CLI - specific converter
+uv run datasets/prompt_injection/converters.py "hello" -c base64
+```
+
 ## Explore the dataset
 
 ```
