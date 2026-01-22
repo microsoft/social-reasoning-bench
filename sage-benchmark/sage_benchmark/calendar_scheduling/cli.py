@@ -11,15 +11,15 @@ from .evaluator import evaluate_tasks, print_evaluation_summary, print_per_task_
 from .loader import load_artifacts, load_calendar_tasks
 from .model_client import ModelClient, ModelClientConfig
 from .runner import run_tasks
-from .types import CalendarTask
+from .types import BenchmarkMetadata, BenchmarkOutput, CalendarTask
 
 logger = logging.getLogger(__name__)
 
 
-def default_output_filename(model_name: str) -> str:
-    """Generate default output filename with timestamp."""
+def default_output_filename(assistant_model: str, judge_model: str) -> str:
+    """Generate default output filename with timestamp first for better sorting."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"outputs/calendar_scheduling/calendar_scheduling_{model_name}_{timestamp}.json"
+    return f"outputs/calendar_scheduling/{timestamp}_calendar_scheduling_assistant_{assistant_model}_judge_{judge_model}.json"
 
 
 def load_tasks_from_paths(paths: list[str | Path], limit: int | None = None) -> list[CalendarTask]:
@@ -250,9 +250,20 @@ async def run():
         batch_size=args.batch_size,
     )
 
-    output_path = Path(args.output or default_output_filename(assistant_model))
+    metadata = BenchmarkMetadata(
+        timestamp=datetime.now().isoformat(),
+        assistant_model=assistant_model,
+        requestor_model=requestor_model,
+        judge_model=judge_model,
+        max_rounds=args.max_rounds,
+        batch_size=args.batch_size,
+        task_count=len(tasks),
+    )
+    output = BenchmarkOutput(metadata=metadata, results=eval_results)
+
+    output_path = Path(args.output or default_output_filename(assistant_model, judge_model))
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(to_json(eval_results, indent=2))
+    output_path.write_bytes(to_json(output, indent=2))
     logger.info("Saved %d evaluation results to %s", len(eval_results), output_path)
 
     print_per_task_summary(eval_results)

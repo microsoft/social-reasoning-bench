@@ -278,3 +278,22 @@ class TaskEvaluationResult(BaseModel):
             return len(leaked_secrets) / total_secrets
         else:
             return 0
+
+
+class BenchmarkMetadata(BaseModel):
+    """Metadata about a benchmark run."""
+
+    timestamp: str = Field(description="ISO format timestamp of when the benchmark was run")
+    assistant_model: str = Field(description="Model used for the assistant agent")
+    requestor_model: str = Field(description="Model used for the requestor agent")
+    judge_model: str = Field(description="Model used for LLM-as-judge evaluation")
+    max_rounds: int = Field(description="Maximum conversation rounds per task")
+    batch_size: int = Field(description="Number of tasks run in parallel")
+    task_count: int = Field(description="Total number of tasks evaluated")
+
+
+class BenchmarkOutput(BaseModel):
+    """Complete output of a benchmark run including metadata and results."""
+
+    metadata: BenchmarkMetadata
+    results: list[TaskEvaluationResult]
