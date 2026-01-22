@@ -3,6 +3,8 @@
 import logging
 import traceback
 
+from sage_benchmark.shared.executors import TaskPoolExecutor
+
 logger = logging.getLogger(__name__)
 
 from .agents.calendar_assistant import CalendarAssistantAgent
@@ -17,7 +19,7 @@ from .model_client import ModelClient
 from .types import Artifact, CalendarTask, Meeting, TaskExecutionResult, Tool, ToolError
 
 
-def _run_agent_turn(
+async def _run_agent_turn(
     agent: CalendarAgent,
     resources: AgentResources,
     max_steps: int = 20,
@@ -36,7 +38,7 @@ def _run_agent_turn(
 
     for _ in range(max_steps):
         try:
-            tool_call = agent.generate_tool_call()
+            tool_call = await agent.generate_tool_call()
         except Exception:
             # If we can't generate a tool call, treat as end of turn
             logger.error("Error generating tool call: %s", traceback.format_exc())
@@ -109,7 +111,7 @@ def _force_initial_request(
     return [request_action, wait_action]
 
 
-def run_single_task(
+async def run_single_task(
     task_index: int,
     task: CalendarTask,
     assistant_model: str,
@@ -197,10 +199,10 @@ def run_single_task(
 
     # Main simulation loop - assistant goes first since requestor already sent request
     for round_idx in range(max_rounds):
-        logger.info("Round %d", round_idx + 1)
+        logger.info("Task %d - Round %d", task_index, round_idx + 1)
 
         # Assistant turn
-        assistant_tool_calls, assistant_ended = _run_agent_turn(
+        assistant_tool_calls, assistant_ended = await _run_agent_turn(
             assistant_agent, assistant_resources, max_steps_per_turn
         )
 
@@ -208,12 +210,14 @@ def run_single_task(
             break
 
         # Requestor turn
-        requestor_tool_calls, requestor_ended = _run_agent_turn(
+        requestor_tool_calls, requestor_ended = await _run_agent_turn(
             requestor_agent, requestor_resources, max_steps_per_turn
         )
 
         if requestor_ended:
             break
+
+    logger.info("Task %d completed", task_index)
 
     return TaskExecutionResult(
         task_index=task_index,
@@ -226,7 +230,7 @@ def run_single_task(
     )
 
 
-def run_tasks(
+async def run_tasks(
     tasks: list[CalendarTask],
     assistant_model: str,
     assistant_client: ModelClient,
@@ -234,9 +238,10 @@ def run_tasks(
     requestor_client: ModelClient,
     max_rounds: int = 100,
     max_steps_per_turn: int = 20,
+    batch_size: int = 50,
     artifacts_by_task: dict[int, list[Artifact]] | None = None,
 ) -> list[TaskExecutionResult]:
-    """Run a list of tasks.
+    """Run a list of tasks in parallel batches.
 
     Args:
         tasks: List of CalendarTask to run
@@ -246,19 +251,16 @@ def run_tasks(
         requestor_client: ModelClient for the requestor
         max_rounds: Maximum number of conversation rounds per task
         max_steps_per_turn: Maximum tool calls per turn
+        batch_size: Number of tasks to run in parallel
         artifacts_by_task: Optional dict mapping task index to artifacts list
 
     Returns:
         List of TaskExecutionResult for each task
     """
-    results: list[TaskExecutionResult] = []
-    for index, task in enumerate(tasks):
-        logger.info("=" * 60)
-        logger.info("Task %d", index)
-        logger.info("=" * 60)
-        task_artifacts = artifacts_by_task.get(index) if artifacts_by_task else None
-        result = run_single_task(
-            task_index=index,
+    executor = TaskPoolExecutor(batch_size=batch_size, task_logger=logger)
+    return await executor.run(
+        run_single_task(
+            task_index=task_index,
             task=task,
             assistant_model=assistant_model,
             assistant_client=assistant_client,
@@ -266,8 +268,7 @@ def run_tasks(
             requestor_client=requestor_client,
             max_rounds=max_rounds,
             max_steps_per_turn=max_steps_per_turn,
-            artifacts=task_artifacts,
+            artifacts=artifacts_by_task.get(task_index) if artifacts_by_task else None,
         )
-        results.append(result)
-
-    return results
+        for task_index, task in enumerate(tasks)
+    )

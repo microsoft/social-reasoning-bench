@@ -141,7 +141,7 @@ class CalendarAgent:
             )
         )
 
-    def generate_tool_call(self, max_retries: int = 3) -> Tool:
+    async def generate_tool_call(self, max_retries: int = 3) -> Tool:
         """Generate the next tool call from the LLM."""
         # Make local copy that we can modify on retry
         messages = list(self._messages)
@@ -149,7 +149,7 @@ class CalendarAgent:
 
         for _ in range(max(1, max_retries)):
             # Generate the next action
-            completion = self._model_client.chat.completions.create(
+            completion = await self._model_client.chat.completions.create(
                 model=self._model,
                 messages=messages,
                 tools=self._openai_tools,

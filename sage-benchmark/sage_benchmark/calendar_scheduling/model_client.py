@@ -1,10 +1,8 @@
 import logging
 import os
 import warnings
-from typing import Any, cast
 
-from litellm import completion
-from litellm.utils import ModelResponse
+from litellm import acompletion
 from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, field_validator
 
@@ -41,15 +39,14 @@ class _ConfigMixin:
 
 
 class _ChatCompletions(_ConfigMixin):
-    def create(
+    async def create(
         self,
         model: str,
         messages: list[ChatCompletionMessageParam],
         tools: list | None = None,
         tool_choice: str | None = None,
     ):
-        # Otherwise use litellm completion
-        return completion(
+        return await acompletion(
             model=model,
             messages=messages,
             tools=tools,

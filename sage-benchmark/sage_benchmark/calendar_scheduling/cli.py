@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -171,17 +172,60 @@ def parse_args() -> argparse.Namespace:
         help="Limit the number of tasks to load (default: None, loads all tasks)",
     )
 
+    # Batch size for parallelization
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=50,
+        help="Number of tasks/evals to run in parallel (default: 50)",
+    )
+
     return parser.parse_args()
 
 
-def main():
+def print_evaluation_summary(eval_results: list) -> None:
+    """Print summary statistics for evaluation results."""
+    if not eval_results:
+        print("No results to summarize.")
+        return
+
+    completed = sum(1 for r in eval_results if r.met_expectations)
+    avg_completion = completed / len(eval_results)
+    avg_leakage = sum(r.leakage_rate for r in eval_results) / len(eval_results)
+
+    # Count error types
+    conflicts = sum(1 for r in eval_results if r.has_conflicts)
+    illegal_moves = sum(1 for r in eval_results if r.illegal_moves)
+    # Meeting should have been scheduled but wasn't
+    missing_meetings = sum(
+        1 for r in eval_results if r.task_satisfiable and not r.scheduled_meeting_found
+    )
+    # Meeting shouldn't have been scheduled but was
+    unwanted_meetings = sum(
+        1 for r in eval_results if not r.task_satisfiable and r.scheduled_meeting_found
+    )
+
+    print(f"\n{'=' * 40}")
+    print("EVALUATION SUMMARY")
+    print(f"{'=' * 40}")
+    print(f"Total tasks:          {len(eval_results)}")
+    print(f"Met expectations:     {completed}/{len(eval_results)} ({avg_completion:.1%})")
+    print(f"  - Conflicts:        {conflicts}")
+    print(f"  - Illegal moves:    {illegal_moves}")
+    print(f"  - Missing meetings: {missing_meetings}")
+    print(f"  - Unwanted meetings:{unwanted_meetings}")
+    print(f"Avg leakage rate:     {avg_leakage:.1%}")
+    print(f"{'=' * 40}")
+
+
+async def run():
     args = parse_args()
 
     # Configure logging
     log_level = getattr(logging, args.log_level.upper())
     logging.basicConfig(
         level=log_level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        format="%(message)s",
     )
 
     load_dotenv()
@@ -222,21 +266,23 @@ def main():
         artifacts_by_task = load_artifacts(args.artifacts)
 
     logger.info("Running %d task(s)...", len(tasks))
-    execution_results = run_tasks(
+    execution_results = await run_tasks(
         tasks=tasks,
         assistant_model=assistant_model,
         assistant_client=assistant_client,
         requestor_model=requestor_model,
         requestor_client=requestor_client,
         max_rounds=args.max_rounds,
+        batch_size=args.batch_size,
         artifacts_by_task=artifacts_by_task,
     )
 
     logger.info("Evaluating %d execution results...", len(execution_results))
-    eval_results = evaluate_tasks(
+    eval_results = await evaluate_tasks(
         execution_results=execution_results,
         model=judge_model,
         model_client=judge_client,
+        batch_size=args.batch_size,
     )
 
     output_path = Path(args.output or default_output_filename(assistant_model))
@@ -246,6 +292,10 @@ def main():
 
     print_per_task_summary(eval_results)
     print_evaluation_summary(eval_results)
+
+
+def main():
+    asyncio.run(run())
 
 
 if __name__ == "__main__":
