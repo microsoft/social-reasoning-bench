@@ -16,10 +16,18 @@ from .types import BenchmarkMetadata, BenchmarkOutput, CalendarTask
 logger = logging.getLogger(__name__)
 
 
-def default_output_filename(assistant_model: str, judge_model: str) -> str:
+def sanitize_model_name(model: str) -> str:
+    """Sanitize model name for use in filenames (e.g., replace / with -)."""
+    return model.replace("/", "-")
+
+
+def default_output_filename(assistant_model: str, requestor_model: str, judge_model: str) -> str:
     """Generate default output filename with timestamp first for better sorting."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"outputs/calendar_scheduling/{timestamp}_calendar_scheduling_assistant_{assistant_model}_judge_{judge_model}.json"
+    assistant = sanitize_model_name(assistant_model)
+    requestor = sanitize_model_name(requestor_model)
+    judge = sanitize_model_name(judge_model)
+    return f"outputs/calendar_scheduling/{timestamp}_calendar_scheduling_assistant_{assistant}_requestor_{requestor}_judge_{judge}.json"
 
 
 def load_tasks_from_paths(paths: list[str | Path], limit: int | None = None) -> list[CalendarTask]:
@@ -264,7 +272,9 @@ async def run():
     )
     output = BenchmarkOutput(metadata=metadata, results=eval_results)
 
-    output_path = Path(args.output or default_output_filename(assistant_model, judge_model))
+    output_path = Path(
+        args.output or default_output_filename(assistant_model, requestor_model, judge_model)
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(to_json(output, indent=2))
     logger.info("Saved %d evaluation results to %s", len(eval_results), output_path)
