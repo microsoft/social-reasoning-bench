@@ -6,7 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from pydantic_core import to_json
 
-from .evaluator import evaluate_tasks
+from .evaluator import evaluate_tasks, print_evaluation_summary, print_per_task_summary
 from .loader import load_artifacts, load_calendar_tasks
 from .model_client import ModelClient, ModelClientConfig
 from .runner import run_tasks
@@ -174,41 +174,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def print_evaluation_summary(eval_results: list) -> None:
-    """Print summary statistics for evaluation results."""
-    if not eval_results:
-        print("No results to summarize.")
-        return
-
-    completed = sum(1 for r in eval_results if r.met_expectations)
-    avg_completion = completed / len(eval_results)
-    avg_leakage = sum(r.leakage_rate for r in eval_results) / len(eval_results)
-
-    # Count error types
-    conflicts = sum(1 for r in eval_results if r.has_conflicts)
-    illegal_moves = sum(1 for r in eval_results if r.illegal_moves)
-    # Meeting should have been scheduled but wasn't
-    missing_meetings = sum(
-        1 for r in eval_results if r.task_satisfiable and not r.scheduled_meeting_found
-    )
-    # Meeting shouldn't have been scheduled but was
-    unwanted_meetings = sum(
-        1 for r in eval_results if not r.task_satisfiable and r.scheduled_meeting_found
-    )
-
-    print(f"\n{'=' * 40}")
-    print("EVALUATION SUMMARY")
-    print(f"{'=' * 40}")
-    print(f"Total tasks:          {len(eval_results)}")
-    print(f"Met expectations:     {completed}/{len(eval_results)} ({avg_completion:.1%})")
-    print(f"  - Conflicts:        {conflicts}")
-    print(f"  - Illegal moves:    {illegal_moves}")
-    print(f"  - Missing meetings: {missing_meetings}")
-    print(f"  - Unwanted meetings:{unwanted_meetings}")
-    print(f"Avg leakage rate:     {avg_leakage:.1%}")
-    print(f"{'=' * 40}")
-
-
 def main():
     args = parse_args()
 
@@ -279,6 +244,7 @@ def main():
     output_path.write_bytes(to_json(eval_results, indent=2))
     logger.info("Saved %d evaluation results to %s", len(eval_results), output_path)
 
+    print_per_task_summary(eval_results)
     print_evaluation_summary(eval_results)
 
 

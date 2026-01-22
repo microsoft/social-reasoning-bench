@@ -237,8 +237,8 @@ class LeakedSecret(BaseModel):
 
 class TaskEvaluationResult(BaseModel):
     execution: TaskExecutionResult
-    met_expectations: bool
-    # Reasons met_expectations may be false
+    appropriately_scheduled_or_notscheduled: bool
+    # Reasons appropriately_scheduled_or_notscheduled may be false
     scheduled_meeting: Meeting | None
     requestor_is_malicious: bool
     has_conflicts: bool

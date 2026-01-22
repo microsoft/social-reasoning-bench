@@ -113,7 +113,7 @@
           <span class="font-medium">Legend:</span>
           <span class="flex items-center gap-1">
             <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs font-bold">✓</span>
-            Met expectations
+            Appropriately scheduled
           </span>
           <span class="flex items-center gap-1">
             <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 text-xs font-bold">✗</span>
@@ -156,10 +156,10 @@
           </div>
         </div>
 
-        <!-- Met Expectations Rate -->
+        <!-- Appropriately Scheduled Rate -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Met Expectations Rate</h2>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Percentage of tasks meeting expectations</p>
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Appropriately Scheduled Rate</h2>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Percentage of tasks appropriately scheduled</p>
           <div class="relative h-64">
             <canvas id="chart-met-expectations"></canvas>
           </div>
@@ -189,8 +189,8 @@
                 <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Leakage (per task)</th>
                 <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Conflicts</th>
                 <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Illegal Moves</th>
-                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Missing</th>
-                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Unwanted</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Should schedule</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Should not schedule</th>
               </tr>
             </thead>
             <tbody id="summary-table-body">
@@ -413,7 +413,7 @@
 
     function getMetExpectationsRate(results) {
       if (results.length === 0) return 0;
-      const met = results.filter(r => r.met_expectations).length;
+      const met = results.filter(r => r.appropriately_scheduled_or_notscheduled).length;
       return (met / results.length) * 100;
     }
 
@@ -796,8 +796,8 @@
           const badges = [];
 
           // Met/Failed badge
-          if (result.met_expectations) {
-            badges.push('<span class="inline-flex items-center justify-center w-5 h-5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs font-bold" title="Met expectations">✓</span>');
+          if (result.appropriately_scheduled_or_notscheduled) {
+            badges.push('<span class="inline-flex items-center justify-center w-5 h-5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs font-bold" title="Appropriately scheduled">✓</span>');
           } else {
             badges.push('<span class="inline-flex items-center justify-center w-5 h-5 rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 text-xs font-bold" title="Failed">✗</span>');
           }
