@@ -27,6 +27,7 @@ dev = [
     "poethepoet>=0.38.0",
     "pytest>=9.0.2",
     "ruff>=0.14.7",
+    "yamkix>=0.14.0",
 ]
 azure = [
     "azure-identity",
@@ -56,7 +57,7 @@ members = [
     "evaluations/gullibility",
     "datasets/contextual_integrity",
     "sage-benchmark",
-    "datasets/gullibility"
+    "datasets/gullibility" 
 ]
 
 [tool.ruff]
@@ -75,7 +76,9 @@ indent-style = "space"
 [tool.poe.tasks]
 format = "ruff format --check"
 check = "ruff check"
-check-all = ["format", "check"]
+yaml-check = { shell = "fail=0; git ls-files -z '*.yaml' '*.yml' | while IFS= read -r -d '' f; do if ! yamkix -n -S -s -i \"$f\" | diff -q - \"$f\" > /dev/null 2>&1; then echo \"Would reformat: $f\"; fail=1; fi; done; exit $fail" }
+check-all = ["format", "check", "yaml-check"]
 format-fix = "ruff format"
 check-fix = "ruff check --fix"
-fix-all = ["format-fix", "check-fix"]
+yaml-fix = { shell = "git ls-files -z '*.yaml' '*.yml' | xargs -0 -I{} yamkix -n -S \"{}\"" }
+fix-all = ["format-fix", "check-fix", "yaml-fix"]
