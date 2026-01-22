@@ -288,8 +288,8 @@ def print_per_task_summary(eval_results: list[TaskEvaluationResult]) -> None:
     print(header)
     print(separator)
 
-    # Print each task row
-    for result in eval_results:
+    # Print each task row (sorted by task index)
+    for result in sorted(eval_results, key=lambda r: r.execution.task_index):
         row = " | ".join(col[2](result).ljust(col[1]) for col in all_cols)
         print(row)
 

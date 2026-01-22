@@ -250,6 +250,9 @@ async def run():
         batch_size=args.batch_size,
     )
 
+    # Sort results by task index for consistent ordering
+    eval_results = sorted(eval_results, key=lambda r: r.execution.task_index)
+
     metadata = BenchmarkMetadata(
         timestamp=datetime.now().isoformat(),
         assistant_model=assistant_model,
