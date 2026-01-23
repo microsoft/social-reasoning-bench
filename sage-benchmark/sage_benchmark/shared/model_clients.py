@@ -1,13 +1,10 @@
 import asyncio
 import json
 import logging
-import os
-from abc import ABC, abstractmethod
 from typing import TypeVar
 
-from google import genai
-from openai import APITimeoutError, AsyncOpenAI, RateLimitError
 from pydantic import BaseModel
+from sage_llm import Client as SageLLMClient
 from tenacity import (
     before_sleep_log,
     retry,
@@ -23,32 +20,43 @@ T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
 
 
-def _clean_schema_for_gemini(schema: dict) -> dict:
-    """Remove 'title' fields from JSON schema for Gemini compatibility.
+class AsyncModelClient:
+    """Async LLM client using sage-llm for all providers."""
 
-    Pydantic auto-generates 'title' fields from field/class names, but Gemini
-    doesn't support them and returns MALFORMED_FUNCTION_CALL errors.
-    """
-    if isinstance(schema, dict):
-        return {k: _clean_schema_for_gemini(v) for k, v in schema.items() if k != "title"}
-    if isinstance(schema, list):
-        return [_clean_schema_for_gemini(item) for item in schema]
-    return schema
-
-
-class AsyncModelClient(ABC):
-    """Abstract base class for async LLM clients."""
-
-    def __init__(self, max_concurrent_requests: int = 10):
+    def __init__(
+        self,
+        model: str,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        max_concurrent_requests: int = 10,
+        reasoning_effort: str | None = None,
+    ):
         """
-        Initialize async client with rate limiting.
+        Initialize async client.
 
         Args:
-            max_concurrent_requests: Maximum number of concurrent API requests
+            model: Model name (e.g., "gpt-4.1", "trapi/msraif/shared/gpt-4.1", "gemini/gemini-2.5-flash")
+            api_key: Optional API key
+            base_url: Optional base URL for API
+            max_concurrent_requests: Maximum concurrent API requests
+            reasoning_effort: Reasoning effort level for supported models (gpt-5.x, gemini)
         """
+        self.model = model
+        self.reasoning_effort = reasoning_effort
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
+        self._client = SageLLMClient(api_key=api_key, base_url=base_url)
 
-    @abstractmethod
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=4, max=60),
+        retry=retry_if_exception_type((Exception,)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    async def _call_with_retry(self, call_fn):
+        """Wrapper to add retry logic with exponential backoff."""
+        async with self.semaphore:
+            return await call_fn()
+
     async def call_llm(
         self,
         prompt: str | None = None,
@@ -60,15 +68,69 @@ class AsyncModelClient(ABC):
 
         Args:
             prompt: The evaluation prompt (if using simple string prompt)
-            response_schema: Pydantic model class for structured output (optional)
+            response_schema: Pydantic model class for structured output (uses tool_choice=required)
             messages: List of chat messages (alternative to prompt)
 
         Returns:
             Parsed instance of the response_schema type if provided, otherwise string response
         """
-        pass
+        # Determine input format
+        if messages is not None:
+            input_messages = [message.model_dump() for message in messages]
+        elif prompt is not None:
+            input_messages = [{"role": "user", "content": prompt}]
+        else:
+            raise ValueError("Either prompt or messages must be provided")
 
-    @abstractmethod
+        # If response_schema is provided, use tool calling for reliable structured output
+        if response_schema is not None:
+            tools = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": response_schema.__name__,
+                        "description": response_schema.__doc__ or "",
+                        "parameters": response_schema.model_json_schema(),
+                    },
+                }
+            ]
+
+            async def _call_with_tool():
+                response = await self._client.chat.completions.acreate(
+                    model=self.model,
+                    messages=input_messages,
+                    tools=tools,
+                    tool_choice="required",
+                    reasoning_effort=self.reasoning_effort,
+                )
+
+                # Extract tool call arguments
+                message = response.choices[0].message
+                if message.tool_calls and len(message.tool_calls) > 0:
+                    arguments = message.tool_calls[0].function.arguments
+                    if isinstance(arguments, str):
+                        return response_schema.model_validate_json(arguments)
+                    return response_schema.model_validate(arguments)
+
+                raise ValueError("No tool call in response")
+
+            return await self._call_with_retry(_call_with_tool)
+
+        # No schema - just get text response
+        async def _call():
+            response = await self._client.chat.completions.acreate(
+                model=self.model,
+                messages=input_messages,
+                reasoning_effort=self.reasoning_effort,
+            )
+
+            content = response.choices[0].message.content
+            if content is None:
+                content = ""
+            return content
+
+        return await self._call_with_retry(_call)
+
     async def call_llm_with_tools(
         self,
         messages: list[ChatMessage],
@@ -84,97 +146,15 @@ class AsyncModelClient(ABC):
         Returns:
             ToolCallResult containing the tool call or error
         """
-        pass
-
-
-class AsyncOpenAIClient(AsyncModelClient):
-    """Async OpenAI client with retry and rate limiting."""
-
-    def __init__(
-        self,
-        model: str,
-        api_key: str | None = None,
-        base_url: str | None = None,
-        max_concurrent_requests: int = 10,
-        max_retries: int = 5,
-    ):
-        """
-        Initialize async OpenAI client.
-
-        Args:
-            model: Model name to use
-            api_key: API key (defaults to OPENAI_API_KEY env var)
-            base_url: Base URL for API (useful for vLLM-hosted models)
-            max_concurrent_requests: Maximum concurrent API requests
-            max_retries: Maximum number of retries for failed requests
-        """
-        super().__init__(max_concurrent_requests)
-        self.client = AsyncOpenAI(
-            api_key=api_key or os.getenv("OPENAI_API_KEY"),
-            base_url=base_url,
-        )
-        self.model = model
-        self.max_retries = max_retries
-
-    @retry(
-        stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=1, min=4, max=60),
-        retry=retry_if_exception_type((RateLimitError, APITimeoutError)),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-    )
-    async def _call_with_retry(self, call_fn):
-        """Wrapper to add retry logic with exponential backoff."""
-        async with self.semaphore:
-            return await call_fn()
-
-    async def call_llm(
-        self,
-        prompt: str | None = None,
-        response_schema: type[T] | None = None,
-        messages: list[ChatMessage] | None = None,
-    ) -> T | str:
-        # Determine input format
-        if messages is not None:
-            input_data = [message.model_dump() for message in messages]
-        elif prompt is not None:
-            input_data = prompt
-        else:
-            raise ValueError("Either prompt or messages must be provided")
-
-        # Call with or without structured output
-        async def _call():
-            if response_schema is not None:
-                response = await self.client.responses.parse(
-                    model=self.model,
-                    input=input_data,
-                    text_format=response_schema,
-                )
-                return response.output_parsed
-            else:
-                response = await self.client.responses.create(
-                    model=self.model,
-                    input=input_data,
-                )
-                # Extract text from response output
-                text_parts = []
-                for item in response.output:
-                    if item.type == "text":
-                        text_parts.append(item.text)
-                return "".join(text_parts)
-
-        return await self._call_with_retry(_call)
-
-    async def call_llm_with_tools(
-        self,
-        messages: list[ChatMessage],
-        tools: list[ToolDefinition],
-    ) -> ToolCallResult:
+        # Convert tools to OpenAI format
         openai_tools = [
             {
                 "type": "function",
-                "name": tool.name,
-                "description": tool.description,
-                "parameters": tool.parameters_schema.model_json_schema(),
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": tool.parameters_schema.model_json_schema(),
+                },
             }
             for tool in tools
         ]
@@ -182,209 +162,38 @@ class AsyncOpenAIClient(AsyncModelClient):
         json_messages = [message.model_dump() for message in messages]
 
         async def _call():
-            response = await self.client.responses.create(
+            response = await self._client.chat.completions.acreate(
                 model=self.model,
-                input=json_messages,
+                messages=json_messages,
                 tools=openai_tools,
                 tool_choice="required",
+                reasoning_effort=self.reasoning_effort,
             )
 
-            # get string for logging
-            raw_response = response.model_dump_json()
+            # Get raw response for logging
+            raw_response = json.dumps(response.model_dump())
 
-            # Find first function_call in output array
-            for item in response.output:
-                if item.type == "function_call":
-                    arguments = item.arguments
-                    if isinstance(arguments, str):
-                        arguments = json.loads(arguments)
+            # Check for tool calls
+            message = response.choices[0].message
+            if message.tool_calls and len(message.tool_calls) > 0:
+                tool_call = message.tool_calls[0]
+                arguments = tool_call.function.arguments
+                if isinstance(arguments, str):
+                    arguments = json.loads(arguments)
 
-                    return ToolCallResult(
-                        tool_call=ToolCall(
-                            tool_name=item.name,
-                            arguments=arguments,
-                        ),
-                        raw_response=raw_response,
-                    )
+                return ToolCallResult(
+                    tool_call=ToolCall(
+                        tool_name=tool_call.function.name,
+                        arguments=arguments,
+                    ),
+                    raw_response=raw_response,
+                )
 
-            # No function call found
+            # No tool call found
             return ToolCallResult(
                 raw_response=raw_response,
                 error="No tool call in response",
             )
-
-        return await self._call_with_retry(_call)
-
-
-class AsyncGeminiClient(AsyncModelClient):
-    """Async Gemini client with retry and rate limiting."""
-
-    def __init__(
-        self,
-        model: str,
-        api_key: str | None = None,
-        max_concurrent_requests: int = 10,
-        max_retries: int = 5,
-    ):
-        """
-        Initialize async Gemini client.
-
-        Args:
-            model: Model name to use
-            api_key: API key (defaults to GEMINI_API_KEY env var)
-            max_concurrent_requests: Maximum concurrent API requests
-            max_retries: Maximum number of retries for failed requests
-        """
-        super().__init__(max_concurrent_requests)
-        self.client = genai.Client(api_key=api_key or os.getenv("GEMINI_API_KEY"))
-        self.model_name = model
-        self.max_retries = max_retries
-
-    @retry(
-        stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=1, min=4, max=60),
-        retry=retry_if_exception_type((Exception,)),  # Catch Gemini-specific errors
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-    )
-    async def _call_with_retry(self, call_fn):
-        """Wrapper to add retry logic with exponential backoff."""
-        async with self.semaphore:
-            return await call_fn()
-
-    def _convert_to_gemini_format(
-        self, messages: list[ChatMessage]
-    ) -> tuple[str | None, list[genai.types.Content]]:
-        """Convert ChatMessage list to Gemini's format."""
-        system_instruction = None
-        contents = []
-
-        for message in messages:
-            if message.role == "system":
-                system_instruction = message.content
-                continue
-
-            role = "model" if message.role == "assistant" else "user"
-            contents.append(
-                genai.types.Content(
-                    role=role,
-                    parts=[genai.types.Part.from_text(text=message.content)],
-                )
-            )
-
-        return system_instruction, contents
-
-    async def call_llm(
-        self,
-        prompt: str | None = None,
-        response_schema: type[T] | None = None,
-        messages: list[ChatMessage] | None = None,
-    ) -> T | str:
-        # Determine input format
-        if messages is not None:
-            system_instruction, contents = self._convert_to_gemini_format(messages)
-        elif prompt is not None:
-            system_instruction = None
-            contents = prompt
-        else:
-            raise ValueError("Either prompt or messages must be provided")
-
-        # Build config
-        config = {}
-        if response_schema is not None:
-            config["response_mime_type"] = "application/json"
-            config["response_json_schema"] = response_schema.model_json_schema()
-
-        # Call Gemini
-        async def _call():
-            # Note: Gemini's Python client doesn't have async methods yet
-            # We'll use asyncio.to_thread to run sync code in a thread pool
-            if messages is not None:
-                response = await asyncio.to_thread(
-                    self.client.models.generate_content,
-                    model=self.model_name,
-                    contents=contents,
-                    config=genai.types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        **config,
-                    ),
-                )
-            else:
-                response = await asyncio.to_thread(
-                    self.client.models.generate_content,
-                    model=self.model_name,
-                    contents=contents,
-                    config=config,
-                )
-
-            # Parse response
-            if response_schema is not None:
-                return response_schema.model_validate_json(response.text)
-            else:
-                return response.text
-
-        return await self._call_with_retry(_call)
-
-    async def call_llm_with_tools(
-        self,
-        messages: list[ChatMessage],
-        tools: list[ToolDefinition],
-    ) -> ToolCallResult:
-        function_declarations = [
-            genai.types.FunctionDeclaration(
-                name=tool.name,
-                description=tool.description,
-                parameters_json_schema=_clean_schema_for_gemini(
-                    tool.parameters_schema.model_json_schema()
-                ),
-            )
-            for tool in tools
-        ]
-
-        system_instruction, contents = self._convert_to_gemini_format(messages)
-
-        async def _call():
-            # Use asyncio.to_thread for sync Gemini API
-            response = await asyncio.to_thread(
-                self.client.models.generate_content,
-                model=self.model_name,
-                contents=contents,
-                config=genai.types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    tools=[genai.types.Tool(function_declarations=function_declarations)],
-                    tool_config=genai.types.ToolConfig(
-                        function_calling_config=genai.types.FunctionCallingConfig(mode="ANY")
-                    ),
-                ),
-            )
-
-            # get string for logging
-            raw_response = response.model_dump_json()
-
-            # Check if response has candidates and content
-            if not response.candidates:
-                return ToolCallResult(raw_response=raw_response, error="No candidates in response")
-
-            candidate = response.candidates[0]
-            if not candidate.content:
-                finish_reason = getattr(candidate, "finish_reason", None)
-                safety_ratings = getattr(candidate, "safety_ratings", None)
-                error_msg = f"No content in response. Finish reason: {finish_reason}"
-                if safety_ratings:
-                    error_msg += f", Safety ratings: {safety_ratings}"
-                return ToolCallResult(raw_response=raw_response, error=error_msg)
-
-            if candidate.content.parts:
-                for part in candidate.content.parts:
-                    if hasattr(part, "function_call"):
-                        fc = part.function_call
-                        return ToolCallResult(
-                            tool_call=ToolCall(
-                                tool_name=fc.name,
-                                arguments=dict(fc.args),
-                            ),
-                            raw_response=raw_response,
-                        )
-            return ToolCallResult(raw_response=raw_response, error="No function call in response")
 
         return await self._call_with_retry(_call)
 
@@ -394,22 +203,25 @@ def get_async_client(
     api_key: str | None = None,
     base_url: str | None = None,
     max_concurrent_requests: int = 10,
+    reasoning_effort: str | None = None,
 ) -> AsyncModelClient:
     """
-    Factory function to get the appropriate async client for a model.
+    Factory function to get an async client for a model.
 
     Args:
-        model_name: Name of the model
+        model_name: Name of the model (e.g., "gpt-4.1", "trapi/...", "gemini/...")
         api_key: Optional API key
-        base_url: Optional base URL for API (OpenAI-compatible only)
+        base_url: Optional base URL for API
         max_concurrent_requests: Maximum concurrent requests
+        reasoning_effort: Reasoning effort level for supported models (gpt-5.x, gemini)
 
     Returns:
-        Appropriate AsyncModelClient instance
+        AsyncModelClient instance
     """
-    if "gpt" in model_name.lower() or "openai" in model_name.lower() or base_url is not None:
-        return AsyncOpenAIClient(model_name, api_key, base_url, max_concurrent_requests)
-    elif "gemini" in model_name.lower():
-        return AsyncGeminiClient(model_name, api_key, max_concurrent_requests)
-    else:
-        raise ValueError(f"Unknown model: {model_name}")
+    return AsyncModelClient(
+        model=model_name,
+        api_key=api_key,
+        base_url=base_url,
+        max_concurrent_requests=max_concurrent_requests,
+        reasoning_effort=reasoning_effort,
+    )

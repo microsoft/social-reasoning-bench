@@ -1,10 +1,8 @@
 import logging
-import os
 import warnings
 
-from litellm import acompletion
 from openai.types.chat import ChatCompletionMessageParam
-from pydantic import BaseModel, field_validator
+from sage_llm import Client as SageLLMClient
 
 # Suppress Pydantic serialization warnings (known bug: github.com/BerriAI/litellm/issues/11759)
 warnings.filterwarnings("ignore", message="Pydantic serializer warnings")
@@ -18,27 +16,21 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.WARNING)
 
 
-class ModelClientConfig(BaseModel):
-    api_key: str
-    base_url: str | None = None
-    api_version: str | None = None
+class _ChatCompletions:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        api_version: str | None = None,
+        reasoning_effort: str | None = None,
+    ):
+        self._sage_client = SageLLMClient(
+            api_key=api_key,
+            base_url=base_url,
+            api_version=api_version,
+        )
+        self._reasoning_effort = reasoning_effort
 
-    @field_validator("api_key", mode="before")
-    @classmethod
-    def validate_api_key(cls, value):
-        return value if value else os.getenv("OPENAI_API_KEY")
-
-
-class _ConfigMixin:
-    def __init__(self, config: ModelClientConfig):
-        self._config = config
-
-    @property
-    def config(self):
-        return self._config
-
-
-class _ChatCompletions(_ConfigMixin):
     async def create(
         self,
         model: str,
@@ -46,24 +38,42 @@ class _ChatCompletions(_ConfigMixin):
         tools: list | None = None,
         tool_choice: str | None = None,
     ):
-        return await acompletion(
+        return await self._sage_client.chat.completions.acreate(
             model=model,
             messages=messages,
             tools=tools,
             tool_choice=tool_choice,
-            api_key=self.config.api_key,
-            base_url=self.config.base_url,
-            api_version=self.config.api_version,
+            reasoning_effort=self._reasoning_effort,
         )
 
 
-class _Chat(_ConfigMixin):
-    def __init__(self, config: ModelClientConfig):
-        super().__init__(config)
-        self.completions = _ChatCompletions(config)
+class _Chat:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        api_version: str | None = None,
+        reasoning_effort: str | None = None,
+    ):
+        self.completions = _ChatCompletions(
+            api_key=api_key,
+            base_url=base_url,
+            api_version=api_version,
+            reasoning_effort=reasoning_effort,
+        )
 
 
-class ModelClient(_ConfigMixin):
-    def __init__(self, config: ModelClientConfig):
-        super().__init__(config)
-        self.chat = _Chat(config)
+class ModelClient:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        api_version: str | None = None,
+        reasoning_effort: str | None = None,
+    ):
+        self.chat = _Chat(
+            api_key=api_key,
+            base_url=base_url,
+            api_version=api_version,
+            reasoning_effort=reasoning_effort,
+        )

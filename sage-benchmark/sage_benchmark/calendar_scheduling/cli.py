@@ -9,7 +9,7 @@ from pydantic_core import to_json
 
 from .evaluator import evaluate_tasks, print_evaluation_summary, print_per_task_summary
 from .loader import load_artifacts, load_calendar_tasks
-from .model_client import ModelClient, ModelClientConfig
+from .model_client import ModelClient
 from .runner import run_tasks
 from .types import BenchmarkMetadata, BenchmarkOutput, CalendarTask
 
@@ -76,11 +76,6 @@ def parse_args() -> argparse.Namespace:
         help="Default model for all agents (default: gpt-4.1)",
     )
     parser.add_argument(
-        "--api-key",
-        default=None,
-        help="Default API key for all agents (defaults to OPENAI_API_KEY env var)",
-    )
-    parser.add_argument(
         "--base-url",
         default=None,
         help="Default base URL for OpenAI-compatible API",
@@ -103,11 +98,6 @@ def parse_args() -> argparse.Namespace:
         help="Base URL for assistant agent's OpenAI-compatible API (overrides --base-url)",
     )
     parser.add_argument(
-        "--assistant-api-key",
-        default=None,
-        help="API key for assistant agent (overrides --api-key)",
-    )
-    parser.add_argument(
         "--assistant-api-version",
         default=None,
         help="API version for assistant agent (overrides --api-version)",
@@ -123,11 +113,6 @@ def parse_args() -> argparse.Namespace:
         "--requestor-base-url",
         default=None,
         help="Base URL for requestor agent's OpenAI-compatible API (overrides --base-url)",
-    )
-    parser.add_argument(
-        "--requestor-api-key",
-        default=None,
-        help="API key for requestor agent (overrides --api-key)",
     )
     parser.add_argument(
         "--requestor-api-version",
@@ -153,11 +138,6 @@ def parse_args() -> argparse.Namespace:
         "--judge-base-url",
         default=None,
         help="Base URL for judge's OpenAI-compatible API (overrides --base-url)",
-    )
-    parser.add_argument(
-        "--judge-api-key",
-        default=None,
-        help="API key for judge (overrides --api-key)",
     )
     parser.add_argument(
         "--judge-api-version",
@@ -188,6 +168,33 @@ def parse_args() -> argparse.Namespace:
         help="Number of tasks/evals to run in parallel (default: 50)",
     )
 
+    # Reasoning effort options
+    parser.add_argument(
+        "--reasoning-effort",
+        "-r",
+        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        default=None,
+        help="Default reasoning effort level for all agents (gpt-5.x, gemini)",
+    )
+    parser.add_argument(
+        "--assistant-reasoning-effort",
+        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        default=None,
+        help="Reasoning effort for assistant agent (overrides --reasoning-effort)",
+    )
+    parser.add_argument(
+        "--requestor-reasoning-effort",
+        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        default=None,
+        help="Reasoning effort for requestor agent (overrides --reasoning-effort)",
+    )
+    parser.add_argument(
+        "--judge-reasoning-effort",
+        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        default=None,
+        help="Reasoning effort for judge (overrides --reasoning-effort)",
+    )
+
     return parser.parse_args()
 
 
@@ -208,26 +215,25 @@ async def run():
     requestor_model = args.requestor_model or args.model
     judge_model = args.judge_model or args.model
 
+    # Resolve reasoning effort with fallback to defaults
+    assistant_reasoning_effort = args.assistant_reasoning_effort or args.reasoning_effort
+    requestor_reasoning_effort = args.requestor_reasoning_effort or args.reasoning_effort
+    judge_reasoning_effort = args.judge_reasoning_effort or args.reasoning_effort
+
     assistant_client = ModelClient(
-        config=ModelClientConfig(
-            base_url=args.assistant_base_url or args.base_url,
-            api_key=args.assistant_api_key or args.api_key,
-            api_version=args.assistant_api_version or args.api_version,
-        )
+        base_url=args.assistant_base_url or args.base_url,
+        api_version=args.assistant_api_version or args.api_version,
+        reasoning_effort=assistant_reasoning_effort,
     )
     requestor_client = ModelClient(
-        config=ModelClientConfig(
-            base_url=args.requestor_base_url or args.base_url,
-            api_key=args.requestor_api_key or args.api_key,
-            api_version=args.requestor_api_version or args.api_version,
-        )
+        base_url=args.requestor_base_url or args.base_url,
+        api_version=args.requestor_api_version or args.api_version,
+        reasoning_effort=requestor_reasoning_effort,
     )
     judge_client = ModelClient(
-        config=ModelClientConfig(
-            base_url=args.judge_base_url or args.base_url,
-            api_key=args.judge_api_key or args.api_key,
-            api_version=args.judge_api_version or args.api_version,
-        )
+        base_url=args.judge_base_url or args.base_url,
+        api_version=args.judge_api_version or args.api_version,
+        reasoning_effort=judge_reasoning_effort,
     )
 
     tasks = load_tasks_from_paths(args.paths, limit=args.limit)

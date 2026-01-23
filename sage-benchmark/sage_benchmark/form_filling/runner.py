@@ -57,6 +57,8 @@ async def run_tasks(
     batch_size: int = 10,
     max_concurrent_requests: int = 10,
     prompt_type: str = "base",
+    reasoning_effort: str | None = None,
+    judge_reasoning_effort: str | None = None,
 ):
     """Run the complete form filling benchmark with async parallelization.
 
@@ -72,6 +74,8 @@ async def run_tasks(
         batch_size: Number of tasks/evals to run in parallel
         max_concurrent_requests: Maximum concurrent API requests per client
         prompt_type: Type of prompt to use ("base", "privacy_aware", "privacy_explained")
+        reasoning_effort: Reasoning effort level for agent model (gpt-5.x, gemini)
+        judge_reasoning_effort: Reasoning effort level for judge model (gpt-5.x, gemini)
 
     Returns:
         Dictionary with benchmark results
@@ -133,7 +137,10 @@ async def run_tasks(
 
         # Create async client
         agent_client = get_async_client(
-            model_name, base_url=base_url, max_concurrent_requests=max_concurrent_requests
+            model_name,
+            base_url=base_url,
+            max_concurrent_requests=max_concurrent_requests,
+            reasoning_effort=reasoning_effort,
         )
 
         print(f"\n{'=' * 60}")
@@ -229,7 +236,9 @@ async def run_tasks(
 
         # Create judge client
         judge_client = get_async_client(
-            judge_model, max_concurrent_requests=max_concurrent_requests
+            judge_model,
+            max_concurrent_requests=max_concurrent_requests,
+            reasoning_effort=judge_reasoning_effort,
         )
 
         # Filter to successful executions only

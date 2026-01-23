@@ -51,6 +51,19 @@ def parse_args() -> argparse.Namespace:
         choices=["base", "privacy_aware", "privacy_explained"],
         help='Type of prompt to use for the agent (default: "base")',
     )
+    parser.add_argument(
+        "--reasoning-effort",
+        "-r",
+        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        default=None,
+        help="Reasoning effort level for agent model (gpt-5.x, gemini)",
+    )
+    parser.add_argument(
+        "--judge-reasoning-effort",
+        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        default=None,
+        help="Reasoning effort level for judge model (gpt-5.x, gemini)",
+    )
 
     return parser.parse_args()
 
@@ -78,6 +91,8 @@ def main():
             batch_size=args.batch_size,
             max_concurrent_requests=args.max_concurrent_requests,
             prompt_type=args.prompt_type,
+            reasoning_effort=args.reasoning_effort,
+            judge_reasoning_effort=args.judge_reasoning_effort,
         )
     )
 

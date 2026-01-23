@@ -19,6 +19,7 @@ members = [
     "sage",
     "sage-benchmark",
     "sage-environment",
+    "sage-llm",
     "sotopia-evals",
 ]
 
@@ -4794,6 +4795,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
+    { name = "sage-llm" },
     { name = "tenacity" },
     { name = "tqdm" },
 ]
@@ -4807,6 +4809,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "sage-llm", editable = "sage-llm" },
     { name = "tenacity", specifier = ">=8.2.0" },
     { name = "tqdm", specifier = ">=4.66.0" },
 ]
@@ -4831,6 +4834,28 @@ requires-dist = [
     { name = "openai", specifier = ">=2.6.1" },
     { name = "python-dateutil", specifier = ">=2.8.0" },
 ]
+
+[[package]]
+name = "sage-llm"
+version = "0.1.0"
+source = { editable = "sage-llm" }
+dependencies = [
+    { name = "azure-identity" },
+    { name = "litellm" },
+]
+
+[package.optional-dependencies]
+test = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "azure-identity", specifier = ">=1.23.0" },
+    { name = "litellm", specifier = ">=1.50.0" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0.0" },
+]
+provides-extras = ["test"]
 
 [[package]]
 name = "scipy"

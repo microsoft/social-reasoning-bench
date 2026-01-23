@@ -174,6 +174,9 @@ async def run_tasks(
     batch_size: int = 25,
     max_concurrent_requests: int = 100,
     max_rounds: int = 30,
+    interviewer_reasoning_effort: str | None = None,
+    assistant_reasoning_effort: str | None = None,
+    judge_reasoning_effort: str | None = None,
 ):
     """Run the complete interviewer benchmark with async parallelization.
 
@@ -189,6 +192,9 @@ async def run_tasks(
         batch_size: Number of tasks to run in parallel
         max_concurrent_requests: Max concurrent API requests per client
         max_rounds: Maximum conversation rounds per task
+        interviewer_reasoning_effort: Reasoning effort for interviewer agent (gpt-5.x, gemini)
+        assistant_reasoning_effort: Reasoning effort for assistant agent (gpt-5.x, gemini)
+        judge_reasoning_effort: Reasoning effort for judge (gpt-5.x, gemini)
 
     Returns:
         Dictionary with benchmark results
@@ -234,10 +240,14 @@ async def run_tasks(
 
         # Create async clients
         interviewer_client = get_async_client(
-            interviewer_model, max_concurrent_requests=max_concurrent_requests
+            interviewer_model,
+            max_concurrent_requests=max_concurrent_requests,
+            reasoning_effort=interviewer_reasoning_effort,
         )
         assistant_client = get_async_client(
-            assistant_model, max_concurrent_requests=max_concurrent_requests
+            assistant_model,
+            max_concurrent_requests=max_concurrent_requests,
+            reasoning_effort=assistant_reasoning_effort,
         )
 
         print(f"\n{'=' * 60}")
@@ -301,7 +311,9 @@ async def run_tasks(
         print(f"{'=' * 60}\n")
 
         judge_client = get_async_client(
-            judge_model, max_concurrent_requests=max_concurrent_requests
+            judge_model,
+            max_concurrent_requests=max_concurrent_requests,
+            reasoning_effort=judge_reasoning_effort,
         )
 
         successful_results = [r for r in execution_results if r.success]

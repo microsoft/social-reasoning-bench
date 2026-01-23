@@ -48,6 +48,31 @@ def parse_args() -> argparse.Namespace:
         default=50,
         help="Maximum conversation rounds per task (default: 50)",
     )
+    parser.add_argument(
+        "--reasoning-effort",
+        "-r",
+        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        default=None,
+        help="Default reasoning effort level for all agents (gpt-5.x, gemini)",
+    )
+    parser.add_argument(
+        "--interviewer-reasoning-effort",
+        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        default=None,
+        help="Reasoning effort for interviewer agent (overrides --reasoning-effort)",
+    )
+    parser.add_argument(
+        "--assistant-reasoning-effort",
+        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        default=None,
+        help="Reasoning effort for assistant agent (overrides --reasoning-effort)",
+    )
+    parser.add_argument(
+        "--judge-reasoning-effort",
+        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        default=None,
+        help="Reasoning effort for judge (overrides --reasoning-effort)",
+    )
 
     return parser.parse_args()
 
@@ -62,6 +87,11 @@ def main():
     if args.mode == "eval" and not args.task_results_path:
         raise ValueError("--task-results-path is required when using --mode eval")
 
+    # Resolve reasoning effort with fallback to defaults
+    interviewer_reasoning_effort = args.interviewer_reasoning_effort or args.reasoning_effort
+    assistant_reasoning_effort = args.assistant_reasoning_effort or args.reasoning_effort
+    judge_reasoning_effort = args.judge_reasoning_effort or args.reasoning_effort
+
     asyncio.run(
         run_tasks(
             data_path=args.data,
@@ -75,6 +105,9 @@ def main():
             batch_size=args.batch_size,
             max_concurrent_requests=args.max_concurrent_requests,
             max_rounds=args.max_rounds,
+            interviewer_reasoning_effort=interviewer_reasoning_effort,
+            assistant_reasoning_effort=assistant_reasoning_effort,
+            judge_reasoning_effort=judge_reasoning_effort,
         )
     )
 

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sage-llm"
+version = "0.1.0"
+description = "LiteLLM-based model client library"
+requires-python = ">=3.11"
+dependencies = [
+    "litellm>=1.50.0",
+    "azure-identity>=1.23.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sage_llm"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
