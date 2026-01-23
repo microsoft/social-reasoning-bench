@@ -165,6 +165,7 @@ async def run_single_task(
         owner=assistant_email,
         initial_meetings=assistant_initial_meetings,
         contacts=task.assistant.contacts,
+        allowed_date=task.requestor.requested_meeting.date,
     )
 
     requestor_resources = environment.create_agent_resources(

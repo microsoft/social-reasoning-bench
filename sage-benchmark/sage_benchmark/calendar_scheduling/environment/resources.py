@@ -31,7 +31,7 @@ class AgentResources:
         owner: str,
         calendar: AgentCalendar,
         email: AgentEmail,
-        allowed_date: str | None = None,
+        allowed_date: str,
         contacts: list[Contact] | None = None,
     ) -> None:
         self.owner = owner

@@ -182,15 +182,17 @@
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-gray-200 dark:border-gray-700">
-                <th class="text-left py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Model</th>
+                <th class="text-left py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Assistant</th>
+                <th class="text-left py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Requestor</th>
+                <th class="text-left py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Judge</th>
                 <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Tasks</th>
-                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Met %</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Correct %</th>
                 <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Leakage (per secret)</th>
                 <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Leakage (per task)</th>
                 <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Conflicts</th>
                 <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Illegal Moves</th>
-                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Should schedule</th>
-                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Should not schedule</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Should schedule but did not</th>
+                <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Should not schedule but did</th>
               </tr>
             </thead>
             <tbody id="summary-table-body">
@@ -294,15 +296,17 @@
       for (const file of files) {
         try {
           const text = await file.text();
-          const data = JSON.parse(text);
+          const parsed = JSON.parse(text);
+          const data = Array.isArray(parsed) ? parsed : parsed.results;
+          const metadata = Array.isArray(parsed) ? null : parsed.metadata;
           const modelName = extractModelName(file.name);
 
           // Check if model already loaded
           const existingIndex = loadedModels.findIndex(m => m.filename === file.name);
           if (existingIndex >= 0) {
-            loadedModels[existingIndex] = { modelName, data, filename: file.name };
+            loadedModels[existingIndex] = { modelName, data, metadata, filename: file.name };
           } else {
-            loadedModels.push({ modelName, data, filename: file.name });
+            loadedModels.push({ modelName, data, metadata, filename: file.name });
           }
         } catch (err) {
           alert(`Error loading ${file.name}: ${err.message}`);
@@ -426,6 +430,19 @@
     }
 
     // Chart rendering
+    function getChartLabels() {
+      return loadedModels.map(m => {
+        if (m.metadata) {
+          return [
+            `A: ${m.metadata.assistant_model || '-'}`,
+            `R: ${m.metadata.requestor_model || '-'}`,
+            `J: ${m.metadata.judge_model || '-'}`
+          ];
+        }
+        return m.modelName;
+      });
+    }
+
     function renderAllCharts() {
       renderLeakageAggregateChart();
       renderLeakageTaskChart();
@@ -464,7 +481,7 @@
       charts['leakage-aggregate'] = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: loadedModels.map(m => m.modelName),
+          labels: getChartLabels(),
           datasets,
         },
         options: {
@@ -512,7 +529,7 @@
       charts['leakage-task'] = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: loadedModels.map(m => m.modelName),
+          labels: getChartLabels(),
           datasets,
         },
         options: {
@@ -560,7 +577,7 @@
       charts['met-expectations'] = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: loadedModels.map(m => m.modelName),
+          labels: getChartLabels(),
           datasets,
         },
         options: {
@@ -618,7 +635,7 @@
         charts['failures'] = new Chart(ctx, {
           type: 'bar',
           data: {
-            labels: loadedModels.map(m => m.modelName),
+            labels: getChartLabels(),
             datasets,
           },
           options: {
@@ -663,7 +680,7 @@
         charts['failures'] = new Chart(ctx, {
           type: 'bar',
           data: {
-            labels: loadedModels.map(m => m.modelName),
+            labels: getChartLabels(),
             datasets,
           },
           options: {
@@ -696,10 +713,15 @@
         const leakageAgg = getLeakageRateAggregate(filteredData);
         const leakageTask = getLeakageRateByTask(filteredData);
         const failures = getFailuresByType(filteredData);
+        const assistantModel = m.metadata?.assistant_model || '-';
+        const requestorModel = m.metadata?.requestor_model || '-';
+        const judgeModel = m.metadata?.judge_model || '-';
 
         return `
           <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-            <td class="py-2 px-3 font-medium text-gray-800 dark:text-gray-200">${escapeHtml(m.modelName)}</td>
+            <td class="py-2 px-3 text-gray-600 dark:text-gray-400">${escapeHtml(assistantModel)}</td>
+            <td class="py-2 px-3 text-gray-600 dark:text-gray-400">${escapeHtml(requestorModel)}</td>
+            <td class="py-2 px-3 text-gray-600 dark:text-gray-400">${escapeHtml(judgeModel)}</td>
             <td class="py-2 px-3 text-right text-gray-600 dark:text-gray-400">${total}</td>
             <td class="py-2 px-3 text-right ${metRate >= 80 ? 'text-green-600 dark:text-green-400' : metRate >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'} font-medium">${metRate.toFixed(1)}%</td>
             <td class="py-2 px-3 text-right ${leakageAgg <= 10 ? 'text-green-600 dark:text-green-400' : leakageAgg <= 30 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}">${leakageAgg.toFixed(1)}%</td>

@@ -216,7 +216,8 @@
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
-          evaluationData = JSON.parse(event.target.result);
+          const parsed = JSON.parse(event.target.result);
+          evaluationData = Array.isArray(parsed) ? parsed : parsed.results;
           initializeViewer();
         } catch (err) {
           alert('Error parsing JSON file: ' + err.message);
@@ -734,6 +735,7 @@
     }
 
     function truncate(str, len) {
+      if (!str) return '';
       return str.length > len ? str.slice(0, len) + '...' : str;
     }
 

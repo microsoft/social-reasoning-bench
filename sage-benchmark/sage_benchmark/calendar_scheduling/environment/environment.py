@@ -20,8 +20,8 @@ class CalendarSchedulingEnvironment:
     def create_agent_resources(
         self,
         owner: str,
+        allowed_date: str,
         initial_meetings: list[Meeting] | None = None,
-        allowed_date: str | None = None,
         contacts: list[Contact] | None = None,
     ) -> AgentResources:
         """Create AgentResources for an agent.

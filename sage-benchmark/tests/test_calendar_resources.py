@@ -25,13 +25,13 @@ def environment():
 @pytest.fixture
 def alice_resources(environment):
     """Create resources for alice@example.com."""
-    return environment.create_agent_resources("alice@example.com")
+    return environment.create_agent_resources("alice@example.com", allowed_date="2024-01-15")
 
 
 @pytest.fixture
 def bob_resources(environment):
     """Create resources for bob@example.com."""
-    return environment.create_agent_resources("bob@example.com")
+    return environment.create_agent_resources("bob@example.com", allowed_date="2024-01-15")
 
 
 class TestSendEmail:
@@ -124,7 +124,7 @@ class TestListMeetings:
             attendees=[Attendee(email="alice@example.com", status=AttendeeStatus.ACCEPTED)],
         )
         alice_resources = environment.create_agent_resources(
-            "alice@example.com", initial_meetings=[meeting]
+            "alice@example.com", allowed_date="2024-01-15", initial_meetings=[meeting]
         )
 
         action = ListMeetings()
@@ -146,7 +146,7 @@ class TestRequestMeeting:
             title="Project Discussion",
             description="Discuss Q1 goals",
             organizer="alice@example.com",
-            date="2024-01-20",
+            date="2024-01-15",
             start="14:00",
             end="15:00",
             attendees=["bob@example.com"],
@@ -176,7 +176,7 @@ class TestRequestMeeting:
             title="Flexible Format Meeting",
             description="Test",
             organizer="alice@example.com",
-            date="January 20, 2024",  # Human-readable date
+            date="January 15, 2024",  # Human-readable date
             start="2pm",  # 12-hour format
             end="3:30pm",  # 12-hour with minutes
             attendees=["bob@example.com"],
@@ -187,7 +187,7 @@ class TestRequestMeeting:
 
         # Check the meeting was created with normalized formats
         alice_meetings = alice_resources.execute(ListMeetings())
-        assert "2024-01-20" in alice_meetings
+        assert "2024-01-15" in alice_meetings
         assert "14:00" in alice_meetings
         assert "15:30" in alice_meetings
 
@@ -215,7 +215,7 @@ class TestRequestMeeting:
             title="Invalid Meeting",
             description="Test",
             organizer="alice@example.com",
-            date="2024-01-20",
+            date="2024-01-15",
             start="invalid",
             end="15:00",
             attendees=[],
@@ -231,7 +231,7 @@ class TestRequestMeeting:
             title="Auto Add Test",
             description="Test",
             organizer="alice@example.com",
-            date="2024-01-20",
+            date="2024-01-15",
             start="14:00",
             end="15:00",
             attendees=[],  # No attendees specified
@@ -251,7 +251,7 @@ class TestRequestMeeting:
             title="Status Update Test",
             description="Test",
             organizer="alice@example.com",
-            date="2024-01-20",
+            date="2024-01-15",
             start="14:00",
             end="15:00",
             attendees=["alice@example.com", "bob@example.com"],
@@ -316,7 +316,7 @@ class TestCancelMeeting:
                 title="Meeting to Cancel",
                 description="Test",
                 organizer="alice@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["bob@example.com"],
@@ -366,7 +366,7 @@ class TestCancelMeeting:
                 title="Organizer Test",
                 description="Test",
                 organizer="alice@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["bob@example.com"],
@@ -392,7 +392,7 @@ class TestCancelMeeting:
                 title="Selective Cancel Test",
                 description="Test",
                 organizer="alice@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["bob@example.com"],
@@ -438,7 +438,7 @@ class TestReplyMeeting:
                 title="Accept Test",
                 description="Test",
                 organizer="alice@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["bob@example.com"],
@@ -482,7 +482,7 @@ class TestReplyMeeting:
                 title="Decline Test",
                 description="Test",
                 organizer="alice@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["bob@example.com"],
@@ -555,7 +555,7 @@ class TestEndConversation:
                 title="Pending Meeting",
                 description="Test",
                 organizer="bob@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["alice@example.com"],
@@ -577,7 +577,7 @@ class TestEndConversation:
                 title="Will Accept",
                 description="Test",
                 organizer="bob@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["alice@example.com"],
@@ -609,7 +609,7 @@ class TestEndConversation:
                 title="Will Decline",
                 description="Test",
                 organizer="bob@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["alice@example.com"],
@@ -662,7 +662,7 @@ class TestReplyMeetingCounter:
                 title="Counter Test",
                 description="Test",
                 organizer="bob@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["alice@example.com"],
@@ -678,7 +678,7 @@ class TestReplyMeetingCounter:
                 message="I'm not available at that time",
                 meeting_uid="counter-test",
                 status="COUNTER",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="10:00",
                 end="11:00",
             )
@@ -719,7 +719,7 @@ class TestReplyMeetingCounter:
                 title="Counter Accept Test",
                 description="Test",
                 organizer="bob@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["alice@example.com"],
@@ -735,7 +735,7 @@ class TestReplyMeetingCounter:
                 message="How about 10am?",
                 meeting_uid="counter-accept-test",
                 status="COUNTER",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="10:00",
                 end="11:00",
             )
@@ -772,7 +772,7 @@ class TestReplyMeetingCounter:
                     message="Counter",
                     meeting_uid="nonexistent",
                     status="COUNTER",
-                    date="2024-01-20",
+                    date="2024-01-15",
                     start="10:00",
                     end="11:00",
                 )
@@ -788,7 +788,7 @@ class TestReplyMeetingCounter:
                 title="Counter Missing Fields",
                 description="Test",
                 organizer="bob@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["alice@example.com"],
@@ -815,7 +815,7 @@ class TestReplyMeetingCounter:
                 title="Counter Invalid Time",
                 description="Test",
                 organizer="bob@example.com",
-                date="2024-01-20",
+                date="2024-01-15",
                 start="14:00",
                 end="15:00",
                 attendees=["alice@example.com"],
@@ -828,7 +828,7 @@ class TestReplyMeetingCounter:
                     message="Counter",
                     meeting_uid="counter-invalid-time",
                     status="COUNTER",
-                    date="2024-01-20",
+                    date="2024-01-15",
                     start="invalid",
                     end="11:00",
                 )
@@ -836,8 +836,10 @@ class TestReplyMeetingCounter:
 
     def test_reply_meeting_counter_wrong_date_rejected(self, environment):
         """Test that counter-proposal on wrong date raises ToolError when allowed_date is set."""
-        # Create Bob with no date constraint to send the initial meeting
-        bob_resources = environment.create_agent_resources("bob@example.com")
+        # Create Bob with allowed_date constraint
+        bob_resources = environment.create_agent_resources(
+            "bob@example.com", allowed_date="2024-01-15"
+        )
 
         # Create Alice with allowed_date constraint
         alice_resources = environment.create_agent_resources(
