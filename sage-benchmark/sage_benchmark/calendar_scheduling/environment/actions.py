@@ -180,7 +180,6 @@ CalendarAction = Union[
     CancelMeeting,
     ReplyMeeting,
     Wait,
-    EndConversation,
 ]
 
 CALENDAR_TOOLS: list[type[Tool]] = list(get_args(CalendarAction))

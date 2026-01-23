@@ -77,7 +77,7 @@ class CalendarAssistantAgent(CalendarAgent):
             model=model,
             model_client=model_client,
             allowed_contacts=allowed_contacts,
-            tools=CALENDAR_TOOLS,
+            tools=CALENDAR_TOOLS + [EndConversation],
         )
 
         system_message = "\n".join([SYSTEM_PROMPT, "", assistant.system_message])
