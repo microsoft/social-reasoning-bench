@@ -1,12 +1,9 @@
-import logging
 from typing import Any
 
 import litellm
 from openai.types.chat import ChatCompletionMessageParam
 
 from .trapi.provider import TrapiCustomLLM
-
-logger = logging.getLogger(__name__)
 
 # Register TRAPI as a custom LiteLLM provider
 _trapi_handler = TrapiCustomLLM()
@@ -20,13 +17,37 @@ if "trapi" not in litellm._custom_providers:
     )
 
 
-def _drop_unsupported_params(model: str, kwargs: dict[str, Any]) -> dict[str, Any]:
-    """Drop params not supported by certain providers."""
-    if model.startswith("azure/") or model.startswith("trapi/"):
-        if "tool_choice" in kwargs:
-            logger.warning(f"Dropping unsupported 'tool_choice' parameter for model {model}")
-            kwargs = kwargs.copy()
-            kwargs.pop("tool_choice")
+# Params that TRAPI supports (Azure OpenAI backend)
+TRAPI_SUPPORTED_PARAMS = [
+    "frequency_penalty",
+    "logit_bias",
+    "logprobs",
+    "top_logprobs",
+    "max_tokens",
+    "max_completion_tokens",
+    "n",
+    "presence_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "stream",
+    "stream_options",
+    "temperature",
+    "top_p",
+    "tools",
+    "tool_choice",
+    "parallel_tool_calls",
+    "user",
+    "reasoning_effort",
+    "extra_body",
+]
+
+
+def _add_allowed_params_for_trapi(model: str, kwargs: dict[str, Any]) -> dict[str, Any]:
+    """Add allowed_openai_params for trapi models to bypass LiteLLM validation."""
+    if model.startswith("trapi/"):
+        # Tell LiteLLM to allow these params through without validation
+        kwargs["allowed_openai_params"] = TRAPI_SUPPORTED_PARAMS
     return kwargs
 
 
@@ -85,8 +106,8 @@ class Completions:
         if reasoning_effort is not None:
             kwargs["reasoning_effort"] = reasoning_effort
 
-        kwargs = _drop_unsupported_params(model, kwargs)
         kwargs = self._add_default_kwargs(kwargs)
+        kwargs = _add_allowed_params_for_trapi(model, kwargs)
 
         model = self._handle_model_aliases(model)
 
@@ -114,8 +135,8 @@ class Completions:
         if reasoning_effort is not None:
             kwargs["reasoning_effort"] = reasoning_effort
 
-        kwargs = _drop_unsupported_params(model, kwargs)
         kwargs = self._add_default_kwargs(kwargs)
+        kwargs = _add_allowed_params_for_trapi(model, kwargs)
 
         model = self._handle_model_aliases(model)
 
