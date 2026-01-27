@@ -6,9 +6,21 @@ This repo contains datasets, environments, and evaluations for testing the socia
 
 ## [Sage-Benchmark](sage-benchmark)
 
-Our new benchmark for testing social reasoning.
+Our new benchmark for testing agentic social reasoning. See the [Sage-Benchmark README](sage-benchmark/README.md) for more.
 
-## [Datasets](datasets/)
+## Code
+
+See [DEV.md](DEV.md) for general setup and running instructions.
+
+## Sync Results to Azure
+
+See [SYNC.md](SYNC.md) for syncing experiment results to/from Azure Blob Storage.
+
+---
+
+## Prior Explorations
+
+### [Datasets](datasets/)
 
 Prior datasets:
 
@@ -20,21 +32,14 @@ Prior datasets:
 - [sotopia](datasets/sotopia/README.md) Sotopia
 - [contextual_integrity](datasets/contextual_integrity/README.md) Contextual Integrity
 
-## [Environments](environments/)
+### [Environments](environments/)
 
 - [coffee](environments/coffee/README.md) Coffee Marketplace
 - [sage](environments/sage/README.md) SAGE Environments
+- [openvend](environments/open-vend/README.md) OpenVend vending machine environment
 
-## [Evaluations](evalutions/)
+### [Evaluations](evalutions/)
 
 - [privacy](evaluations/privacy/README.md) Privacy leakage evaluation across datasets
 - [sotopia](evaluations/sotopia/README.md) Sotopia evaluations
 - [gullibility](evaluations/gullibility/README.md) Evaluations of gullibility in coffee environment trajectories.
-
-## Code
-
-See [DEV.md](DEV.md) for general setup and running instructions.
-
-## Sync Results to Azure
-
-See [SYNC.md](SYNC.md) for syncing experiment results to/from Azure Blob Storage.
