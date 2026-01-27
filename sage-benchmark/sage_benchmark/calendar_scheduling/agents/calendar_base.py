@@ -13,13 +13,13 @@ from openai.types.chat import (
 from openai.types.shared_params import FunctionDefinition
 from pydantic import ValidationError
 from pydantic_core import to_json
+from sage_llm import ModelClient
 
 from ..environment.actions import (
     CALENDAR_TOOLS,
     GetEmails,
     SendEmail,
 )
-from ..model_client import ModelClient
 from ..types import Tool
 
 
@@ -149,7 +149,7 @@ class CalendarAgent:
 
         for _ in range(max(1, max_retries)):
             # Generate the next action
-            completion = await self._model_client.chat.completions.create(
+            completion = await self._model_client.chat.completions.acreate(
                 model=self._model,
                 messages=messages,
                 tools=self._openai_tools,

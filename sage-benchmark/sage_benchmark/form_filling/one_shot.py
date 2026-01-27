@@ -1,8 +1,11 @@
 """One-shot mode execution for form filling benchmark using structured output."""
 
+import json
 from datetime import datetime
 
+from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, Field
+from sage_llm import ModelClient
 
 from sage_benchmark.form_filling.prompts import (
     ACTION_PROMPT,
@@ -17,8 +20,6 @@ from sage_benchmark.form_filling.schemas import (
     LLMCallLog,
     TaskExecutionResult,
 )
-from sage_benchmark.shared.model_clients import AsyncModelClient
-from sage_benchmark.shared.schemas import ChatMessage, ToolDefinition
 
 MAX_RETRIES = 3
 
@@ -72,7 +73,8 @@ def construct_prompt_for_task(task_data: FormTask) -> FormFillingPrompt:
 async def run_single_task(
     task_data: FormTask,
     task_index: int,
-    client: AsyncModelClient,
+    client: ModelClient,
+    model: str,
     prompt_type: str = "base",
 ) -> TaskExecutionResult:
     """Execute form filling using tool-based approach.
@@ -80,7 +82,8 @@ async def run_single_task(
     Args:
         task_data: Complete task data with persona, artifacts, and form info
         task_index: Task index for tracking
-        client: Async model client for LLM calls
+        client: sage_llm Client for LLM calls
+        model: Model name to use
         prompt_type: Type of prompt to use ("base", "privacy_aware", "privacy_explained")
 
     Returns:
@@ -96,41 +99,46 @@ async def run_single_task(
     thinking_prompt = get_thinking_prompt(prompt_type)
 
     # Step 1: Let the agent think through the task (no tools)
-    thinking_messages = [
-        ChatMessage(role="system", content=prompt.system_prompt),
-        ChatMessage(role="user", content=prompt.user_request),
-        ChatMessage(role="user", content=prompt.artifacts_context),
-        ChatMessage(role="user", content=thinking_prompt),
+    thinking_messages: list[ChatCompletionMessageParam] = [
+        {"role": "system", "content": prompt.system_prompt},
+        {"role": "user", "content": prompt.user_request},
+        {"role": "user", "content": prompt.artifacts_context},
+        {"role": "user", "content": thinking_prompt},
     ]
 
     # Call LLM without tools to get thinking
     print(f"Task {task_index}: Calling LLM for planning step...")
-    agent_thinking = await client.call_llm(messages=thinking_messages)
+    response = await client.chat.completions.acreate(model=model, messages=thinking_messages)
+    agent_thinking = response.choices[0].message.content or ""
 
     # Step 2: Use the thinking to make tool calls
-    # Build messages including the thinking
-    messages = [
-        ChatMessage(role="system", content=prompt.system_prompt),
-        ChatMessage(role="user", content=prompt.user_request),
-        ChatMessage(role="user", content=prompt.artifacts_context),
-        ChatMessage(role="user", content=thinking_prompt),
-        ChatMessage(role="assistant", content=agent_thinking),
-        ChatMessage(role="user", content=ACTION_PROMPT),
+    messages: list[ChatCompletionMessageParam] = [
+        {"role": "system", "content": prompt.system_prompt},
+        {"role": "user", "content": prompt.user_request},
+        {"role": "user", "content": prompt.artifacts_context},
+        {"role": "user", "content": thinking_prompt},
+        {"role": "assistant", "content": agent_thinking},
+        {"role": "user", "content": ACTION_PROMPT},
     ]
 
-    # Define the two tools
-    # For fill_form, use the actual form class as the parameters schema
+    # Define the two tools in OpenAI format
     tools = [
-        ToolDefinition(
-            name="fill_form",
-            description="Submit a completed form with the filled-in data matching the form schema",
-            parameters_schema=form_class,
-        ),
-        ToolDefinition(
-            name="reject_form",
-            description="Reject the form if it seems suspicious or you lack required information",
-            parameters_schema=RejectFormParams,
-        ),
+        {
+            "type": "function",
+            "function": {
+                "name": "fill_form",
+                "description": "Submit a completed form with the filled-in data matching the form schema",
+                "parameters": form_class.model_json_schema(),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "reject_form",
+                "description": "Reject the form if it seems suspicious or you lack required information",
+                "parameters": RejectFormParams.model_json_schema(),
+            },
+        },
     ]
 
     llm_calls: list[LLMCallLog] = []
@@ -144,19 +152,23 @@ async def run_single_task(
         try:
             # Call LLM with tools
             print(f"Task {task_index}: Calling LLM with tools (try {attempt}/{MAX_RETRIES})...")
-            result = await client.call_llm_with_tools(messages=messages, tools=tools)
-            raw_response_str = result.raw_response
+            response = await client.chat.completions.acreate(
+                model=model, messages=messages, tools=tools, tool_choice="required"
+            )
 
-            if result.tool_call is None:
+            message = response.choices[0].message
+            raw_response_str = str(message)
+
+            if not message.tool_calls or len(message.tool_calls) == 0:
                 error_message = "No tool call in response"
-            elif result.error:
-                error_message = result.error
             else:
-                tool_name = result.tool_call.tool_name
-                tool_args = result.tool_call.arguments
+                tool_call = message.tool_calls[0]
+                tool_name = tool_call.function.name
+                tool_args = tool_call.function.arguments
+                if isinstance(tool_args, str):
+                    tool_args = json.loads(tool_args)
 
                 if tool_name == "fill_form":
-                    # tool_args contains the form data directly (not wrapped)
                     validated_form = form_class.model_validate(tool_args)
                     parsed_action = FormFillingAction(
                         action_type="fill",
@@ -198,10 +210,10 @@ async def run_single_task(
         else:
             # we had an error
             messages.append(
-                ChatMessage(
-                    role="user",
-                    content=f"The previous attempt resulted in an error: {error_message}. Please try again.",
-                )
+                {
+                    "role": "user",
+                    "content": f"The previous attempt resulted in an error: {error_message}. Please try again.",
+                }
             )
 
     # All retries failed

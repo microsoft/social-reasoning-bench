@@ -1,7 +1,8 @@
 """Assistant agent for iTIP-style calendar scheduling."""
 
+from sage_llm import ModelClient
+
 from ..environment.actions import CALENDAR_TOOLS, EndConversation
-from ..model_client import ModelClient
 from ..types import Artifact, CalendarAssistant, EmailThread, Note
 from .calendar_base import CalendarAgent
 

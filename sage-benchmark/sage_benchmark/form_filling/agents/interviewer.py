@@ -1,12 +1,12 @@
 """Interviewer agent implementation."""
 
-from typing import Any
+import json
 
+from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, Field
+from sage_llm import ModelClient
 
 from sage_benchmark.form_filling.prompts import get_interviewer_system_prompt
-from sage_benchmark.shared.model_clients import AsyncModelClient
-from sage_benchmark.shared.schemas import ChatMessage, ToolCall, ToolDefinition
 
 # --- Tool Parameter Schemas ---
 
@@ -23,63 +23,80 @@ class EndInterviewParams(BaseModel):
     reason: str = Field(description="Why the interview is ending")
 
 
-# --- External Context Building Functions ---
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "SendMessage",
+            "description": "Send a message to the other person",
+            "parameters": SendMessageParams.model_json_schema(),
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "EndInterview",
+            "description": "End the interview when you have gathered enough information",
+            "parameters": EndInterviewParams.model_json_schema(),
+        },
+    },
+]
 
 
 class InterviewerAgent:
     """Agent that conducts interviews to fill forms."""
 
-    def __init__(self, client: AsyncModelClient, form_context: str, interviewer_type: str = "base"):
+    def __init__(
+        self, client: ModelClient, model: str, form_context: str, interviewer_type: str = "base"
+    ):
         """Initialize interviewer agent.
 
         Args:
             client: Model client for LLM calls
+            model: Model name to use
             form_context: Formatted context describing the form to fill with questions
             interviewer_type: Type of interviewer prompt ("base" or "detail")
         """
         self.client = client
+        self.model = model
         system_prompt = get_interviewer_system_prompt(interviewer_type)
-        self.messages = [
-            ChatMessage(role="system", content=system_prompt),
-            ChatMessage(
-                role="user",
-                content=f"""You need to conduct an interview to gather all the information from the other person needed to fill out this form.
+        self.messages: list[ChatCompletionMessageParam] = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": f"""You need to conduct an interview to gather all the information from the other person needed to fill out this form.
 
 {form_context}
 
 Start the interview by introducing yourself and asking your first question.""",
-            ),
+            },
         ]
 
-        # Define tools
-        self.tools = [
-            ToolDefinition(
-                name="SendMessage",
-                description="Send a message to the other person",
-                parameters_schema=SendMessageParams,
-            ),
-            ToolDefinition(
-                name="EndInterview",
-                description="End the interview when you have gathered enough information",
-                parameters_schema=EndInterviewParams,
-            ),
-        ]
+    async def generate_action(self) -> tuple[str, dict]:
+        """Generate the next action. Returns (tool_name, arguments)."""
+        response = await self.client.chat.completions.acreate(
+            model=self.model,
+            messages=self.messages,
+            tools=TOOLS,
+            tool_choice="required",
+        )
 
-    async def generate_action(self) -> ToolCall:
-        result = await self.client.call_llm_with_tools(messages=self.messages, tools=self.tools)
+        message = response.choices[0].message
+        if not message.tool_calls or len(message.tool_calls) == 0:
+            raise ValueError("No tool call in response")
 
-        if result.error or result.tool_call is None:
-            raise ValueError(f"Failed to get tool call: {result.error}")
+        tool_call = message.tool_calls[0]
+        arguments = tool_call.function.arguments
+        if isinstance(arguments, str):
+            arguments = json.loads(arguments)
 
-        return result.tool_call
+        return tool_call.function.name, arguments
 
     def add_tool_result(self, result: str):
-        self.messages.append(ChatMessage(role="user", content=f"Tool result:\n{result}"))
+        self.messages.append({"role": "user", "content": f"Tool result:\n{result}"})
 
     def add_new_message(self, from_agent: str, message: str):
-        self.messages.append(
-            ChatMessage(role="user", content=f"Message from {from_agent}:\n{message}")
-        )
+        self.messages.append({"role": "user", "content": f"Message from {from_agent}:\n{message}"})
 
     async def fill_form(
         self,
@@ -95,22 +112,36 @@ Make sure that ALL details and information you obtained during the interview are
 Here is the form you need to fill out:
 {form_context}
 """
-        self.messages.append(ChatMessage(role="user", content=fill_prompt))
+        self.messages.append({"role": "user", "content": fill_prompt})
 
-        submit_tool = ToolDefinition(
-            name="SubmitForm",
-            description="Submit the completed form with all your answers matching the form schema",
-            parameters_schema=form_class,
+        submit_tool = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "SubmitForm",
+                    "description": "Submit the completed form with all your answers matching the form schema",
+                    "parameters": form_class.model_json_schema(),
+                },
+            },
+        ]
+
+        response = await self.client.chat.completions.acreate(
+            model=self.model,
+            messages=self.messages,
+            tools=submit_tool,
+            tool_choice="required",
         )
 
-        # Call LLM with tool
-        result = await self.client.call_llm_with_tools(messages=self.messages, tools=[submit_tool])
+        message = response.choices[0].message
+        if not message.tool_calls or len(message.tool_calls) == 0:
+            raise ValueError("Failed to get form submission: No tool call in response")
 
-        if result.error or result.tool_call is None:
-            raise ValueError(f"Failed to get form submission: {result.error}")
+        tool_call = message.tool_calls[0]
+        if tool_call.function.name != "SubmitForm":
+            raise ValueError(f"Expected SubmitForm tool call, got: {tool_call.function.name}")
 
-        if result.tool_call.tool_name != "SubmitForm":
-            raise ValueError(f"Expected SubmitForm tool call, got: {result.tool_call.tool_name}")
+        arguments = tool_call.function.arguments
+        if isinstance(arguments, str):
+            arguments = json.loads(arguments)
 
-        # Return the form as a dict
-        return result.tool_call.arguments
+        return arguments

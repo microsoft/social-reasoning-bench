@@ -6,10 +6,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic_core import to_json
+from sage_llm import ModelClient
 
 from .evaluator import evaluate_tasks, print_evaluation_summary, print_per_task_summary
 from .loader import load_artifacts, load_calendar_tasks
-from .model_client import ModelClient
 from .runner import run_tasks
 from .types import BenchmarkMetadata, BenchmarkOutput, CalendarTask
 

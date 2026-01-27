@@ -1,5 +1,31 @@
 TRAPI_SCOPE = "api://trapi/.default"
 
+# Params that TRAPI supports (Azure OpenAI backend).
+# Used as an allowlist in both the LiteLLM client and the TRAPI provider.
+TRAPI_SUPPORTED_PARAMS = [
+    "frequency_penalty",
+    "logit_bias",
+    "logprobs",
+    "top_logprobs",
+    "max_tokens",
+    "max_completion_tokens",
+    "n",
+    "presence_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "stream",
+    "stream_options",
+    "temperature",
+    "top_p",
+    "tools",
+    "tool_choice",
+    "parallel_tool_calls",
+    "user",
+    "reasoning_effort",
+    "extra_body",
+]
+
 # Default API version - works for most models
 DEFAULT_API_VERSION = "2024-10-21"
 
@@ -50,6 +76,13 @@ API_VERSIONS: dict[str, str] = {
     "o3-mini": "2024-12-01-preview",
     "o4-mini": "2024-12-01-preview",
 }
+
+
+def add_allowed_params_for_trapi(model: str, kwargs: dict) -> dict:
+    """Add allowed_openai_params for trapi models to bypass LiteLLM validation."""
+    if model.startswith("trapi/"):
+        kwargs["allowed_openai_params"] = TRAPI_SUPPORTED_PARAMS
+    return kwargs
 
 
 def get_deployment(model: str) -> str:

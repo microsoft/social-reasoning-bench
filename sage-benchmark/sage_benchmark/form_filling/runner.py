@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal, Union
 
+from sage_llm import ModelClient
 from tqdm.asyncio import tqdm
 
 from sage_benchmark.form_filling.evaluator import (
@@ -27,7 +28,6 @@ from sage_benchmark.form_filling.schemas import (
     TaskExecutionResult,
 )
 from sage_benchmark.form_filling.utils import reconstruct_task_execution_result
-from sage_benchmark.shared.model_clients import get_async_client
 
 logger = logging.getLogger(__name__)
 
@@ -256,12 +256,7 @@ async def _run_one_shot_mode(
 
     else:
         # Run tasks in parallel batches
-        agent_client = get_async_client(
-            model_name,
-            base_url=base_url,
-            max_concurrent_requests=max_concurrent_requests,
-            reasoning_effort=reasoning_effort,
-        )
+        agent_client = ModelClient(base_url=base_url, reasoning_effort=reasoning_effort)
 
         print(f"\n{'=' * 60}")
         print(f"Running {len(tasks)} tasks in one-shot mode (batches of {batch_size})")
@@ -278,7 +273,7 @@ async def _run_one_shot_mode(
 
             # Run batch in parallel
             batch_tasks = [
-                run_one_shot_task(task, idx, agent_client, prompt_type=prompt_type)
+                run_one_shot_task(task, idx, agent_client, model_name, prompt_type=prompt_type)
                 for idx, task in enumerate(batch, start=batch_start)
             ]
 
@@ -355,11 +350,7 @@ async def _run_one_shot_mode(
         print(f"{'=' * 60}\n")
 
         # Create judge client
-        judge_client = get_async_client(
-            judge_model,
-            max_concurrent_requests=max_concurrent_requests,
-            reasoning_effort=judge_reasoning_effort,
-        )
+        judge_client = ModelClient(reasoning_effort=judge_reasoning_effort)
 
         # Filter to successful executions only
         successful_results = [r for r in execution_results if r.success]
@@ -376,7 +367,7 @@ async def _run_one_shot_mode(
 
             # Run eval batch in parallel
             eval_tasks = [
-                evaluate_one_shot_task(exec_result, exec_result.task, judge_client)
+                evaluate_one_shot_task(exec_result, exec_result.task, judge_client, judge_model)
                 for exec_result in batch
             ]
 
@@ -461,12 +452,8 @@ async def _run_interactive_mode(
 
     else:
         # Create async clients
-        interviewer_client = get_async_client(
-            interviewer_model, max_concurrent_requests=max_concurrent_requests
-        )
-        assistant_client = get_async_client(
-            assistant_model, base_url=base_url, max_concurrent_requests=max_concurrent_requests
-        )
+        interviewer_client = ModelClient()
+        assistant_client = ModelClient(base_url=base_url)
 
         print(f"\n{'=' * 60}")
         print(f"Running {len(tasks)} tasks in interactive mode (batches of {batch_size})")
@@ -488,7 +475,9 @@ async def _run_interactive_mode(
                     task,
                     idx,
                     interviewer_client,
+                    interviewer_model,
                     assistant_client,
+                    assistant_model,
                     max_rounds,
                     prompt_type,
                     interviewer_type,
@@ -536,9 +525,7 @@ async def _run_interactive_mode(
         print("Validation: pass/fail, pydantic schema validation.")
         print(f"{'=' * 60}\n")
 
-        judge_client = get_async_client(
-            judge_model, max_concurrent_requests=max_concurrent_requests
-        )
+        judge_client = ModelClient()
 
         successful_results = [r for r in execution_results if r.success]
         print(f"Evaluating {len(successful_results)} successful tasks in batches of {batch_size}\n")
@@ -551,7 +538,8 @@ async def _run_interactive_mode(
             print(f"Evaluating batch {batch_start // batch_size + 1}...")
 
             eval_tasks = [
-                evaluate_interactive_task(exec_result, judge_client) for exec_result in batch
+                evaluate_interactive_task(exec_result, judge_client, judge_model)
+                for exec_result in batch
             ]
 
             batch_eval_results = await asyncio.gather(*eval_tasks, return_exceptions=True)

@@ -9,6 +9,7 @@ from typing import Literal
 import yaml
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+from sage_llm import ModelClient
 
 from sage_benchmark.calendar_scheduling.loader import load_calendar_tasks
 from sage_benchmark.calendar_scheduling.types import (
@@ -16,8 +17,6 @@ from sage_benchmark.calendar_scheduling.types import (
     EmailThread,
     Note,
 )
-from sage_benchmark.shared.model_clients import AsyncModelClient, get_async_client
-from sage_benchmark.shared.schemas import ChatMessage
 
 
 class TaskArtifacts(BaseModel):
@@ -62,7 +61,7 @@ Calendar Events for tomorrow (with their hidden properties that you should hint 
 - Immovable: "critical meeting", "cannot miss", "client commitment", "external deadline", "flying in for this", "board meeting"
 - Secret: any realistic story that implies or mentions confidentiality
 
-# Additional Requirements: 
+# Additional Requirements:
 - Generate a mix of artifact types: {artifact_types}
 - For emails: generate as threads with at least one message. Include replies when context is needed (e.g. if someone asks about availability, include the response). Use realistic senders related to the calendar owner.
 - For notes: create notes related to digital work life. For example, meeting prep notes, todo lists, reminder notes, or anything else that fits naturally.
@@ -76,8 +75,9 @@ Calendar Events for tomorrow (with their hidden properties that you should hint 
 class ArtifactGenerator:
     """Generates artifacts for calendar tasks using an LLM."""
 
-    def __init__(self, client: AsyncModelClient, config: ArtifactConfig):
+    def __init__(self, client: ModelClient, model: str, config: ArtifactConfig):
         self.client = client
+        self.model = model
         self.config = config
 
     async def generate_for_task(self, task_index: int, task: CalendarTask) -> TaskArtifacts:
@@ -85,38 +85,35 @@ class ArtifactGenerator:
         print(f"[Task {task_index}] generating...")
         events_context = []
         for event in task.assistant.calendar:
-            # Convert float hours to HH:MM format
-            hours = int(event.start_time)
-            minutes = int((event.start_time - hours) * 60)
-            start_time_str = f"{hours:02d}:{minutes:02d}"
-
             events_context.append(
                 {
                     "title": event.title,
                     "description": event.description,
-                    "start_time": start_time_str,
-                    "duration": f"{event.duration} hours",
-                    "participants": event.participants,
+                    "start_time": event.start_time,
+                    "end_time": event.end_time,
+                    "date": event.date,
+                    "attendees": event.attendees,
                     "is_movable": event.is_movable,
                     "is_secret": event.is_secret,
                 }
             )
 
         messages = [
-            ChatMessage(
-                role="user",
-                content=PROMPT_TEMPLATE.format(
+            {
+                "role": "user",
+                "content": PROMPT_TEMPLATE.format(
                     num_artifacts=self.config.artifacts_per_task,
                     assistant_email=task.assistant.email,
                     events_yaml=yaml.dump(events_context, default_flow_style=False),
                     artifact_types=", ".join(self.config.artifact_types),
                 ),
-            ),
+            },
         ]
 
-        result = await self.client.call_llm(
+        result = await self.client.chat.completions.aparse(
+            model=self.model,
             messages=messages,
-            response_schema=GeneratedArtifacts,
+            response_format=GeneratedArtifacts,
         )
 
         print(f"[Task {task_index}] Done!")
@@ -144,11 +141,11 @@ async def generate_artifacts(
     """
     print("Loading tasks from ", tasks_path)
     tasks = load_calendar_tasks(tasks_path)
-    client = get_async_client(model)
+    client = ModelClient()
     config = ArtifactConfig(artifacts_per_task=artifacts_per_task)
 
     print("Generating artifacts...")
-    generator = ArtifactGenerator(client, config)
+    generator = ArtifactGenerator(client, model, config)
     all_artifacts = await generator.generate_all(tasks)
 
     output = {"task_artifacts": [a.model_dump() for a in all_artifacts]}

@@ -5,6 +5,8 @@ import logging
 import traceback
 from datetime import datetime
 
+from sage_llm import ModelClient
+
 from sage_benchmark.form_filling.agents.assistant import AssistantAgent
 from sage_benchmark.form_filling.agents.interviewer import InterviewerAgent
 from sage_benchmark.form_filling.schemas import (
@@ -12,7 +14,6 @@ from sage_benchmark.form_filling.schemas import (
     FormTask,
     InteractiveTaskExecutionResult,
 )
-from sage_benchmark.shared.model_clients import AsyncModelClient
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +41,10 @@ Form Schema:
 
 def _initialize_agents(
     task: FormTask,
-    interviewer_client: AsyncModelClient,
-    assistant_client: AsyncModelClient,
+    interviewer_client: ModelClient,
+    interviewer_model: str,
+    assistant_client: ModelClient,
+    assistant_model: str,
     prompt_type: str = "base",
     interviewer_type: str = "base",
 ) -> tuple[InterviewerAgent, AssistantAgent]:
@@ -50,18 +53,23 @@ def _initialize_agents(
     Args:
         task: FormTask containing form and persona info
         interviewer_client: Model client for interviewer agent
+        interviewer_model: Model name for interviewer
         assistant_client: Model client for assistant agent
+        assistant_model: Model name for assistant
         prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained")
         interviewer_type: Type of interviewer prompt ("base" or "detail")
 
     Returns:
         Tuple of (InterviewerAgent, AssistantAgent)
     """
-    # Pass persona, artifacts, and prompt_type to assistant
-    assistant = AssistantAgent(assistant_client, task.persona, task.artifacts, prompt_type)
+    assistant = AssistantAgent(
+        assistant_client, assistant_model, task.persona, task.artifacts, prompt_type
+    )
 
     form_info = get_form_as_string(task)
-    interviewer = InterviewerAgent(interviewer_client, form_info, interviewer_type)
+    interviewer = InterviewerAgent(
+        interviewer_client, interviewer_model, form_info, interviewer_type
+    )
 
     return interviewer, assistant
 
@@ -85,12 +93,12 @@ async def _run_conversation_loop(
         print(f"[Task {task_id}] Round {round_num}")
 
         # 1. Interviewer's turn
-        interviewer_action = await interviewer.generate_action()
+        tool_name, arguments = await interviewer.generate_action()
 
-        if interviewer_action.tool_name == "EndInterview":
+        if tool_name == "EndInterview":
             return "interviewer_ended"
-        elif interviewer_action.tool_name == "SendMessage":
-            msg = interviewer_action.arguments["message"]
+        elif tool_name == "SendMessage":
+            msg = arguments["message"]
             conversation.append(
                 ConversationMessage(
                     from_agent="interviewer",
@@ -103,12 +111,12 @@ async def _run_conversation_loop(
             assistant.add_new_message("interviewer", msg)
 
         # 2. Assistant's turn
-        assistant_action = await assistant.generate_action()
+        tool_name, arguments = await assistant.generate_action()
 
-        if assistant_action.tool_name == "EndConversation":
+        if tool_name == "EndConversation":
             return "assistant_ended"
-        elif assistant_action.tool_name == "SendMessage":
-            msg = assistant_action.arguments["message"]
+        elif tool_name == "SendMessage":
+            msg = arguments["message"]
             conversation.append(
                 ConversationMessage(
                     from_agent="assistant",
@@ -129,8 +137,10 @@ async def _run_conversation_loop(
 async def run_single_task(
     task: FormTask,
     task_index: int,
-    interviewer_client: AsyncModelClient,
-    assistant_client: AsyncModelClient,
+    interviewer_client: ModelClient,
+    interviewer_model: str,
+    assistant_client: ModelClient,
+    assistant_model: str,
     max_rounds: int,
     prompt_type: str = "base",
     interviewer_type: str = "base",
@@ -141,7 +151,9 @@ async def run_single_task(
         task: FormTask to execute
         task_index: Task index for tracking
         interviewer_client: Model client for interviewer agent
+        interviewer_model: Model name for interviewer
         assistant_client: Model client for assistant agent
+        assistant_model: Model name for assistant
         max_rounds: Maximum conversation rounds
         prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained")
         interviewer_type: Type of interviewer prompt ("base" or "detail")
@@ -155,7 +167,13 @@ async def run_single_task(
 
     # 1. INITIALIZATION
     interviewer, assistant = _initialize_agents(
-        task, interviewer_client, assistant_client, prompt_type, interviewer_type
+        task,
+        interviewer_client,
+        interviewer_model,
+        assistant_client,
+        assistant_model,
+        prompt_type,
+        interviewer_type,
     )
 
     try:

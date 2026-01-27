@@ -1,7 +1,8 @@
 """Requestor agent for iTIP-style calendar scheduling."""
 
+from sage_llm import ModelClient
+
 from ..environment.actions import CALENDAR_TOOLS
-from ..model_client import ModelClient
 from ..types import CalendarRequestor
 from .calendar_base import CalendarAgent
 

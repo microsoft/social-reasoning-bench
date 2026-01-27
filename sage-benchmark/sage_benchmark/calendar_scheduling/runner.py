@@ -7,6 +7,8 @@ from sage_benchmark.shared.executors import TaskPoolExecutor
 
 logger = logging.getLogger(__name__)
 
+from sage_llm import ModelClient
+
 from .agents.calendar_assistant import CalendarAssistantAgent
 from .agents.calendar_base import CalendarAgent
 from .agents.calendar_requestor import CalendarRequestorAgent
@@ -15,7 +17,6 @@ from .environment import (
     CalendarSchedulingEnvironment,
 )
 from .environment.actions import EndConversation, RequestMeeting, Wait
-from .model_client import ModelClient
 from .types import Artifact, CalendarTask, Meeting, TaskExecutionResult, Tool, ToolError
 
 

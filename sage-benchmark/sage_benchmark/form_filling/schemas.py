@@ -5,8 +5,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_serializer
 
-from sage_benchmark.shared.schemas import ChatMessage
-
 # --- Task Data Schemas ---
 
 
@@ -168,7 +166,7 @@ class LLMCallLog(BaseModel):
 
     timestamp: datetime
     attempt_number: int
-    messages: list[ChatMessage]
+    messages: list[dict[str, Any]]
     raw_response: str | None
     parsed_action: FormFillingAction | None
     error: str | None = None
@@ -278,10 +276,10 @@ class InteractiveTaskExecutionResult(BaseModel):
     total_rounds: int = Field(description="Number of conversation rounds")
     success: bool = Field(description="Whether execution completed successfully")
     error_message: str | None = None
-    interviewer_context: list[ChatMessage] = Field(
+    interviewer_context: list[dict[str, Any]] = Field(
         default_factory=list, description="Interviewer agent's message history"
     )
-    assistant_context: list[ChatMessage] = Field(
+    assistant_context: list[dict[str, Any]] = Field(
         default_factory=list, description="Assistant agent's message history"
     )
 

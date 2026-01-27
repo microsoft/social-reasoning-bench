@@ -10,15 +10,12 @@ from litellm.utils import (
 from openai import AsyncAzureOpenAI, AzureOpenAI
 
 from ..token_manager import AzureTokenManager
-from .models import TRAPI_SCOPE, get_api_version, get_deployment
+from .models import TRAPI_SCOPE, TRAPI_SUPPORTED_PARAMS, get_api_version, get_deployment
 
 
-def _filter_none_params(params: dict) -> dict:
-    """Filter out None values from params dict.
-
-    Azure OpenAI rejects null values for optional params like parallel_tool_calls.
-    """
-    return {k: v for k, v in params.items() if v is not None}
+def _filter_params(params: dict) -> dict:
+    """Keep only TRAPI-supported params with non-None values."""
+    return {k: v for k, v in params.items() if v is not None and k in TRAPI_SUPPORTED_PARAMS}
 
 
 def parse_trapi_model(model: str) -> tuple[str, str]:
@@ -124,7 +121,7 @@ class TrapiCustomLLM(CustomLLM):
             model=deployment,
             messages=messages,
             timeout=timeout,
-            **_filter_none_params(optional_params),
+            **_filter_params(optional_params),
         )
 
         return cast(
@@ -163,7 +160,7 @@ class TrapiCustomLLM(CustomLLM):
             model=deployment,
             messages=messages,
             timeout=timeout,
-            **_filter_none_params(optional_params),
+            **_filter_params(optional_params),
         )
 
         return cast(
