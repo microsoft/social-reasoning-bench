@@ -308,22 +308,10 @@
 
             <!-- System Prompt -->
             <div class="mb-4">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">System Prompt</span>
-                <button class="maximize-btn text-gray-500 dark:text-gray-400" onclick="toggleMaxHeight(this, 'requestor-system-scroll')">Expand</button>
-              </div>
-              <div id="requestor-system-scroll" class="max-h-48 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <details class="group">
-                  <summary class="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-lg">
-                    Common (shared across tasks)
-                  </summary>
-                  <div id="requestor-common-prompt" class="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap border-t border-gray-200 dark:border-gray-600"></div>
-                </details>
-                <div class="px-3 py-2 border-t border-gray-200 dark:border-gray-600">
-                  <div class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Variable (task-specific)</div>
-                  <div id="requestor-variable-prompt" class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap"></div>
-                </div>
-              </div>
+              <details class="group">
+                <summary class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">System Prompt</summary>
+                <div id="requestor-system-prompt" class="mt-2 bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap max-h-48 overflow-y-auto"></div>
+              </details>
             </div>
 
             <!-- User Message -->
@@ -353,22 +341,10 @@
 
             <!-- System Prompt -->
             <div class="mb-4">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">System Prompt</span>
-                <button class="maximize-btn text-gray-500 dark:text-gray-400" onclick="toggleMaxHeight(this, 'assistant-system-scroll')">Expand</button>
-              </div>
-              <div id="assistant-system-scroll" class="max-h-48 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <details class="group">
-                  <summary class="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-lg">
-                    Common (shared across tasks)
-                  </summary>
-                  <div id="assistant-common-prompt" class="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap border-t border-gray-200 dark:border-gray-600"></div>
-                </details>
-                <div class="px-3 py-2 border-t border-gray-200 dark:border-gray-600">
-                  <div class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Variable (task-specific)</div>
-                  <div id="assistant-variable-prompt" class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap"></div>
-                </div>
-              </div>
+              <details class="group">
+                <summary class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">System Prompt</summary>
+                <div id="assistant-system-prompt" class="mt-2 bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap max-h-48 overflow-y-auto"></div>
+              </details>
             </div>
 
             <!-- User Message -->
@@ -513,8 +489,6 @@
   <script>
     let evaluationData = [];
     let currentTaskIndex = 0;
-    let requestorCommonPrefix = '';
-    let assistantCommonPrefix = '';
 
     // DOM Elements
     const fileInput = document.getElementById('file-input');
@@ -566,9 +540,6 @@
 
       // Update stats
       updateStats();
-
-      // Compute common prefixes for system prompts
-      computeCommonPrefixes();
 
       // Populate task table
       populateTaskTable();
@@ -1429,50 +1400,6 @@
       return normalized;
     }
 
-    // System Prompt Helper Functions
-    function findCommonPrefix(strings) {
-      if (!strings || strings.length === 0) return '';
-      if (strings.length === 1) return strings[0];
-
-      let minLen = Math.min(...strings.map(s => s.length));
-      let prefixLen = 0;
-      for (let i = 0; i < minLen; i++) {
-        const char = strings[0][i];
-        if (strings.every(s => s[i] === char)) {
-          prefixLen = i + 1;
-        } else {
-          break;
-        }
-      }
-
-      // Break at newline boundary for cleaner display
-      const rawPrefix = strings[0].substring(0, prefixLen);
-      const lastNewline = rawPrefix.lastIndexOf('\n');
-      if (lastNewline > prefixLen * 0.5) {
-        return rawPrefix.substring(0, lastNewline + 1);
-      }
-      return rawPrefix;
-    }
-
-    function computeCommonPrefixes() {
-      const allRequestorPrompts = [];
-      const allAssistantPrompts = [];
-
-      for (const result of evaluationData) {
-        const requestorContext = result.execution?.requestor_context || [];
-        const assistantContext = result.execution?.assistant_context || [];
-
-        const requestorPrompt = requestorContext.find(m => m.role === 'system')?.content || '';
-        const assistantPrompt = assistantContext.find(m => m.role === 'system')?.content || '';
-
-        if (requestorPrompt) allRequestorPrompts.push(requestorPrompt);
-        if (assistantPrompt) allAssistantPrompts.push(assistantPrompt);
-      }
-
-      requestorCommonPrefix = findCommonPrefix(allRequestorPrompts);
-      assistantCommonPrefix = findCommonPrefix(allAssistantPrompts);
-    }
-
     function renderSystemPrompts(result) {
       const requestorContext = result.execution?.requestor_context || [];
       const assistantContext = result.execution?.assistant_context || [];
@@ -1480,16 +1407,8 @@
       const requestorPrompt = requestorContext.find(m => m.role === 'system')?.content || '';
       const assistantPrompt = assistantContext.find(m => m.role === 'system')?.content || '';
 
-      // Display common prefixes
-      document.getElementById('requestor-common-prompt').textContent = requestorCommonPrefix || '(No common prefix)';
-      document.getElementById('assistant-common-prompt').textContent = assistantCommonPrefix || '(No common prefix)';
-
-      // Display variable suffixes for this task
-      const requestorVariable = requestorPrompt.substring(requestorCommonPrefix.length);
-      const assistantVariable = assistantPrompt.substring(assistantCommonPrefix.length);
-
-      document.getElementById('requestor-variable-prompt').textContent = requestorVariable || '(No variable content)';
-      document.getElementById('assistant-variable-prompt').textContent = assistantVariable || '(No variable content)';
+      document.getElementById('requestor-system-prompt').textContent = requestorPrompt || '(No system prompt)';
+      document.getElementById('assistant-system-prompt').textContent = assistantPrompt || '(No system prompt)';
 
       // Display user instructions (first user message in each context)
       const requestorInstruction = requestorContext.find(m => m.role === 'user')?.content || '';

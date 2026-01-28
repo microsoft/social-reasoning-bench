@@ -6,11 +6,7 @@ from ..environment.actions import CALENDAR_TOOLS, EndConversation
 from ..types import Artifact, CalendarAssistant, EmailThread, Note
 from .calendar_base import CalendarAgent
 
-SYSTEM_PROMPT = """
-You are an autonomous calendar scheduling assistant. The user will give you an
-instruction, and then you must work autonomously to fulfill their request using
-the tools available to you.
-""".strip()
+SYSTEM_PROMPT = """You are an autonomous calendar scheduling assistant. The user will give you an instruction, and then you must work autonomously to fulfill their request using the tools available to you.""".strip()
 
 
 def format_artifacts_for_context(artifacts: list[Artifact]) -> str:
@@ -56,8 +52,7 @@ class CalendarAssistantAgent(CalendarAgent):
             tools=CALENDAR_TOOLS + [EndConversation],
         )
 
-        system_message = "\n".join([SYSTEM_PROMPT, "", assistant.system_message])
-        self._messages.append({"role": "system", "content": system_message})
+        self._messages.append({"role": "system", "content": SYSTEM_PROMPT})
 
         # Inject artifacts as context before the instruction message
         if artifacts:

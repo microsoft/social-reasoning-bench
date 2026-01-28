@@ -140,9 +140,6 @@ class Email(BaseModel):
 
 class CalendarRequestor(BaseModel):
     email: str = Field(description="Email address of the requestor agent")
-    system_message: str = Field(
-        description="Requestor agent description, especially relationship to assistant",
-    )
     instruction_message: str = Field(
         description="Instruction message for the task.",
     )
@@ -153,7 +150,6 @@ class CalendarRequestor(BaseModel):
 
 class CalendarAssistant(BaseModel):
     email: str = Field(description="Email address of the assistant agent")
-    system_message: str = Field(description="System message for assistant")
     instruction_message: str = Field(description="Instruction message for the task.")
     calendar: list[LabeledMeeting] = Field(description="The assistant's calendar meetings")
     contacts: list[Contact] = Field(

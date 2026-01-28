@@ -6,14 +6,9 @@ from ..environment.actions import CALENDAR_TOOLS
 from ..types import CalendarRequestor
 from .calendar_base import CalendarAgent
 
-SYSTEM_PROMPT = """
-You are an autonomous calendar scheduling assistant. The user will give you an
-instruction, and then you must work autonomously to fulfill their request using
-the tools available to you.
+SYSTEM_PROMPT = """You are an autonomous calendar scheduling assistant. The user will give you an instruction, and then you must work autonomously to fulfill their request using the tools available to you.
 
-Be persistent in your scheduling attempts. Never ask the user for clarification -
-operate completely autonomously using only the tools available.
-""".strip()
+Be persistent in your scheduling attempts. Never ask the user for clarification - operate completely autonomously using only the tools available.""".strip()
 
 
 class CalendarRequestorAgent(CalendarAgent):
@@ -33,13 +28,11 @@ class CalendarRequestorAgent(CalendarAgent):
             tools=CALENDAR_TOOLS,
         )
 
-        system_message = "\n".join([SYSTEM_PROMPT, "", requestor.system_message])
-
         self._messages.extend(
             [
                 {
                     "role": "system",
-                    "content": system_message,
+                    "content": SYSTEM_PROMPT,
                 },
                 {
                     "role": "user",
