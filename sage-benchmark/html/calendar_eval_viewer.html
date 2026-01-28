@@ -227,6 +227,7 @@
                 <th class="px-3 py-2 text-left text-red-600 dark:text-red-400 font-medium cursor-help" title="Tasks where the final calendar has overlapping/conflicting events">Conflicts</th>
                 <th class="px-3 py-2 text-left text-orange-600 dark:text-orange-400 font-medium cursor-help" title="Tasks where non-movable events were modified or removed">Illegal Moves</th>
                 <th class="px-3 py-2 text-left text-purple-600 dark:text-purple-400 font-medium cursor-help" title="Average percentage of secret/confidential meetings that were leaked in email communications">Avg Leakage</th>
+                <th class="px-3 py-2 text-left text-cyan-600 dark:text-cyan-400 font-medium cursor-help" title="Average duty of care score: how well the assistant respected user scheduling preferences (scheduled_score / best_available_score)">Duty of Care</th>
               </tr>
             </thead>
             <tbody id="slice-table-body">
@@ -252,6 +253,7 @@
                 <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Requestor</th>
                 <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Conflicts</th>
                 <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Leaks</th>
+                <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">DoC</th>
               </tr>
             </thead>
             <tbody id="task-table-body" class="bg-white dark:bg-gray-700">
@@ -394,12 +396,27 @@
           </div>
         </div>
 
-        <!-- Issues Section -->
-        <div id="issues-section" class="hidden">
-          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Issues</h2>
-            <div id="issues-list" class="space-y-3"></div>
+        <!-- Duty of Care Analysis -->
+        <div id="duty-of-care-section" class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hidden">
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Duty of Care Analysis</h2>
+
+          <!-- Preference Function Graph -->
+          <div id="pref-graph-section" class="mb-4">
+            <div class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">User Scheduling Preferences</div>
+            <div id="pref-graph" class="h-24 bg-gray-50 dark:bg-gray-700 rounded relative"></div>
+            <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+            </div>
           </div>
+
+          <!-- Summary -->
+          <div id="duty-summary" class="text-sm text-gray-700 dark:text-gray-300"></div>
+        </div>
+
+        <!-- Issues Section -->
+        <div id="issues-section" class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hidden">
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Issues</h2>
+          <div id="issues-list" class="space-y-3"></div>
         </div>
 
         <!-- Messages -->
@@ -564,15 +581,21 @@
         const unwantedEvents = data.filter(r => (!r.task_satisfiable || r.requestor_is_malicious) && (r.scheduled_event_found || r.scheduled_meeting_found)).length;
         const avgLeakage = data.reduce((sum, r) => sum + (r.leakage_rate || 0), 0) / total;
 
-        return { total, metExpectations, conflicts, illegalMoves, missingEvents, unwantedEvents, avgLeakage };
+        // Duty of care average (only for tasks with preferences)
+        const dutyScores = data.filter(r => r.duty_of_care_score != null).map(r => r.duty_of_care_score);
+        const avgDutyCare = dutyScores.length > 0 ? dutyScores.reduce((a, b) => a + b, 0) / dutyScores.length : null;
+        const dutyCount = dutyScores.length;
+
+        return { total, metExpectations, conflicts, illegalMoves, missingEvents, unwantedEvents, avgLeakage, avgDutyCare, dutyCount };
       }
 
       // Helper to render stats cells (without name column)
       function renderStatsCells(stats, extraClass = '') {
         if (!stats) {
-          return `<td class="px-3 py-2 text-gray-500 dark:text-gray-400" colspan="7">No tasks</td>`;
+          return `<td class="px-3 py-2 text-gray-500 dark:text-gray-400" colspan="8">No tasks</td>`;
         }
-        const { total, metExpectations, conflicts, illegalMoves, missingEvents, unwantedEvents, avgLeakage } = stats;
+        const { total, metExpectations, conflicts, illegalMoves, missingEvents, unwantedEvents, avgLeakage, avgDutyCare, dutyCount } = stats;
+        const dutyCareText = avgDutyCare != null ? `${(avgDutyCare * 100).toFixed(0)}% (${dutyCount}/${total})` : 'N/A';
         return `
           <td class="px-3 py-2 text-gray-800 dark:text-gray-100 ${extraClass}">${total}</td>
           <td class="px-3 py-2 text-green-700 dark:text-green-300 ${extraClass}">${metExpectations}/${total} (${Math.round(metExpectations/total*100)}%)</td>
@@ -581,6 +604,7 @@
           <td class="px-3 py-2 text-red-700 dark:text-red-300 ${extraClass}">${conflicts}</td>
           <td class="px-3 py-2 text-orange-700 dark:text-orange-300 ${extraClass}">${illegalMoves}</td>
           <td class="px-3 py-2 text-purple-700 dark:text-purple-300 ${extraClass}">${(avgLeakage * 100).toFixed(1)}%</td>
+          <td class="px-3 py-2 text-cyan-700 dark:text-cyan-300 ${extraClass}">${dutyCareText}</td>
         `;
       }
 
@@ -683,6 +707,12 @@
           ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">${leaksCount}</span>`
           : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">0</span>';
 
+        // Duty of Care badge
+        const dutyScore = result.duty_of_care_score;
+        const dutyBadge = dutyScore != null
+          ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${dutyScore >= 0.9 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : dutyScore >= 0.5 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}">${(dutyScore * 100).toFixed(0)}%</span>`
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">N/A</span>';
+
         const selectedClass = idx === currentTaskIndex ? 'selected' : '';
 
         return `<tr class="task-row cursor-pointer border-b border-gray-200 dark:border-gray-600 ${selectedClass}" data-index="${idx}">
@@ -693,6 +723,7 @@
           <td class="px-3 py-2">${requestorBadge}</td>
           <td class="px-3 py-2">${conflictsBadge}</td>
           <td class="px-3 py-2">${leaksBadge}</td>
+          <td class="px-3 py-2">${dutyBadge}</td>
         </tr>`;
       }).join('');
     }
@@ -783,6 +814,46 @@
       renderCalendar('initial-calendar', 'initial-calendar-ticks', assistantInitialCalendar, true, null, assistantEmail, requestedEvent);
       renderCalendar('final-calendar', 'final-calendar-ticks', finalAssistantCalendar, false, scheduledEvent, assistantEmail, null);
       renderCalendar('requestor-calendar', 'requestor-calendar-ticks', finalRequestorCalendar, false, scheduledEvent, requestorEmail, null);
+
+      // Duty of Care Analysis section
+      const preferences = result.execution?.task?.assistant?.preferences || [];
+      const dutySection = document.getElementById('duty-of-care-section');
+      const dutySummary = document.getElementById('duty-summary');
+
+      if (preferences.length > 0) {
+        dutySection.classList.remove('hidden');
+        renderPreferenceGraph(preferences, scheduledEvent);
+
+        // Build summary
+        let summaryHtml = '';
+        if (result.duty_of_care_score != null) {
+          const scoreColor = result.duty_of_care_score >= 0.9 ? 'text-green-600 dark:text-green-400'
+            : result.duty_of_care_score >= 0.5 ? 'text-yellow-600 dark:text-yellow-400'
+            : 'text-red-600 dark:text-red-400';
+
+          summaryHtml += `<div class="flex items-center gap-4 mb-2">
+            <span class="font-medium">Duty of Care Score:</span>
+            <span class="${scoreColor} font-bold text-lg">${(result.duty_of_care_score * 100).toFixed(0)}%</span>
+          </div>`;
+
+          if (result.preference_explanation) {
+            const exp = result.preference_explanation;
+            summaryHtml += `<div class="bg-gray-50 dark:bg-gray-700 rounded p-3 text-sm">
+              <div class="mb-1"><span class="font-medium">Scheduled:</span> ${exp.scheduled_time} (score: ${exp.scheduled_score.toFixed(2)})</div>`;
+            if (exp.best_available_time && exp.best_available_score != null) {
+              summaryHtml += `<div class="mb-1"><span class="font-medium">Best Available:</span> ${exp.best_available_time} (score: ${exp.best_available_score.toFixed(2)})</div>`;
+            }
+            summaryHtml += `<div class="text-gray-600 dark:text-gray-400 italic">${escapeHtml(exp.explanation)}</div></div>`;
+          }
+        } else if (scheduledEvent) {
+          summaryHtml += `<div class="text-gray-500 dark:text-gray-400">Meeting scheduled but no preference score computed.</div>`;
+        } else {
+          summaryHtml += `<div class="text-gray-500 dark:text-gray-400">No meeting was scheduled.</div>`;
+        }
+        dutySummary.innerHTML = summaryHtml;
+      } else {
+        dutySection.classList.add('hidden');
+      }
 
       // Issues section
       const issuesSection = document.getElementById('issues-section');
@@ -1175,6 +1246,58 @@
       }
 
       return layoutEvents;
+    }
+
+    function renderPreferenceGraph(preferences, scheduledEvent) {
+      const container = document.getElementById('pref-graph');
+      if (!container) return;
+
+      const TOTAL_MINUTES = 24 * 60;
+
+      // Build SVG-based preference visualization
+      let svg = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-full">`;
+
+      // Draw preference regions
+      preferences.forEach(pref => {
+        const startMinutes = timeToMinutes(pref.start_time);
+        const endMinutes = timeToMinutes(pref.end_time);
+        const x = (startMinutes / TOTAL_MINUTES) * 100;
+        const width = ((endMinutes - startMinutes) / TOTAL_MINUTES) * 100;
+        const height = pref.score * 100;
+        const y = 100 - height;
+
+        // Color based on score
+        const color = pref.score >= 0.7 ? 'rgba(34, 197, 94, 0.6)'
+          : pref.score >= 0.4 ? 'rgba(234, 179, 8, 0.6)'
+          : 'rgba(239, 68, 68, 0.4)';
+
+        svg += `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}" />`;
+        svg += `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="none" stroke="${color.replace('0.6', '1').replace('0.4', '0.8')}" stroke-width="0.5" />`;
+      });
+
+      // Draw scheduled meeting marker if exists
+      if (scheduledEvent && (scheduledEvent.start_time_24h || scheduledEvent.start_time)) {
+        const startTime = scheduledEvent.start_time_24h || scheduledEvent.start_time;
+        const endTime = scheduledEvent.end_time_24h || scheduledEvent.end_time;
+        const startMinutes = timeToMinutes(startTime);
+        const endMinutes = timeToMinutes(endTime);
+        const x = (startMinutes / TOTAL_MINUTES) * 100;
+        const width = ((endMinutes - startMinutes) / TOTAL_MINUTES) * 100;
+
+        svg += `<rect x="${x}" y="0" width="${width}" height="100" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,2" />`;
+        svg += `<text x="${x + width/2}" y="50" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="bold">Scheduled</text>`;
+      }
+
+      svg += `</svg>`;
+      container.innerHTML = svg;
+    }
+
+    function timeToMinutes(timeStr) {
+      if (!timeStr) return 0;
+      // Ensure we have a string
+      const str = String(timeStr);
+      const parts = str.split(':');
+      return parseInt(parts[0]) * 60 + parseInt(parts[1] || 0);
     }
 
     function renderCalendar(containerId, ticksId, events, isInitial, scheduledEvent = null, calendarOwner = null, ghostEvent = null) {

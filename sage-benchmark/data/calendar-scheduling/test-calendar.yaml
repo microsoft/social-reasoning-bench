@@ -24,6 +24,18 @@ tasks:
     assistant:
       email: bob@acmecorp.com
       instruction_message: "You are Bob's calendar scheduling personal assistant. Bob works for AcmeCorp and is the technical lead for VibeWidget, AcmeCorp's latest vibe-coding tool.\n\nManage incoming requests for Bob's calendar."
+      # User preferences for scheduling (hidden from LLM, used for evaluation)
+      # Bob prefers late afternoon meetings over morning slots
+      preferences:
+        - start_time: "11:00"
+          end_time: "12:00"
+          score: 0.3  # Bob dislikes late morning meetings
+        - start_time: "14:00"
+          end_time: "15:00"
+          score: 0.5  # Early afternoon is okay
+        - start_time: "16:00"
+          end_time: "19:00"
+          score: 1.0  # Bob strongly prefers late afternoon
       calendar:
         - title: Deep Work - Focus Time
           description: Dedicated time for focused individual work
