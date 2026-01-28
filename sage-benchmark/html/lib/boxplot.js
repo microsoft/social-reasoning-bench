@@ -5,16 +5,16 @@
 const BoxPlot = (function() {
   // Default color palette (Tailwind classes)
   const defaultColors = [
-    { bg: 'bg-blue-600', border: 'border-blue-600', text: 'text-blue-600' },
-    { bg: 'bg-green-600', border: 'border-green-600', text: 'text-green-600' },
-    { bg: 'bg-purple-600', border: 'border-purple-600', text: 'text-purple-600' },
-    { bg: 'bg-orange-500', border: 'border-orange-500', text: 'text-orange-500' },
-    { bg: 'bg-pink-600', border: 'border-pink-600', text: 'text-pink-600' },
-    { bg: 'bg-teal-600', border: 'border-teal-600', text: 'text-teal-600' },
-    { bg: 'bg-red-600', border: 'border-red-600', text: 'text-red-600' },
-    { bg: 'bg-yellow-500', border: 'border-yellow-500', text: 'text-yellow-500' },
-    { bg: 'bg-amber-600', border: 'border-amber-600', text: 'text-amber-600' },
-    { bg: 'bg-gray-600', border: 'border-gray-600', text: 'text-gray-600' },
+    { bg: 'bg-blue-600', border: 'border-blue-600', borderLight: 'border-blue-300', text: 'text-blue-600' },
+    { bg: 'bg-green-600', border: 'border-green-600', borderLight: 'border-green-300', text: 'text-green-600' },
+    { bg: 'bg-purple-600', border: 'border-purple-600', borderLight: 'border-purple-300', text: 'text-purple-600' },
+    { bg: 'bg-orange-500', border: 'border-orange-500', borderLight: 'border-orange-300', text: 'text-orange-500' },
+    { bg: 'bg-pink-600', border: 'border-pink-600', borderLight: 'border-pink-300', text: 'text-pink-600' },
+    { bg: 'bg-teal-600', border: 'border-teal-600', borderLight: 'border-teal-300', text: 'text-teal-600' },
+    { bg: 'bg-red-600', border: 'border-red-600', borderLight: 'border-red-300', text: 'text-red-600' },
+    { bg: 'bg-yellow-500', border: 'border-yellow-500', borderLight: 'border-yellow-300', text: 'text-yellow-500' },
+    { bg: 'bg-amber-600', border: 'border-amber-600', borderLight: 'border-amber-300', text: 'text-amber-600' },
+    { bg: 'bg-gray-600', border: 'border-gray-600', borderLight: 'border-gray-300', text: 'text-gray-600' },
   ];
 
   /**
@@ -68,7 +68,7 @@ const BoxPlot = (function() {
    * @param {Array} data - Array of groups with series data
    * @param {Object} options - Rendering options
    *
-   * Data format:
+   * Data format (simple - single color per series):
    * [
    *   {
    *     label: 'Group A',
@@ -79,14 +79,31 @@ const BoxPlot = (function() {
    *   }
    * ]
    *
+   * Data format (subseries - multiple colors per box plot):
+   * [
+   *   {
+   *     label: 'Group A',
+   *     series: [
+   *       {
+   *         label: 'Series 1',
+   *         subseries: [
+   *           { label: 'Model A', values: [10, 20], color: { bg: 'bg-blue-600', ... } },
+   *           { label: 'Model B', values: [30, 40], color: { bg: 'bg-green-600', ... } }
+   *         ]
+   *       }
+   *     ]
+   *   }
+   * ]
+   *
    * Options:
    * - scale: { min: 0, max: 100 } - Y-axis scale
    * - ticks: [0, 25, 50, 75, 100] - Grid line positions
    * - xAxisLabel: 'Metric %' - Label for X-axis
    * - colors: [...] - Custom Tailwind color classes
    * - showLegend: true - Show/hide legend
+   * - showZoomControls: true - Show/hide zoom controls
+   * - zoomLevel: 1 - Initial zoom level (1 = default, 2 = 2x height, etc.)
    * - labelWidth: 'w-36' - Width class for series labels
-   * - valueWidth: 'w-14' - Width class for value column
    * - formatValue: (v) => v.toFixed(1) + '%' - Value formatter
    * - pointThreshold: 2 - Proximity threshold for grouping points
    * - escapeHtml: (s) => s - HTML escape function (required)
@@ -109,52 +126,108 @@ const BoxPlot = (function() {
       xAxisLabel: '%',
       colors: defaultColors,
       showLegend: true,
+      showZoomControls: true,
+      zoomLevel: 1,
       labelWidth: 'w-36',
-      valueWidth: 'w-14',
-      formatValue: (v) => v.toFixed(1) + '%',
+      formatValue: (v) => (v * 100).toFixed(1) + '%',
       pointThreshold: 2,
       escapeHtml: (s) => s, // Default no-op, caller should provide proper escaping
       ...options
     };
 
-    const { scale, ticks, xAxisLabel, colors, showLegend, labelWidth, valueWidth, formatValue, pointThreshold, escapeHtml } = opts;
+    const { scale, ticks, xAxisLabel, colors, showLegend, showZoomControls, zoomLevel, labelWidth, formatValue, pointThreshold, escapeHtml } = opts;
     const scaleMin = scale.min;
     const scaleMax = scale.max;
     const toPercent = (v) => ((v - scaleMin) / (scaleMax - scaleMin)) * 100;
 
-    // Collect all unique series labels for legend
+    // Neutral color for box/whiskers when series has subseries with multiple colors
+    const neutralColor = { bg: 'bg-gray-400', border: 'border-gray-400', borderLight: 'border-gray-200', text: 'text-gray-400' };
+
+    // Collect all unique series labels for legend (including subseries)
     const allSeriesLabels = [];
     const seriesLabelSet = new Set();
+    const allSubseriesLabels = [];
+    const subseriesLabelSet = new Set();
+
     data.forEach(group => {
       group.series.forEach((series, idx) => {
-        if (!seriesLabelSet.has(series.label)) {
-          seriesLabelSet.add(series.label);
-          allSeriesLabels.push({ label: series.label, colorIdx: idx });
+        if (series.subseries && series.subseries.length > 0) {
+          // Collect subseries labels with their colors
+          series.subseries.forEach(sub => {
+            if (!subseriesLabelSet.has(sub.label)) {
+              subseriesLabelSet.add(sub.label);
+              allSubseriesLabels.push({ label: sub.label, color: sub.color });
+            }
+          });
+        } else {
+          // Collect regular series labels
+          if (!seriesLabelSet.has(series.label)) {
+            seriesLabelSet.add(series.label);
+            allSeriesLabels.push({ label: series.label, colorIdx: idx });
+          }
         }
       });
     });
 
+    // Store data and options on container for zoom re-rendering
+    containerEl._boxplotData = data;
+    containerEl._boxplotOptions = opts;
+
+    // Zoom control SVG icons
+    const zoomInIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/></svg>`;
+    const zoomOutIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>`;
+    const resetIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>`;
+
     // Build HTML
     let html = '<div class="space-y-4 pt-2">';
 
+    // Zoom controls
+    if (showZoomControls) {
+      const containerId = containerEl.id || `boxplot-${Date.now()}`;
+      if (!containerEl.id) containerEl.id = containerId;
+      html += `
+        <div class="flex justify-end gap-1 mb-2">
+          <button onclick="BoxPlot.zoom('${containerId}', 0.5)" class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 transition-colors" title="Zoom out (smaller rows)">
+            ${zoomOutIcon}
+          </button>
+          <button onclick="BoxPlot.zoom('${containerId}', 0)" class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 transition-colors" title="Reset zoom">
+            ${resetIcon}
+          </button>
+          <button onclick="BoxPlot.zoom('${containerId}', 2)" class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 transition-colors" title="Zoom in (larger rows)">
+            ${zoomInIcon}
+          </button>
+        </div>
+      `;
+    }
+
     data.forEach((group) => {
       html += `<div class="space-y-1.5">`;
-      html += `<div class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">${escapeHtml(group.label)}</div>`;
+      if (group.label) {
+        html += `<div class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">${escapeHtml(group.label)}</div>`;
+      }
 
       group.series.forEach((series, seriesIdx) => {
-        const stats = computeBoxPlotStats(series.values);
-        const color = getColorForIndex(seriesIdx, colors);
+        const hasSubseries = series.subseries && series.subseries.length > 0;
         const label = series.label || 'All';
+
+        // Compute stats: flatten subseries values or use direct values
+        const allValues = hasSubseries
+          ? series.subseries.flatMap(sub => sub.values)
+          : series.values;
+        const stats = computeBoxPlotStats(allValues);
+
+        // Use neutral color for box/whiskers when subseries present, otherwise series color
+        const boxColor = hasSubseries ? neutralColor : getColorForIndex(seriesIdx, colors);
+        const labelColor = hasSubseries ? neutralColor : boxColor;
 
         if (stats.values.length === 0) {
           // No data - show placeholder
           html += `
             <div class="flex items-center gap-2">
-              <div class="${labelWidth} text-xs ${color.text} font-medium truncate" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
+              <div class="${labelWidth} text-xs ${labelColor.text} font-medium truncate" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
               <div class="flex-1 relative h-5 bg-gray-100 dark:bg-gray-700 rounded">
                 <div class="absolute inset-0 flex items-center justify-center text-xs text-gray-400">No data</div>
               </div>
-              <div class="${valueWidth} text-xs text-gray-400 text-right">-</div>
             </div>
           `;
           return;
@@ -162,8 +235,29 @@ const BoxPlot = (function() {
 
         const { min, max, q1, q3, median, mean } = stats;
 
+        // Build points array with colors
+        let points;
+        if (hasSubseries) {
+          // Each point gets its subseries color and label
+          points = series.subseries.flatMap(sub =>
+            sub.values.map(val => ({
+              value: val,
+              percent: toPercent(val),
+              color: sub.color,
+              subseriesLabel: sub.label
+            }))
+          );
+        } else {
+          // All points get the same series color
+          points = stats.values.map(val => ({
+            value: val,
+            percent: toPercent(val),
+            color: boxColor,
+            subseriesLabel: null
+          }));
+        }
+
         // Group overlapping data points
-        const points = stats.values.map((val) => ({ value: val, percent: toPercent(val) }));
         const groups = [];
         const used = new Set();
 
@@ -181,35 +275,104 @@ const BoxPlot = (function() {
           groups.push(pointGroup);
         });
 
-        // Calculate row height based on stacked points
+        // Calculate sizes based on zoom level
+        // Marker sizes stay fixed - only row height changes
+        const pointSize = 8;      // w-2 h-2 - fixed
+        const medianWidth = 6;    // w-1.5 - fixed
+        const meanSize = 8;       // w-2 h-2 - fixed
+
+        // Calculate row height - scale the base row height directly
         const maxGroupSize = groups.length > 0 ? Math.max(...groups.map(g => g.length)) : 1;
-        const actualStackHeight = 6 + (maxGroupSize - 1) * 2;
-        const minRowHeight = Math.max(20, actualStackHeight + 8);
+        const baseRowHeight = 28;
+        const minRowHeight = Math.round(baseRowHeight * zoomLevel);
+
+        // Box and cap sizes as proportion of row height (ensures they match)
+        const boxHeight = Math.round(minRowHeight * 0.71);  // ~71% of row
+        const capHeight = Math.round(minRowHeight * 0.57);  // ~57% of row
+        const medianHeight = Math.round(minRowHeight * 0.86);  // ~86% of row
 
         html += `
           <div class="flex items-center gap-2">
-            <div class="${labelWidth} text-xs ${color.text} font-medium truncate" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
+            <div class="${labelWidth} text-xs ${labelColor.text} font-medium truncate" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
             <div class="flex-1 relative bg-gray-100 dark:bg-gray-700 rounded overflow-visible" style="height: ${minRowHeight}px">
               <!-- Grid lines -->
               ${ticks.map(t => `<div class="absolute h-full border-l border-dashed border-gray-200 dark:border-gray-600" style="left: ${t}%"></div>`).join('')}
 
               <!-- Whisker line (min to max) -->
-              <div class="absolute top-1/2 h-0.5 ${color.bg} opacity-50 -translate-y-1/2" style="left: ${toPercent(min)}%; width: ${Math.max(toPercent(max) - toPercent(min), 0.5)}%"></div>
+              <div class="absolute top-1/2 ${boxColor.bg} opacity-50 -translate-y-1/2" style="left: ${toPercent(min)}%; width: ${Math.max(toPercent(max) - toPercent(min), 0.5)}%; height: ${Math.max(2, Math.round(2 * zoomLevel))}px"></div>
 
               <!-- Min cap -->
-              <div class="absolute top-1/2 w-0.5 h-2.5 ${color.bg} -translate-y-1/2 -translate-x-1/2" style="left: ${toPercent(min)}%"></div>
+              <div class="absolute top-1/2 ${boxColor.bg} -translate-y-1/2 -translate-x-1/2" style="left: ${toPercent(min)}%; width: 2px; height: ${capHeight}px"></div>
 
               <!-- Max cap -->
-              <div class="absolute top-1/2 w-0.5 h-2.5 ${color.bg} -translate-y-1/2 -translate-x-1/2" style="left: ${toPercent(max)}%"></div>
+              <div class="absolute top-1/2 ${boxColor.bg} -translate-y-1/2 -translate-x-1/2" style="left: ${toPercent(max)}%; width: 2px; height: ${capHeight}px"></div>
 
               <!-- Box (Q1 to Q3) -->
-              <div class="absolute top-1/2 h-3.5 ${color.bg} opacity-30 rounded -translate-y-1/2" style="left: ${toPercent(q1)}%; width: ${Math.max(toPercent(q3) - toPercent(q1), 0.5)}%"></div>
-              <div class="absolute top-1/2 h-3.5 border ${color.border} rounded -translate-y-1/2" style="left: ${toPercent(q1)}%; width: ${Math.max(toPercent(q3) - toPercent(q1), 0.5)}%"></div>
+              <div class="absolute top-1/2 ${boxColor.bg} opacity-30 rounded -translate-y-1/2" style="left: ${toPercent(q1)}%; width: ${Math.max(toPercent(q3) - toPercent(q1), 0.5)}%; height: ${boxHeight}px"></div>
+              <div class="absolute top-1/2 border ${boxColor.border} rounded -translate-y-1/2" style="left: ${toPercent(q1)}%; width: ${Math.max(toPercent(q3) - toPercent(q1), 0.5)}%; height: ${boxHeight}px"></div>
+
+              <!-- Q1 edge (hoverable) -->
+              ${(() => {
+                const q1Percent = toPercent(q1);
+                const q1Items = [`<div class="flex items-center"><span class="inline-block w-2.5 h-2.5 ${boxColor.bg} rounded-sm mr-1.5"></span><span class="font-medium">Q1 (25th)</span></div><div class="text-gray-300">${formatValue(q1)}</div>`];
+                if (Math.abs(q1Percent - toPercent(min)) < pointThreshold) {
+                  q1Items.push(`<div class="mt-1 pt-1 border-t border-gray-600"><span class="font-medium">Min:</span> <span class="text-gray-300">${formatValue(min)}</span></div>`);
+                }
+                if (Math.abs(q1Percent - toPercent(median)) < pointThreshold) {
+                  q1Items.push(`<div class="mt-1 pt-1 border-t border-gray-600"><span class="font-medium">Median:</span> <span class="text-gray-300">${formatValue(median)}</span></div>`);
+                }
+                if (Math.abs(q1Percent - toPercent(mean)) < pointThreshold) {
+                  q1Items.push(`<div class="mt-1 pt-1 border-t border-gray-600"><span class="font-medium">Mean:</span> <span class="text-gray-300">${formatValue(mean)}</span></div>`);
+                }
+                // Check for overlapping data points
+                points.filter(p => Math.abs(p.percent - q1Percent) < pointThreshold).forEach(p => {
+                  const colorDot = `<span class="inline-block w-2.5 h-2.5 ${p.color.bg} rounded-full mr-1.5 align-middle"></span>`;
+                  const labelPart = p.subseriesLabel ? `<span class="font-medium">${escapeHtml(p.subseriesLabel)}:</span> ` : '';
+                  q1Items.push(`<div class="flex items-center mt-1 pt-1 border-t border-gray-600">${colorDot}${labelPart}<span class="text-gray-300">${formatValue(p.value)}</span></div>`);
+                });
+                return `
+              <div class="absolute top-1/2 -translate-y-1/2 group z-[8]" style="left: ${q1Percent}%">
+                <div class="cursor-pointer -translate-x-1/2" style="width: ${medianWidth}px; height: ${boxHeight}px"></div>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
+                  ${q1Items.join('')}
+                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                </div>
+              </div>`;
+              })()}
+
+              <!-- Q3 edge (hoverable) -->
+              ${(() => {
+                const q3Percent = toPercent(q3);
+                const q3Items = [`<div class="flex items-center"><span class="inline-block w-2.5 h-2.5 ${boxColor.bg} rounded-sm mr-1.5"></span><span class="font-medium">Q3 (75th)</span></div><div class="text-gray-300">${formatValue(q3)}</div>`];
+                if (Math.abs(q3Percent - toPercent(max)) < pointThreshold) {
+                  q3Items.push(`<div class="mt-1 pt-1 border-t border-gray-600"><span class="font-medium">Max:</span> <span class="text-gray-300">${formatValue(max)}</span></div>`);
+                }
+                if (Math.abs(q3Percent - toPercent(median)) < pointThreshold) {
+                  q3Items.push(`<div class="mt-1 pt-1 border-t border-gray-600"><span class="font-medium">Median:</span> <span class="text-gray-300">${formatValue(median)}</span></div>`);
+                }
+                if (Math.abs(q3Percent - toPercent(mean)) < pointThreshold) {
+                  q3Items.push(`<div class="mt-1 pt-1 border-t border-gray-600"><span class="font-medium">Mean:</span> <span class="text-gray-300">${formatValue(mean)}</span></div>`);
+                }
+                // Check for overlapping data points
+                points.filter(p => Math.abs(p.percent - q3Percent) < pointThreshold).forEach(p => {
+                  const colorDot = `<span class="inline-block w-2.5 h-2.5 ${p.color.bg} rounded-full mr-1.5 align-middle"></span>`;
+                  const labelPart = p.subseriesLabel ? `<span class="font-medium">${escapeHtml(p.subseriesLabel)}:</span> ` : '';
+                  q3Items.push(`<div class="flex items-center mt-1 pt-1 border-t border-gray-600">${colorDot}${labelPart}<span class="text-gray-300">${formatValue(p.value)}</span></div>`);
+                });
+                return `
+              <div class="absolute top-1/2 -translate-y-1/2 group z-[8]" style="left: ${q3Percent}%">
+                <div class="cursor-pointer -translate-x-1/2" style="width: ${medianWidth}px; height: ${boxHeight}px"></div>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
+                  ${q3Items.join('')}
+                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                </div>
+              </div>`;
+              })()}
 
               <!-- Median marker (vertical line) -->
               <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group z-10" style="left: ${toPercent(median)}%">
-                <div class="w-1 h-4 ${color.bg} cursor-pointer rounded-sm shadow-sm border border-white/50"></div>
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[70]">
+                <div class="${boxColor.bg} cursor-pointer rounded-sm shadow-sm border ${boxColor.borderLight || 'border-white/50'}" style="width: ${medianWidth}px; height: ${medianHeight}px"></div>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
                   <div class="font-medium">Median</div>
                   <div class="text-gray-300">${formatValue(median)}</div>
                   <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
@@ -218,51 +381,66 @@ const BoxPlot = (function() {
 
               <!-- Mean marker (diamond) -->
               <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group z-10" style="left: ${toPercent(mean)}%">
-                <div class="w-1.5 h-1.5 ${color.bg} rotate-45 cursor-pointer border border-white/50"></div>
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[70]">
+                <div class="${boxColor.bg} rotate-45 cursor-pointer border ${boxColor.borderLight || 'border-white/50'}" style="width: ${meanSize}px; height: ${meanSize}px"></div>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
                   <div class="font-medium">Mean</div>
                   <div class="text-gray-300">${formatValue(mean)}</div>
                   <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
                 </div>
               </div>
 
-              <!-- Data points - stacked when overlapping -->
+              <!-- Data points - stacked when overlapping, with per-point colors for subseries -->
               ${groups.map(pointGroup => {
                 const avgPercent = pointGroup.reduce((sum, p) => sum + p.percent, 0) / pointGroup.length;
+                const q1Percent = toPercent(q1);
+                const q3Percent = toPercent(q3);
                 const medianPercent = toPercent(median);
                 const meanPercent = toPercent(mean);
+                const includeQ1 = Math.abs(avgPercent - q1Percent) < pointThreshold;
+                const includeQ3 = Math.abs(avgPercent - q3Percent) < pointThreshold;
                 const includeMedian = Math.abs(avgPercent - medianPercent) < pointThreshold;
                 const includeMean = Math.abs(avgPercent - meanPercent) < pointThreshold;
 
-                // Build tooltip items
+                // Build tooltip items - include colored indicator and subseries label if present
                 const tooltipItems = [
-                  ...pointGroup.map((p, gi) => `
-                    <div class="${gi > 0 ? 'mt-1 pt-1 border-t border-gray-600' : ''}"><span class="text-gray-300">${formatValue(p.value)}</span></div>
-                  `),
-                  ...(includeMedian ? [`<div class="mt-1 pt-1 border-t border-gray-600"><span class="font-medium">Median:</span> <span class="text-gray-300">${formatValue(median)}</span></div>`] : []),
-                  ...(includeMean ? [`<div class="mt-1 pt-1 border-t border-gray-600"><span class="font-medium">Mean:</span> <span class="text-gray-300">${formatValue(mean)}</span></div>`] : [])
+                  ...pointGroup.map((p, gi) => {
+                    const colorDot = `<span class="inline-block w-2.5 h-2.5 ${p.color.bg} rounded-full mr-1.5 align-middle"></span>`;
+                    const labelPart = p.subseriesLabel ? `<span class="font-medium">${escapeHtml(p.subseriesLabel)}:</span> ` : '';
+                    return `<div class="flex items-center ${gi > 0 ? 'mt-1 pt-1 border-t border-gray-600' : ''}">${colorDot}${labelPart}<span class="text-gray-300">${formatValue(p.value)}</span></div>`;
+                  }),
+                  ...(includeQ1 ? [`<div class="flex items-center mt-1 pt-1 border-t border-gray-600"><span class="inline-block w-2.5 h-2.5 ${boxColor.bg} rounded-sm mr-1.5"></span><span class="font-medium">Q1:</span> <span class="text-gray-300 ml-1">${formatValue(q1)}</span></div>`] : []),
+                  ...(includeMedian ? [`<div class="flex items-center mt-1 pt-1 border-t border-gray-600"><span class="inline-block w-2.5 h-2.5 ${boxColor.bg} rounded-sm mr-1.5"></span><span class="font-medium">Median:</span> <span class="text-gray-300 ml-1">${formatValue(median)}</span></div>`] : []),
+                  ...(includeMean ? [`<div class="flex items-center mt-1 pt-1 border-t border-gray-600"><span class="inline-block w-2.5 h-2.5 ${boxColor.bg} rotate-45 mr-1.5"></span><span class="font-medium">Mean:</span> <span class="text-gray-300 ml-1">${formatValue(mean)}</span></div>`] : []),
+                  ...(includeQ3 ? [`<div class="flex items-center mt-1 pt-1 border-t border-gray-600"><span class="inline-block w-2.5 h-2.5 ${boxColor.bg} rounded-sm mr-1.5"></span><span class="font-medium">Q3:</span> <span class="text-gray-300 ml-1">${formatValue(q3)}</span></div>`] : [])
                 ];
 
                 if (pointGroup.length === 1) {
                   const p = pointGroup[0];
                   return `
                     <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group z-20" style="left: ${p.percent}%">
-                      <div class="w-1.5 h-1.5 ${color.bg} rounded-full border border-white cursor-pointer"></div>
-                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[70]">
+                      <div class="${p.color.bg} rounded-full border ${p.color.borderLight || 'border-white'} cursor-pointer" style="width: ${pointSize}px; height: ${pointSize}px"></div>
+                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
                         ${tooltipItems.join('')}
                         <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
                       </div>
                     </div>`;
                 } else {
-                  const stackHeight = 6 + (pointGroup.length - 1) * 2;
+                  // Distribute stacked points evenly within row height
+                  // Point centers at: rowHeight/(n+1), 2*rowHeight/(n+1), ..., n*rowHeight/(n+1)
+                  // First point margin: rowHeight/(n+1) - pointSize/2 (positions center correctly)
+                  // Subsequent margins: rowHeight/(n+1) - pointSize (gap between centers minus one point)
+                  const n = pointGroup.length;
+                  const spacing = minRowHeight / (n + 1);
+                  const firstMargin = spacing - pointSize / 2;
+                  const subsequentMargin = spacing - pointSize;
                   return `
-                    <div class="absolute -translate-x-1/2 group z-20" style="left: ${avgPercent}%; top: 50%; transform: translateX(-50%) translateY(-${stackHeight / 2}px)">
-                      <div class="relative flex flex-col items-center">
-                        ${pointGroup.map((p, gi) => `
-                          <div class="w-1.5 h-1.5 ${color.bg} rounded-full border border-white cursor-pointer ${gi > 0 ? '-mt-1' : ''}"></div>
+                    <div class="absolute -translate-x-1/2 group z-20" style="left: ${avgPercent}%; top: 0; height: ${minRowHeight}px;">
+                      <div class="flex flex-col items-center">
+                        ${pointGroup.map((p, i) => `
+                          <div class="${p.color.bg} rounded-full border ${p.color.borderLight || 'border-white'} cursor-pointer" style="width: ${pointSize}px; height: ${pointSize}px; margin-top: ${i === 0 ? firstMargin : subsequentMargin}px;"></div>
                         `).join('')}
                       </div>
-                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[70]">
+                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
                         ${tooltipItems.join('')}
                         <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
                       </div>
@@ -270,7 +448,6 @@ const BoxPlot = (function() {
                 }
               }).join('')}
             </div>
-            <div class="${valueWidth} text-xs text-gray-600 dark:text-gray-400 text-right" title="Median: ${formatValue(median)}">${formatValue(median)}</div>
           </div>
         `;
       });
@@ -285,7 +462,6 @@ const BoxPlot = (function() {
         <div class="flex-1 relative h-5">
           ${ticks.map(t => `<div class="absolute text-xs text-gray-400 -translate-x-1/2" style="left: ${t}%">${t}%</div>`).join('')}
         </div>
-        <div class="${valueWidth}"></div>
       </div>
     `;
 
@@ -294,19 +470,27 @@ const BoxPlot = (function() {
       html += `
         <div class="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400">
           <div class="flex items-center gap-1.5">
-            <div class="w-1 h-4 bg-gray-500 rounded-sm shadow-sm border border-white/50"></div>
+            <div class="w-1.5 h-6 bg-gray-500 rounded-sm shadow-sm border border-white/50"></div>
             <span>Median</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <div class="w-1.5 h-1.5 bg-gray-500 rotate-45 border border-white/50"></div>
+            <div class="w-2 h-2 bg-gray-500 rotate-45 border border-white/50"></div>
             <span>Mean</span>
           </div>
           ${allSeriesLabels.length > 1 ? allSeriesLabels.map((item) => {
             const color = getColorForIndex(item.colorIdx, colors);
             return `
               <div class="flex items-center gap-1.5">
-                <div class="w-2.5 h-2.5 ${color.bg} rounded-full border border-white shadow-sm"></div>
+                <div class="w-3 h-3 ${color.bg} rounded-full border ${color.borderLight || 'border-white'} shadow-sm"></div>
                 <span class="${color.text} font-medium">${escapeHtml(item.label)}</span>
+              </div>
+            `;
+          }).join('') : ''}
+          ${allSubseriesLabels.length > 0 ? allSubseriesLabels.map((item) => {
+            return `
+              <div class="flex items-center gap-1.5">
+                <div class="w-3 h-3 ${item.color.bg} rounded-full border ${item.color.borderLight || 'border-white'} shadow-sm"></div>
+                <span class="${item.color.text} font-medium">${escapeHtml(item.label)}</span>
               </div>
             `;
           }).join('') : ''}
@@ -318,9 +502,46 @@ const BoxPlot = (function() {
     containerEl.innerHTML = html;
   }
 
+  /**
+   * Adjust zoom level for a box plot and re-render
+   * @param {string|HTMLElement} container - Container element or ID
+   * @param {number} newZoom - New zoom level (0 = reset to 1, otherwise use as multiplier)
+   */
+  function zoom(container, newZoom) {
+    const containerEl = typeof container === 'string'
+      ? document.getElementById(container)
+      : container;
+
+    if (!containerEl || !containerEl._boxplotData || !containerEl._boxplotOptions) {
+      console.error('BoxPlot: Cannot zoom - container not found or not initialized');
+      return;
+    }
+
+    const currentZoom = containerEl._boxplotOptions.zoomLevel || 1;
+    let targetZoom;
+
+    if (newZoom === 0) {
+      // Reset to default
+      targetZoom = 1;
+    } else if (newZoom < 1) {
+      // Zoom out (multiply by fraction, e.g., 0.5 means halve)
+      targetZoom = Math.max(0.5, currentZoom * newZoom);
+    } else {
+      // Zoom in (multiply by factor, e.g., 2 means double)
+      targetZoom = Math.min(4, currentZoom * newZoom);
+    }
+
+    // Re-render with new zoom level
+    render(containerEl, containerEl._boxplotData, {
+      ...containerEl._boxplotOptions,
+      zoomLevel: targetZoom
+    });
+  }
+
   // Public API
   return {
     render,
+    zoom,
     computeBoxPlotStats,
     getMedian,
     getColorForIndex,
