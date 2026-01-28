@@ -22,41 +22,94 @@ SEEDS = [
     "Manipulation_(psychology)",
     "Deception",
     "Social_engineering_(security)",
-    # # Psychology & Behavior
-    # "Social_psychology", "Personality_psychology", "Cognitive_bias", "Emotional_intelligence",
-    # "Body_language", "Empathy", "Trust_(social_science)", "Authority", "Conformity",
-    # # Business & Economics
-    # "Marketing", "Sales", "Trade", "Information_asymmetry", "Game_theory",
-    # "Strategic_thinking", "Entrepreneurship", "Branding", "Consumer_behaviour",
-    # # Communication
-    # "Nonverbal_communication", "Active_listening", "Framing_(social_sciences)",
-    # "Public_speaking", "Storytelling", "Rapport", "Conflict_resolution",
-    # # Technology & AI
-    # "Large_language_model", "Artificial_intelligence", "Machine_learning", "Prompt_engineering",
-    # "Prompt_injection", "Natural_language_processing", "Neural_network", "Deep_learning",
-    # # Politics & Society
-    # "Political_psychology", "Propaganda", "Public_opinion", "Diplomacy", "Lobbying",
-    # "Political_campaign", "Voting_behavior", "Political_polarization", "Ideology",
-    # # Culture & Products
-    # "Coffee", "Wine", "Luxury_goods", "Status_symbol", "Fashion", "Brand_loyalty",
-    # # Strategy & Competition
-    # "Bluffing", "Poker", "Chess", "Competition", "Zero-sum_game", "Cooperation",
-    # # Philosophy & Ethics
-    # "Ethics", "Moral_psychology", "Utilitarianism", "Consequentialism", "Virtue_ethics",
-    # # Misc Relevant
-    # "Obfuscation", "Credibility", "Scarcity", "Social_proof", "Reciprocity_(social_psychology)",
-    # "Heuristic", "Decision-making", "Risk_assessment", "Behavioral_economics",
+    # Psychology & Behavior
+    "Social_psychology",
+    "Personality_psychology",
+    "Cognitive_bias",
+    "Emotional_intelligence",
+    "Body_language",
+    "Empathy",
+    "Trust_(social_science)",
+    "Authority",
+    "Conformity",
+    # Business & Economics
+    "Marketing",
+    "Sales",
+    "Trade",
+    "Information_asymmetry",
+    "Game_theory",
+    "Strategic_thinking",
+    "Entrepreneurship",
+    "Branding",
+    "Consumer_behaviour",
+    # Communication
+    "Nonverbal_communication",
+    "Active_listening",
+    "Framing_(social_sciences)",
+    "Public_speaking",
+    "Storytelling",
+    "Rapport",
+    "Conflict_resolution",
+    # Technology & AI
+    "Large_language_model",
+    "Artificial_intelligence",
+    "Machine_learning",
+    "Prompt_engineering",
+    "Prompt_injection",
+    "Natural_language_processing",
+    "Neural_network",
+    "Deep_learning",
+    # Politics & Society
+    "Political_psychology",
+    "Propaganda",
+    "Public_opinion",
+    "Diplomacy",
+    "Lobbying",
+    "Political_campaign",
+    "Voting_behavior",
+    "Political_polarization",
+    "Ideology",
+    # Culture & Products
+    "Coffee",
+    "Wine",
+    "Luxury_goods",
+    "Status_symbol",
+    "Fashion",
+    "Brand_loyalty",
+    # Strategy & Competition
+    "Bluffing",
+    "Poker",
+    "Chess",
+    "Competition",
+    "Zero-sum_game",
+    "Cooperation",
+    # Philosophy & Ethics
+    "Ethics",
+    "Moral_psychology",
+    "Utilitarianism",
+    "Consequentialism",
+    "Virtue_ethics",
+    # Misc Relevant
+    "Obfuscation",
+    "Credibility",
+    "Scarcity",
+    "Social_proof",
+    "Reciprocity_(social_psychology)",
+    "Heuristic",
+    "Decision-making",
+    "Risk_assessment",
+    "Behavioral_economics",
 ]
 
-MAX_PAGES = 5000
-MAX_DEPTH = 0
-OUTPUT_DIR = Path("pages")
+MAX_PAGES = 200
+MAX_DEPTH = 2
+OUTPUT_DIR = Path("output/pages")
 
 visited = set()
 queue = deque()
 
 # Setup
-OUTPUT_DIR.mkdir(exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Add seeds
 for seed in SEEDS:

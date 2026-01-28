@@ -25,8 +25,8 @@ def sanitize_filename(name):
 def main():
     # Define paths
     base_dir = Path(__file__).parent
-    strategies_dir = base_dir / "strategies"
-    config_dir = base_dir / "config"
+    strategies_dir = base_dir / "output" / "strategies"
+    config_dir = base_dir / "output" / "config"
     template_file = base_dir / "config-template.yaml"
 
     # Create config directory if it doesn't exist

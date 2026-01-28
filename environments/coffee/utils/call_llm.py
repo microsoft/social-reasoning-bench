@@ -35,6 +35,7 @@ def call_llm(
         effective_config["GEMINI_MODEL"] = model
         effective_config["VLLM_MODEL"] = model
         effective_config["TRAPI_MODEL"] = model
+        effective_config["ANTHROPIC_MODEL"] = model
 
     provider_name = _get_config("LLM_PROVIDER", "gemini", effective_config).lower()
 
@@ -46,6 +47,8 @@ def call_llm(
         return _call_openai(conversation, effective_config)
     elif provider_name == "trapi":
         return _call_trapi(conversation, effective_config)
+    elif provider_name == "anthropic" or provider_name == "claude":
+        return _call_anthropic(conversation, effective_config)
     elif provider_name == "human":
         return _call_human(conversation, effective_config)
     elif provider_name == "human_cli":
@@ -153,6 +156,31 @@ def _call_trapi(conversation: list[dict], config_override: dict = None) -> str:
     )
 
     return response.choices[0].message.content or ""
+
+
+def _call_anthropic(conversation: list[dict], config_override: dict = None) -> str:
+    import anthropic
+
+    client = anthropic.Anthropic(
+        api_key=_get_config("ANTHROPIC_API_KEY", "", config_override),
+    )
+
+    model = _get_config("ANTHROPIC_MODEL", "claude-sonnet-4-20250514", config_override)
+
+    messages = []
+    for turn in conversation:
+        if "prompt" in turn:
+            messages.append({"role": "user", "content": turn["prompt"]})
+        if "response" in turn:
+            messages.append({"role": "assistant", "content": turn["response"]})
+
+    response = client.messages.create(
+        model=model,
+        max_tokens=8192,
+        messages=messages,
+    )
+
+    return response.content[0].text
 
 
 def _call_vllm(conversation: list[dict], config_override: dict = None) -> str:

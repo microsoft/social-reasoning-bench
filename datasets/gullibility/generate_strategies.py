@@ -31,12 +31,12 @@ def _call_gemini(prompt: str) -> str:
     from google import genai
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    model = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
 
     response = client.models.generate_content(
         model=model,
         contents=[{"role": "user", "parts": [{"text": prompt}]}],
-        config={"temperature": 0.7, "max_output_tokens": 8000},
+        config={"temperature": 0.7, "max_output_tokens": 30000},
     )
 
     return response.text
@@ -189,10 +189,10 @@ IMPORTANT: Avoid generic or obvious strategies. Focus on finding strategies that
 
 Analyze the content above and extract UNORTHODOX and UNEXPECTED ideas that could be applied to the game. For each strategy:
 
-1. **grounding_texts**: Summarize the relevant parts from the Wikipedia article that inspire this unconventional approach (2-4 sentences)
-2. **game_strategies**: Explain how this unusual concept applies to the game, with concrete examples of unexpected or creative plays (3-5 sentences with specific examples)
+1. **grounding_texts**: Provide the full context of the relevant parts from the Wikipedia article that inspire this unconventional approach. Try to be comprehensive especially if the concept is unpopular.
+2. **game_strategies**: Explain in details how this unusual concept applies to the game. Also provide the high level guidance for the unexpected or creative plays.
 
-Output a list of strategies in YAML format. Prioritize WEIRD, CREATIVE, and UNCONVENTIONAL strategies over obvious ones. Only include strategies that are actually relevant and applicable to the game. If the Wikipedia content has limited relevance, provide fewer strategies.
+Output a list of strategies in YAML format. Prioritize WEIRD, CREATIVE, and UNCONVENTIONAL strategies over obvious ones. Only include strategies that are actually relevant and applicable to the game.
 
 Respond ONLY with valid YAML inside a ```yaml markdown block:
 

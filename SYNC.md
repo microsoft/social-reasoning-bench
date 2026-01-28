@@ -11,6 +11,8 @@ Please add your folder to this table so others are aware of what data is availab
 | Path | Date | Description |
 |------|------|-------------|
 | `sage-benchmark/outputs/calendar_scheduling/jan-9-2026-calendar-results` | 2026-01-09 | Created by Tyler to run the calendar benchmark, includes viz files |
+| `datasets/gullibility/output/{config, pages, strategies, config_private_strategies, private_strategies_list.csv}` | 2026-01-28 | Gullibility dataset: configs, Wikipedia pages, strategies |
+| `environments/coffee/results/{gullibility_test_claude_45, gullibility_test_gemini_3, gullibility_test_gpt_5, gullibility_test_qwen_4b, plain_claude_45, private_strategies_claude_45}` | 2026-01-28 | Gullibility experiment results across models |
 | | |
 
 ## Setup

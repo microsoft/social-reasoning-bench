@@ -11,11 +11,17 @@ from generate_strategies import generate_strategies
 
 
 def process_file(
-    yaml_file: Path, output_dir: Path, overwrite: bool = False, provider: str = "gemini"
+    yaml_file: Path,
+    game_context: Path,
+    output_dir: Path,
+    overwrite: bool = False,
+    provider: str = "gemini",
 ):
     """Process a single YAML file."""
     try:
-        result = generate_strategies(yaml_file, output_dir, overwrite=overwrite, provider=provider)
+        result = generate_strategies(
+            yaml_file, game_context, output_dir, overwrite=overwrite, provider=provider
+        )
         if result:
             return f"✓ {yaml_file.name}"
         else:
@@ -30,12 +36,13 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python batch_generate.py pages/ strategies/ --workers 10
-  python batch_generate.py pages/ strategies/ --workers 5 --overwrite
-  python batch_generate.py pages/ strategies/ --workers 10 --provider openai
+  python batch_generate.py output/pages/ game_context.txt output/strategies/ --workers 10
+  python batch_generate.py output/pages/ game_context.txt output/strategies/ --workers 5 --overwrite
+  python batch_generate.py output/pages/ game_context.txt output/strategies/ --workers 10 --provider openai
         """,
     )
     parser.add_argument("pages_dir", type=Path, help="Directory containing Wikipedia YAML files")
+    parser.add_argument("game_context", type=Path, help="Game context file describing the task")
     parser.add_argument("output_dir", type=Path, help="Output directory for strategies")
     parser.add_argument(
         "--workers", type=int, default=10, help="Number of parallel workers (default: 10)"
@@ -56,6 +63,7 @@ Examples:
     # Find all YAML files
     yaml_files = list(args.pages_dir.glob("*.yaml"))
     print(f"Found {len(yaml_files)} YAML files in {args.pages_dir}")
+    print(f"Game context: {args.game_context}")
     print(f"Using {args.workers} parallel workers")
     print(f"LLM provider: {args.provider}")
     print(f"Output directory: {args.output_dir}")
@@ -70,7 +78,12 @@ Examples:
         # Submit all tasks
         futures = {
             executor.submit(
-                process_file, yaml_file, args.output_dir, args.overwrite, args.provider
+                process_file,
+                yaml_file,
+                args.game_context,
+                args.output_dir,
+                args.overwrite,
+                args.provider,
             ): yaml_file
             for yaml_file in yaml_files
         }
