@@ -106,7 +106,7 @@ class AgentResources:
         # Validate date matches the allowed date (if constrained)
         if self.allowed_date and date != self.allowed_date:
             raise ToolError(
-                f"Meeting must be scheduled on {self.allowed_date}, not {date}. Please use the correct date."
+                f"Insufficient privileges to manage events on {date}. Allowed dates are: [{self.allowed_date},]"
             )
 
         # Convert email strings to Attendee objects with AWAITING-RESPONSE status
@@ -214,25 +214,23 @@ class AgentResources:
             # Validate date matches the allowed date (if constrained)
             if self.allowed_date and date != self.allowed_date:
                 raise ToolError(
-                    f"Meeting must be scheduled on {self.allowed_date}, not {date}. Please use the correct date."
+                    f"Insufficient privileges to manage events on {date}. Allowed dates are: [{self.allowed_date},]"
                 )
 
             # Build updated attendees list:
             # - Counter-proposer (self) becomes ACCEPTED
-            # - Organizer becomes AWAITING_RESPONSE
+            # - All other attendees become AWAITING_RESPONSE
             updated_attendees: list[Attendee] = []
             for attendee in meeting.attendees:
                 if attendee.email == self.owner:
                     updated_attendees.append(
                         Attendee(email=attendee.email, status=AttendeeStatus.ACCEPTED)
                     )
-                elif attendee.email == meeting.organizer:
+                else:
+                    # All other attendees need to respond to the counter
                     updated_attendees.append(
                         Attendee(email=attendee.email, status=AttendeeStatus.AWAITING_RESPONSE)
                     )
-                else:
-                    # Other attendees keep their current status
-                    updated_attendees.append(Attendee(email=attendee.email, status=attendee.status))
 
             # Create updated meeting with new times and attendee statuses
             updated_meeting = Meeting(
@@ -249,19 +247,33 @@ class AgentResources:
             # Update meeting on own calendar
             self.calendar.add_meeting(updated_meeting)
 
-            # Update meeting on organizer's calendar
-            organizer_calendar = self.calendar.get_other_calendar(meeting.organizer)
-            if organizer_calendar:
-                organizer_calendar.add_meeting(updated_meeting.model_copy(deep=True))
+            # Update meeting on all other participants' calendars
+            for attendee in updated_meeting.attendees:
+                if attendee.email != self.owner:
+                    other_calendar = self.calendar.get_other_calendar(attendee.email)
+                    if other_calendar:
+                        other_calendar.add_meeting(updated_meeting.model_copy(deep=True))
 
-            # Send counter-proposal email to organizer with calendar attachment
+            # Send counter-proposal email
             event_attachment = f"COUNTER:\n{format_meeting_as_attachment(updated_meeting)}"
-            self.email.send(
-                to=meeting.organizer,
-                subject=f"Counter-Proposal: {meeting.title}",
-                body=action.message,
-                event=event_attachment,
-            )
+            if self.owner == meeting.organizer:
+                # Organizer is countering - send to all other attendees
+                for attendee in meeting.attendees:
+                    if attendee.email != self.owner:
+                        self.email.send(
+                            to=attendee.email,
+                            subject=f"Counter-Proposal: {meeting.title}",
+                            body=action.message,
+                            event=event_attachment,
+                        )
+            else:
+                # Attendee is countering - send to organizer
+                self.email.send(
+                    to=meeting.organizer,
+                    subject=f"Counter-Proposal: {meeting.title}",
+                    body=action.message,
+                    event=event_attachment,
+                )
 
             return f"Counter-proposal sent for meeting '{meeting.title}' ({meeting.uid}). Meeting updated to {date} {start_time}-{end_time}. Awaiting organizer response."
 
@@ -277,14 +289,37 @@ class AgentResources:
                 status_enum,
             )
 
-        # Send reply email to organizer with calendar attachment
+        # Also update all other attendees' calendars (e.g., counter-proposer's calendar)
+        for attendee in meeting.attendees:
+            if attendee.email != self.owner and attendee.email != meeting.organizer:
+                other_calendar = self.calendar.get_other_calendar(attendee.email)
+                if other_calendar:
+                    other_calendar.update_attendee_status(
+                        action.meeting_uid,
+                        self.owner,
+                        status_enum,
+                    )
+
+        # Send reply email with calendar attachment
         event_attachment = f"{action.status}:\n{format_meeting_as_attachment(meeting)}"
-        self.email.send(
-            to=meeting.organizer,
-            subject=f"Meeting {action.status}: {meeting.title}",
-            body=action.message,
-            event=event_attachment,
-        )
+        if self.owner == meeting.organizer:
+            # Organizer is responding to a counter-proposal - send to all other attendees
+            for attendee in meeting.attendees:
+                if attendee.email != self.owner:
+                    self.email.send(
+                        to=attendee.email,
+                        subject=f"Meeting {action.status}: {meeting.title}",
+                        body=action.message,
+                        event=event_attachment,
+                    )
+        else:
+            # Attendee is responding to organizer's request - send to organizer
+            self.email.send(
+                to=meeting.organizer,
+                subject=f"Meeting {action.status}: {meeting.title}",
+                body=action.message,
+                event=event_attachment,
+            )
 
         # If declined, remove from caller's calendar
         if status_enum == AttendeeStatus.DECLINED:
@@ -305,23 +340,36 @@ class AgentResources:
 
     def _handle_end_conversation(self, action: EndConversation) -> str:
         """End the conversation."""
-        # Check for pending meeting requests that haven't been accepted/declined
+        # Check for pending meeting requests that haven't been fully resolved
         pending_meetings = []
         for meeting in self.calendar.list_meetings():
+            my_status = None
+            organizer_status = None
+
             for attendee in meeting.attendees:
-                if (
-                    attendee.email == self.owner
-                    and attendee.status == AttendeeStatus.AWAITING_RESPONSE
-                ):
-                    pending_meetings.append(meeting)
-                    break
+                if attendee.email == self.owner:
+                    my_status = attendee.status
+                if attendee.email == meeting.organizer:
+                    organizer_status = attendee.status
+
+            # Check 1: I need to respond to a meeting request
+            if my_status == AttendeeStatus.AWAITING_RESPONSE:
+                pending_meetings.append(meeting)
+                continue
+
+            # Check 2: I sent a counter-proposal (I'm ACCEPTED) and organizer hasn't responded yet
+            if (
+                my_status == AttendeeStatus.ACCEPTED
+                and organizer_status == AttendeeStatus.AWAITING_RESPONSE
+            ):
+                pending_meetings.append(meeting)
+                continue
 
         if pending_meetings:
             titles = ", ".join(f"'{m.title}' ({m.uid})" for m in pending_meetings)
             raise ToolError(
                 f"Cannot end conversation. You have {len(pending_meetings)} pending "
-                f"meeting request(s) that require a response: {titles}. "
-                "Please accept or decline each request using ReplyMeeting before ending."
+                f"meeting(s) with unresolved responses: {titles}."
             )
 
         return f"Conversation ended: {action.reason}"

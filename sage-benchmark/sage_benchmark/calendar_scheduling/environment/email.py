@@ -2,7 +2,7 @@
 
 from typing import Callable
 
-from ..types import Email
+from ..types import Email, ToolError
 
 
 class AgentEmail:
@@ -34,6 +34,9 @@ class AgentEmail:
         event: str | None = None,
     ) -> None:
         """Send an email (optionally with calendar event attachment)."""
+        if to == self._owner:
+            raise ToolError("Cannot send an email to yourself.")
+
         email = Email(
             from_=self._owner,
             to=to,

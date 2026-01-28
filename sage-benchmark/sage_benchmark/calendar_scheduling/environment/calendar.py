@@ -53,7 +53,7 @@ class AgentCalendar:
         """List all meetings sorted by date and time."""
         return sorted(
             self._meetings.values(),
-            key=lambda m: (m.date, m.start_time),
+            key=lambda m: (m.date, m.start_time, m.end_time),
         )
 
     def update_attendee_status(

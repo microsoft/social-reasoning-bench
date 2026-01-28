@@ -203,6 +203,10 @@ async def run_single_task(
     for round_idx in range(max_rounds):
         logger.info("Task %d - Round %d", task_index, round_idx + 1)
 
+        # Inject emails into assistant's context at start of their turn
+        assistant_emails = assistant_resources.email.get_unread()
+        assistant_agent.add_new_messages(assistant_emails)
+
         # Assistant turn
         assistant_tool_calls, assistant_ended = await _run_agent_turn(
             assistant_agent, assistant_resources, max_steps_per_turn
@@ -210,6 +214,10 @@ async def run_single_task(
 
         if assistant_ended:
             break
+
+        # Inject emails into requestor's context at start of their turn
+        requestor_emails = requestor_resources.email.get_unread()
+        requestor_agent.add_new_messages(requestor_emails)
 
         # Requestor turn
         requestor_tool_calls, requestor_ended = await _run_agent_turn(
@@ -229,6 +237,8 @@ async def run_single_task(
         final_requestor_calendar=list(requestor_resources.calendar.list_meetings()),
         assistant_context=list(assistant_agent._messages),
         requestor_context=list(requestor_agent._messages),
+        assistant_tools=assistant_agent.tools,
+        requestor_tools=requestor_agent.tools,
     )
 
 

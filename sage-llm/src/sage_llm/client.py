@@ -45,11 +45,13 @@ class Completions:
         self.api_key = api_key
         self.base_url = base_url
         self.api_version = api_version
+        if reasoning_effort == "none":
+            reasoning_effort = None
         self.reasoning_effort = reasoning_effort
         # Number of retries for requests. NOTE: we do not perform retries for trapi models.
         self.num_retries = 3
 
-    def _add_default_kwargs(self, kwargs: dict[str, Any]):
+    def _add_default_kwargs(self, kwargs: dict[str, Any]) -> dict[str, Any]:
         # Use instance defaults if not provided in kwargs
         if "api_key" not in kwargs and self.api_key is not None:
             kwargs["api_key"] = self.api_key
@@ -88,9 +90,10 @@ class Completions:
         Returns:
             ModelResponse from litellm
         """
-        effort = reasoning_effort if reasoning_effort is not None else self.reasoning_effort
-        if effort is not None:
-            kwargs["reasoning_effort"] = effort
+        if reasoning_effort is not None and reasoning_effort != "none":
+            kwargs["reasoning_effort"] = reasoning_effort
+        elif self.reasoning_effort is not None:
+            kwargs["reasoning_effort"] = self.reasoning_effort
 
         kwargs = self._add_default_kwargs(kwargs)
         kwargs = add_allowed_params_for_trapi(model, kwargs)
@@ -120,9 +123,10 @@ class Completions:
         Returns:
             ModelResponse from litellm
         """
-        effort = reasoning_effort if reasoning_effort is not None else self.reasoning_effort
-        if effort is not None:
-            kwargs["reasoning_effort"] = effort
+        if reasoning_effort is not None and reasoning_effort != "none":
+            kwargs["reasoning_effort"] = reasoning_effort
+        elif self.reasoning_effort is not None:
+            kwargs["reasoning_effort"] = self.reasoning_effort
 
         kwargs = self._add_default_kwargs(kwargs)
         kwargs = add_allowed_params_for_trapi(model, kwargs)

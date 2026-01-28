@@ -9,6 +9,7 @@ from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionMessageToolCallParam,
     ChatCompletionToolMessageParam,
+    ChatCompletionUserMessageParam,
 )
 from openai.types.shared_params import FunctionDefinition
 from pydantic import ValidationError
@@ -65,6 +66,11 @@ class CalendarAgent:
             )
             for tool in self._tools.values()
         ]
+
+    @property
+    def tools(self) -> list[ChatCompletionFunctionToolParam]:
+        """Return the tool definitions in OpenAI format."""
+        return list(self._openai_tools)
 
     def add_new_messages(self, new_messages: list[Any]) -> None:
         """Inject new messages by simulating a GetEmails tool call and response."""
@@ -206,28 +212,43 @@ class CalendarAgent:
 
             except (ValidationError, RetryException) as e:
                 exceptions.append(e)
-                # Append the failed tool call to local messages
-                messages.append(
-                    ChatCompletionAssistantMessageParam(
-                        role="assistant",
-                        content=message.content,
-                        tool_calls=[
-                            ChatCompletionMessageToolCallParam(
-                                **tool_call.model_dump(include={"id", "type", "function"})
-                            )
-                            for tool_call in tool_calls
-                        ],
-                    )
-                )
-
-                # Add error message for each tool call
-                for tool_call in tool_calls:
+                if not tool_calls:
+                    # No tool calls - use plain assistant/user message format
                     messages.append(
-                        ChatCompletionToolMessageParam(
-                            role="tool",
-                            tool_call_id=tool_call.id,
-                            content=traceback.format_exc(),
+                        ChatCompletionAssistantMessageParam(
+                            role="assistant",
+                            content=message.content,
                         )
                     )
+                    messages.append(
+                        ChatCompletionUserMessageParam(
+                            role="user",
+                            content="You must call exactly one tool. If you have completed the task, call EndConversation. If you are waiting for a response, call Wait.",
+                        )
+                    )
+                else:
+                    # Has tool calls - use tool_calls + tool message format
+                    messages.append(
+                        ChatCompletionAssistantMessageParam(
+                            role="assistant",
+                            content=message.content,
+                            tool_calls=[
+                                ChatCompletionMessageToolCallParam(
+                                    **tool_call.model_dump(include={"id", "type", "function"})
+                                )
+                                for tool_call in tool_calls
+                            ],
+                        )
+                    )
+
+                    # Add error message for each tool call
+                    for tool_call in tool_calls:
+                        messages.append(
+                            ChatCompletionToolMessageParam(
+                                role="tool",
+                                tool_call_id=tool_call.id,
+                                content=traceback.format_exc(),
+                            )
+                        )
 
         raise ExceptionGroup("Exceeded maximum retries generating tool call", exceptions)

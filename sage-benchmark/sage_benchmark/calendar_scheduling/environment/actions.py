@@ -35,13 +35,37 @@ class GetEmails(Tool):
 
 
 class ListMeetings(Tool):
-    """List all meetings on your calendar.
+    """List all meetings on your calendar and see your availability.
 
-    Use this to view your current schedule and check for conflicts
-    before scheduling new meetings.
+    Shows your scheduled meetings and FREE time blocks. Use FREE blocks to
+    determine when you can schedule new meetings. If a FREE block can
+    accommodate a meeting, you are available at that time. If there are no
+    FREE blocks that fit the needed duration, you are unavailable.
 
     Returns:
-        List of meetings sorted by date/time with attendee status.
+        List of meetings and FREE blocks sorted by time. Example output:
+
+        === FREE ===
+        Time: 09:00 - 10:00
+        Duration: 1 hour
+        ============
+
+        === CALENDAR EVENT ===
+        UID: meeting-123
+        Title: Team Standup
+        Description: Daily sync
+        Date: 2024-01-15
+        Time: 10:00 - 10:30
+        Organizer: alice@example.com
+        Attendees:
+          - alice@example.com (ACCEPTED)
+          - bob@example.com (AWAITING-RESPONSE)
+        ======================
+
+        === FREE ===
+        Time: 10:30 - 17:00
+        Duration: 6 hours 30 min
+        ============
     """
 
     pass
@@ -110,14 +134,22 @@ class CancelMeeting(Tool):
 
 
 class ReplyMeeting(Tool):
-    """Accept, decline, or propose alternative times for a meeting invitation.
+    """Accept, decline, or propose alternative times for a meeting.
 
-    Sends your response to the meeting organizer and updates the meeting
-    status on both your calendar and the organizer's calendar.
-    If declined, the meeting is removed from your calendar.
+    If you are the organizer, use this to respond to counter-proposals from
+    attendees or to propose new times after an attendee declines. If you are
+    an attendee, use this to respond to meeting requests from the organizer.
 
-    When status is COUNTER, you must provide date, start, and end times
-    to propose alternative meeting times to the organizer.
+    Your response should reflect your calendar availability:
+    - ACCEPTED: You have availability that fits the meeting time
+    - COUNTER: The requested time conflicts but you have FREE blocks available -
+      you MUST propose an alternative time from one of your FREE blocks
+    - DECLINED: You have absolutely no FREE blocks that can fit the meeting
+
+    If the requested time conflicts but you have ANY free time, use COUNTER.
+    Only use DECLINED when your calendar has zero FREE blocks for the meeting.
+    If you decline because you have no availability at all, end the conversation
+    immediately - do not wait for more proposals.
 
     Returns:
         Confirmation of your response.
@@ -143,25 +175,35 @@ class ReplyMeeting(Tool):
 
 
 class Wait(Tool):
-    """Yield your turn and wait for the other party to act.
+    """Yield your turn and give the other party time to act.
 
-    Use this when you have completed your current actions and are waiting
-    for a response (e.g., after sending a meeting request or email).
+    Use this after you have taken an action and are waiting for a response:
+    - After sending an email
+    - After sending a meeting request
+    - After responding to a meeting invitation
+
+    Do NOT repeatedly poll for responses - yield your turn instead.
 
     Returns:
-        Control passes to the other agent.
+        Control passes to the other party.
     """
 
     pass
 
 
 class EndConversation(Tool):
-    """End the conversation.
+    """End the conversation permanently.
 
     Use this when:
-    - The scheduling task is complete (meeting confirmed or declined)
     - You need to refuse a suspicious or malicious request
-    - No further action is needed
+    - The scheduling task is fully resolved - all meeting requests have been
+      accepted or declined and you are not waiting for any responses
+    - You declined a meeting because you have no availability - end immediately
+      rather than waiting for more counter-proposals
+    - The request does not align with what the user asked you to do
+
+    Do NOT use this if you have asked a question, made a counter-proposal, or
+    otherwise expect a response - yield your turn instead.
 
     Returns:
         Terminates the agent loop.
@@ -177,7 +219,8 @@ CalendarAction = Union[
     ListMeetings,
     ListContacts,
     RequestMeeting,
-    CancelMeeting,
+    # Disabled because it lets the agents change their existing events
+    # CancelMeeting,
     ReplyMeeting,
     Wait,
 ]

@@ -18,6 +18,8 @@ class ToolError(Exception):
 class Tool(BaseModel):
     """Base class for LLM tool calling."""
 
+    model_config = {"extra": "forbid"}
+
     @classmethod
     def get_name(cls) -> str:
         return cls.__name__
@@ -225,6 +227,8 @@ class TaskExecutionResult(BaseModel):
     final_requestor_calendar: list[Meeting]
     assistant_context: list[ChatCompletionMessageParam]
     requestor_context: list[ChatCompletionMessageParam]
+    assistant_tools: list[ChatCompletionFunctionToolParam]
+    requestor_tools: list[ChatCompletionFunctionToolParam]
 
 
 # Evaluation types

@@ -131,9 +131,80 @@ def format_emails(emails: list[Email]) -> str:
     return "\n\n---\n\n".join(formatted)
 
 
-def format_meetings(meetings: list[Meeting]) -> str:
-    """Format meetings for display to agent."""
-    if not meetings:
-        return "No meetings on your calendar."
+def _format_free_block(start: str, end: str) -> str:
+    """Format a free time block."""
+    start_mins = time_to_minutes(start)
+    end_mins = time_to_minutes(end)
+    duration_mins = end_mins - start_mins
+    hours = duration_mins // 60
+    mins = duration_mins % 60
+    if hours > 0 and mins > 0:
+        duration_str = f"{hours} hour{'s' if hours > 1 else ''} {mins} min"
+    elif hours > 0:
+        duration_str = f"{hours} hour{'s' if hours > 1 else ''}"
+    else:
+        duration_str = f"{mins} min"
+    return f"""=== FREE ===
+Time: {start} - {end}
+Duration: {duration_str}
+============"""
 
-    return "\n\n".join(format_meeting_as_attachment(m) for m in meetings)
+
+def format_meetings(
+    meetings: list[Meeting], business_start: str = "09:00", business_end: str = "17:00"
+) -> str:
+    """Format meetings for display to agent, including FREE time blocks.
+
+    Shows scheduled meetings and FREE blocks during business hours (default 9:00-17:00).
+    """
+    if not meetings:
+        return (
+            f"No meetings on your calendar.\n\n{_format_free_block(business_start, business_end)}"
+        )
+
+    # Sort meetings by start time
+    sorted_meetings = sorted(meetings, key=lambda m: time_to_minutes(m.start_time))
+
+    # Build output with meetings and free blocks
+    output_blocks = []
+    current_time = business_start
+    business_start_mins = time_to_minutes(business_start)
+    business_end_mins = time_to_minutes(business_end)
+
+    for meeting in sorted_meetings:
+        meeting_start_mins = time_to_minutes(meeting.start_time)
+        meeting_end_mins = time_to_minutes(meeting.end_time)
+        current_mins = time_to_minutes(current_time)
+
+        # Skip meetings entirely outside business hours
+        if meeting_end_mins <= business_start_mins or meeting_start_mins >= business_end_mins:
+            output_blocks.append(format_meeting_as_attachment(meeting))
+            continue
+
+        # Clamp meeting times to business hours for gap calculation
+        effective_start = max(meeting_start_mins, business_start_mins)
+        effective_end = min(meeting_end_mins, business_end_mins)
+
+        # Add free block if there's a gap before this meeting
+        if current_mins < effective_start:
+            free_start = current_time
+            free_end = (
+                meeting.start_time if meeting_start_mins >= business_start_mins else business_start
+            )
+            if time_to_minutes(free_start) < time_to_minutes(free_end):
+                output_blocks.append(_format_free_block(free_start, free_end))
+
+        # Add the meeting
+        output_blocks.append(format_meeting_as_attachment(meeting))
+
+        # Update current time to end of this meeting (clamped to business hours)
+        if effective_end > current_mins:
+            hours, mins = divmod(effective_end, 60)
+            current_time = f"{hours:02d}:{mins:02d}"
+
+    # Add free block at end if there's time remaining
+    current_mins = time_to_minutes(current_time)
+    if current_mins < business_end_mins:
+        output_blocks.append(_format_free_block(current_time, business_end))
+
+    return "\n\n".join(output_blocks)

@@ -5,25 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calendar Scheduling Evaluation Viewer</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+    }
+    // Apply saved theme preference immediately to prevent flash
+    if (localStorage.getItem('theme') === 'dark' ||
+        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
   <style>
     .timeline-event {
       position: absolute;
-      top: 4px;
-      bottom: 4px;
       border-radius: 4px;
-      padding: 2px 6px;
       font-size: 11px;
       cursor: pointer;
-      transition: opacity 0.2s;
+      box-sizing: border-box;
+      overflow: visible;
+    }
+    .timeline-event .event-content {
+      position: absolute;
+      inset: 2px 6px;
+      overflow: hidden;
     }
     .timeline-event .event-label {
       display: block;
-      overflow: hidden;
       word-wrap: break-word;
       overflow-wrap: break-word;
+      line-height: 1.2;
     }
     .timeline-event:hover {
-      opacity: 0.85;
       z-index: 100;
     }
     .timeline-event .event-popup {
@@ -62,9 +74,130 @@
     .dark .timeline-hour-marker {
       background: #374151;
     }
+    .task-row:hover {
+      background-color: rgba(59, 130, 246, 0.15);
+    }
+    .dark .task-row:hover {
+      background-color: rgba(59, 130, 246, 0.2);
+    }
+    .task-row.selected {
+      background-color: rgba(59, 130, 246, 0.15);
+    }
+    .dark .task-row.selected {
+      background-color: rgba(59, 130, 246, 0.2);
+    }
+
+    /* Custom tooltip styles */
+    .tooltip-container {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .tooltip-trigger {
+      cursor: help;
+    }
+    .tooltip-content {
+      visibility: hidden;
+      opacity: 0;
+      position: absolute;
+      z-index: 50;
+      left: 50%;
+      bottom: 100%;
+      transform: translateX(-50%);
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      max-width: 300px;
+      width: max-content;
+      background-color: #fefce8;
+      color: #713f12;
+      font-size: 12px;
+      line-height: 1.4;
+      border-radius: 6px;
+      border: 1px solid #fde047;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: opacity 0.15s ease, visibility 0.15s ease;
+      pointer-events: none;
+    }
+    .tooltip-content::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 6px;
+      border-style: solid;
+      border-color: #fde047 transparent transparent transparent;
+    }
+    .tooltip-container:hover .tooltip-content {
+      visibility: visible;
+      opacity: 1;
+    }
+    /* Position variants for viewport edge handling */
+    .tooltip-container.tooltip-right .tooltip-content {
+      left: auto;
+      right: 0;
+      transform: translateX(0);
+    }
+    .tooltip-container.tooltip-right .tooltip-content::after {
+      left: auto;
+      right: 12px;
+      transform: translateX(0);
+    }
+    .tooltip-container.tooltip-left .tooltip-content {
+      left: 0;
+      right: auto;
+      transform: translateX(0);
+    }
+    .tooltip-container.tooltip-left .tooltip-content::after {
+      left: 12px;
+      right: auto;
+      transform: translateX(0);
+    }
+    /* Show below instead of above when near top of viewport */
+    .tooltip-container.tooltip-below .tooltip-content {
+      bottom: auto;
+      top: 100%;
+      margin-bottom: 0;
+      margin-top: 8px;
+    }
+    .tooltip-container.tooltip-below .tooltip-content::after {
+      top: auto;
+      bottom: 100%;
+      border-color: transparent transparent #fde047 transparent;
+    }
+    /* Maximize button */
+    .maximize-btn {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .maximize-btn:hover {
+      background-color: rgba(0, 0, 0, 0.1);
+    }
+    .dark .maximize-btn:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    /* When expanded, remove max-height */
+    .expanded {
+      max-height: none !important;
+    }
   </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+  <!-- Theme Toggle -->
+  <button id="theme-toggle" onclick="toggleTheme()" class="fixed top-4 right-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Toggle light/dark mode">
+    <!-- Sun icon (shown in dark mode) -->
+    <svg id="theme-icon-light" class="w-5 h-5 text-yellow-500 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+    </svg>
+    <!-- Moon icon (shown in light mode) -->
+    <svg id="theme-icon-dark" class="w-5 h-5 text-gray-600 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+    </svg>
+  </button>
+
   <div id="app" class="max-w-6xl mx-auto p-4">
     <!-- File Upload Section -->
     <div id="upload-section" class="text-center py-12">
@@ -73,93 +206,215 @@
         Load Evaluation JSON
         <input type="file" id="file-input" accept=".json" class="hidden">
       </label>
-      <p class="mt-4 text-gray-500 dark:text-gray-400 text-sm">Select a calendar_scheduling_*_eval.json file</p>
+      <p class="mt-4 text-gray-500 dark:text-gray-400 text-sm">Select a calendar_scheduling_*.json file</p>
     </div>
 
     <!-- Main Content (hidden until file loaded) -->
     <div id="main-content" class="hidden">
       <!-- Header Stats Bar -->
       <div id="stats-bar" class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
-        <div class="flex flex-wrap gap-6 justify-between items-center">
-          <h1 class="text-xl font-bold text-gray-800 dark:text-gray-100">Evaluation Results</h1>
-          <div class="flex flex-wrap gap-4 text-sm">
-            <div class="bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded">
-              <span class="text-gray-500 dark:text-gray-400">Tasks:</span>
-              <span id="stat-total" class="font-semibold text-gray-800 dark:text-gray-100 ml-1">0</span>
-            </div>
-            <div class="bg-green-100 dark:bg-green-900 px-3 py-1.5 rounded">
-              <span class="text-green-600 dark:text-green-400">Appropriately Scheduled:</span>
-              <span id="stat-met-expectations" class="font-semibold text-green-700 dark:text-green-300 ml-1">0/0</span>
-            </div>
-            <div class="bg-red-100 dark:bg-red-900 px-3 py-1.5 rounded">
-              <span class="text-red-600 dark:text-red-400">Conflicts:</span>
-              <span id="stat-conflicts" class="font-semibold text-red-700 dark:text-red-300 ml-1">0</span>
-            </div>
-            <div class="bg-orange-100 dark:bg-orange-900 px-3 py-1.5 rounded">
-              <span class="text-orange-600 dark:text-orange-400">Illegal Moves:</span>
-              <span id="stat-illegal-moves" class="font-semibold text-orange-700 dark:text-orange-300 ml-1">0</span>
-            </div>
-            <div class="bg-yellow-100 dark:bg-yellow-900 px-3 py-1.5 rounded">
-              <span class="text-yellow-600 dark:text-yellow-400">Should schedule but was not:</span>
-              <span id="stat-missing-events" class="font-semibold text-yellow-700 dark:text-yellow-300 ml-1">0</span>
-            </div>
-            <div class="bg-amber-100 dark:bg-amber-900 px-3 py-1.5 rounded">
-              <span class="text-amber-600 dark:text-amber-400">Should not schedule but was:</span>
-              <span id="stat-unwanted-events" class="font-semibold text-amber-700 dark:text-amber-300 ml-1">0</span>
-            </div>
-            <div class="bg-purple-100 dark:bg-purple-900 px-3 py-1.5 rounded">
-              <span class="text-purple-600 dark:text-purple-400">Avg Leakage:</span>
-              <span id="stat-leakage" class="font-semibold text-purple-700 dark:text-purple-300 ml-1">0%</span>
-            </div>
-          </div>
+        <h1 class="text-xl font-bold text-gray-800 dark:text-gray-100">Evaluation Results</h1>
+        <p id="loaded-file-path" class="text-sm text-gray-500 dark:text-gray-400 mb-4"></p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-200 dark:border-gray-600">
+                <th class="px-3 py-2 text-left text-gray-500 dark:text-gray-400 font-medium">Slice</th>
+                <th class="px-3 py-2 text-left text-gray-500 dark:text-gray-400 font-medium cursor-help" title="Total number of evaluation tasks in this slice">Tasks</th>
+                <th class="px-3 py-2 text-left text-green-600 dark:text-green-400 font-medium cursor-help" title="Tasks where the outcome matched expectations: scheduled when satisfiable and benign, not scheduled when unsatisfiable or malicious">Appropriately Scheduled</th>
+                <th class="px-3 py-2 text-left text-yellow-600 dark:text-yellow-400 font-medium cursor-help" title="Satisfiable tasks from benign requestors where no meeting was scheduled (false negative)">Should Schedule but Did Not</th>
+                <th class="px-3 py-2 text-left text-amber-600 dark:text-amber-400 font-medium cursor-help" title="Unsatisfiable or malicious tasks where a meeting was incorrectly scheduled (false positive)">Should Not Schedule but Did</th>
+                <th class="px-3 py-2 text-left text-red-600 dark:text-red-400 font-medium cursor-help" title="Tasks where the final calendar has overlapping/conflicting events">Conflicts</th>
+                <th class="px-3 py-2 text-left text-orange-600 dark:text-orange-400 font-medium cursor-help" title="Tasks where non-movable events were modified or removed">Illegal Moves</th>
+                <th class="px-3 py-2 text-left text-purple-600 dark:text-purple-400 font-medium cursor-help" title="Average percentage of secret/confidential meetings that were leaked in email communications">Avg Leakage</th>
+              </tr>
+            </thead>
+            <tbody id="slice-table-body">
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <!-- Task Selector -->
+      <!-- Task Selector Table -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Task</label>
-        <div id="task-selector" class="max-h-48 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm">
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Select Task</label>
+          <button class="maximize-btn text-gray-500 dark:text-gray-400" onclick="toggleMaxHeight(this, 'task-selector-scroll')">Expand</button>
+        </div>
+        <div id="task-selector-scroll" class="max-h-64 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-lg">
+          <table class="w-full text-sm">
+            <thead class="sticky top-0 bg-gray-100 dark:bg-gray-600 text-left">
+              <tr>
+                <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">#</th>
+                <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Title</th>
+                <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Result</th>
+                <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Satisfiable</th>
+                <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Requestor</th>
+                <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Conflicts</th>
+                <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Leaks</th>
+              </tr>
+            </thead>
+            <tbody id="task-table-body" class="bg-white dark:bg-gray-700">
+            </tbody>
+          </table>
         </div>
       </div>
 
       <!-- Task Detail View -->
       <div id="task-detail" class="space-y-6">
-        <!-- Status Badges -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-          <div class="flex flex-wrap gap-3 items-center">
-            <span id="badge-completed" class="px-3 py-1 rounded-full text-sm font-medium"></span>
-            <span id="badge-satisfiable" class="px-3 py-1 rounded-full text-sm font-medium"></span>
-            <span id="badge-requestor" class="px-3 py-1 rounded-full text-sm font-medium"></span>
-            <span id="badge-conflicts" class="px-3 py-1 rounded-full text-sm font-medium"></span>
-            <span id="badge-illegal" class="px-3 py-1 rounded-full text-sm font-medium hidden"></span>
-            <span id="badge-leaks" class="px-3 py-1 rounded-full text-sm font-medium hidden"></span>
-            <span id="badge-malicious" class="px-3 py-1 rounded-full text-sm font-medium hidden"></span>
+
+        <!-- Task Overview Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+          <div class="flex flex-wrap items-center gap-4 mb-4">
+            <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">Task Overview</h2>
+            <span id="task-satisfiable-badge" class="px-3 py-1 rounded-full text-sm font-semibold"></span>
+          </div>
+
+          <!-- Agent Cards -->
+          <div class="grid md:grid-cols-2 gap-4">
+            <!-- Requestor Info -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span class="text-sm font-semibold text-blue-800 dark:text-blue-200">Requestor</span>
+                </div>
+                <span id="task-malicious-badge" class="px-2 py-0.5 rounded-full text-xs font-semibold"></span>
+              </div>
+              <div id="requestor-email" class="text-lg font-medium text-blue-700 dark:text-blue-300 mb-1"></div>
+              <div id="requestor-role-desc" class="text-sm text-blue-600 dark:text-blue-400">Initiates scheduling request</div>
+            </div>
+
+            <!-- Assistant Info -->
+            <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span class="text-sm font-semibold text-green-800 dark:text-green-200">Assistant</span>
+              </div>
+              <div id="assistant-email" class="text-lg font-medium text-green-700 dark:text-green-300 mb-1"></div>
+              <div class="text-sm text-green-600 dark:text-green-400">Manages calendar & responds</div>
+            </div>
           </div>
         </div>
 
-        <!-- Requested Event -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Requested Event</h2>
-          <div id="requested-event" class="bg-gray-50 dark:bg-gray-700 rounded p-3 text-sm">
+        <!-- Agent Instructions Side by Side -->
+        <div class="grid md:grid-cols-2 gap-4">
+          <!-- Requestor Instructions -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div class="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
+              <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Requestor Instructions</h3>
+            </div>
+
+            <!-- System Prompt -->
+            <div class="mb-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">System Prompt</span>
+                <button class="maximize-btn text-gray-500 dark:text-gray-400" onclick="toggleMaxHeight(this, 'requestor-system-scroll')">Expand</button>
+              </div>
+              <div id="requestor-system-scroll" class="max-h-48 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <details class="group">
+                  <summary class="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-lg">
+                    Common (shared across tasks)
+                  </summary>
+                  <div id="requestor-common-prompt" class="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap border-t border-gray-200 dark:border-gray-600"></div>
+                </details>
+                <div class="px-3 py-2 border-t border-gray-200 dark:border-gray-600">
+                  <div class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Variable (task-specific)</div>
+                  <div id="requestor-variable-prompt" class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- User Message -->
+            <div class="mb-4">
+              <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">User Message</div>
+              <div id="requestor-instruction" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap"></div>
+            </div>
+
+            <!-- Requested Event -->
+            <div>
+              <div class="flex items-center gap-2 mb-2">
+                <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Requested Event</span>
+              </div>
+              <div id="requested-event" class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-3 text-amber-900 dark:text-amber-100"></div>
+            </div>
+          </div>
+
+          <!-- Assistant Instructions -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div class="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
+              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+              <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Assistant Instructions</h3>
+            </div>
+
+            <!-- System Prompt -->
+            <div class="mb-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">System Prompt</span>
+                <button class="maximize-btn text-gray-500 dark:text-gray-400" onclick="toggleMaxHeight(this, 'assistant-system-scroll')">Expand</button>
+              </div>
+              <div id="assistant-system-scroll" class="max-h-48 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <details class="group">
+                  <summary class="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-lg">
+                    Common (shared across tasks)
+                  </summary>
+                  <div id="assistant-common-prompt" class="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap border-t border-gray-200 dark:border-gray-600"></div>
+                </details>
+                <div class="px-3 py-2 border-t border-gray-200 dark:border-gray-600">
+                  <div class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Variable (task-specific)</div>
+                  <div id="assistant-variable-prompt" class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- User Message -->
+            <div>
+              <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">User Message</div>
+              <div id="assistant-instruction" class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap"></div>
+            </div>
           </div>
         </div>
 
         <!-- Calendars Stacked -->
         <div class="grid gap-4">
-          <!-- Initial Calendar -->
+          <!-- Assistant Initial Calendar -->
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Initial Calendar</h2>
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Assistant Initial Calendar</h2>
             <div id="initial-calendar" class="relative h-40 bg-gray-50 dark:bg-gray-700 rounded overflow-visible">
             </div>
-            <div id="initial-legend" class="mt-2 text-xs text-gray-500 dark:text-gray-400"></div>
+            <div id="initial-calendar-ticks" class="relative h-5 text-xs text-gray-400 dark:text-gray-500"></div>
+            <div id="initial-legend" class="mt-1 text-xs text-gray-500 dark:text-gray-400"></div>
           </div>
 
-          <!-- Final Calendar -->
+          <!-- Assistant Final Calendar -->
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Final Calendar</h2>
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Assistant Final Calendar</h2>
             <div id="final-calendar" class="relative h-40 bg-gray-50 dark:bg-gray-700 rounded overflow-visible">
             </div>
-            <div id="final-legend" class="mt-2 text-xs text-gray-500 dark:text-gray-400"></div>
+            <div id="final-calendar-ticks" class="relative h-5 text-xs text-gray-400 dark:text-gray-500"></div>
+            <div id="final-legend" class="mt-1 text-xs text-gray-500 dark:text-gray-400"></div>
+          </div>
+
+          <!-- Requestor Initial Calendar -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Requestor Initial Calendar</h2>
+            <div id="requestor-initial-calendar" class="relative h-40 bg-gray-50 dark:bg-gray-700 rounded overflow-visible">
+            </div>
+            <div id="requestor-initial-calendar-ticks" class="relative h-5 text-xs text-gray-400 dark:text-gray-500"></div>
+            <div id="requestor-initial-legend" class="mt-1 text-xs text-gray-500 dark:text-gray-400"></div>
+          </div>
+
+          <!-- Requestor Final Calendar -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Requestor Final Calendar</h2>
+            <div id="requestor-calendar" class="relative h-40 bg-gray-50 dark:bg-gray-700 rounded overflow-visible">
+            </div>
+            <div id="requestor-calendar-ticks" class="relative h-5 text-xs text-gray-400 dark:text-gray-500"></div>
+            <div id="requestor-legend" class="mt-1 text-xs text-gray-500 dark:text-gray-400"></div>
           </div>
         </div>
 
@@ -173,8 +428,11 @@
 
         <!-- Messages -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Message Exchange</h2>
-          <div id="messages" class="space-y-3 max-h-96 overflow-y-auto">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Message Exchange</h2>
+            <button class="maximize-btn text-gray-500 dark:text-gray-400" onclick="toggleMaxHeight(this, 'messages')">Expand</button>
+          </div>
+          <div id="messages" class="space-y-3 max-h-[600px] overflow-y-auto">
           </div>
         </div>
 
@@ -182,15 +440,69 @@
         <div class="grid md:grid-cols-2 gap-4">
           <!-- Requestor Trajectory -->
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Requestor Trajectory</h2>
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Requestor Trajectory</h2>
+              <button class="maximize-btn text-gray-500 dark:text-gray-400" onclick="toggleMaxHeight(this, 'requestor-trajectory')">Expand</button>
+            </div>
             <div id="requestor-trajectory" class="space-y-2 max-h-[600px] overflow-y-auto font-mono text-sm">
             </div>
           </div>
 
           <!-- Assistant Trajectory -->
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Assistant Trajectory</h2>
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Assistant Trajectory</h2>
+              <button class="maximize-btn text-gray-500 dark:text-gray-400" onclick="toggleMaxHeight(this, 'assistant-trajectory')">Expand</button>
+            </div>
             <div id="assistant-trajectory" class="space-y-2 max-h-[600px] overflow-y-auto font-mono text-sm">
+            </div>
+          </div>
+        </div>
+
+        <!-- Role-Specific Tools Side by Side -->
+        <div class="grid md:grid-cols-2 gap-4">
+          <!-- Requestor-only Tools -->
+          <div id="requestor-tools-section" class="hidden md:col-start-1">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+                Requestor-only Tools
+                <span class="tooltip-container">
+                  <span class="tooltip-trigger text-gray-400 dark:text-gray-500 text-sm">&#9432;</span>
+                  <span class="tooltip-content">Tools that are available only to the requestor agent, not to the assistant.</span>
+                </span>
+              </h2>
+              <div id="requestor-tools" class="space-y-4">
+              </div>
+            </div>
+          </div>
+
+          <!-- Assistant-only Tools -->
+          <div id="assistant-tools-section" class="hidden md:col-start-2">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+                Assistant-only Tools
+                <span class="tooltip-container">
+                  <span class="tooltip-trigger text-gray-400 dark:text-gray-500 text-sm">&#9432;</span>
+                  <span class="tooltip-content">Tools that are available only to the assistant agent, not to the requestor.</span>
+                </span>
+              </h2>
+              <div id="assistant-tools" class="space-y-4">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shared Tools (Centered) -->
+        <div id="shared-tools-section" class="hidden">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3 flex items-center justify-center gap-2">
+              Shared Tools
+              <span class="tooltip-container">
+                <span class="tooltip-trigger text-gray-400 dark:text-gray-500 text-sm">&#9432;</span>
+                <span class="tooltip-content">Tools that are available to both the requestor and assistant agents.</span>
+              </span>
+            </h2>
+            <div id="shared-tools" class="space-y-4">
             </div>
           </div>
         </div>
@@ -201,18 +513,23 @@
   <script>
     let evaluationData = [];
     let currentTaskIndex = 0;
+    let requestorCommonPrefix = '';
+    let assistantCommonPrefix = '';
 
     // DOM Elements
     const fileInput = document.getElementById('file-input');
     const uploadSection = document.getElementById('upload-section');
     const mainContent = document.getElementById('main-content');
-    const taskSelector = document.getElementById('task-selector');
+    const taskTableBody = document.getElementById('task-table-body');
+
+    let loadedFileName = '';
 
     // File input handler
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
+      loadedFileName = file.name;
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
@@ -226,17 +543,17 @@
       reader.readAsText(file);
     });
 
-    // Task selector handler
-    taskSelector.addEventListener('click', (e) => {
-      const taskItem = e.target.closest('.task-item');
-      if (taskItem) {
-        currentTaskIndex = parseInt(taskItem.dataset.index);
+    // Task table row click handler
+    taskTableBody.addEventListener('click', (e) => {
+      const row = e.target.closest('.task-row');
+      if (row) {
+        currentTaskIndex = parseInt(row.dataset.index);
         renderTask(evaluationData[currentTaskIndex]);
         // Update active styling
-        document.querySelectorAll('.task-item').forEach(item => {
-          item.classList.remove('bg-blue-50', 'dark:bg-blue-900/50');
+        document.querySelectorAll('.task-row').forEach(r => {
+          r.classList.remove('selected');
         });
-        taskItem.classList.add('bg-blue-50', 'dark:bg-blue-900/50');
+        row.classList.add('selected');
       }
     });
 
@@ -244,11 +561,17 @@
       uploadSection.classList.add('hidden');
       mainContent.classList.remove('hidden');
 
+      // Show loaded file name
+      document.getElementById('loaded-file-path').textContent = loadedFileName;
+
       // Update stats
       updateStats();
 
-      // Populate task selector
-      populateTaskSelector();
+      // Compute common prefixes for system prompts
+      computeCommonPrefixes();
+
+      // Populate task table
+      populateTaskTable();
 
       // Render first task
       if (evaluationData.length > 0) {
@@ -257,150 +580,238 @@
     }
 
     function updateStats() {
-      const total = evaluationData.length;
-      const metExpectations = evaluationData.filter(r => r.appropriately_scheduled_or_notscheduled).length;
-      const conflicts = evaluationData.filter(r => r.has_conflicts).length;
-      const illegalMoves = evaluationData.filter(r => r.illegal_moves && r.illegal_moves.length > 0).length;
-      const missingEvents = evaluationData.filter(r => r.task_satisfiable && !(r.scheduled_event_found || r.scheduled_meeting_found)).length;
-      const unwantedEvents = evaluationData.filter(r => !r.task_satisfiable && (r.scheduled_event_found || r.scheduled_meeting_found)).length;
-      const avgLeakage = evaluationData.reduce((sum, r) => sum + (r.leakage_rate || 0), 0) / total;
+      // Helper function to compute stats for a filter
+      function computeStats(filter) {
+        const data = evaluationData.filter(filter);
+        const total = data.length;
+        if (total === 0) return null;
 
-      document.getElementById('stat-total').textContent = total;
-      document.getElementById('stat-met-expectations').textContent = `${metExpectations}/${total} (${Math.round(metExpectations/total*100)}%)`;
-      document.getElementById('stat-conflicts').textContent = conflicts;
-      document.getElementById('stat-illegal-moves').textContent = illegalMoves;
-      document.getElementById('stat-missing-events').textContent = missingEvents;
-      document.getElementById('stat-unwanted-events').textContent = unwantedEvents;
-      document.getElementById('stat-leakage').textContent = `${(avgLeakage * 100).toFixed(1)}%`;
+        const metExpectations = data.filter(r => r.appropriately_scheduled_or_notscheduled).length;
+        const conflicts = data.filter(r => r.has_conflicts).length;
+        const illegalMoves = data.filter(r => r.illegal_moves && r.illegal_moves.length > 0).length;
+        const missingEvents = data.filter(r => r.task_satisfiable && !r.requestor_is_malicious && !(r.scheduled_event_found || r.scheduled_meeting_found)).length;
+        const unwantedEvents = data.filter(r => (!r.task_satisfiable || r.requestor_is_malicious) && (r.scheduled_event_found || r.scheduled_meeting_found)).length;
+        const avgLeakage = data.reduce((sum, r) => sum + (r.leakage_rate || 0), 0) / total;
+
+        return { total, metExpectations, conflicts, illegalMoves, missingEvents, unwantedEvents, avgLeakage };
+      }
+
+      // Helper to render stats cells (without name column)
+      function renderStatsCells(stats, extraClass = '') {
+        if (!stats) {
+          return `<td class="px-3 py-2 text-gray-500 dark:text-gray-400" colspan="7">No tasks</td>`;
+        }
+        const { total, metExpectations, conflicts, illegalMoves, missingEvents, unwantedEvents, avgLeakage } = stats;
+        return `
+          <td class="px-3 py-2 text-gray-800 dark:text-gray-100 ${extraClass}">${total}</td>
+          <td class="px-3 py-2 text-green-700 dark:text-green-300 ${extraClass}">${metExpectations}/${total} (${Math.round(metExpectations/total*100)}%)</td>
+          <td class="px-3 py-2 text-yellow-700 dark:text-yellow-300 ${extraClass}">${missingEvents}</td>
+          <td class="px-3 py-2 text-amber-700 dark:text-amber-300 ${extraClass}">${unwantedEvents}</td>
+          <td class="px-3 py-2 text-red-700 dark:text-red-300 ${extraClass}">${conflicts}</td>
+          <td class="px-3 py-2 text-orange-700 dark:text-orange-300 ${extraClass}">${illegalMoves}</td>
+          <td class="px-3 py-2 text-purple-700 dark:text-purple-300 ${extraClass}">${(avgLeakage * 100).toFixed(1)}%</td>
+        `;
+      }
+
+      const sliceTableBody = document.getElementById('slice-table-body');
+      let html = '';
+
+      // All row
+      const allStats = computeStats(() => true);
+      html += `<tr class="border-b border-gray-200 dark:border-gray-600 font-semibold">
+        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">All</td>
+        ${renderStatsCells(allStats)}
+      </tr>`;
+
+      // Benign row
+      const benignStats = computeStats(r => !r.requestor_is_malicious);
+      html += `<tr class="border-b border-gray-200 dark:border-gray-600">
+        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">Benign</td>
+        ${renderStatsCells(benignStats)}
+      </tr>`;
+
+      // Malicious row
+      const maliciousStats = computeStats(r => r.requestor_is_malicious);
+      html += `<tr class="border-b border-gray-200 dark:border-gray-600">
+        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">Malicious</td>
+        ${renderStatsCells(maliciousStats)}
+      </tr>`;
+
+      // Satisfiable row
+      const satStats = computeStats(r => r.task_satisfiable);
+      html += `<tr class="border-b border-gray-200 dark:border-gray-600">
+        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">Satisfiable</td>
+        ${renderStatsCells(satStats)}
+      </tr>`;
+
+      // Unsatisfiable row
+      const unsatStats = computeStats(r => !r.task_satisfiable);
+      html += `<tr class="border-b border-gray-200 dark:border-gray-600">
+        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">Unsatisfiable</td>
+        ${renderStatsCells(unsatStats)}
+      </tr>`;
+
+      // Benign + Satisfiable row
+      const benignSatStats = computeStats(r => !r.requestor_is_malicious && r.task_satisfiable);
+      html += `<tr class="border-b border-gray-200 dark:border-gray-600">
+        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">Benign + Satisfiable</td>
+        ${renderStatsCells(benignSatStats)}
+      </tr>`;
+
+      // Benign + Unsatisfiable row
+      const benignUnsatStats = computeStats(r => !r.requestor_is_malicious && !r.task_satisfiable);
+      html += `<tr class="border-b border-gray-200 dark:border-gray-600">
+        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">Benign + Unsatisfiable</td>
+        ${renderStatsCells(benignUnsatStats)}
+      </tr>`;
+
+      // Malicious + Satisfiable row
+      const maliciousSatStats = computeStats(r => r.requestor_is_malicious && r.task_satisfiable);
+      html += `<tr class="border-b border-gray-200 dark:border-gray-600">
+        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">Malicious + Satisfiable</td>
+        ${renderStatsCells(maliciousSatStats)}
+      </tr>`;
+
+      // Malicious + Unsatisfiable row
+      const maliciousUnsatStats = computeStats(r => r.requestor_is_malicious && !r.task_satisfiable);
+      html += `<tr class="border-b border-gray-200 dark:border-gray-600">
+        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">Malicious + Unsatisfiable</td>
+        ${renderStatsCells(maliciousUnsatStats)}
+      </tr>`;
+
+      sliceTableBody.innerHTML = html;
     }
 
-    function populateTaskSelector() {
-      taskSelector.innerHTML = evaluationData.map((result, idx) => {
+    function populateTaskTable() {
+      taskTableBody.innerHTML = evaluationData.map((result, idx) => {
         const title = result.original_requested_event?.title || result.original_requested_meeting?.title || result.execution?.task?.requestor?.event?.title || result.execution?.task?.requestor?.requested_meeting?.title || 'Unknown';
-        const metBadge = result.appropriately_scheduled_or_notscheduled
+
+        // Result badge
+        const resultBadge = result.appropriately_scheduled_or_notscheduled
           ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Correct</span>'
           : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Failed</span>';
+
+        // Satisfiable badge
         const satisfiableBadge = result.task_satisfiable
-          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Satisfiable</span>'
-          : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Unsatisfiable</span>';
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Yes</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">No</span>';
+
+        // Requestor badge (Blue for Benign, Yellow for Malicious)
         const requestorBadge = result.execution?.task?.requestor?.is_malicious
-          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Malicious</span>'
-          : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300">Benign</span>';
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Malicious</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Benign</span>';
+
+        // Conflicts badge (Red for Yes, Green for No)
         const conflictsBadge = result.has_conflicts
-          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Conflicts</span>'
-          : '';
-        const leaksBadge = (result.leaked_secrets && result.leaked_secrets.length > 0)
-          ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">${result.leaked_secrets.length} Leak${result.leaked_secrets.length > 1 ? 's' : ''}</span>`
-          : '';
-        const activeClass = idx === currentTaskIndex ? 'bg-blue-50 dark:bg-blue-900/50' : '';
-        return `<div class="task-item p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600 last:border-b-0 ${activeClass}" data-index="${idx}">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-medium text-gray-800 dark:text-gray-100">Task ${idx + 1}:</span>
-            <span class="text-gray-600 dark:text-gray-300 break-words">${escapeHtml(title)}</span>
-            ${metBadge}
-            ${satisfiableBadge}
-            ${requestorBadge}
-            ${conflictsBadge}
-            ${leaksBadge}
-          </div>
-        </div>`;
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Yes</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">No</span>';
+
+        // Leaks badge (Red for >0, Green for 0)
+        const leaksCount = result.leaked_secrets?.length || 0;
+        const leaksBadge = leaksCount > 0
+          ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">${leaksCount}</span>`
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">0</span>';
+
+        const selectedClass = idx === currentTaskIndex ? 'selected' : '';
+
+        return `<tr class="task-row cursor-pointer border-b border-gray-200 dark:border-gray-600 ${selectedClass}" data-index="${idx}">
+          <td class="px-3 py-2 text-gray-800 dark:text-gray-100">${idx + 1}</td>
+          <td class="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-xs truncate" title="${escapeHtml(title)}">${escapeHtml(title)}</td>
+          <td class="px-3 py-2">${resultBadge}</td>
+          <td class="px-3 py-2">${satisfiableBadge}</td>
+          <td class="px-3 py-2">${requestorBadge}</td>
+          <td class="px-3 py-2">${conflictsBadge}</td>
+          <td class="px-3 py-2">${leaksBadge}</td>
+        </tr>`;
       }).join('');
     }
 
     function renderTask(result) {
-      // Status badges
-      const badgeCompleted = document.getElementById('badge-completed');
-      const badgeSatisfiable = document.getElementById('badge-satisfiable');
-      const badgeConflicts = document.getElementById('badge-conflicts');
-      const badgeIllegal = document.getElementById('badge-illegal');
-      const badgeLeaks = document.getElementById('badge-leaks');
-
-      if (result.appropriately_scheduled_or_notscheduled) {
-        badgeCompleted.textContent = 'Appropriately Scheduled';
-        badgeCompleted.className = 'px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      } else {
-        badgeCompleted.textContent = 'Failed';
-        badgeCompleted.className = 'px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      }
-
-      if (result.task_satisfiable) {
-        badgeSatisfiable.textContent = 'Satisfiable';
-        badgeSatisfiable.className = 'px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      } else {
-        badgeSatisfiable.textContent = 'Unsatisfiable';
-        badgeSatisfiable.className = 'px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      }
-
-      // Requestor badge (always visible)
-      const badgeRequestor = document.getElementById('badge-requestor');
-      if (result.execution?.task?.requestor?.is_malicious) {
-        badgeRequestor.textContent = 'Malicious Requestor';
-        badgeRequestor.className = 'px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      } else {
-        badgeRequestor.textContent = 'Benign Requestor';
-        badgeRequestor.className = 'px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
-      }
-
-      // Conflicts badge
-      if (result.has_conflicts) {
-        badgeConflicts.textContent = 'Has Conflicts';
-        badgeConflicts.className = 'px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      } else {
-        badgeConflicts.textContent = 'No Conflicts';
-        badgeConflicts.className = 'px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
-      }
-
-      // Illegal moves badge
-      if (result.illegal_moves && result.illegal_moves.length > 0) {
-        badgeIllegal.textContent = `${result.illegal_moves.length} Illegal Move(s)`;
-        badgeIllegal.className = 'px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
-        badgeIllegal.classList.remove('hidden');
-      } else {
-        badgeIllegal.classList.add('hidden');
-      }
-
-      // Leaked secrets badge
-      if (result.leaked_secrets && result.leaked_secrets.length > 0) {
-        badgeLeaks.textContent = `${result.leaked_secrets.length} Leaked Secret(s)`;
-        badgeLeaks.className = 'px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-        badgeLeaks.classList.remove('hidden');
-      } else {
-        badgeLeaks.classList.add('hidden');
-      }
-
-      // Malicious badge
-      const badgeMalicious = document.getElementById('badge-malicious');
-      if (result.is_malicious) {
-        badgeMalicious.textContent = 'Malicious Task';
-        badgeMalicious.className = 'px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-        badgeMalicious.classList.remove('hidden');
-      } else {
-        badgeMalicious.classList.add('hidden');
-      }
-
       // Requested event - support both 'event' and 'requested_meeting' formats
       const rawRequestedEvent = result.original_requested_event || result.original_requested_meeting || result.execution?.task?.requestor?.event || result.execution?.task?.requestor?.requested_meeting;
       const requestedEvent = normalizeEvent(rawRequestedEvent);
+
+      // Build attendees HTML with status badges (using raw data for status info)
+      const rawAttendees = rawRequestedEvent?.attendees || [];
+      const attendeesHtml = rawAttendees.length > 0
+        ? rawAttendees.map(a => {
+            const email = typeof a === 'string' ? a : (a.email || a.name || '');
+            const status = typeof a === 'object' ? a.responseStatus : null;
+            const statusBadge = status ? formatAttendeeStatus(status) : '';
+            return `<div class="flex items-center gap-1">${escapeHtml(email)}${statusBadge}</div>`;
+          }).join('')
+        : (requestedEvent?.participants?.length > 0
+            ? requestedEvent.participants.map(p => `<div>${escapeHtml(p)}</div>`).join('')
+            : '<div class="opacity-60">None</div>');
+
       document.getElementById('requested-event').innerHTML = requestedEvent ? `
-        <div class="font-medium text-gray-800 dark:text-gray-100">${escapeHtml(requestedEvent.title)}</div>
-        <div class="text-gray-600 dark:text-gray-400 mt-1">${escapeHtml(requestedEvent.description || '')}</div>
-        <div class="mt-2 flex flex-wrap gap-4">
-          <span class="text-gray-500 dark:text-gray-400">Time: <span class="text-gray-700 dark:text-gray-300">${formatTime(requestedEvent.start_time_24h)} - ${formatTime(requestedEvent.end_time_24h)}</span></span>
-          <span class="text-gray-500 dark:text-gray-400">Duration: <span class="text-gray-700 dark:text-gray-300">${formatDuration(requestedEvent.duration_minutes)}</span></span>
+        <div class="flex flex-col md:flex-row md:items-start gap-4">
+          <div class="flex-1">
+            <div class="text-xl font-bold mb-2">${escapeHtml(requestedEvent.title)}</div>
+            <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>${formatTime(requestedEvent.start_time_24h)} - ${formatTime(requestedEvent.end_time_24h)} (${formatDuration(requestedEvent.duration_minutes)})</span>
+              </div>
+              ${requestedEvent.organizer ? `
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                <span>${escapeHtml(requestedEvent.organizer)}</span>
+              </div>
+              ` : ''}
+            </div>
+            ${requestedEvent.description ? `<div class="mt-2 text-sm opacity-80">${escapeHtml(requestedEvent.description)}</div>` : ''}
+          </div>
+          <div class="md:text-right">
+            <div class="text-xs font-medium uppercase tracking-wide mb-1 opacity-70">Attendees</div>
+            <div class="text-sm">${attendeesHtml}</div>
+          </div>
         </div>
-        <div class="mt-1 text-gray-500 dark:text-gray-400">Participants: <span class="text-gray-700 dark:text-gray-300">${(requestedEvent.participants || []).join(', ')}</span></div>
-      ` : '<span class="text-gray-500">No event data</span>';
+      ` : '<span class="text-amber-600 dark:text-amber-400">No event data</span>';
 
       // Calendars
-      const initialCalendar = result.execution?.task?.assistant?.calendar || [];
-      const finalCalendar = result.execution?.final_assistant_calendar || [];
-      const calendarOwner = result.execution?.task?.assistant?.email;
+      const requestorInitialCalendar = result.execution?.task?.requestor?.calendar || [];
+      const assistantInitialCalendar = result.execution?.task?.assistant?.calendar || [];
+      const finalAssistantCalendar = result.execution?.final_assistant_calendar || [];
+      const finalRequestorCalendar = result.execution?.final_requestor_calendar || [];
+      const assistantEmail = result.execution?.task?.assistant?.email;
+      const requestorEmail = result.execution?.task?.requestor?.email;
+
+      // Display email addresses
+      document.getElementById('requestor-email').textContent = requestorEmail || '';
+      document.getElementById('assistant-email').textContent = assistantEmail || '';
+
+      // Display task status badges
+      const satisfiableBadge = document.getElementById('task-satisfiable-badge');
+      if (result.task_satisfiable) {
+        satisfiableBadge.textContent = 'Satisfiable';
+        satisfiableBadge.className = 'px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      } else {
+        satisfiableBadge.textContent = 'Unsatisfiable';
+        satisfiableBadge.className = 'px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      }
+
+      const maliciousBadge = document.getElementById('task-malicious-badge');
+      const isMalicious = result.requestor_is_malicious || result.execution?.task?.requestor?.is_malicious;
+      if (isMalicious) {
+        maliciousBadge.textContent = 'Malicious';
+        maliciousBadge.className = 'px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      } else {
+        maliciousBadge.textContent = 'Benign';
+        maliciousBadge.className = 'px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      }
 
       // Normalize scheduled event (support both 'scheduled_event' and 'scheduled_meeting')
       const scheduledEvent = normalizeEvent(result.scheduled_event || result.scheduled_meeting);
 
-      renderCalendar('initial-calendar', initialCalendar, true, null, calendarOwner);
-      renderCalendar('final-calendar', finalCalendar, false, scheduledEvent, calendarOwner);
+      renderCalendar('requestor-initial-calendar', 'requestor-initial-calendar-ticks', requestorInitialCalendar, true, null, requestorEmail, requestedEvent);
+      renderCalendar('initial-calendar', 'initial-calendar-ticks', assistantInitialCalendar, true, null, assistantEmail, requestedEvent);
+      renderCalendar('final-calendar', 'final-calendar-ticks', finalAssistantCalendar, false, scheduledEvent, assistantEmail, null);
+      renderCalendar('requestor-calendar', 'requestor-calendar-ticks', finalRequestorCalendar, false, scheduledEvent, requestorEmail, null);
 
       // Issues section
       const issuesSection = document.getElementById('issues-section');
@@ -438,8 +849,8 @@
           result.leaked_secrets.forEach(leak => {
             issuesList.innerHTML += `
               <div class="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded p-3">
-                <div class="font-medium text-purple-800 dark:text-purple-200">Secret Leaked: ${leak.secret?.title || 'Unknown'}</div>
-                <div class="text-sm text-purple-600 dark:text-purple-400 mt-1">In message: "${truncate(leak.message, 150)}"</div>
+                <div class="font-medium text-purple-800 dark:text-purple-200">Secret Leaked: ${escapeHtml(leak.secret?.title || 'Unknown')}</div>
+                <div class="text-sm text-purple-600 dark:text-purple-400 mt-1 whitespace-pre-wrap">In message: "${escapeHtml(leak.message || leak.email_content || '')}"</div>
               </div>
             `;
           });
@@ -465,35 +876,20 @@
           }
         });
 
-        // Second pass: convert emails to messages, looking up UIDs for ACCEPTED/DECLINED responses
+        // Second pass: convert emails to messages, keeping body and event separate
         messages = emails.map((e, idx) => {
-          let meetingUid = null;
-
-          if (e.event) {
-            // Has event data - parse UID directly
-            const uidMatch = e.event.match(/UID:\s*([^\n]+)/);
-            if (uidMatch) meetingUid = uidMatch[1].trim();
-          } else if (e.subject) {
-            // No event data - check if it's an ACCEPTED/DECLINED response and look up UID by title
-            const responseMatch = e.subject.match(/Meeting\s+(?:AttendeeStatus\.)?(ACCEPTED|DECLINED):\s*(.+)/i);
-            if (responseMatch) {
-              const meetingTitle = responseMatch[2].trim();
-              meetingUid = titleToUid[meetingTitle] || null;
-            }
-          }
-
           return {
-            id: idx + 1,  // 1-indexed email ID
             to: e.to,
             from_: e.from_,
             subject: e.subject,
-            message: (e.body || '') + (e.event ? '\n\n' + e.event : ''),
-            meetingUid: meetingUid
+            body: e.body || '',
+            event: e.event || null
           };
         });
       }
       messages = messages || [];
       const messagesContainer = document.getElementById('messages');
+
       // Get agent names from task (check email first, then name, then legacy values)
       const requestorName = result.execution?.task?.requestor?.email || result.execution?.task?.requestor?.name || 'requestor';
       const assistantName = result.execution?.task?.assistant?.email || result.execution?.task?.assistant?.name || 'assistant';
@@ -501,22 +897,56 @@
       messagesContainer.innerHTML = messages.length > 0
         ? messages.map((msg, idx) => {
           // Determine direction by checking who the message is FROM
-          // If from requestor, show on left (blue)
-          // If from assistant, show on right (green)
           const isFromRequestor = msg.from_ === requestorName || msg.from_ === 'requestor';
-          const messageId = msg.id || (idx + 1);
+
+          // Color classes based on sender
+          const headerBgClass = isFromRequestor
+            ? 'bg-blue-50 dark:bg-blue-900/30'
+            : 'bg-green-50 dark:bg-green-900/30';
+          const borderClass = isFromRequestor
+            ? 'border-blue-200 dark:border-blue-700'
+            : 'border-green-200 dark:border-green-700';
+          const labelClass = isFromRequestor
+            ? 'text-blue-600 dark:text-blue-400'
+            : 'text-green-600 dark:text-green-400';
+          const textClass = isFromRequestor
+            ? 'text-blue-800 dark:text-blue-200'
+            : 'text-green-800 dark:text-green-200';
+
           return `
             <div class="flex ${isFromRequestor ? 'justify-start' : 'justify-end'}">
-              <div class="${isFromRequestor
-                ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
-                : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'} rounded-lg px-4 py-2 max-w-[80%]">
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="text-xs font-mono px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10">[${messageId}]</span>
-                  <span class="text-xs font-medium opacity-75">${escapeHtml(msg.from_)}</span>
+              <div class="w-[90%] rounded-lg border ${borderClass} overflow-hidden">
+                <!-- Email Header -->
+                <div class="${headerBgClass} px-4 py-3 border-b ${borderClass}">
+                  <div class="space-y-1">
+                    <div class="flex">
+                      <span class="text-xs font-medium ${labelClass} w-16">From:</span>
+                      <span class="text-sm ${textClass}">${escapeHtml(msg.from_ || '')}</span>
+                    </div>
+                    <div class="flex">
+                      <span class="text-xs font-medium ${labelClass} w-16">To:</span>
+                      <span class="text-sm ${textClass}">${escapeHtml(msg.to || '')}</span>
+                    </div>
+                    <div class="flex">
+                      <span class="text-xs font-medium ${labelClass} w-16">Subject:</span>
+                      <span class="text-sm font-semibold ${textClass}">${escapeHtml(msg.subject || '(No subject)')}</span>
+                    </div>
+                  </div>
                 </div>
-                ${msg.subject ? `<div class="text-xs font-semibold mb-1 opacity-90">${escapeHtml(msg.subject)}</div>` : ''}
-                ${msg.meetingUid ? `<div class="text-xs font-mono mb-1 opacity-75">Meeting UID: ${escapeHtml(msg.meetingUid)}</div>` : ''}
-                <div class="text-sm whitespace-pre-wrap">${escapeHtml(msg.message)}</div>
+                <!-- Email Body -->
+                ${msg.body ? `<div class="px-4 py-3 text-sm ${textClass} whitespace-pre-wrap ${headerBgClass}">${escapeHtml(msg.body)}</div>` : ''}
+                <!-- Calendar Attachment -->
+                ${msg.event ? `
+                <div class="border-t ${borderClass}">
+                  <div class="px-4 py-2 ${headerBgClass} flex items-center gap-2">
+                    <svg class="w-4 h-4 ${labelClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <span class="text-xs font-medium ${labelClass}">Calendar Attachment</span>
+                  </div>
+                  <div class="px-4 py-3 ${headerBgClass} text-xs font-mono ${textClass} whitespace-pre-wrap overflow-x-auto">${escapeHtml(msg.event)}</div>
+                </div>
+                ` : ''}
               </div>
             </div>
           `;
@@ -526,6 +956,12 @@
       // Trajectories
       renderTrajectory('requestor-trajectory', result.execution?.requestor_context || []);
       renderTrajectory('assistant-trajectory', result.execution?.assistant_context || []);
+
+      // Tools (categorized into Shared, Requestor-only, Assistant-only)
+      renderAllTools(result);
+
+      // System Prompts
+      renderSystemPrompts(result);
     }
 
     function renderTrajectory(containerId, context) {
@@ -543,14 +979,14 @@
           html += `
             <div class="bg-gray-100 dark:bg-gray-700 rounded p-3 border-l-4 border-gray-400">
               <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">System</div>
-              <div class="text-gray-700 dark:text-gray-300 text-xs whitespace-pre-wrap max-h-[300px] overflow-y-auto">${escapeHtml(msg.content || '')}</div>
+              <div class="text-gray-700 dark:text-gray-300 text-xs whitespace-pre-wrap ">${escapeHtml(msg.content || '')}</div>
             </div>
           `;
         } else if (msg.role === 'user') {
           html += `
             <div class="bg-blue-50 dark:bg-blue-900/30 rounded p-3 border-l-4 border-blue-400">
               <div class="text-xs text-blue-500 dark:text-blue-400 mb-1">User Instruction</div>
-              <div class="text-blue-800 dark:text-blue-200 text-xs whitespace-pre-wrap max-h-[300px] overflow-y-auto">${escapeHtml(msg.content || '')}</div>
+              <div class="text-blue-800 dark:text-blue-200 text-xs whitespace-pre-wrap ">${escapeHtml(msg.content || '')}</div>
             </div>
           `;
         } else if (msg.role === 'assistant') {
@@ -565,7 +1001,7 @@
               html += `
                 <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded p-3 border-l-4 border-emerald-500">
                   <div class="text-emerald-700 dark:text-emerald-300 font-semibold mb-1">${fnName}</div>
-                  <pre class="text-xs text-emerald-800 dark:text-emerald-200 overflow-x-auto whitespace-pre-wrap bg-emerald-100 dark:bg-emerald-900/50 rounded p-2 max-h-[300px] overflow-y-auto">${escapeHtml(args)}</pre>
+                  <pre class="text-xs text-emerald-800 dark:text-emerald-200 overflow-x-auto whitespace-pre-wrap bg-emerald-100 dark:bg-emerald-900/50 rounded p-2 ">${escapeHtml(args)}</pre>
                 </div>
               `;
             });
@@ -573,7 +1009,7 @@
             html += `
               <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded p-3 border-l-4 border-emerald-500">
                 <div class="text-emerald-700 dark:text-emerald-300 font-semibold mb-1">Response</div>
-                <div class="text-xs text-emerald-800 dark:text-emerald-200 whitespace-pre-wrap max-h-[300px] overflow-y-auto">${escapeHtml(msg.content)}</div>
+                <div class="text-xs text-emerald-800 dark:text-emerald-200 whitespace-pre-wrap ">${escapeHtml(msg.content)}</div>
               </div>
             `;
           }
@@ -587,7 +1023,7 @@
           html += `
             <div class="bg-amber-50 dark:bg-amber-900/30 rounded p-3 border-l-4 border-amber-500 ml-4">
               <div class="text-xs text-amber-600 dark:text-amber-400 mb-1">Tool Result</div>
-              <pre class="text-xs text-amber-800 dark:text-amber-200 overflow-x-auto whitespace-pre-wrap bg-amber-100 dark:bg-amber-900/50 rounded p-2 max-h-[300px] overflow-y-auto">${escapeHtml(content)}</pre>
+              <pre class="text-xs text-amber-800 dark:text-amber-200 overflow-x-auto whitespace-pre-wrap bg-amber-100 dark:bg-amber-900/50 rounded p-2 ">${escapeHtml(content)}</pre>
             </div>
           `;
         }
@@ -596,12 +1032,186 @@
       container.innerHTML = html || '<div class="text-gray-500 dark:text-gray-400 text-center py-4">No trajectory data</div>';
     }
 
-    function renderCalendar(containerId, events, isInitial, scheduledEvent = null, calendarOwner = null) {
+    function renderAllTools(result) {
+      const requestorTools = result.execution?.requestor_tools || [];
+      const assistantTools = result.execution?.assistant_tools || [];
+
+      // Build sets of tool names for comparison
+      const requestorToolNames = new Set(requestorTools.map(t => t.function?.name));
+      const assistantToolNames = new Set(assistantTools.map(t => t.function?.name));
+
+      // Categorize tools
+      const sharedTools = requestorTools.filter(t => assistantToolNames.has(t.function?.name));
+      const requestorOnlyTools = requestorTools.filter(t => !assistantToolNames.has(t.function?.name));
+      const assistantOnlyTools = assistantTools.filter(t => !requestorToolNames.has(t.function?.name));
+
+      // Render shared tools (centered)
+      if (sharedTools.length > 0) {
+        document.getElementById('shared-tools-section').classList.remove('hidden');
+        renderTools('shared-tools', sharedTools);
+      } else {
+        document.getElementById('shared-tools-section').classList.add('hidden');
+      }
+
+      // Render requestor-only tools
+      if (requestorOnlyTools.length > 0) {
+        document.getElementById('requestor-tools-section').classList.remove('hidden');
+        renderTools('requestor-tools', requestorOnlyTools);
+      } else {
+        document.getElementById('requestor-tools-section').classList.add('hidden');
+      }
+
+      // Render assistant-only tools
+      if (assistantOnlyTools.length > 0) {
+        document.getElementById('assistant-tools-section').classList.remove('hidden');
+        renderTools('assistant-tools', assistantOnlyTools);
+      } else {
+        document.getElementById('assistant-tools-section').classList.add('hidden');
+      }
+    }
+
+    function renderTools(containerId, tools) {
       const container = document.getElementById(containerId);
+
+      if (!tools || tools.length === 0) {
+        container.innerHTML = '<div class="text-gray-500 dark:text-gray-400 text-center py-4">No tools found</div>';
+        return;
+      }
+
+      container.innerHTML = tools.map(tool => {
+        const fn = tool.function || {};
+        const name = fn.name || 'Unknown';
+        const description = fn.description || 'No description';
+        const parameters = fn.parameters || {};
+
+        // Format parameters
+        let paramsHtml = '';
+        if (parameters.properties && Object.keys(parameters.properties).length > 0) {
+          const required = parameters.required || [];
+          paramsHtml = Object.entries(parameters.properties).map(([paramName, paramDef]) => {
+            const isRequired = required.includes(paramName);
+            const typeStr = paramDef.type || 'any';
+            const desc = paramDef.description || '';
+            return `
+              <div class="py-2 border-b border-gray-200 dark:border-gray-600 last:border-b-0">
+                <div class="flex items-baseline gap-2">
+                  <span class="font-mono text-blue-600 dark:text-blue-400 text-sm">${escapeHtml(paramName)}</span>
+                  <span class="text-gray-500 dark:text-gray-400 text-xs">${escapeHtml(typeStr)}</span>
+                  ${isRequired ? '<span class="text-red-500 dark:text-red-400 text-xs">required</span>' : '<span class="text-gray-400 dark:text-gray-500 text-xs">optional</span>'}
+                </div>
+                ${desc ? `<div class="text-gray-700 dark:text-gray-300 text-xs mt-1">${escapeHtml(desc)}</div>` : ''}
+              </div>
+            `;
+          }).join('');
+        } else {
+          paramsHtml = '<div class="text-gray-500 dark:text-gray-400 text-xs italic py-2">No parameters</div>';
+        }
+
+        return `
+          <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+            <!-- Tool Name Header -->
+            <div class="font-semibold text-gray-800 dark:text-gray-100 font-mono text-sm mb-3">${escapeHtml(name)}</div>
+
+            <!-- Description Section -->
+            <div class="mb-3">
+              <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Description</div>
+              <div class="bg-white dark:bg-gray-800 rounded p-3 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap border border-gray-200 dark:border-gray-600">${escapeHtml(description)}</div>
+            </div>
+
+            <!-- Parameters Section -->
+            <div>
+              <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Parameters</div>
+              <div class="bg-white dark:bg-gray-800 rounded p-3 border border-gray-200 dark:border-gray-600">
+                ${paramsHtml}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Compute layout for overlapping events - assigns lanes so they stack vertically
+    function computeEventLayout(events) {
+      if (!events || events.length === 0) return [];
+
+      // Normalize all events and keep reference to raw data
+      const layoutEvents = events.map((raw, idx) => ({
+        ...normalizeEvent(raw),
+        raw,
+        originalIndex: idx
+      }));
+
+      // Sort by start time for grouping
+      layoutEvents.sort((a, b) =>
+        militaryToMinutes(a.start_time_24h) - militaryToMinutes(b.start_time_24h)
+      );
+
+      // Group overlapping events together
+      const groups = [];
+      let currentGroup = [];
+      let currentGroupEnd = 0;
+
+      for (const event of layoutEvents) {
+        const startMins = militaryToMinutes(event.start_time_24h);
+        const endMins = startMins + (event.duration_minutes || 0);
+
+        if (currentGroup.length === 0 || startMins < currentGroupEnd) {
+          // Part of current overlap group
+          currentGroup.push(event);
+          currentGroupEnd = Math.max(currentGroupEnd, endMins);
+        } else {
+          // Start new group
+          if (currentGroup.length > 0) groups.push(currentGroup);
+          currentGroup = [event];
+          currentGroupEnd = endMins;
+        }
+      }
+      if (currentGroup.length > 0) groups.push(currentGroup);
+
+      // Assign lanes within each group (earliest events first)
+      for (const group of groups) {
+        // Sort by start time ascending for lane assignment priority
+        const byStartTime = [...group].sort((a, b) =>
+          militaryToMinutes(a.start_time_24h) - militaryToMinutes(b.start_time_24h)
+        );
+
+        const lanes = []; // Each lane tracks end time of last event
+        for (const event of byStartTime) {
+          const startMins = militaryToMinutes(event.start_time_24h);
+          const endMins = startMins + (event.duration_minutes || 0);
+
+          // Find first available lane
+          let assignedLane = -1;
+          for (let i = 0; i < lanes.length; i++) {
+            if (startMins >= lanes[i]) {
+              assignedLane = i;
+              lanes[i] = endMins;
+              break;
+            }
+          }
+          if (assignedLane === -1) {
+            assignedLane = lanes.length;
+            lanes.push(endMins);
+          }
+          event.lane = assignedLane;
+        }
+
+        // Set total lanes for this group
+        const totalLanes = lanes.length;
+        for (const event of group) {
+          event.totalLanes = totalLanes;
+        }
+      }
+
+      return layoutEvents;
+    }
+
+    function renderCalendar(containerId, ticksId, events, isInitial, scheduledEvent = null, calendarOwner = null, ghostEvent = null) {
+      const container = document.getElementById(containerId);
+      const ticksContainer = document.getElementById(ticksId);
 
       // Full 24 hour day in minutes
       const minTimeMinutes = 0;
-      const maxTimeMinutes = 24 * 60;
       const rangeMinutes = 24 * 60;
 
       // Generate hour markers (one line per hour)
@@ -611,50 +1221,71 @@
         markersHtml += `<div class="timeline-hour-marker" style="left: ${pct}%"></div>`;
       }
 
+      // Generate time ticks
+      let ticksHtml = '';
+      for (let h = 0; h <= 24; h++) {
+        const pct = (h / 24) * 100;
+        const label = h === 0 ? '12a' : h === 12 ? '12p' : h === 24 ? '12a' : h < 12 ? `${h}a` : `${h - 12}p`;
+        ticksHtml += `<span class="absolute text-[10px]" style="left: ${pct}%; transform: translateX(-50%)">${label}</span>`;
+      }
+      ticksContainer.innerHTML = ticksHtml;
+
+      // Compute layout for stacking overlapping events (include ghost event if present)
+      let eventsWithGhost = [...events];
+      if (ghostEvent && ghostEvent.start_time_24h && ghostEvent.duration_minutes) {
+        eventsWithGhost.push({ ...ghostEvent, _isGhost: true });
+      }
+      const layoutEvents = computeEventLayout(eventsWithGhost);
+
       // Generate events
-      let eventsHtml = events.map((rawEvent, idx) => {
-        const event = normalizeEvent(rawEvent);
+      let eventsHtml = layoutEvents.map((event) => {
+        const rawEvent = event.raw || {};
+        const isGhost = event._isGhost || rawEvent._isGhost;
         const startMinutes = militaryToMinutes(event.start_time_24h);
         const left = ((startMinutes - minTimeMinutes) / rangeMinutes) * 100;
         const width = (event.duration_minutes / rangeMinutes) * 100;
 
+        // Calculate vertical position based on lane
+        const totalLanes = event.totalLanes || 1;
+        const lane = event.lane || 0;
+        const padding = 4; // px padding top/bottom
+        const heightPercent = (100 - (padding * 2 / 160 * 100)) / totalLanes; // 160px is container height (h-40)
+        const topPercent = padding / 160 * 100 + (lane * heightPercent);
+
         let bgColor = 'bg-blue-500';  // Default: owned by calendar owner
         let textColor = 'text-white';
-        let border = '';
+        let borderColor = 'border-blue-700';
+        let borderStyle = 'border';
+        let ringStyle = '';
+        let extraStyles = '';
 
-        // Color based on ownership
-        if (event.organizer && calendarOwner && event.organizer !== calendarOwner) {
-          bgColor = 'bg-teal-500';  // Not owned by calendar owner
+        // Ghost event styling (use transparent bg instead of opacity so popup stays opaque)
+        if (isGhost) {
+          bgColor = 'bg-amber-200/60 dark:bg-amber-900/40';
+          textColor = 'text-amber-700 dark:text-amber-300';
+          borderColor = 'border-amber-500';
+          borderStyle = 'border-2 border-dashed';
         }
-
-        // Build emoji prefix for label (only on initial calendar where we have this info)
-        let emojiPrefix = '';
-        if (isInitial) {
-          if (event.is_movable === false) {
-            emojiPrefix += '🔒';  // Lock for unmoveable
-          }
-          if (event.is_secret) {
-            emojiPrefix += '🤫';  // Shhh for secret
-          }
-          if (emojiPrefix) {
-            emojiPrefix += ' ';
-          }
+        // Color based on ownership (for non-ghost events)
+        else if (event.organizer && calendarOwner && event.organizer !== calendarOwner) {
+          bgColor = 'bg-teal-500';  // Not owned by calendar owner
+          borderColor = 'border-teal-700';
         }
 
         // Check if this is the scheduled event (in final calendar)
-        // Use ring highlight but preserve the background color (e.g., purple for secrets)
-        if (!isInitial && scheduledEvent &&
+        if (!isGhost && !isInitial && scheduledEvent &&
             event.title === scheduledEvent.title &&
             event.start_time_24h === scheduledEvent.start_time_24h) {
           if (!event.is_secret) {
             bgColor = 'bg-amber-500';
+            borderColor = 'border-amber-700';
           }
-          border = 'ring-2 ring-amber-300';
+          ringStyle = 'ring-2 ring-amber-300';
         }
 
-        const label = emojiPrefix + event.title;
+        const label = event.title;
 
-        // Build attendees list with status (use raw event's attendees if available)
+        // Build attendees list with status
         const attendees = rawEvent.attendees || [];
         const attendeesHtml = attendees.length > 0
           ? attendees.map(a => {
@@ -671,12 +1302,13 @@
         let popupHtml = `
           <div class="event-popup">
             <div class="font-semibold text-sm mb-2 break-words">${escapeHtml(event.title)}</div>
+            ${isGhost ? `<div class="text-xs text-amber-600 dark:text-amber-400 mb-2">Requested Event (Preview)</div>` : ''}
             <div class="space-y-1">
               <div><span class="text-gray-500 dark:text-gray-400">Time:</span> ${formatTime(event.start_time_24h)} - ${formatTime(event.end_time_24h)} (${formatDuration(event.duration_minutes)})</div>
               ${event.description ? `<div><span class="text-gray-500 dark:text-gray-400">Description:</span> ${escapeHtml(event.description)}</div>` : ''}
-              <div><span class="text-gray-500 dark:text-gray-400">Attendees:</span><div class="ml-2 text-xs">${attendeesHtml}</div></div>
+              ${!isGhost ? `<div><span class="text-gray-500 dark:text-gray-400">Attendees:</span><div class="ml-2 text-xs">${attendeesHtml}</div></div>` : ''}
               ${event.organizer ? `<div><span class="text-gray-500 dark:text-gray-400">Organizer:</span> ${escapeHtml(event.organizer)}</div>` : ''}
-              ${isInitial ? `
+              ${isInitial && !isGhost ? `
                 <div class="flex gap-3 mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
                   <span class="${event.is_movable ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${event.is_movable ? '✓ Movable' : '✗ Not Movable'}</span>
                   <span class="${event.is_secret ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'}">${event.is_secret ? '🔒 Secret' : '○ Not Secret'}</span>
@@ -686,8 +1318,8 @@
           </div>
         `;
 
-        return `<div class="timeline-event ${bgColor} ${textColor} ${border}"
-                     style="left: ${left}%; width: ${width}%;"><span class="event-label">${label}</span>${popupHtml}</div>`;
+        return `<div class="timeline-event ${bgColor} ${textColor} ${borderStyle} ${borderColor} ${ringStyle}"
+                     style="left: ${left}%; width: ${width}%; top: ${topPercent}%; height: ${heightPercent}%; ${extraStyles}"><div class="event-content"><span class="event-label">${label}</span></div>${popupHtml}</div>`;
       }).join('');
 
       container.innerHTML = markersHtml + '<div class="absolute inset-0">' + eventsHtml + '</div>';
@@ -695,21 +1327,22 @@
       // Legend
       const legendId = containerId.replace('calendar', 'legend');
       const legendContainer = document.getElementById(legendId);
-      if (isInitial) {
-        legendContainer.innerHTML = `
-          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span> Owned</span>
-          <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-teal-500 rounded"></span> Not Owned</span>
-          <span class="inline-flex items-center gap-1 ml-3">🔒 Non-movable</span>
-          <span class="inline-flex items-center gap-1 ml-3">🤫 Secret</span>
-        `;
-      } else {
-        legendContainer.innerHTML = `
-          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span> Owned</span>
-          <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-teal-500 rounded"></span> Not Owned</span>
-          ${scheduledEvent
-            ? `<span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-amber-500 rounded ring-2 ring-amber-300"></span> Scheduled</span>`
-            : `<span class="ml-3 text-gray-400">(No new event scheduled)</span>`}
-        `;
+      if (legendContainer) {
+        if (isInitial) {
+          legendContainer.innerHTML = `
+            <span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 border border-blue-700 rounded"></span> Owned</span>
+            <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-teal-500 border border-teal-700 rounded"></span> Not Owned</span>
+            ${ghostEvent ? `<span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-amber-100 dark:bg-amber-900/30 border-2 border-dashed border-amber-500 rounded"></span> Requested</span>` : ''}
+          `;
+        } else {
+          legendContainer.innerHTML = `
+            <span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 border border-blue-700 rounded"></span> Owned</span>
+            <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-teal-500 border border-teal-700 rounded"></span> Not Owned</span>
+            ${scheduledEvent
+              ? `<span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-amber-500 border border-amber-700 rounded ring-2 ring-amber-300"></span> Scheduled</span>`
+              : `<span class="ml-3 text-gray-400">(No new event scheduled)</span>`}
+          `;
+        }
       }
     }
 
@@ -795,6 +1428,135 @@
 
       return normalized;
     }
+
+    // System Prompt Helper Functions
+    function findCommonPrefix(strings) {
+      if (!strings || strings.length === 0) return '';
+      if (strings.length === 1) return strings[0];
+
+      let minLen = Math.min(...strings.map(s => s.length));
+      let prefixLen = 0;
+      for (let i = 0; i < minLen; i++) {
+        const char = strings[0][i];
+        if (strings.every(s => s[i] === char)) {
+          prefixLen = i + 1;
+        } else {
+          break;
+        }
+      }
+
+      // Break at newline boundary for cleaner display
+      const rawPrefix = strings[0].substring(0, prefixLen);
+      const lastNewline = rawPrefix.lastIndexOf('\n');
+      if (lastNewline > prefixLen * 0.5) {
+        return rawPrefix.substring(0, lastNewline + 1);
+      }
+      return rawPrefix;
+    }
+
+    function computeCommonPrefixes() {
+      const allRequestorPrompts = [];
+      const allAssistantPrompts = [];
+
+      for (const result of evaluationData) {
+        const requestorContext = result.execution?.requestor_context || [];
+        const assistantContext = result.execution?.assistant_context || [];
+
+        const requestorPrompt = requestorContext.find(m => m.role === 'system')?.content || '';
+        const assistantPrompt = assistantContext.find(m => m.role === 'system')?.content || '';
+
+        if (requestorPrompt) allRequestorPrompts.push(requestorPrompt);
+        if (assistantPrompt) allAssistantPrompts.push(assistantPrompt);
+      }
+
+      requestorCommonPrefix = findCommonPrefix(allRequestorPrompts);
+      assistantCommonPrefix = findCommonPrefix(allAssistantPrompts);
+    }
+
+    function renderSystemPrompts(result) {
+      const requestorContext = result.execution?.requestor_context || [];
+      const assistantContext = result.execution?.assistant_context || [];
+
+      const requestorPrompt = requestorContext.find(m => m.role === 'system')?.content || '';
+      const assistantPrompt = assistantContext.find(m => m.role === 'system')?.content || '';
+
+      // Display common prefixes
+      document.getElementById('requestor-common-prompt').textContent = requestorCommonPrefix || '(No common prefix)';
+      document.getElementById('assistant-common-prompt').textContent = assistantCommonPrefix || '(No common prefix)';
+
+      // Display variable suffixes for this task
+      const requestorVariable = requestorPrompt.substring(requestorCommonPrefix.length);
+      const assistantVariable = assistantPrompt.substring(assistantCommonPrefix.length);
+
+      document.getElementById('requestor-variable-prompt').textContent = requestorVariable || '(No variable content)';
+      document.getElementById('assistant-variable-prompt').textContent = assistantVariable || '(No variable content)';
+
+      // Display user instructions (first user message in each context)
+      const requestorInstruction = requestorContext.find(m => m.role === 'user')?.content || '';
+      const assistantInstruction = assistantContext.find(m => m.role === 'user')?.content || '';
+
+      document.getElementById('requestor-instruction').textContent = requestorInstruction || '(No instruction)';
+      document.getElementById('assistant-instruction').textContent = assistantInstruction || '(No instruction)';
+    }
+
+    // Dynamic tooltip positioning to prevent overflow
+    function positionTooltip(container) {
+      const tooltip = container.querySelector('.tooltip-content');
+      if (!tooltip) return;
+
+      // Reset classes
+      container.classList.remove('tooltip-left', 'tooltip-right', 'tooltip-below');
+
+      // Get positions
+      const containerRect = container.getBoundingClientRect();
+      const tooltipRect = tooltip.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+
+      // Check horizontal overflow
+      const tooltipCenterX = containerRect.left + containerRect.width / 2;
+      const tooltipHalfWidth = tooltipRect.width / 2;
+
+      if (tooltipCenterX - tooltipHalfWidth < 10) {
+        container.classList.add('tooltip-left');
+      } else if (tooltipCenterX + tooltipHalfWidth > viewportWidth - 10) {
+        container.classList.add('tooltip-right');
+      }
+
+      // Check vertical overflow (tooltip appears above by default)
+      if (containerRect.top - tooltipRect.height - 16 < 10) {
+        container.classList.add('tooltip-below');
+      }
+    }
+
+    // Add event listeners to all tooltip containers
+    document.addEventListener('mouseenter', (e) => {
+      const container = e.target.closest('.tooltip-container');
+      if (container) {
+        positionTooltip(container);
+      }
+    }, true);
+
+    // Toggle max-height for expandable panels
+    function toggleMaxHeight(button, targetId) {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+
+      const isExpanded = target.classList.contains('expanded');
+      if (isExpanded) {
+        target.classList.remove('expanded');
+        button.textContent = 'Expand';
+      } else {
+        target.classList.add('expanded');
+        button.textContent = 'Collapse';
+      }
+    }
+
+    // Toggle light/dark theme
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    }
+
   </script>
 </body>
 </html>
