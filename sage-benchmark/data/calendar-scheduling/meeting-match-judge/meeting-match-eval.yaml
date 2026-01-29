@@ -1,0 +1,263 @@
+# Meeting Match Judge Evaluation Dataset
+# Test cases for evaluating the meeting match LLM judge
+# Each test case compares a requested meeting against a single candidate meeting
+# Categories: semantic_match (should match), no_match (should not match)
+
+test_cases:
+  # ============================================================================
+  # POSITIVE CASES - Candidate represents the same meeting
+  # ============================================================================
+
+  - id: exact_match
+    requested:
+      uid: "bob@example.com-20240315-review"
+      title: "Project Review"
+      description: "Review project milestones and deliverables"
+      organizer: bob@example.com
+      date: "2024-03-15"
+      start_time: "10:00"
+      end_time: "11:00"
+      attendees:
+        - email: bob@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: AWAITING-RESPONSE
+    candidate:
+      uid: "bob@example.com-20240315-review"
+      title: "Project Review"
+      description: "Review project milestones and deliverables"
+      organizer: bob@example.com
+      date: "2024-03-15"
+      start_time: "10:00"
+      end_time: "11:00"
+      attendees:
+        - email: bob@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: ACCEPTED
+    expected_matched: true
+    category: semantic_match
+    notes: "Exact match - identical meeting details"
+
+  - id: date_time_changed
+    requested:
+      uid: "frank@example.com-20240327-demo"
+      title: "Product Demo"
+      description: "Demo new features to stakeholders"
+      organizer: frank@example.com
+      date: "2024-03-27"
+      start_time: "15:00"
+      end_time: "16:00"
+      attendees:
+        - email: frank@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: AWAITING-RESPONSE
+    candidate:
+      uid: "frank@example.com-20240328-demo"
+      title: "Product Demo"
+      description: "Demo new features to stakeholders"
+      organizer: frank@example.com
+      date: "2024-03-28"
+      start_time: "10:00"
+      end_time: "11:00"
+      attendees:
+        - email: frank@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: ACCEPTED
+    expected_matched: true
+    category: semantic_match
+    notes: "Same meeting but date and time were changed"
+
+  - id: title_slightly_changed
+    requested:
+      uid: "carol@example.com-20240320-sync"
+      title: "Team Sync"
+      description: "Weekly team synchronization meeting"
+      organizer: carol@example.com
+      date: "2024-03-20"
+      start_time: "14:00"
+      end_time: "15:00"
+      attendees:
+        - email: carol@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: AWAITING-RESPONSE
+    candidate:
+      uid: "carol@example.com-20240320-sync"
+      title: "Weekly Team Sync Meeting"
+      description: "Weekly team synchronization meeting"
+      organizer: carol@example.com
+      date: "2024-03-20"
+      start_time: "14:00"
+      end_time: "15:00"
+      attendees:
+        - email: carol@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: ACCEPTED
+    expected_matched: true
+    category: semantic_match
+    notes: "Same meeting but title was slightly modified"
+
+  - id: description_slightly_changed
+    requested:
+      uid: "dave@example.com-20240322-planning"
+      title: "Sprint Planning"
+      description: "Plan the upcoming sprint tasks"
+      organizer: dave@example.com
+      date: "2024-03-22"
+      start_time: "09:00"
+      end_time: "10:30"
+      attendees:
+        - email: dave@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: AWAITING-RESPONSE
+    candidate:
+      uid: "dave@example.com-20240322-planning"
+      title: "Sprint Planning"
+      description: "Plan the upcoming sprint tasks and assign story points"
+      organizer: dave@example.com
+      date: "2024-03-22"
+      start_time: "09:00"
+      end_time: "10:30"
+      attendees:
+        - email: dave@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: ACCEPTED
+    expected_matched: true
+    category: semantic_match
+    notes: "Same meeting but description was slightly elaborated"
+
+  - id: flip_attendee_organizer
+    requested:
+      uid: "bob@example.com-20240315-review"
+      title: "Project Review"
+      description: "Review project milestones and deliverables"
+      organizer: bob@example.com
+      date: "2024-03-15"
+      start_time: "10:00"
+      end_time: "11:00"
+      attendees:
+        - email: bob@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: AWAITING-RESPONSE
+    candidate:
+      uid: "alice@example.com-20240315-review"
+      title: "Project Review"
+      description: "Review project milestones and deliverables"
+      organizer: alice@example.com
+      date: "2024-03-15"
+      start_time: "10:00"
+      end_time: "11:00"
+      attendees:
+        - email: bob@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: ACCEPTED
+    expected_matched: true
+    category: semantic_match
+    notes: "Same meeting but organizer and attendee roles are flipped (counter-proposal)"
+
+  - id: additional_attendee_added
+    requested:
+      uid: "eve@example.com-20240325-1on1"
+      title: "1:1 Meeting"
+      description: "Regular one-on-one catch up"
+      organizer: eve@example.com
+      date: "2024-03-25"
+      start_time: "11:00"
+      end_time: "11:30"
+      attendees:
+        - email: eve@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: AWAITING-RESPONSE
+    candidate:
+      uid: "eve@example.com-20240325-1on1"
+      title: "1:1 Meeting"
+      description: "Regular one-on-one catch up"
+      organizer: eve@example.com
+      date: "2024-03-25"
+      start_time: "11:00"
+      end_time: "11:30"
+      attendees:
+        - email: eve@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: ACCEPTED
+        - email: charlie@example.com
+          status: ACCEPTED
+    expected_matched: true
+    category: semantic_match
+    notes: "Same meeting but an additional attendee was added"
+
+  # ============================================================================
+  # NEGATIVE CASES - Candidate is a different meeting
+  # ============================================================================
+
+  - id: title_totally_changed
+    requested:
+      uid: "helen@example.com-20240403-budget"
+      title: "Budget Review"
+      description: "Review Q2 budget allocations"
+      organizer: helen@example.com
+      date: "2024-04-03"
+      start_time: "10:00"
+      end_time: "11:00"
+      attendees:
+        - email: helen@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: AWAITING-RESPONSE
+    candidate:
+      uid: "helen@example.com-20240403-standup"
+      title: "Daily Standup"
+      description: "Review Q2 budget allocations"
+      organizer: helen@example.com
+      date: "2024-04-03"
+      start_time: "10:00"
+      end_time: "11:00"
+      attendees:
+        - email: helen@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: ACCEPTED
+    expected_matched: false
+    category: no_match
+    notes: "Title is completely different despite same description"
+
+  - id: description_totally_changed
+    requested:
+      uid: "ivan@example.com-20240405-review"
+      title: "Design Review"
+      description: "Review UI/UX designs for mobile app"
+      organizer: ivan@example.com
+      date: "2024-04-05"
+      start_time: "11:00"
+      end_time: "12:00"
+      attendees:
+        - email: ivan@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: AWAITING-RESPONSE
+    candidate:
+      uid: "ivan@example.com-20240405-review"
+      title: "Design Review"
+      description: "Review backend API architecture and database schema"
+      organizer: ivan@example.com
+      date: "2024-04-05"
+      start_time: "11:00"
+      end_time: "12:00"
+      attendees:
+        - email: ivan@example.com
+          status: ACCEPTED
+        - email: alice@example.com
+          status: ACCEPTED
+    expected_matched: false
+    category: no_match
+    notes: "Description is completely different despite same title"
