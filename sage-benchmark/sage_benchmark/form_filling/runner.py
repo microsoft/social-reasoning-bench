@@ -32,6 +32,16 @@ from sage_benchmark.form_filling.utils import reconstruct_task_execution_result
 logger = logging.getLogger(__name__)
 
 
+def normalize_model_name(name: str) -> str:
+    """Normalize model name for use in file paths and JSON output.
+
+    Replaces '/' with '_' to avoid path issues.
+    """
+    if name is None:
+        return name
+    return name.replace("/", "_")
+
+
 def append_batch_to_json_list(path: Path, items: list[dict]):
     """Atomically append multiple items to JSON array.
 
@@ -138,11 +148,11 @@ async def run_tasks(
 
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         if execution_mode == "one-shot":
-            run_dir = output_path / f"run_{model_name}_{timestamp_str}"
+            run_dir = output_path / f"run_{normalize_model_name(model_name)}_{timestamp_str}"
         else:
             run_dir = (
                 output_path
-                / f"run_{timestamp_str}_interactive_interviewer_{interviewer_model}_assistant_{model_name}"
+                / f"run_{timestamp_str}_interactive_interviewer_{normalize_model_name(interviewer_model)}_assistant_{normalize_model_name(model_name)}"
             )
         run_dir.mkdir(parents=True, exist_ok=True)
 
