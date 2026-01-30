@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Sync folders to/from Azure Blob Storage."""
+"""Sync folders to/from Azure Blob Storage.
+
+Usage:
+    uv run --group azure sync.py upload <local-path> <remote-path> [--force]
+    uv run --group azure sync.py download <remote-path> <local-path> [--force]
+    uv run --group azure sync.py ls [path]
+
+Remote paths are relative to social-reasoning/ in the blob container.
+"""
 
 import subprocess
 from datetime import datetime, timedelta, timezone
@@ -63,6 +71,41 @@ def azcopy_cp(src, dst, recursive=True):
     return subprocess.run(cmd, check=True)
 
 
+def get_blob_client():
+    credential = AzureCliCredential()
+    return BlobServiceClient(
+        account_url=f"https://{ACCOUNT}.blob.core.windows.net", credential=credential
+    )
+
+
+def list_remote_files(remote_path: str) -> set[str]:
+    """List all files at a remote path (relative to BLOB_BASE)."""
+    blob_service = get_blob_client()
+    container_client = blob_service.get_container_client(CONTAINER)
+    prefix = f"{BLOB_BASE}/{remote_path.rstrip('/')}/"
+
+    files = set()
+    for blob in container_client.list_blobs(name_starts_with=prefix):
+        relative = blob.name[len(prefix) :]
+        if relative:
+            files.add(relative)
+    return files
+
+
+def list_local_files(local_path: Path) -> set[str]:
+    """List all files in a local directory (relative paths)."""
+    files = set()
+    for file in local_path.rglob("*"):
+        if file.is_file():
+            files.add(str(file.relative_to(local_path)))
+    return files
+
+
+def check_conflicts(source_files: set[str], dest_files: set[str]) -> set[str]:
+    """Return files that exist in both source and destination."""
+    return source_files & dest_files
+
+
 @click.group()
 def cli():
     """Sync folders to/from Azure Blob Storage."""
@@ -70,20 +113,37 @@ def cli():
 
 
 @cli.command()
-@click.argument("folder_path")
-def upload(folder_path):
+@click.argument("local_path")
+@click.argument("remote_path")
+@click.option("--force", "-f", is_flag=True, help="Overwrite existing files")
+def upload(local_path, remote_path, force):
     """Upload a local folder to Azure.
 
-    Example: uv run --group azure sync.py upload sage-benchmark/outputs/jan-9-2026-calendar-results
+    Examples:
+        uv run --group azure sync.py upload ./my-results experiment-results
+        uv run --group azure sync.py upload ./data calendar/1-30-experiment
+        uv run --group azure sync.py upload ./data calendar/1-30-experiment --force
     """
-    local_path = Path(folder_path).resolve()
-    if not local_path.exists():
-        raise click.ClickException(f"Local folder not found: {local_path}")
+    local = Path(local_path).resolve()
+    if not local.exists():
+        raise click.ClickException(f"Local path not found: {local}")
 
-    folder_name = local_path.name
-    remote_blob = f"{BLOB_BASE}/{folder_name}"
+    remote_blob = f"{BLOB_BASE}/{remote_path.strip('/')}"
 
-    src_url = str(local_path)
+    if not force:
+        local_files = list_local_files(local)
+        remote_files = list_remote_files(remote_path)
+        conflicts = check_conflicts(local_files, remote_files)
+
+        if conflicts:
+            click.echo("ERROR: The following files already exist on remote:", err=True)
+            for f in sorted(conflicts)[:10]:
+                click.echo(f"  - {f}", err=True)
+            if len(conflicts) > 10:
+                click.echo(f"  ... and {len(conflicts) - 10} more", err=True)
+            raise click.ClickException("Use --force to overwrite existing files")
+
+    src_url = str(local)
     dst_url = get_sas_url(
         ACCOUNT,
         CONTAINER,
@@ -93,28 +153,45 @@ def upload(folder_path):
         ),
     )
 
-    click.echo(f"Uploading {local_path} -> {ACCOUNT}/{CONTAINER}/{remote_blob}")
+    click.echo(f"Uploading {local} -> {ACCOUNT}/{CONTAINER}/{remote_blob}")
     azcopy_cp(src_url, dst_url)
     click.echo("Done!")
 
 
 @cli.command()
-@click.argument("folder_path")
-def download(folder_path):
+@click.argument("remote_path")
+@click.argument("local_path")
+@click.option("--force", "-f", is_flag=True, help="Overwrite existing files")
+def download(remote_path, local_path, force):
     """Download a folder from Azure to local.
 
-    Example: uv run --group azure sync.py download sage-benchmark/outputs/jan-9-2026-calendar-results
+    Examples:
+        uv run --group azure sync.py download experiment-results ./my-results
+        uv run --group azure sync.py download calendar/1-30-experiment ./data
+        uv run --group azure sync.py download calendar/1-30-experiment ./data --force
     """
-    local_path = Path(folder_path).resolve()
-    folder_name = local_path.name
-    remote_blob = f"{BLOB_BASE}/{folder_name}"
+    local = Path(local_path).resolve()
+    remote_blob = f"{BLOB_BASE}/{remote_path.strip('/')}"
+
+    if not force and local.exists():
+        remote_files = list_remote_files(remote_path)
+        local_files = list_local_files(local)
+        conflicts = check_conflicts(remote_files, local_files)
+
+        if conflicts:
+            click.echo("ERROR: The following files already exist locally:", err=True)
+            for f in sorted(conflicts)[:10]:
+                click.echo(f"  - {f}", err=True)
+            if len(conflicts) > 10:
+                click.echo(f"  ... and {len(conflicts) - 10} more", err=True)
+            raise click.ClickException("Use --force to overwrite existing files")
+
+    local.mkdir(parents=True, exist_ok=True)
 
     src_url = get_sas_url(ACCOUNT, CONTAINER, remote_blob)
-    dst_url = str(local_path)
+    dst_url = str(local)
 
-    local_path.mkdir(parents=True, exist_ok=True)
-
-    click.echo(f"Downloading {ACCOUNT}/{CONTAINER}/{remote_blob} -> {local_path}")
+    click.echo(f"Downloading {ACCOUNT}/{CONTAINER}/{remote_blob} -> {local}")
     azcopy_cp(src_url, dst_url)
     click.echo("Done!")
 

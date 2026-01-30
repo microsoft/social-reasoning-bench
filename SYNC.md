@@ -4,23 +4,12 @@ Sync large experiment results to/from Azure Blob Storage.
 
 **Azure location:** `aifrontiersplus/magentic/social-reasoning/`
 
-## Synced Folders
-
-Please add your folder to this table so others are aware of what data is available.
-
-| Path | Date | Description |
-|------|------|-------------|
-| `sage-benchmark/outputs/calendar_scheduling/jan-9-2026-calendar-results` | 2026-01-09 | Created by Tyler to run the calendar benchmark, includes viz files |
-| `datasets/gullibility/output/{config, pages, strategies, config_private_strategies, private_strategies_list.csv}` | 2026-01-28 | Gullibility dataset: configs, Wikipedia pages, strategies |
-| `environments/coffee/results/{gullibility_test_claude_45, gullibility_test_gemini_3, gullibility_test_gpt_5, gullibility_test_qwen_4b, plain_claude_45, private_strategies_claude_45}` | 2026-01-28 | Gullibility experiment results across models |
-| | |
-
 ## Setup
 
 Install the azure dependencies:
 
 ```bash
-uv sync --group azure
+uv sync --all-groups
 ```
 
 You'll also need `azcopy` installed and `az login` authenticated.
@@ -28,15 +17,48 @@ You'll also need `azcopy` installed and `az login` authenticated.
 ## Usage
 
 ```bash
-# List top-level remote folders
-uv run --group azure sync.py ls
+# Upload a local folder to a remote path
+uv run sync.py upload <local-path> <remote-path>
 
-# List contents of a specific folder
-uv run --group azure sync.py ls calendar_scheduling
+# Download a remote path to a local folder
+uv run sync.py download <remote-path> <local-path>
 
-# Upload a folder
-uv run --group azure sync.py upload sage-benchmark/outputs/calendar_scheduling/jan-9-2026-calendar-results
-
-# Download a folder
-uv run --group azure sync.py download sage-benchmark/outputs/calendar_scheduling/jan-9-2026-calendar-results
+# List remote folders
+uv run sync.py ls [path]
 ```
+
+Remote paths are relative to `social-reasoning/` in the blob container.
+
+## Examples
+
+```bash
+# Upload local results to remote
+uv run sync.py upload ./my-results experiment-results
+uv run sync.py upload ./data calendar/1-30-experiment
+
+# Download remote results to local
+uv run sync.py download experiment-results ./my-results
+uv run sync.py download calendar/1-30-experiment ./local-data
+
+# List contents
+uv run sync.py ls
+uv run sync.py ls calendar
+```
+
+## Overwrite Protection
+
+By default, uploads and downloads will **fail** if any files would be overwritten. This protects against accidentally clobbering existing data.
+
+```bash
+# This will fail if remote already has files with the same names
+uv run sync.py upload ./my-results experiment-results
+# ERROR: The following files already exist on remote:
+#   - result1.json
+#   - result2.json
+# Error: Use --force to overwrite existing files
+
+# Use --force to overwrite
+uv run sync.py upload ./my-results experiment-results --force
+```
+
+
