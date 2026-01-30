@@ -27,7 +27,9 @@ TRAPI_SUPPORTED_PARAMS = [
 ]
 
 # Default API version - works for most models
-DEFAULT_API_VERSION = "2024-10-21"
+# see https://trapi-portal.research.microsoft.com/batch for latest version
+# DEFAULT_API_VERSION = "2024-10-21"
+DEFAULT_API_VERSION = "2025-04-01-preview"
 
 # Model name -> deployment name mapping
 # Reference: models.tsv
