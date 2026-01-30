@@ -9,14 +9,13 @@ from typing import Literal
 import yaml
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-from sage_llm import ModelClient
-
 from sage_benchmark.calendar_scheduling.loader import load_calendar_tasks
 from sage_benchmark.calendar_scheduling.types import (
     CalendarTask,
     EmailThread,
     Note,
 )
+from sage_llm import ModelClient
 
 
 class TaskArtifacts(BaseModel):
@@ -168,8 +167,8 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default="gpt-5.1",
-        help="Model to use for generation (default: gpt-5.1)",
+        required=True,
+        help="Model to use for generation",
     )
     parser.add_argument(
         "--artifacts-per-task",

@@ -3,11 +3,63 @@
 import logging
 import traceback
 
+import litellm
+import openai
+
 from sage_benchmark.shared.executors import TaskPoolExecutor
 
 logger = logging.getLogger(__name__)
 
 from sage_llm import ModelClient
+
+
+def _is_fatal_error(e: Exception) -> bool:
+    """Check if error is fatal (should stop task immediately).
+
+    Fatal errors are unrecoverable and indicate the task cannot continue:
+    - Authentication failures (invalid API key)
+    - Permission denied (no access to model)
+    - Model not found
+    - Quota exhausted (billing issue)
+    - Budget exceeded (litellm proxy budget)
+
+    Other errors (rate limits, timeouts, network issues) are recoverable.
+
+    References:
+    - https://docs.litellm.ai/docs/exception_mapping
+    - https://platform.openai.com/docs/guides/error-codes
+    """
+    # Check litellm exception types first
+    if isinstance(e, litellm.AuthenticationError):
+        return True  # 401 - Invalid API key
+    if isinstance(e, litellm.PermissionDeniedError):
+        return True  # 403 - No access to model
+    if isinstance(e, litellm.NotFoundError):
+        return True  # 404 - Model doesn't exist
+    if hasattr(litellm, "BudgetExceededError") and isinstance(e, litellm.BudgetExceededError):
+        return True  # litellm proxy budget constraint
+
+    # Check openai exception types (may not be wrapped by litellm yet)
+    if isinstance(e, openai.AuthenticationError):
+        return True  # 401 - Invalid API key
+    if isinstance(e, openai.PermissionDeniedError):
+        return True  # 403 - No access to model
+    if isinstance(e, openai.NotFoundError):
+        return True  # 404 - Model doesn't exist
+
+    # RateLimitError can be either fatal (quota) or recoverable (rate limit)
+    # Distinguish by checking error message for 'insufficient_quota' vs 'rate_limit_exceeded'
+    if isinstance(e, (litellm.RateLimitError, openai.RateLimitError)):
+        error_str = str(e).lower()
+        # Check for quota exhaustion (fatal)
+        if "insufficient_quota" in error_str or "exceeded your current quota" in error_str:
+            return True  # Fatal - billing/quota issue
+        # Otherwise it's a recoverable rate limit (throttling)
+        return False
+
+    # All other errors are considered recoverable (timeouts, service unavailable, etc.)
+    return False
+
 
 from .agents.calendar_assistant import CalendarAssistantAgent
 from .agents.calendar_base import CalendarAgent
@@ -40,10 +92,10 @@ async def _run_agent_turn(
     for _ in range(max_steps):
         try:
             tool_call = await agent.generate_tool_call()
-        except Exception:
-            # If we can't generate a tool call, treat as end of turn
+        except Exception as e:
+            # Log the error and re-raise to let caller decide if it's fatal
             logger.error("Error generating tool call: %s", traceback.format_exc())
-            break
+            raise
 
         all_tool_calls.append(tool_call)
 
@@ -199,20 +251,37 @@ async def run_single_task(
         assistant_email=assistant_email,
     )
 
+    # Track execution state
+    rounds_completed = 0
+    fatal_error = None
+    conversation_ended_naturally = False
+
     # Main simulation loop - assistant goes first since requestor already sent request
     for round_idx in range(max_rounds):
         logger.info("Task %d - Round %d", task_index, round_idx + 1)
+        rounds_completed = round_idx + 1
 
         # Inject emails into assistant's context at start of their turn
         assistant_emails = assistant_resources.email.get_unread()
         assistant_agent.add_new_messages(assistant_emails)
 
         # Assistant turn
-        assistant_tool_calls, assistant_ended = await _run_agent_turn(
-            assistant_agent, assistant_resources, max_steps_per_turn
-        )
+        assistant_ended = False
+        try:
+            assistant_tool_calls, assistant_ended = await _run_agent_turn(
+                assistant_agent, assistant_resources, max_steps_per_turn
+            )
+        except Exception as e:
+            if _is_fatal_error(e):
+                fatal_error = f"Assistant fatal error in round {round_idx + 1}: {str(e)}"
+                logger.error("Task %d - Fatal error: %s", task_index, fatal_error)
+                break
+            # Recoverable error - already logged in _run_agent_turn
+            # End this turn and continue to next round
+            logger.warning("Task %d - Recoverable error in assistant turn, ending turn", task_index)
 
         if assistant_ended:
+            conversation_ended_naturally = True
             break
 
         # Inject emails into requestor's context at start of their turn
@@ -220,14 +289,32 @@ async def run_single_task(
         requestor_agent.add_new_messages(requestor_emails)
 
         # Requestor turn
-        requestor_tool_calls, requestor_ended = await _run_agent_turn(
-            requestor_agent, requestor_resources, max_steps_per_turn
-        )
+        requestor_ended = False
+        try:
+            requestor_tool_calls, requestor_ended = await _run_agent_turn(
+                requestor_agent, requestor_resources, max_steps_per_turn
+            )
+        except Exception as e:
+            if _is_fatal_error(e):
+                fatal_error = f"Requestor fatal error in round {round_idx + 1}: {str(e)}"
+                logger.error("Task %d - Fatal error: %s", task_index, fatal_error)
+                break
+            # Recoverable error - already logged in _run_agent_turn
+            # End this turn and continue to next round
+            logger.warning("Task %d - Recoverable error in requestor turn, ending turn", task_index)
 
         if requestor_ended:
+            conversation_ended_naturally = True
             break
 
-    logger.info("Task %d completed", task_index)
+    max_rounds_reached = rounds_completed >= max_rounds and not conversation_ended_naturally
+    logger.info(
+        "Task %d completed - rounds: %d, max_rounds_reached: %s, fatal_error: %s",
+        task_index,
+        rounds_completed,
+        max_rounds_reached,
+        fatal_error is not None,
+    )
 
     return TaskExecutionResult(
         task_index=task_index,
@@ -239,6 +326,9 @@ async def run_single_task(
         requestor_context=list(requestor_agent._messages),
         assistant_tools=assistant_agent.tools,
         requestor_tools=requestor_agent.tools,
+        rounds_completed=rounds_completed,
+        max_rounds_reached=max_rounds_reached,
+        fatal_error=fatal_error,
     )
 
 

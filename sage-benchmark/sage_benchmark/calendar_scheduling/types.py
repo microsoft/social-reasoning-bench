@@ -190,6 +190,7 @@ class CalendarAssistant(BaseModel):
 
 
 class CalendarTask(BaseModel):
+    id: int | None = Field(default=None, description="Task identifier")
     type: Literal["calendar"]
     requestor: CalendarRequestor = Field(description="The requestor agent configuration")
     assistant: CalendarAssistant = Field(description="The assistant agent configuration")
@@ -257,6 +258,21 @@ class TaskExecutionResult(BaseModel):
     requestor_context: list[ChatCompletionMessageParam]
     assistant_tools: list[ChatCompletionFunctionToolParam]
     requestor_tools: list[ChatCompletionFunctionToolParam]
+    # Execution health tracking
+    rounds_completed: int = Field(description="Actual number of conversation rounds completed")
+    max_rounds_reached: bool = Field(
+        description="Whether task hit max_rounds limit (informational only)"
+    )
+    fatal_error: str | None = Field(
+        default=None,
+        description="Fatal error message if task failed due to unrecoverable API error, None if successful",
+    )
+
+    @computed_field
+    @property
+    def is_valid(self) -> bool:
+        """Valid execution: no fatal errors occurred."""
+        return self.fatal_error is None
 
 
 # Evaluation types
