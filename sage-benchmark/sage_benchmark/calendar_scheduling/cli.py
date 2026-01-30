@@ -8,7 +8,12 @@ from dotenv import load_dotenv
 from pydantic_core import to_json
 from sage_llm import ModelClient
 
-from .evaluation.evaluator import evaluate_tasks, print_evaluation_summary, print_per_task_summary
+from .evaluation.evaluator import (
+    compute_evaluation_summary,
+    evaluate_tasks,
+    print_evaluation_summary,
+    print_per_task_summary,
+)
 from .loader import load_artifacts, load_calendar_tasks
 from .runner import run_tasks
 from .types import BenchmarkMetadata, BenchmarkOutput, CalendarTask
@@ -276,7 +281,8 @@ async def run():
         batch_size=args.batch_size,
         task_count=len(tasks),
     )
-    output = BenchmarkOutput(metadata=metadata, results=eval_results)
+    summary = compute_evaluation_summary(eval_results)
+    output = BenchmarkOutput(metadata=metadata, summary=summary, results=eval_results)
 
     output_path = Path(
         args.output or default_output_filename(assistant_model, requestor_model, judge_model)
@@ -286,7 +292,7 @@ async def run():
     logger.info("Saved %d evaluation results to %s", len(eval_results), output_path)
 
     print_per_task_summary(eval_results)
-    print_evaluation_summary(eval_results)
+    print_evaluation_summary(summary)
 
 
 def main():

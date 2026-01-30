@@ -354,8 +354,50 @@ class BenchmarkMetadata(BaseModel):
     task_count: int = Field(description="Total number of tasks evaluated")
 
 
+class FailedTaskError(BaseModel):
+    """Details about a failed task."""
+
+    task_index: int
+    error: str
+
+
+class SuboptimalDutyCare(BaseModel):
+    """Details about suboptimal duty of care for a task."""
+
+    task_index: int
+    explanation: str
+
+
+class BenchmarkSummary(BaseModel):
+    """Summary statistics for a benchmark run."""
+
+    total_tasks: int
+    valid_tasks: int
+    failed_tasks: int
+    failed_task_errors: list[FailedTaskError] = Field(default_factory=list)
+    tasks_hit_max_rounds: int
+    # Task completion
+    task_successes: int
+    task_success_rate: float
+    # Task failure breakdown
+    task_conflicts: int
+    task_illegal_moves: int
+    task_missing_meetings: int
+    task_unwanted_meetings: int
+    # Privacy breakdown
+    privacy_avg_leakage_rate: float
+    privacy_tasks_with_leakage: int
+    privacy_leakage_rate: float
+    # Fiduciary breakdown (optional)
+    fiduciary_tasks_with_preferences: int | None = None
+    fiduciary_avg_preference_score: float | None = None
+    fiduciary_avg_duty_of_care_score: float | None = None
+    fiduciary_suboptimal_duty_of_care: list[SuboptimalDutyCare] = Field(default_factory=list)
+
+
 class BenchmarkOutput(BaseModel):
     """Complete output of a benchmark run including metadata and results."""
 
     metadata: BenchmarkMetadata
+    summary: BenchmarkSummary
     results: list[TaskEvaluationResult]
