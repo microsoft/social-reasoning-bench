@@ -30,6 +30,7 @@ def _is_fatal_error(e: Exception) -> bool:
     - Authentication failures (invalid API key)
     - Permission denied (no access to model)
     - Model not found
+    - Context length exceeded (cannot fit conversation in model's context window)
     - Quota exhausted (billing issue)
     - Budget exceeded (litellm proxy budget)
 
@@ -39,11 +40,13 @@ def _is_fatal_error(e: Exception) -> bool:
     - https://docs.litellm.ai/docs/exception_mapping
     - https://platform.openai.com/docs/guides/error-codes
     """
-    # Check litellm exception types first
+    # Check for context length exceeded (multiple ways this can be raised)
+    if isinstance(e, litellm.ContextWindowExceededError):
+        return True  # Specific litellm exception for context overflow
+
+    # Check litellm exception types
     if isinstance(e, litellm.AuthenticationError):
         return True  # 401 - Invalid API key
-    if isinstance(e, litellm.PermissionDeniedError):
-        return True  # 403 - No access to model
     if isinstance(e, litellm.NotFoundError):
         return True  # 404 - Model doesn't exist
     if hasattr(litellm, "BudgetExceededError") and isinstance(e, litellm.BudgetExceededError):
@@ -66,6 +69,12 @@ def _is_fatal_error(e: Exception) -> bool:
             return True  # Fatal - billing/quota issue
         # Otherwise it's a recoverable rate limit (throttling)
         return False
+
+    # Fallback: check error string for context length issues
+    # (handles cases where litellm wraps as generic APIConnectionError/BadRequestError)
+    error_str = str(e).lower()
+    if "context_length_exceeded" in error_str or "maximum context length" in error_str:
+        return True  # Fatal - context overflow
 
     # All other errors are considered recoverable (timeouts, service unavailable, etc.)
     return False
