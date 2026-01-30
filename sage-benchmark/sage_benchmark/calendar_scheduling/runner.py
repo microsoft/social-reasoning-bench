@@ -12,6 +12,16 @@ logger = logging.getLogger(__name__)
 
 from sage_llm import ModelClient
 
+from .agents.calendar_assistant import CalendarAssistantAgent
+from .agents.calendar_base import CalendarAgent
+from .agents.calendar_requestor import CalendarRequestorAgent
+from .environment import (
+    AgentResources,
+    CalendarSchedulingEnvironment,
+)
+from .environment.actions import EndConversation, RequestMeeting, Wait
+from .types import Artifact, CalendarTask, Meeting, TaskExecutionResult, Tool, ToolError
+
 
 def _is_fatal_error(e: Exception) -> bool:
     """Check if error is fatal (should stop task immediately).
@@ -59,17 +69,6 @@ def _is_fatal_error(e: Exception) -> bool:
 
     # All other errors are considered recoverable (timeouts, service unavailable, etc.)
     return False
-
-
-from .agents.calendar_assistant import CalendarAssistantAgent
-from .agents.calendar_base import CalendarAgent
-from .agents.calendar_requestor import CalendarRequestorAgent
-from .environment import (
-    AgentResources,
-    CalendarSchedulingEnvironment,
-)
-from .environment.actions import EndConversation, RequestMeeting, Wait
-from .types import Artifact, CalendarTask, Meeting, TaskExecutionResult, Tool, ToolError
 
 
 async def _run_agent_turn(
