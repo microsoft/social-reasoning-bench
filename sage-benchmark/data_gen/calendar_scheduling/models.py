@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field
-from sage_benchmark.calendar_scheduling.types import LabeledMeeting
 
 
 class Department(BaseModel):
