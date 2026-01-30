@@ -36,9 +36,10 @@ class Tool(BaseModel):
         schema.pop("title", None)
 
         # Gemini requires non-empty properties for type: object
-        # If there are no properties, return empty dict to signal no parameters
+        # If there are no properties, return minimal valid schema
+        # (Anthropic API requires "type" field in input_schema)
         if schema.get("properties") == {}:
-            return {}
+            return {"type": "object", "properties": {}}
 
         return schema
 
