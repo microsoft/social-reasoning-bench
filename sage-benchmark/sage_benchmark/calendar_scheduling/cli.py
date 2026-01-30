@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from pydantic_core import to_json
 from sage_llm import ModelClient
 
+from .agents.assistant import get_system_prompt, list_available_presets
 from .evaluation.evaluator import (
     compute_evaluation_summary,
     evaluate_tasks,
@@ -157,6 +158,20 @@ def parse_args() -> argparse.Namespace:
         help="Path to artifacts JSON file to inject into assistant context",
     )
 
+    # System prompt options
+    parser.add_argument(
+        "--assistant-system-prompt",
+        choices=list_available_presets(),
+        default="none",
+        help="System prompt preset for assistant agent (default: none)",
+    )
+    parser.add_argument(
+        "--assistant-system-prompt-file",
+        type=Path,
+        default=None,
+        help="Path to custom system prompt file (overrides --assistant-system-prompt)",
+    )
+
     # Task limiting option
     parser.add_argument(
         "--limit",
@@ -249,6 +264,21 @@ async def run():
         logger.info(f"Loading artifacts from {args.artifacts}...")
         artifacts_by_task = load_artifacts(args.artifacts)
 
+    # Resolve system prompt
+    if args.assistant_system_prompt_file:
+        if not args.assistant_system_prompt_file.exists():
+            raise FileNotFoundError(
+                f"System prompt file not found: {args.assistant_system_prompt_file}"
+            )
+        system_prompt: str | None = args.assistant_system_prompt_file.read_text().strip()
+        logger.info(f"Using custom system prompt from {args.assistant_system_prompt_file}")
+    else:
+        system_prompt = get_system_prompt(args.assistant_system_prompt)
+        if system_prompt is None:
+            logger.info("Running without system prompt")
+        else:
+            logger.info(f"Using system prompt preset: {args.assistant_system_prompt}")
+
     logger.info("Running %d task(s)...", len(tasks))
     execution_results = await run_tasks(
         tasks=tasks,
@@ -259,6 +289,7 @@ async def run():
         max_rounds=args.max_rounds,
         batch_size=args.batch_size,
         artifacts_by_task=artifacts_by_task,
+        system_prompt=system_prompt,
     )
 
     logger.info("Evaluating %d execution results...", len(execution_results))
@@ -280,6 +311,7 @@ async def run():
         max_rounds=args.max_rounds,
         batch_size=args.batch_size,
         task_count=len(tasks),
+        system_prompt=args.assistant_system_prompt,
     )
     summary = compute_evaluation_summary(eval_results)
     output = BenchmarkOutput(metadata=metadata, summary=summary, results=eval_results)

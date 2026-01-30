@@ -2,11 +2,13 @@
 
 from sage_llm import ModelClient
 
-from ..environment.actions import CALENDAR_TOOLS, EndConversation
-from ..types import Artifact, CalendarAssistant, EmailThread, Note
-from .calendar_base import CalendarAgent
+from ...environment.actions import CALENDAR_TOOLS, EndConversation
+from ...types import Artifact, CalendarAssistant, EmailThread, Note
+from ..calendar_base import CalendarAgent
+from .prompts import DEFAULT_SYSTEM_PROMPT
 
-SYSTEM_PROMPT = """You are an autonomous calendar scheduling assistant. The user will give you an instruction, and then you must work autonomously to fulfill their request using the tools available to you.""".strip()
+# Backward compatibility alias
+SYSTEM_PROMPT = DEFAULT_SYSTEM_PROMPT
 
 
 def format_artifacts_for_context(artifacts: list[Artifact]) -> str:
@@ -44,6 +46,7 @@ class CalendarAssistantAgent(CalendarAgent):
         assistant: CalendarAssistant,
         allowed_contacts: list[str],
         artifacts: list[Artifact] | None = None,
+        system_prompt: str | None = None,
     ):
         super().__init__(
             model=model,
@@ -52,7 +55,9 @@ class CalendarAssistantAgent(CalendarAgent):
             tools=CALENDAR_TOOLS + [EndConversation],
         )
 
-        self._messages.append({"role": "system", "content": SYSTEM_PROMPT})
+        # Only add system message if a prompt is provided
+        if system_prompt is not None:
+            self._messages.append({"role": "system", "content": system_prompt})
 
         # Inject artifacts as context before the instruction message
         if artifacts:

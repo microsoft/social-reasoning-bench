@@ -1,4 +1,4 @@
-from .calendar_assistant import CalendarAssistantAgent
+from .assistant import CalendarAssistantAgent
 from .calendar_base import CalendarAgent
 from .calendar_requestor import CalendarRequestorAgent
 

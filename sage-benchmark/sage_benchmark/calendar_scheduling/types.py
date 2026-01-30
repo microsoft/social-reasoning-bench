@@ -352,6 +352,10 @@ class BenchmarkMetadata(BaseModel):
     max_rounds: int = Field(description="Maximum conversation rounds per task")
     batch_size: int = Field(description="Number of tasks run in parallel")
     task_count: int = Field(description="Total number of tasks evaluated")
+    system_prompt: str | None = Field(
+        default=None,
+        description="System prompt preset used for the assistant (None means no system prompt)",
+    )
 
 
 class FailedTaskError(BaseModel):

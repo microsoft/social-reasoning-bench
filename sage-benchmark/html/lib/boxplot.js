@@ -102,6 +102,8 @@ const BoxPlot = (function() {
    * - colors: [...] - Custom Tailwind color classes
    * - showLegend: true - Show/hide legend
    * - showZoomControls: true - Show/hide zoom controls
+   * - showHorizontalZoom: true - Show/hide horizontal range slider
+   * - horizontalZoom: { start: 0, end: 100 } - Initial horizontal zoom range (percentage)
    * - zoomLevel: 1 - Initial zoom level (1 = default, 2 = 2x height, etc.)
    * - labelWidth: 'w-36' - Width class for series labels
    * - formatValue: (v) => v.toFixed(1) + '%' - Value formatter
@@ -127,18 +129,71 @@ const BoxPlot = (function() {
       colors: defaultColors,
       showLegend: true,
       showZoomControls: true,
+      showHorizontalZoom: true,
+      horizontalZoom: { start: 0, end: 100 },
       zoomLevel: 1,
       labelWidth: 'w-36',
-      formatValue: (v) => (v * 100).toFixed(1) + '%',
+      formatValue: (v) => v.toFixed(1) + '%',
       pointThreshold: 2,
       escapeHtml: (s) => s, // Default no-op, caller should provide proper escaping
       ...options
     };
 
-    const { scale, ticks, xAxisLabel, colors, showLegend, showZoomControls, zoomLevel, labelWidth, formatValue, pointThreshold, escapeHtml } = opts;
+    const { scale, ticks, xAxisLabel, colors, showLegend, showZoomControls, showHorizontalZoom, horizontalZoom, zoomLevel, labelWidth, formatValue, pointThreshold, escapeHtml } = opts;
     const scaleMin = scale.min;
     const scaleMax = scale.max;
-    const toPercent = (v) => ((v - scaleMin) / (scaleMax - scaleMin)) * 100;
+    
+    // Horizontal zoom: map values to the zoomed range
+    const hzStart = horizontalZoom.start;
+    const hzEnd = horizontalZoom.end;
+    const hzRange = hzEnd - hzStart;
+    
+    // toPercent maps a value to its position in the ZOOMED view (0-100%)
+    // Values outside the zoom range will be < 0 or > 100
+    const toPercent = (v) => {
+      const fullPercent = ((v - scaleMin) / (scaleMax - scaleMin)) * 100;
+      return ((fullPercent - hzStart) / hzRange) * 100;
+    };
+    
+    // Check if a value is within the visible range
+    const isVisible = (v) => {
+      const fullPercent = ((v - scaleMin) / (scaleMax - scaleMin)) * 100;
+      return fullPercent >= hzStart && fullPercent <= hzEnd;
+    };
+
+    // Get tooltip positioning classes based on percent position
+    // Avoids tooltips being cut off at edges
+    const getTooltipPosition = (percent) => {
+      if (percent < 15) {
+        // Near left edge - align tooltip to the left
+        return {
+          container: 'left-0',
+          arrow: 'left-2'
+        };
+      } else if (percent > 85) {
+        // Near right edge - align tooltip to the right
+        return {
+          container: 'right-0',
+          arrow: 'right-2'
+        };
+      } else {
+        // Center - default centered positioning
+        return {
+          container: 'left-1/2 -translate-x-1/2',
+          arrow: 'left-1/2 -translate-x-1/2'
+        };
+      }
+    };
+
+    // Generate tooltip HTML with proper edge positioning
+    const makeTooltip = (percent, content) => {
+      const pos = getTooltipPosition(percent);
+      return `
+        <div class="absolute bottom-full ${pos.container} mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
+          ${content}
+          <div class="absolute top-full ${pos.arrow} border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+        </div>`;
+    };
 
     // Neutral color for box/whiskers when series has subseries with multiple colors
     const neutralColor = { bg: 'bg-gray-400', border: 'border-gray-400', borderLight: 'border-gray-200', text: 'text-gray-400' };
@@ -181,10 +236,12 @@ const BoxPlot = (function() {
     // Build HTML
     let html = '<div class="space-y-4 pt-2">';
 
+    // Ensure container has an ID for event handlers
+    const containerId = containerEl.id || `boxplot-${Date.now()}`;
+    if (!containerEl.id) containerEl.id = containerId;
+
     // Zoom controls
     if (showZoomControls) {
-      const containerId = containerEl.id || `boxplot-${Date.now()}`;
-      if (!containerEl.id) containerEl.id = containerId;
       html += `
         <div class="flex justify-end gap-1 mb-2">
           <button onclick="BoxPlot.zoom('${containerId}', 0.5)" class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 transition-colors" title="Zoom out (smaller rows)">
@@ -195,6 +252,35 @@ const BoxPlot = (function() {
           </button>
           <button onclick="BoxPlot.zoom('${containerId}', 2)" class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 transition-colors" title="Zoom in (larger rows)">
             ${zoomInIcon}
+          </button>
+        </div>
+      `;
+    }
+
+    // Horizontal zoom range slider
+    if (showHorizontalZoom) {
+      html += `
+        <div class="flex items-center gap-2 mb-3">
+          <div class="${labelWidth} text-xs text-gray-500 dark:text-gray-400 font-medium">X-Axis Range</div>
+          <div class="flex-1 relative">
+            <div class="boxplot-hzoom-container relative h-6 select-none" data-container-id="${containerId}">
+              <!-- Track background -->
+              <div class="absolute top-1/2 left-0 right-0 h-1 bg-gray-200 dark:bg-gray-600 rounded -translate-y-1/2"></div>
+              <!-- Selected range highlight -->
+              <div class="boxplot-hzoom-range absolute top-1/2 h-1 bg-blue-400 dark:bg-blue-500 rounded -translate-y-1/2" style="left: ${hzStart}%; right: ${100 - hzEnd}%"></div>
+              <!-- Start handle -->
+              <div class="boxplot-hzoom-handle boxplot-hzoom-start absolute top-1/2 w-3 h-3 bg-white border-2 border-blue-500 rounded-full cursor-ew-resize -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform" style="left: ${hzStart}%" data-handle="start"></div>
+              <!-- End handle -->
+              <div class="boxplot-hzoom-handle boxplot-hzoom-end absolute top-1/2 w-3 h-3 bg-white border-2 border-blue-500 rounded-full cursor-ew-resize -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform" style="left: ${hzEnd}%" data-handle="end"></div>
+              <!-- Tick marks -->
+              ${[0, 25, 50, 75, 100].map(t => `<div class="absolute top-full text-[10px] text-gray-400 -translate-x-1/2 mt-0.5" style="left: ${t}%">${t}</div>`).join('')}
+            </div>
+          </div>
+          <div class="text-xs text-gray-500 dark:text-gray-400 w-20 text-right">
+            <span class="boxplot-hzoom-label">${hzStart.toFixed(0)}% - ${hzEnd.toFixed(0)}%</span>
+          </div>
+          <button onclick="BoxPlot.resetHorizontalZoom('${containerId}')" class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 transition-colors" title="Reset horizontal zoom">
+            ${resetIcon}
           </button>
         </div>
       `;
@@ -294,7 +380,7 @@ const BoxPlot = (function() {
         html += `
           <div class="flex items-center gap-2">
             <div class="${labelWidth} text-xs ${labelColor.text} font-medium truncate" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
-            <div class="flex-1 relative bg-gray-100 dark:bg-gray-700 rounded overflow-visible" style="height: ${minRowHeight}px">
+            <div class="flex-1 relative bg-gray-100 dark:bg-gray-700 rounded" style="height: ${minRowHeight}px; overflow-x: clip; overflow-y: visible;">
               <!-- Grid lines -->
               ${ticks.map(t => `<div class="absolute h-full border-l border-dashed border-gray-200 dark:border-gray-600" style="left: ${t}%"></div>`).join('')}
 
@@ -333,10 +419,7 @@ const BoxPlot = (function() {
                 return `
               <div class="absolute top-1/2 -translate-y-1/2 group z-[8]" style="left: ${q1Percent}%">
                 <div class="cursor-pointer -translate-x-1/2" style="width: ${medianWidth}px; height: ${boxHeight}px"></div>
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
-                  ${q1Items.join('')}
-                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                </div>
+                ${makeTooltip(q1Percent, q1Items.join(''))}
               </div>`;
               })()}
 
@@ -362,31 +445,26 @@ const BoxPlot = (function() {
                 return `
               <div class="absolute top-1/2 -translate-y-1/2 group z-[8]" style="left: ${q3Percent}%">
                 <div class="cursor-pointer -translate-x-1/2" style="width: ${medianWidth}px; height: ${boxHeight}px"></div>
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
-                  ${q3Items.join('')}
-                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                </div>
+                ${makeTooltip(q3Percent, q3Items.join(''))}
               </div>`;
               })()}
 
               <!-- Median marker (vertical line) -->
               <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group z-10" style="left: ${toPercent(median)}%">
                 <div class="${boxColor.bg} cursor-pointer rounded-sm shadow-sm border ${boxColor.borderLight || 'border-white/50'}" style="width: ${medianWidth}px; height: ${medianHeight}px"></div>
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
+                ${makeTooltip(toPercent(median), `
                   <div class="font-medium">Median</div>
                   <div class="text-gray-300">${formatValue(median)}</div>
-                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                </div>
+                `)}
               </div>
 
               <!-- Mean marker (diamond) -->
               <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group z-10" style="left: ${toPercent(mean)}%">
                 <div class="${boxColor.bg} rotate-45 cursor-pointer border ${boxColor.borderLight || 'border-white/50'}" style="width: ${meanSize}px; height: ${meanSize}px"></div>
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
+                ${makeTooltip(toPercent(mean), `
                   <div class="font-medium">Mean</div>
                   <div class="text-gray-300">${formatValue(mean)}</div>
-                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                </div>
+                `)}
               </div>
 
               <!-- Data points - stacked when overlapping, with per-point colors for subseries -->
@@ -419,10 +497,7 @@ const BoxPlot = (function() {
                   return `
                     <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group z-20" style="left: ${p.percent}%">
                       <div class="${p.color.bg} rounded-full border ${p.color.borderLight || 'border-white'} cursor-pointer" style="width: ${pointSize}px; height: ${pointSize}px"></div>
-                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
-                        ${tooltipItems.join('')}
-                        <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                      </div>
+                      ${makeTooltip(p.percent, tooltipItems.join(''))}
                     </div>`;
                 } else {
                   // Distribute stacked points evenly within row height
@@ -440,10 +515,7 @@ const BoxPlot = (function() {
                           <div class="${p.color.bg} rounded-full border ${p.color.borderLight || 'border-white'} cursor-pointer" style="width: ${pointSize}px; height: ${pointSize}px; margin-top: ${i === 0 ? firstMargin : subsequentMargin}px;"></div>
                         `).join('')}
                       </div>
-                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-[100]">
-                        ${tooltipItems.join('')}
-                        <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                      </div>
+                      ${makeTooltip(avgPercent, tooltipItems.join(''))}
                     </div>`;
                 }
               }).join('')}
@@ -455,12 +527,20 @@ const BoxPlot = (function() {
       html += '</div>';
     });
 
-    // X-axis labels
+    // X-axis labels - show actual values based on horizontal zoom range
+    // Generate ticks that span the visible range
+    const xAxisTicks = [0, 25, 50, 75, 100]; // Positions in the zoomed view
+    const xAxisLabels = xAxisTicks.map(t => {
+      // Convert zoomed position back to actual value
+      const actualValue = hzStart + (t / 100) * hzRange;
+      return { position: t, label: `${actualValue.toFixed(0)}%` };
+    });
+    
     html += `
       <div class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
         <div class="${labelWidth} text-xs text-gray-500 dark:text-gray-400 font-medium">${escapeHtml(xAxisLabel)}</div>
         <div class="flex-1 relative h-5">
-          ${ticks.map(t => `<div class="absolute text-xs text-gray-400 -translate-x-1/2" style="left: ${t}%">${t}%</div>`).join('')}
+          ${xAxisLabels.map(t => `<div class="absolute text-xs text-gray-400 -translate-x-1/2" style="left: ${t.position}%">${t.label}</div>`).join('')}
         </div>
       </div>
     `;
@@ -500,6 +580,84 @@ const BoxPlot = (function() {
 
     html += '</div>';
     containerEl.innerHTML = html;
+
+    // Set up horizontal zoom slider event handlers
+    if (showHorizontalZoom) {
+      setupHorizontalZoomHandlers(containerEl, containerId);
+    }
+  }
+
+  /**
+   * Set up drag handlers for horizontal zoom sliders
+   */
+  function setupHorizontalZoomHandlers(containerEl, containerId) {
+    const hzoomContainer = containerEl.querySelector('.boxplot-hzoom-container');
+    if (!hzoomContainer) return;
+
+    const startHandle = hzoomContainer.querySelector('.boxplot-hzoom-start');
+    const endHandle = hzoomContainer.querySelector('.boxplot-hzoom-end');
+    const rangeBar = hzoomContainer.querySelector('.boxplot-hzoom-range');
+    const label = containerEl.querySelector('.boxplot-hzoom-label');
+
+    let isDragging = false;
+    let activeHandle = null;
+
+    const getPercentFromEvent = (e) => {
+      const rect = hzoomContainer.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      return Math.max(0, Math.min(100, (x / rect.width) * 100));
+    };
+
+    const updateVisuals = (start, end) => {
+      startHandle.style.left = `${start}%`;
+      endHandle.style.left = `${end}%`;
+      rangeBar.style.left = `${start}%`;
+      rangeBar.style.right = `${100 - end}%`;
+      if (label) {
+        label.textContent = `${start.toFixed(0)}% - ${end.toFixed(0)}%`;
+      }
+    };
+
+    const onMouseDown = (e, handle) => {
+      e.preventDefault();
+      isDragging = true;
+      activeHandle = handle;
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    };
+
+    const onMouseMove = (e) => {
+      if (!isDragging || !activeHandle) return;
+
+      const opts = containerEl._boxplotOptions;
+      const hz = opts.horizontalZoom;
+      const percent = getPercentFromEvent(e);
+
+      if (activeHandle === 'start') {
+        const newStart = Math.min(percent, hz.end - 5); // Minimum 5% range
+        updateVisuals(newStart, hz.end);
+        hz.start = newStart;
+      } else {
+        const newEnd = Math.max(percent, hz.start + 5); // Minimum 5% range
+        updateVisuals(hz.start, newEnd);
+        hz.end = newEnd;
+      }
+    };
+
+    const onMouseUp = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      activeHandle = null;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+
+      // Re-render with new horizontal zoom
+      const opts = containerEl._boxplotOptions;
+      render(containerEl, containerEl._boxplotData, opts);
+    };
+
+    startHandle.addEventListener('mousedown', (e) => onMouseDown(e, 'start'));
+    endHandle.addEventListener('mousedown', (e) => onMouseDown(e, 'end'));
   }
 
   /**
@@ -538,10 +696,60 @@ const BoxPlot = (function() {
     });
   }
 
+  /**
+   * Reset horizontal zoom to show full range (0-100%)
+   * @param {string|HTMLElement} container - Container element or ID
+   */
+  function resetHorizontalZoom(container) {
+    const containerEl = typeof container === 'string'
+      ? document.getElementById(container)
+      : container;
+
+    if (!containerEl || !containerEl._boxplotData || !containerEl._boxplotOptions) {
+      console.error('BoxPlot: Cannot reset horizontal zoom - container not found or not initialized');
+      return;
+    }
+
+    // Re-render with full horizontal range
+    render(containerEl, containerEl._boxplotData, {
+      ...containerEl._boxplotOptions,
+      horizontalZoom: { start: 0, end: 100 }
+    });
+  }
+
+  /**
+   * Set horizontal zoom to a specific range
+   * @param {string|HTMLElement} container - Container element or ID
+   * @param {number} start - Start percentage (0-100)
+   * @param {number} end - End percentage (0-100)
+   */
+  function setHorizontalZoom(container, start, end) {
+    const containerEl = typeof container === 'string'
+      ? document.getElementById(container)
+      : container;
+
+    if (!containerEl || !containerEl._boxplotData || !containerEl._boxplotOptions) {
+      console.error('BoxPlot: Cannot set horizontal zoom - container not found or not initialized');
+      return;
+    }
+
+    // Validate range
+    const validStart = Math.max(0, Math.min(100, start));
+    const validEnd = Math.max(validStart + 5, Math.min(100, end));
+
+    // Re-render with new horizontal range
+    render(containerEl, containerEl._boxplotData, {
+      ...containerEl._boxplotOptions,
+      horizontalZoom: { start: validStart, end: validEnd }
+    });
+  }
+
   // Public API
   return {
     render,
     zoom,
+    resetHorizontalZoom,
+    setHorizontalZoom,
     computeBoxPlotStats,
     getMedian,
     getColorForIndex,

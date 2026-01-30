@@ -253,12 +253,13 @@
     // State
     let loadedModels = []; // { modelName: string, data: TaskEvaluationResult[], filename: string }[]
     let includedTasks = new Set(); // Set of task indices included in charts
-    let pivotOrder = ['slice', 'assistant', 'requestor', 'judge'];
+    let pivotOrder = ['slice', 'assistant', 'prompt', 'requestor', 'judge'];
     // Track which slices are enabled for charts (by index into sliceDefinitions)
     let enabledSlices = new Set([0, 1, 2, 3, 4]); // All enabled by default
     const dimensionLabels = {
       slice: 'Slice',
       assistant: 'Assistant',
+      prompt: 'Prompt',
       requestor: 'Requestor',
       judge: 'Judge'
     };
@@ -375,6 +376,7 @@
         const metRate = getMetExpectationsRate(data);
         const leakageAgg = getLeakageRateAggregate(data);
         const failures = getFailuresByType(data);
+        const promptId = getSystemPromptId(m);
 
         return `
           <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
@@ -382,6 +384,7 @@
               <button class="delete-btn" onclick="removeModel('${escapeHtml(m.filename)}')" title="Remove file">&times;</button>
             </td>
             <td class="py-2 px-3 text-gray-700 dark:text-gray-300 font-medium">${escapeHtml(m.metadata?.assistant_model || m.modelName)}</td>
+            <td class="py-2 px-3 text-gray-600 dark:text-gray-400" title="${escapeHtml(promptId)}">${escapeHtml(promptId.length > 20 ? promptId.substring(0, 20) + '...' : promptId)}</td>
             <td class="py-2 px-3 text-gray-600 dark:text-gray-400">${escapeHtml(m.metadata?.requestor_model || '-')}</td>
             <td class="py-2 px-3 text-gray-600 dark:text-gray-400">${escapeHtml(m.metadata?.judge_model || '-')}</td>
             <td class="py-2 px-3 text-right text-gray-600 dark:text-gray-400">${data.length}</td>
@@ -402,6 +405,7 @@
               <tr class="border-b border-gray-200 dark:border-gray-700">
                 <th class="py-2 px-2 w-10"></th>
                 <th class="text-left py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Assistant</th>
+                <th class="text-left py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Prompt</th>
                 <th class="text-left py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Requestor</th>
                 <th class="text-left py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Judge</th>
                 <th class="text-right py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">Tasks</th>
@@ -452,11 +456,86 @@
       return { conflicts, illegalMoves, missingEvents, unwantedEvents };
     }
 
-    // Helper to group models by (assistant, requestor, judge) tuple
+    // Build a map of known preset names to their prompt content (from files with metadata)
+    function buildKnownPresetsMap() {
+      const presetToContent = new Map();
+      const contentToPreset = new Map();
+      
+      loadedModels.forEach(m => {
+        // Only use files that have metadata.system_prompt
+        if (m.metadata?.system_prompt !== undefined) {
+          const presetName = m.metadata.system_prompt || 'none';
+          
+          // Extract actual content from assistant_context
+          if (m.data && m.data.length > 0) {
+            const firstResult = m.data[0];
+            const context = firstResult.execution?.assistant_context;
+            if (context && context.length > 0 && context[0].role === 'system') {
+              const content = context[0].content || '';
+              presetToContent.set(presetName, content);
+              contentToPreset.set(content, presetName);
+            } else if (presetName === 'none') {
+              // No system message and preset is 'none' - that's correct
+              contentToPreset.set('', 'none');
+            }
+          }
+        }
+      });
+      
+      return { presetToContent, contentToPreset };
+    }
+
+    // Extract system prompt identifier from a loaded model
+    // Falls back to extracting from assistant_context if metadata.system_prompt is missing
+    // Tries to match against known presets from other loaded files
+    function getSystemPromptId(m) {
+      // If metadata has system_prompt, use it
+      if (m.metadata?.system_prompt !== undefined) {
+        return m.metadata.system_prompt || 'none';
+      }
+      
+      // Fallback: extract from first result's assistant_context
+      if (m.data && m.data.length > 0) {
+        const firstResult = m.data[0];
+        const context = firstResult.execution?.assistant_context;
+        if (context && context.length > 0 && context[0].role === 'system') {
+          const content = context[0].content || '';
+          if (content.length === 0) return 'none';
+          
+          // Try to match against known presets from files with metadata
+          const { contentToPreset } = buildKnownPresetsMap();
+          if (contentToPreset.has(content)) {
+            return contentToPreset.get(content);
+          }
+          
+          // No match found - create identifier from content
+          const shortContent = content.substring(0, 50).replace(/\s+/g, ' ').trim();
+          const hash = simpleHash(content);
+          return `${shortContent}... [${hash}]`;
+        }
+        // No system message found
+        return 'none';
+      }
+      return 'unknown';
+    }
+
+    // Simple hash function for string identification
+    function simpleHash(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      return Math.abs(hash).toString(16).substring(0, 6);
+    }
+
+    // Helper to group models by (assistant, prompt, requestor, judge) tuple
     function getModelGroups() {
       const modelGroups = new Map();
       loadedModels.forEach(m => {
-        const key = `${m.metadata?.assistant_model || '-'}|||${m.metadata?.requestor_model || '-'}|||${m.metadata?.judge_model || '-'}`;
+        const promptId = getSystemPromptId(m);
+        const key = `${m.metadata?.assistant_model || '-'}|||${promptId}|||${m.metadata?.requestor_model || '-'}|||${m.metadata?.judge_model || '-'}`;
         if (!modelGroups.has(key)) {
           modelGroups.set(key, []);
         }
@@ -465,10 +544,10 @@
 
       // Convert to array and sort by "All" slice Correct % descending
       const groupEntries = Array.from(modelGroups.entries()).map(([key, models]) => {
-        const [assistant, requestor, judge] = key.split('|||');
+        const [assistant, prompt, requestor, judge] = key.split('|||');
         const allData = models.flatMap(m => getFilteredData(m.data));
         const metRate = getMetExpectationsRate(allData);
-        return { key, assistant, requestor, judge, models, metRate };
+        return { key, assistant, prompt, requestor, judge, models, metRate };
       });
       groupEntries.sort((a, b) => b.metRate - a.metRate);
       return groupEntries;
@@ -720,6 +799,7 @@
       // Get unique values for model dimensions
       const modelGroups = getModelGroups();
       const uniqueAssistants = [...new Set(modelGroups.map(g => g.assistant))];
+      const uniquePrompts = [...new Set(modelGroups.map(g => g.prompt))];
       const uniqueRequestors = [...new Set(modelGroups.map(g => g.requestor))];
       const uniqueJudges = [...new Set(modelGroups.map(g => g.judge))];
 
@@ -740,6 +820,15 @@
           getLabel: a => a.name,
           filter: (models, val) => ({
             models: models.filter(g => g.assistant === val.name),
+            dataFilter: null
+          })
+        },
+        prompt: {
+          values: uniquePrompts.map(p => ({ name: p })),
+          getKey: p => p.name,
+          getLabel: p => p.name,
+          filter: (models, val) => ({
+            models: models.filter(g => g.prompt === val.name),
             dataFilter: null
           })
         },
@@ -1057,6 +1146,8 @@
         const modelRows = loadedModels.map(m => {
           const result = m.data[i];
           const assistantModel = m.metadata?.assistant_model || '-';
+          const promptPreset = getSystemPromptId(m);
+          const promptDisplay = promptPreset.length > 15 ? promptPreset.substring(0, 15) + '...' : promptPreset;
           const requestorModel = m.metadata?.requestor_model || '-';
           const judgeModel = m.metadata?.judge_model || '-';
 
@@ -1064,6 +1155,7 @@
             return `
               <tr class="border-b border-gray-100 dark:border-gray-600 last:border-b-0">
                 <td class="py-1.5 px-2 text-gray-700 dark:text-gray-300">${escapeHtml(assistantModel)}</td>
+                <td class="py-1.5 px-2 text-gray-700 dark:text-gray-300" title="${escapeHtml(promptPreset)}">${escapeHtml(promptDisplay)}</td>
                 <td class="py-1.5 px-2 text-gray-700 dark:text-gray-300">${escapeHtml(requestorModel)}</td>
                 <td class="py-1.5 px-2 text-gray-700 dark:text-gray-300">${escapeHtml(judgeModel)}</td>
                 <td class="py-1.5 px-2 text-center text-gray-400">-</td>
@@ -1100,6 +1192,7 @@
           return `
             <tr class="border-b border-gray-100 dark:border-gray-600 last:border-b-0">
               <td class="py-1.5 px-2 text-gray-700 dark:text-gray-300">${escapeHtml(assistantModel)}</td>
+              <td class="py-1.5 px-2 text-gray-700 dark:text-gray-300" title="${escapeHtml(promptPreset)}">${escapeHtml(promptDisplay)}</td>
               <td class="py-1.5 px-2 text-gray-700 dark:text-gray-300">${escapeHtml(requestorModel)}</td>
               <td class="py-1.5 px-2 text-gray-700 dark:text-gray-300">${escapeHtml(judgeModel)}</td>
               <td class="py-1.5 px-2 text-center">${resultCell}</td>
@@ -1126,6 +1219,7 @@
                 <thead>
                   <tr class="bg-gray-100 dark:bg-gray-600 text-left">
                     <th class="py-1.5 px-2 text-gray-600 dark:text-gray-300 font-medium">Assistant</th>
+                    <th class="py-1.5 px-2 text-gray-600 dark:text-gray-300 font-medium">Prompt</th>
                     <th class="py-1.5 px-2 text-gray-600 dark:text-gray-300 font-medium">Requestor</th>
                     <th class="py-1.5 px-2 text-gray-600 dark:text-gray-300 font-medium">Judge</th>
                     <th class="py-1.5 px-2 text-gray-600 dark:text-gray-300 font-medium text-center">Result</th>

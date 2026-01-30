@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 from sage_llm import ModelClient
 
-from .agents.calendar_assistant import CalendarAssistantAgent
+from .agents.assistant import CalendarAssistantAgent
 from .agents.calendar_base import CalendarAgent
 from .agents.calendar_requestor import CalendarRequestorAgent
 from .environment import (
@@ -182,6 +182,7 @@ async def run_single_task(
     max_rounds: int = 100,
     max_steps_per_turn: int = 20,
     artifacts: list[Artifact] | None = None,
+    system_prompt: str | None = None,
 ) -> TaskExecutionResult:
     """Run a single calendar scheduling task.
 
@@ -242,6 +243,7 @@ async def run_single_task(
         assistant=task.assistant,
         allowed_contacts=[requestor_email],
         artifacts=artifacts,
+        system_prompt=system_prompt,
     )
 
     requestor_agent = CalendarRequestorAgent(
@@ -350,6 +352,7 @@ async def run_tasks(
     max_steps_per_turn: int = 20,
     batch_size: int = 50,
     artifacts_by_task: dict[int, list[Artifact]] | None = None,
+    system_prompt: str | None = None,
 ) -> list[TaskExecutionResult]:
     """Run a list of tasks in parallel batches.
 
@@ -379,6 +382,7 @@ async def run_tasks(
             max_rounds=max_rounds,
             max_steps_per_turn=max_steps_per_turn,
             artifacts=artifacts_by_task.get(task_index) if artifacts_by_task else None,
+            system_prompt=system_prompt,
         )
         for task_index, task in enumerate(tasks)
     )
