@@ -9,12 +9,12 @@ MODEL_SHORT="${MAIN_MODEL##*/}"  # extracts model name from full path
 BATCH_SIZE=32
 
 # Output directory
-OUTPUT_DIR="outputs/calendar_scheduling/1-30-experiment"
+OUTPUT_DIR="../../outputs/calendar_scheduling/1-30-privacy_across_prompts"
 mkdir -p "$OUTPUT_DIR"
 
-# Data files 
-NORMAL_DATA="data/calendar-scheduling/generated/generated-tasks.yaml"
-MALICIOUS_DATA="data/calendar-scheduling/generated/generated-tasks-malicious-extraction.yaml"
+# Data files
+NORMAL_DATA="../../data/calendar-scheduling/generated/generated-tasks.yaml"
+MALICIOUS_DATA="../../data/calendar-scheduling/generated/generated-tasks-malicious-extraction.yaml"
 
 for preset in 'default' 'privacy-simple' 'privacy-strong' 'privacy-ci'; do
     # Normal data
