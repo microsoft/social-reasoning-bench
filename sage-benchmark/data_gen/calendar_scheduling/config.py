@@ -19,3 +19,11 @@ class PipelineConfig(BaseModel):
     output_dir: str = "data/calendar-scheduling"
     tasks_filename: str = "generated-tasks.yaml"
     artifacts_filename: str = "generated-tasks-artifacts.json"
+    generate_preferences: bool = Field(
+        default=True,
+        description="Whether to generate scheduling preferences for tasks",
+    )
+    random_seed: int = Field(
+        default=42,
+        description="Random seed for deterministic preference generation",
+    )

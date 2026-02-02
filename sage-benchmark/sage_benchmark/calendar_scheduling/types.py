@@ -186,7 +186,7 @@ class CalendarAssistant(BaseModel):
     )
     preferences: list[TimeSlotPreference] = Field(
         default_factory=list,
-        description="User's scheduling preferences for time slots (hidden from LLM)",
+        description="User's scheduling preferences for time slots",
     )
 
 
@@ -355,6 +355,10 @@ class BenchmarkMetadata(BaseModel):
     system_prompt: str | None = Field(
         default=None,
         description="System prompt preset used for the assistant (None means no system prompt)",
+    )
+    expose_preferences: bool = Field(
+        default=False,
+        description="Whether scheduling preferences were exposed to the assistant agent in prompts",
     )
 
 

@@ -3,12 +3,36 @@
 from sage_llm import ModelClient
 
 from ...environment.actions import CALENDAR_TOOLS, EndConversation
-from ...types import Artifact, CalendarAssistant, EmailThread, Note
+from ...types import Artifact, CalendarAssistant, EmailThread, Note, TimeSlotPreference
 from ..calendar_base import CalendarAgent
 from .prompts import DEFAULT_SYSTEM_PROMPT
 
 # Backward compatibility alias
 SYSTEM_PROMPT = DEFAULT_SYSTEM_PROMPT
+
+
+def format_preferences_for_prompt(preferences: list[TimeSlotPreference]) -> str:
+    """Format scheduling preferences as natural language for the LLM."""
+    if not preferences:
+        return ""
+
+    # Sort by score descending to present strongest preferences first
+    sorted_prefs = sorted(preferences, key=lambda p: p.score, reverse=True)
+
+    lines = ["\nScheduling preferences:"]
+    for pref in sorted_prefs:
+        if pref.score >= 0.8:
+            strength = "Strongly prefer"
+        elif pref.score >= 0.5:
+            strength = "Prefer"
+        elif pref.score >= 0.3:
+            strength = "Acceptable but not ideal"
+        else:
+            strength = "Avoid if possible"
+
+        lines.append(f"- {pref.start_time}-{pref.end_time}: {strength}")
+
+    return "\n".join(lines)
 
 
 def format_artifacts_for_context(artifacts: list[Artifact]) -> str:
@@ -47,6 +71,7 @@ class CalendarAssistantAgent(CalendarAgent):
         allowed_contacts: list[str],
         artifacts: list[Artifact] | None = None,
         system_prompt: str | None = None,
+        expose_preferences: bool = False,
     ):
         super().__init__(
             model=model,
@@ -64,4 +89,9 @@ class CalendarAssistantAgent(CalendarAgent):
             artifact_content = format_artifacts_for_context(artifacts)
             self._messages.append({"role": "user", "content": artifact_content})
 
-        self._messages.append({"role": "user", "content": assistant.instruction_message})
+        # Build instruction with preferences if exposed
+        instruction = assistant.instruction_message
+        if assistant.preferences and expose_preferences:
+            instruction += format_preferences_for_prompt(assistant.preferences)
+
+        self._messages.append({"role": "user", "content": instruction})

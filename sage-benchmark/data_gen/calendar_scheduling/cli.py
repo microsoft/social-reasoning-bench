@@ -13,6 +13,7 @@ from .generate_artifacts import generate_artifacts
 from .generate_calendars import generate_calendar
 from .generate_company import generate_companies
 from .generate_employees import generate_employees
+from .generate_preferences import sample_preferences
 from .generate_tasks import generate_tasks_for_employee
 from .models import CalendarEvent, Employee
 from .stats import print_stats
@@ -181,25 +182,39 @@ async def run_pipeline(config: PipelineConfig) -> None:
         ],
     )
 
-    # Step 5: Verify and repair
-    print("\nStep 5: Verifying satisfiability...")
+    # Step 5: Generate preferences
+    if config.generate_preferences:
+        print("\nStep 5: Generating scheduling preferences...")
+
+        for task in all_tasks:
+            # Use deterministic seed based on task ID
+            task_rng = random.Random(config.random_seed + task.id)
+            preferences = sample_preferences(task_rng)
+            task.assistant.preferences = preferences
+            print(f"  Task {task.id}: Generated {len(preferences)} preferences")
+        print(f"  Generated preferences for {len(all_tasks)} tasks")
+    else:
+        print("\nStep 5: Skipping preference generation (disabled)")
+
+    # Step 6: Verify and repair
+    print("\nStep 6: Verifying satisfiability...")
     all_tasks, verification_report = verify_and_repair(all_tasks)
 
     # Re-assign sequential IDs after any drops
     for i, task in enumerate(all_tasks):
         task.id = i
-    _save_step(debug_dir, 5, "verification", verification_report)
+    _save_step(debug_dir, 6, "verification", verification_report)
 
-    # Step 6: Write tasks YAML
+    # Step 7: Write tasks YAML
     output_dir = Path(config.output_dir)
     tasks_path = output_dir / config.tasks_filename
     artifacts_path = output_dir / config.artifacts_filename
 
-    print(f"\nStep 6: Writing tasks to {tasks_path}...")
+    print(f"\nStep 7: Writing tasks to {tasks_path}...")
     write_tasks_yaml(all_tasks, tasks_path)
 
-    # Step 7: Generate artifacts
-    print("\nStep 7: Generating artifacts...")
+    # Step 8: Generate artifacts
+    print("\nStep 8: Generating artifacts...")
     await generate_artifacts(
         tasks_path=str(tasks_path),
         output_path=str(artifacts_path),
@@ -207,13 +222,13 @@ async def run_pipeline(config: PipelineConfig) -> None:
         artifacts_per_task=config.artifacts_per_task,
     )
 
-    # Step 8: Validate output
-    print("\nStep 8: Validating output...")
+    # Step 9: Validate output
+    print("\nStep 9: Validating output...")
     validate_output(str(tasks_path), str(artifacts_path))
 
-    # Step 9: Summary stats
+    # Step 10: Summary stats
     stats = print_stats(all_tasks, employee_calendars)
-    _save_step(debug_dir, 6, "stats", stats)
+    _save_step(debug_dir, 10, "stats", stats)
 
     print(f"\nDone! Output files:")
     print(f"  Tasks:     {tasks_path}")
@@ -245,6 +260,17 @@ def parse_args() -> PipelineConfig:
     parser.add_argument("--output-dir", default="data/calendar-scheduling/generated")
     parser.add_argument("--tasks-filename", default="generated-tasks.yaml")
     parser.add_argument("--artifacts-filename", default="generated-tasks-artifacts.json")
+    parser.add_argument(
+        "--no-generate-preferences",
+        action="store_true",
+        help="Disable automatic preference generation",
+    )
+    parser.add_argument(
+        "--random-seed",
+        type=int,
+        default=42,
+        help="Random seed for deterministic preference generation (default: 42)",
+    )
 
     args = parser.parse_args()
 
@@ -263,6 +289,8 @@ def parse_args() -> PipelineConfig:
         output_dir=args.output_dir,
         tasks_filename=args.tasks_filename,
         artifacts_filename=args.artifacts_filename,
+        generate_preferences=not args.no_generate_preferences,
+        random_seed=args.random_seed,
     )
 
 

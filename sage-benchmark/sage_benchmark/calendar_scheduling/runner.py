@@ -183,6 +183,7 @@ async def run_single_task(
     max_steps_per_turn: int = 20,
     artifacts: list[Artifact] | None = None,
     system_prompt: str | None = None,
+    expose_preferences: bool = False,
 ) -> TaskExecutionResult:
     """Run a single calendar scheduling task.
 
@@ -244,6 +245,7 @@ async def run_single_task(
         allowed_contacts=[requestor_email],
         artifacts=artifacts,
         system_prompt=system_prompt,
+        expose_preferences=expose_preferences,
     )
 
     requestor_agent = CalendarRequestorAgent(
@@ -353,6 +355,7 @@ async def run_tasks(
     batch_size: int = 50,
     artifacts_by_task: dict[int, list[Artifact]] | None = None,
     system_prompt: str | None = None,
+    expose_preferences: bool = False,
 ) -> list[TaskExecutionResult]:
     """Run a list of tasks in parallel batches.
 
@@ -383,6 +386,7 @@ async def run_tasks(
             max_steps_per_turn=max_steps_per_turn,
             artifacts=artifacts_by_task.get(task_index) if artifacts_by_task else None,
             system_prompt=system_prompt,
+            expose_preferences=expose_preferences,
         )
         for task_index, task in enumerate(tasks)
     )

@@ -40,6 +40,8 @@ CLI Options
 | `--output-dir`               | data/calendar-scheduling       | Output directory                               |
 | `--tasks-filename`           | generated-tasks.yaml           | Tasks output filename                          |
 | `--artifacts-filename`       | generated-tasks-artifacts.json | Artifacts output filename                      |
+| `--no-generate-preferences`  | (flag)                         | Disable automatic preference generation        |
+| `--random-seed`              | 42                             | Random seed for deterministic pref generation  |
 
 ## Pipeline Overview
 
@@ -51,10 +53,11 @@ CLI Options
    - External requestors are LLM-generated to match realistic business relationships
    - Labels each calendar event as `is_secret` using Contextual Integrity framework based on requestor relationship
    - Generates meeting request and instruction messages
-5. **Verify Satisfiability** - Validates satisfiable tasks have free gaps available and unsatisfiable tasks have no fitting gaps; repairs or drops invalid tasks
-6. **Generate Artifacts** - LLM creates contextual emails and notes per task
-7. **Validate Output** - Ensures all tasks load correctly through production Pydantic models
-8. **Summary Stats** - Reports secret rates, requestor types, privacy label agreement
+5. **Generate Preferences** - For each task, samples scheduling preferences across 6 time windows (early morning, late morning, lunch, early afternoon, late afternoon, evening). Uses deterministic seeding based on task ID for reproducibility. Can be disabled with `--no-generate-preferences`.
+6. **Verify Satisfiability** - Validates satisfiable tasks have free gaps available and unsatisfiable tasks have no fitting gaps; repairs or drops invalid tasks
+7. **Generate Artifacts** - LLM creates contextual emails and notes per task
+8. **Validate Output** - Ensures all tasks load correctly through production Pydantic models
+9. **Summary Stats** - Reports secret rates, requestor types, privacy label agreement
 
 ## Context-Aware Privacy Labeling
 
@@ -74,7 +77,27 @@ The `internal-requestor-ratio` parameter (default 0.5) controls the mix, achievi
 
 Two files in the output directory:
 
-- `generated-tasks.yaml` -- task definitions (calendars, requests, contacts)
+- `generated-tasks.yaml` -- task definitions (calendars, requests, contacts, preferences)
 - `generated-tasks-artifacts.json` -- contextual emails and notes per task
 
 Debug outputs saved to `_{tasks_filename}_outputs/` with intermediate steps for auditing.
+
+## Scheduling Preferences
+
+Each task includes scheduling preferences for the assistant agent - 6 time slot preferences covering typical working hours (early morning through evening). These preferences are:
+
+- **Generated deterministically** using `random_seed + task_id` for reproducibility
+- **Always included in the data** for evaluation purposes (duty of care metrics)
+- **Optionally exposed to agents** at runtime using the `--expose-preferences` flag when running the benchmark
+
+To control preference exposure when running experiments:
+
+```bash
+# Preferences hidden from agent (used only for evaluation)
+uv run -m sage_benchmark.calendar_scheduling data/calendar-scheduling/generated-tasks.yaml
+
+# Preferences shown to agent in prompt
+uv run -m sage_benchmark.calendar_scheduling data/calendar-scheduling/generated-tasks.yaml --expose-preferences
+```
+
+This separation allows the same data to be used for both "fiduciary duty" experiments (where the agent should optimize for user preferences) and "baseline" experiments (where preferences are hidden but still used to evaluate outcomes).

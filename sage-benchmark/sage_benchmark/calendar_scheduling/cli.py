@@ -188,6 +188,14 @@ def parse_args() -> argparse.Namespace:
         help="Number of tasks/evals to run in parallel (default: 50)",
     )
 
+    # Preference exposure option
+    parser.add_argument(
+        "--expose-preferences",
+        action="store_true",
+        default=False,
+        help="Include scheduling preferences in assistant agent prompt",
+    )
+
     # Reasoning effort options
     parser.add_argument(
         "--reasoning-effort",
@@ -290,6 +298,7 @@ async def run():
         batch_size=args.batch_size,
         artifacts_by_task=artifacts_by_task,
         system_prompt=system_prompt,
+        expose_preferences=args.expose_preferences,
     )
 
     logger.info("Evaluating %d execution results...", len(execution_results))
@@ -312,6 +321,7 @@ async def run():
         batch_size=args.batch_size,
         task_count=len(tasks),
         system_prompt=args.assistant_system_prompt,
+        expose_preferences=args.expose_preferences,
     )
     summary = compute_evaluation_summary(eval_results)
     output = BenchmarkOutput(metadata=metadata, summary=summary, results=eval_results)
