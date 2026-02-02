@@ -10,6 +10,7 @@ Remote paths are relative to social-reasoning/ in the blob container.
 """
 
 import subprocess
+import tomllib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -26,6 +27,53 @@ from azure.storage.blob import (
 ACCOUNT = "aifrontiersplus"
 CONTAINER = "magentic"
 BLOB_BASE = "social-reasoning"
+
+
+AZCOPY_NOT_INSTALLED_ERROR_MSG = """
+azcopy is not installed or not found in PATH.
+
+Installation instructions: https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10#get-azcopy
+""".strip()
+
+
+def check_azcopy_installed():
+    """Check if azcopy is available, provide installation instructions if not."""
+    try:
+        subprocess.run(["azcopy", "--version"], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        raise SystemExit(AZCOPY_NOT_INSTALLED_ERROR_MSG)
+
+
+def check_cwd():
+    """Assert that the current working directory contains a pyproject.toml with project name 'sage'."""
+    cwd = Path.cwd()
+    pyproject_path = cwd / "pyproject.toml"
+
+    if not pyproject_path.exists():
+        raise SystemExit(
+            f"Error: No pyproject.toml found in {cwd}. This script must be run from the root of the 'sage' project directory."
+        )
+
+    try:
+        with open(pyproject_path, "rb") as f:
+            pyproject = tomllib.load(f)
+
+        project_name = pyproject.get("project", {}).get("name")
+        if project_name != "sage":
+            raise SystemExit(
+                f"Error: Expected project name 'sage', but found '{project_name}' in {pyproject_path}. This script must be run from the root of the 'sage' project directory."
+            )
+    except tomllib.TOMLDecodeError as e:
+        raise SystemExit(
+            f"Error reading pyproject.toml: {e}. This script must be run from the root of the 'sage' project directory."
+        )
+
+
+# Check cwd on module load
+check_cwd()
+
+# Check azcopy on module load
+check_azcopy_installed()
 
 
 def get_user_delegation_key(account_url, start_time=None, end_time=None, credential=None):
