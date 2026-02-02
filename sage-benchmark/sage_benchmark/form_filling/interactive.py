@@ -56,7 +56,7 @@ def _initialize_agents(
         interviewer_model: Model name for interviewer
         assistant_client: Model client for assistant agent
         assistant_model: Model name for assistant
-        prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained")
+        prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained", "privacy_ci")
         interviewer_type: Type of interviewer prompt ("base" or "detail")
 
     Returns:
@@ -155,7 +155,7 @@ async def run_single_task(
         assistant_client: Model client for assistant agent
         assistant_model: Model name for assistant
         max_rounds: Maximum conversation rounds
-        prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained")
+        prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained", "privacy_ci")
         interviewer_type: Type of interviewer prompt ("base" or "detail")
 
     Returns:

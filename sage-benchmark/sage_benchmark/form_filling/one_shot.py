@@ -84,7 +84,7 @@ async def run_single_task(
         task_index: Task index for tracking
         client: sage_llm Client for LLM calls
         model: Model name to use
-        prompt_type: Type of prompt to use ("base", "privacy_aware", "privacy_explained")
+        prompt_type: Type of prompt to use ("base", "privacy_aware", "privacy_explained", "privacy_ci")
 
     Returns:
         Task execution result with success status and action taken

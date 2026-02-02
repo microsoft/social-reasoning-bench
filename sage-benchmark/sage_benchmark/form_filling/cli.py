@@ -77,7 +77,7 @@ def parse_args() -> argparse.Namespace:
         "--prompt-type",
         type=str,
         default="base",
-        choices=["base", "privacy_aware", "privacy_explained"],
+        choices=["base", "privacy_aware", "privacy_explained", "privacy_ci"],
         help='Type of prompt to use for the agent in one-shot mode (default: "base")',
     )
 
