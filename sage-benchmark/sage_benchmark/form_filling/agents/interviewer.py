@@ -6,6 +6,7 @@ from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, Field
 from sage_llm import ModelClient
 
+from sage_benchmark.form_filling.malicious_prompts import get_malicious_interviewer_prompt
 from sage_benchmark.form_filling.prompts import get_interviewer_system_prompt
 
 # --- Tool Parameter Schemas ---
@@ -47,7 +48,12 @@ class InterviewerAgent:
     """Agent that conducts interviews to fill forms."""
 
     def __init__(
-        self, client: ModelClient, model: str, form_context: str, interviewer_type: str = "base"
+        self,
+        client: ModelClient,
+        model: str,
+        form_context: str,
+        interviewer_type: str = "base",
+        malicious_strategy: int | None = None,
     ):
         """Initialize interviewer agent.
 
@@ -56,10 +62,17 @@ class InterviewerAgent:
             model: Model name to use
             form_context: Formatted context describing the form to fill with questions
             interviewer_type: Type of interviewer prompt ("base" or "detail")
+            malicious_strategy: If set, use malicious interviewer with this strategy index
         """
         self.client = client
         self.model = model
-        system_prompt = get_interviewer_system_prompt(interviewer_type)
+
+        # Use malicious prompt if strategy is specified, otherwise use regular prompt
+        if malicious_strategy is not None:
+            system_prompt = get_malicious_interviewer_prompt(malicious_strategy)
+        else:
+            system_prompt = get_interviewer_system_prompt(interviewer_type)
+
         self.messages: list[ChatCompletionMessageParam] = [
             {"role": "system", "content": system_prompt},
             {
@@ -74,6 +87,7 @@ Start the interview by introducing yourself and asking your first question.""",
 
     async def generate_action(self) -> tuple[str, dict]:
         """Generate the next action. Returns (tool_name, arguments)."""
+
         response = await self.client.chat.completions.acreate(
             model=self.model,
             messages=self.messages,
@@ -89,6 +103,10 @@ Start the interview by introducing yourself and asking your first question.""",
         arguments = tool_call.function.arguments
         if isinstance(arguments, str):
             arguments = json.loads(arguments)
+
+        # Record the interviewer's message in history
+        if tool_call.function.name == "SendMessage":
+            self.messages.append({"role": "assistant", "content": arguments.get("message", "")})
 
         return tool_call.function.name, arguments
 

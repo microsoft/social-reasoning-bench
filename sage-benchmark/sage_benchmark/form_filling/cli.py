@@ -108,6 +108,13 @@ def parse_args() -> argparse.Namespace:
         choices=["base", "detail"],
         help="Type of interviewer prompt in interactive mode: 'base' or 'detail' (default: 'base')",
     )
+    parser.add_argument(
+        "--malicious-strategy",
+        type=int,
+        default=None,
+        help="Use malicious interviewer with the n-th strategy (0-indexed) from strategies.yaml. "
+        "When set, overrides --interviewer-type.",
+    )
 
     return parser.parse_args()
 
@@ -151,6 +158,7 @@ def main():
             judge_reasoning_effort=args.judge_reasoning_effort,
             max_rounds=args.max_rounds,
             interviewer_type=args.interviewer_type,
+            malicious_strategy=args.malicious_strategy,
         )
     )
 

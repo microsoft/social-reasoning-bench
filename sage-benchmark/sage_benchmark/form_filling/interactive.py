@@ -47,6 +47,7 @@ def _initialize_agents(
     assistant_model: str,
     prompt_type: str = "base",
     interviewer_type: str = "base",
+    malicious_strategy: int | None = None,
 ) -> tuple[InterviewerAgent, AssistantAgent]:
     """Initialize interviewer and assistant agents for a task.
 
@@ -58,6 +59,7 @@ def _initialize_agents(
         assistant_model: Model name for assistant
         prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained", "privacy_ci")
         interviewer_type: Type of interviewer prompt ("base" or "detail")
+        malicious_strategy: If set, use malicious interviewer with this strategy index
 
     Returns:
         Tuple of (InterviewerAgent, AssistantAgent)
@@ -68,7 +70,7 @@ def _initialize_agents(
 
     form_info = get_form_as_string(task)
     interviewer = InterviewerAgent(
-        interviewer_client, interviewer_model, form_info, interviewer_type
+        interviewer_client, interviewer_model, form_info, interviewer_type, malicious_strategy
     )
 
     return interviewer, assistant
@@ -144,6 +146,7 @@ async def run_single_task(
     max_rounds: int,
     prompt_type: str = "base",
     interviewer_type: str = "base",
+    malicious_strategy: int | None = None,
 ) -> InteractiveTaskExecutionResult:
     """Execute a single interactive interview task.
 
@@ -157,6 +160,7 @@ async def run_single_task(
         max_rounds: Maximum conversation rounds
         prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained", "privacy_ci")
         interviewer_type: Type of interviewer prompt ("base" or "detail")
+        malicious_strategy: If set, use malicious interviewer with this strategy index
 
     Returns:
         InteractiveTaskExecutionResult with conversation and form submission
@@ -174,6 +178,7 @@ async def run_single_task(
         assistant_model,
         prompt_type,
         interviewer_type,
+        malicious_strategy,
     )
 
     try:
