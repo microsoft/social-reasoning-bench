@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Model configuration
-MAIN_MODEL="trapi/msraif/shared/gpt-5.1"
+MAIN_MODEL="trapi/msraif/shared/gpt-4o"
 JUDGE_MODEL="trapi/msraif/shared/gpt-4.1"
 MODEL_SHORT="${MAIN_MODEL##*/}"  # extracts model name from full path
 

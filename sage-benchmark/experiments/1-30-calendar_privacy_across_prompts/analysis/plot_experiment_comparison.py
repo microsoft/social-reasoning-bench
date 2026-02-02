@@ -2,10 +2,11 @@
 """Plot experiment results comparing conditions and system prompts.
 
 Usage:
-    uv run analysis/calendar_scheduling/plot_experiment_comparison.py <input_dir> [--output <path>]
+    uv run analysis/plot_experiment_comparison.py <input_dir> [--output-dir <path>]
 
 Example:
-    uv run analysis/calendar_scheduling/plot_experiment_comparison.py outputs/calendar_scheduling/1-30-experiment
+    uv run analysis/plot_experiment_comparison.py outputs/calendar_scheduling/1-30-experiment
+    uv run analysis/plot_experiment_comparison.py outputs/calendar_scheduling/1-30-experiment --output-dir ./plots
 """
 
 import argparse
@@ -21,13 +22,33 @@ SYSTEM_PROMPTS = ["default", "simple", "strong", "ci"]
 PROMPT_NORMALIZE = {"privacy-simple": "simple", "privacy-strong": "strong", "privacy-ci": "ci"}
 
 
-def load_experiment_results(base_dir: Path) -> tuple[dict, dict, dict]:
+def detect_models(base_dir: Path) -> list[str]:
+    """Detect all unique model prefixes in the directory."""
+    models = set()
+    for json_file in base_dir.glob("*.json"):
+        name = json_file.stem
+        parts = name.split("-")
+        # Find condition index - model is everything before it
+        for i, part in enumerate(parts):
+            if part in CONDITIONS:
+                model = "-".join(parts[:i])
+                if model:
+                    models.add(model)
+                break
+    return sorted(models)
+
+
+def load_experiment_results(
+    base_dir: Path, model_filter: str | None = None
+) -> tuple[dict, dict, dict]:
     """Load all experiment JSON files from the directory."""
     privacy_results = {}
     success_results = {}
     metadata = {}
 
     for json_file in base_dir.glob("*.json"):
+        if model_filter and not json_file.name.startswith(model_filter):
+            continue
         with open(json_file) as f:
             data = json.load(f)
 
@@ -159,10 +180,16 @@ def main():
     )
     parser.add_argument("input_dir", type=Path, help="Directory containing experiment JSON files")
     parser.add_argument(
-        "--output",
+        "--output-dir",
         type=Path,
         default=None,
-        help="Output plot path (default: <input_dir>/experiment_comparison.png)",
+        help="Output directory for plots (default: <input_dir>)",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Filter to a specific model (default: auto-detect and plot all)",
     )
     args = parser.parse_args()
 
@@ -170,17 +197,34 @@ def main():
         print(f"Error: Directory {args.input_dir} does not exist", file=sys.stderr)
         sys.exit(1)
 
-    output_path = args.output or args.input_dir / "experiment_comparison.png"
+    output_dir = args.output_dir or args.input_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Determine which models to plot
+    if args.model:
+        models = [args.model]
+    else:
+        models = detect_models(args.input_dir)
+        if not models:
+            print("Error: No models detected in input directory", file=sys.stderr)
+            sys.exit(1)
+        print(f"Detected models: {', '.join(models)}")
 
     print(f"Loading results from: {args.input_dir}")
-    privacy_results, success_results, metadata = load_experiment_results(args.input_dir)
 
-    if not privacy_results:
-        print("Error: No valid result files found", file=sys.stderr)
-        sys.exit(1)
+    for model in models:
+        print(f"\nProcessing model: {model}")
+        privacy_results, success_results, metadata = load_experiment_results(args.input_dir, model)
 
-    print(f"Found {len(privacy_results)} experiment configurations")
-    plot_results(privacy_results, success_results, metadata, output_path)
+        if not privacy_results:
+            print(f"  Warning: No valid result files found for {model}", file=sys.stderr)
+            continue
+
+        print(f"  Found {len(privacy_results)} experiment configurations")
+        # Sanitize model name for filename (replace . with _)
+        safe_model = model.replace(".", "_").replace("/", "_")
+        output_path = output_dir / f"plot_{safe_model}.png"
+        plot_results(privacy_results, success_results, metadata, output_path)
 
 
 if __name__ == "__main__":

@@ -29,18 +29,22 @@ Plot results
 
 ```bash
 cd 1-30-privacy_across_prompts
-uv run analysis/plot_experiment_comparison.py ../../outputs/calendar_scheduling/1-30-privacy_across_prompts --output ./plot.png
+uv run analysis/plot_experiment_comparison.py ../../outputs/calendar_scheduling/1-30-privacy_across_prompts --output-dir .
 ```
 
-## Results
+## Results 
 
-![Experiment Comparison](plot.png)
+![GPT-5.1 Results](./plot_gpt-5_1.png)
+
+![GPT-4o Results](./plot_gpt-4o.png)
+
 
 Privacy:
 
 - Across all conditions, the malicious tasks lead to higher privacy leakage unsurprisingly
 - Yet even with strong privacy prompt, some leakage still occurs
 - CI prompt leads to less leakage than strong which was surprising to me
+- Way lower leakage rate for gpt-4o -- perhaps this is because attacks are less strong?
 
 Task completion
 
