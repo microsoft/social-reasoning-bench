@@ -98,3 +98,7 @@ def load_artifacts(json_path: str | Path) -> dict[int, list[Artifact]]:
         result[task_index] = artifacts
 
     return result
+
+
+# Backward compatibility alias
+load_calendar_tasks = load_tasks
