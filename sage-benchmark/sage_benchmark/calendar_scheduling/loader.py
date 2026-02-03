@@ -1,29 +1,81 @@
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 import yaml
 from pydantic import TypeAdapter
 
-from .types import Artifact, CalendarTask
+from .checkpoints import compute_file_hash, compute_task_key
+from .types import (
+    Artifact,
+    CalendarTask,
+    KeyedCalendarTask,
+    LoadedFile,
+    LoadedFiles,
+)
 
 
-def load_calendar_tasks(yaml_path: str | Path) -> list[CalendarTask]:
-    """
-    Load calendar tasks from a YAML file.
+def _load_file(yaml_path: Path) -> LoadedFile:
+    """Load a single YAML file with content-based task keys."""
+    abs_path = str(yaml_path.absolute())
+    file_hash = compute_file_hash(yaml_path)
 
-    Args:
-        yaml_path: Path to the YAML file containing calendar tasks
-
-    Returns:
-        List of validated CalendarTask objects
-    """
     with open(yaml_path) as f:
         data = yaml.safe_load(f)
 
     if "tasks" not in data:
         raise ValueError("YAML file must contain a 'tasks' key")
 
-    return [CalendarTask(**task) for task in data["tasks"]]
+    keyed_tasks: list[KeyedCalendarTask] = []
+    for task_data in data["tasks"]:
+        task = CalendarTask(**task_data)
+        task_key = compute_task_key(task)
+        keyed_task = KeyedCalendarTask(**task.model_dump(), task_key=task_key)
+        keyed_tasks.append(keyed_task)
+
+    return LoadedFile(path=abs_path, hash=file_hash, tasks=keyed_tasks)
+
+
+def load_tasks(
+    paths: Sequence[str | Path],
+    limit: int | None = None,
+) -> LoadedFiles:
+    """Load tasks from YAML files or directories.
+
+    Args:
+        paths: List of YAML files or directories containing task definitions
+        limit: Optional limit on number of tasks to load
+
+    Returns:
+        LoadedFiles containing files with their paths, hashes, and tasks.
+        Use .all_tasks for flat task list, .file_hashes for hash dict.
+    """
+    loaded_files: list[LoadedFile] = []
+
+    for path in paths:
+        path = Path(path)
+        if path.is_dir():
+            yaml_files = list(path.glob("*.yaml")) + list(path.glob("*.yml"))
+            for yaml_file in yaml_files:
+                loaded_files.append(_load_file(yaml_file))
+        else:
+            loaded_files.append(_load_file(path))
+
+    result = LoadedFiles(files=loaded_files)
+
+    # Apply limit if specified (need to rebuild with limited tasks)
+    if limit is not None:
+        limited_files: list[LoadedFile] = []
+        remaining = limit
+        for f in loaded_files:
+            if remaining <= 0:
+                break
+            take = min(remaining, len(f.tasks))
+            limited_files.append(LoadedFile(path=f.path, hash=f.hash, tasks=f.tasks[:take]))
+            remaining -= take
+        result = LoadedFiles(files=limited_files)
+
+    return result
 
 
 def load_artifacts(json_path: str | Path) -> dict[int, list[Artifact]]:

@@ -2,6 +2,7 @@
 
 import logging
 import traceback
+from typing import Callable
 
 import litellm
 import openai
@@ -20,7 +21,15 @@ from .environment import (
     CalendarSchedulingEnvironment,
 )
 from .environment.actions import EndConversation, RequestMeeting, Wait
-from .types import Artifact, CalendarTask, Meeting, TaskExecutionResult, Tool, ToolError
+from .types import (
+    Artifact,
+    CalendarTask,
+    KeyedCalendarTask,
+    Meeting,
+    TaskExecutionResult,
+    Tool,
+    ToolError,
+)
 
 
 def _is_fatal_error(e: Exception) -> bool:
@@ -175,6 +184,7 @@ def _force_initial_request(
 async def run_single_task(
     task_index: int,
     task: CalendarTask,
+    task_key: str,
     assistant_model: str,
     assistant_client: ModelClient,
     requestor_model: str,
@@ -190,6 +200,7 @@ async def run_single_task(
     Args:
         task_index: Index of this task in the task list
         task: The CalendarTask to run
+        task_key: Content hash of the task for checkpointing
         assistant_model: Model to use for the assistant agent
         assistant_client: ModelClient for the assistant
         requestor_model: Model to use for the requestor agent
@@ -329,6 +340,7 @@ async def run_single_task(
     )
 
     return TaskExecutionResult(
+        task_key=task_key,
         task_index=task_index,
         task=task,
         emails=environment.get_all_emails(),
@@ -345,7 +357,7 @@ async def run_single_task(
 
 
 async def run_tasks(
-    tasks: list[CalendarTask],
+    tasks: list[KeyedCalendarTask],
     assistant_model: str,
     assistant_client: ModelClient,
     requestor_model: str,
@@ -356,11 +368,13 @@ async def run_tasks(
     artifacts_by_task: dict[int, list[Artifact]] | None = None,
     system_prompt: str | None = None,
     expose_preferences: bool = False,
+    on_task_complete: Callable[[TaskExecutionResult], None] | None = None,
+    skip_task_keys: set[str] | None = None,
 ) -> list[TaskExecutionResult]:
     """Run a list of tasks in parallel batches.
 
     Args:
-        tasks: List of CalendarTask to run
+        tasks: List of KeyedCalendarTask objects to run
         assistant_model: Model to use for the assistant agent
         assistant_client: ModelClient for the assistant
         requestor_model: Model to use for the requestor agent
@@ -369,15 +383,36 @@ async def run_tasks(
         max_steps_per_turn: Maximum tool calls per turn
         batch_size: Number of tasks to run in parallel
         artifacts_by_task: Optional dict mapping task index to artifacts list
+        on_task_complete: Optional callback invoked after each task completes
+        skip_task_keys: Optional set of task keys to skip (for resume)
 
     Returns:
         List of TaskExecutionResult for each task
     """
-    executor = TaskPoolExecutor(batch_size=batch_size, task_logger=logger)
+    # Filter out already-completed tasks
+    tasks_to_run = [
+        (task_index, task)
+        for task_index, task in enumerate(tasks)
+        if skip_task_keys is None or task.task_key not in skip_task_keys
+    ]
+
+    if skip_task_keys:
+        logger.info(
+            "Skipping %d already-completed tasks, running %d tasks",
+            len(tasks) - len(tasks_to_run),
+            len(tasks_to_run),
+        )
+
+    executor = TaskPoolExecutor(
+        batch_size=batch_size,
+        on_task_complete=on_task_complete,
+        task_logger=logger,
+    )
     return await executor.run(
         run_single_task(
             task_index=task_index,
             task=task,
+            task_key=task.task_key,
             assistant_model=assistant_model,
             assistant_client=assistant_client,
             requestor_model=requestor_model,
@@ -388,5 +423,5 @@ async def run_tasks(
             system_prompt=system_prompt,
             expose_preferences=expose_preferences,
         )
-        for task_index, task in enumerate(tasks)
+        for task_index, task in tasks_to_run
     )

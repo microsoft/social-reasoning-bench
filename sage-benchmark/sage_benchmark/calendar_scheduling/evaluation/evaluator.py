@@ -1,6 +1,7 @@
 """Evaluation logic for iTIP-style calendar scheduling tasks."""
 
 import logging
+from typing import Callable
 
 from sage_llm import ModelClient
 
@@ -76,6 +77,8 @@ async def evaluate_tasks(
     model: str,
     model_client: ModelClient,
     batch_size: int = 50,
+    on_task_complete: Callable[[TaskEvaluationResult], None] | None = None,
+    skip_task_keys: set[str] | None = None,
 ) -> list[TaskEvaluationResult]:
     """Evaluate multiple task execution results in parallel batches.
 
@@ -84,14 +87,32 @@ async def evaluate_tasks(
         model: Model to use for LLM-as-a-judge evaluations.
         model_client: ModelClient for the model.
         batch_size: Number of evaluations to run in parallel.
+        on_task_complete: Optional callback invoked after each evaluation completes.
+        skip_task_keys: Optional set of task keys to skip (for resume).
 
     Returns:
         List of TaskEvaluationResult for each execution.
     """
-    executor = TaskPoolExecutor(batch_size=batch_size, task_logger=logger)
+    # Filter out already-completed evaluations
+    results_to_eval = [
+        r for r in execution_results if skip_task_keys is None or r.task_key not in skip_task_keys
+    ]
+
+    if skip_task_keys:
+        logger.info(
+            "Skipping %d already-evaluated tasks, evaluating %d tasks",
+            len(execution_results) - len(results_to_eval),
+            len(results_to_eval),
+        )
+
+    executor = TaskPoolExecutor(
+        batch_size=batch_size,
+        on_task_complete=on_task_complete,
+        task_logger=logger,
+    )
     return await executor.run(
         evaluate_single_task(execution_result, model, model_client)
-        for execution_result in execution_results
+        for execution_result in results_to_eval
     )
 
 

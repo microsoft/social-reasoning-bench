@@ -1,10 +1,8 @@
+from dataclasses import dataclass
 from enum import Enum
 from typing import Annotated, Any, Literal, Union
 
-from openai.types.chat import (
-    ChatCompletionFunctionToolParam,
-    ChatCompletionMessageParam,
-)
+from openai.types.chat import ChatCompletionFunctionToolParam
 from openai.types.shared_params import FunctionDefinition
 from pydantic import BaseModel, Discriminator, Field, computed_field
 
@@ -201,6 +199,44 @@ class CalendarTask(BaseModel):
     )
 
 
+class KeyedCalendarTask(CalendarTask):
+    """CalendarTask with a content-based key for checkpointing."""
+
+    task_key: str = Field(description="Content hash of the task (sha256, first 16 chars)")
+
+
+@dataclass
+class LoadedFile:
+    """A loaded YAML file with its tasks and metadata."""
+
+    path: str
+    """Absolute path to the YAML file."""
+
+    hash: str
+    """SHA256 hash of the file contents for auditability."""
+
+    tasks: list[KeyedCalendarTask]
+    """Tasks loaded from this file."""
+
+
+@dataclass
+class LoadedFiles:
+    """Result of loading tasks from YAML files with content-based keys."""
+
+    files: list["LoadedFile"]
+    """List of loaded files with their tasks."""
+
+    @property
+    def all_tasks(self) -> list[KeyedCalendarTask]:
+        """Flat list of all tasks from all files."""
+        return [task for f in self.files for task in f.tasks]
+
+    @property
+    def file_hashes(self) -> dict[str, str]:
+        """Map of file paths to hashes (for checkpoint compatibility)."""
+        return {f.path: f.hash for f in self.files}
+
+
 # Artifact types
 
 
@@ -250,15 +286,20 @@ Artifact = Annotated[Union[EmailThread, Note], Discriminator("artifact_type")]
 
 
 class TaskExecutionResult(BaseModel):
+    task_key: str = Field(
+        default="",
+        description="Content hash of the task for checkpointing (sha256 of task JSON)",
+    )
     task_index: int
     task: CalendarTask
     emails: list[Email]
     final_assistant_calendar: list[Meeting]
     final_requestor_calendar: list[Meeting]
-    assistant_context: list[ChatCompletionMessageParam]
-    requestor_context: list[ChatCompletionMessageParam]
-    assistant_tools: list[ChatCompletionFunctionToolParam]
-    requestor_tools: list[ChatCompletionFunctionToolParam]
+    # Using Any to avoid Pydantic serialization issues with OpenAI TypedDicts
+    assistant_context: list[dict[str, Any]]
+    requestor_context: list[dict[str, Any]]
+    assistant_tools: list[dict[str, Any]]
+    requestor_tools: list[dict[str, Any]]
     # Execution health tracking
     rounds_completed: int = Field(description="Actual number of conversation rounds completed")
     max_rounds_reached: bool = Field(
