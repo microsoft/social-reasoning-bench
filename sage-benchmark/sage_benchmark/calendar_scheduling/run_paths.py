@@ -15,10 +15,10 @@ class RunPaths:
     Creates and manages a directory structure like:
         outputs/calendar_scheduling/
             20260203_104037-gpt-5.2-gpt-5.2-gpt-5.2/
-                eval.json          # Main evaluation results
-                checkpoint.json    # Progress checkpoint (removed on success)
-                run.log            # Console log output
-                traces.json        # LiteLLM traces
+                eval.json                        # Main evaluation results
+                checkpoint.json                  # Progress checkpoint (removed on success)
+                run-20260203_104037.log          # Console log output
+                llm-traces-20260203_104037.json  # LiteLLM traces
     """
 
     def __init__(self, output_dir: Path):
@@ -49,10 +49,19 @@ class RunPaths:
         ts_str = timestamp.strftime("%Y%m%d_%H%M%S")
         return self.output_dir / f"run-{ts_str}.log"
 
-    @property
-    def traces_path(self) -> Path:
-        """Path to the LiteLLM traces file."""
-        return self.output_dir / "traces.json"
+    def get_traces_path(self, timestamp: datetime | None = None) -> Path:
+        """Get path to an LLM traces file with timestamp.
+
+        Args:
+            timestamp: Timestamp to use for the traces file. If None, uses current time.
+
+        Returns:
+            Path like llm-traces-20260203_144500.json
+        """
+        if timestamp is None:
+            timestamp = datetime.now()
+        ts_str = timestamp.strftime("%Y%m%d_%H%M%S")
+        return self.output_dir / f"llm-traces-{ts_str}.json"
 
     def ensure_dir(self) -> None:
         """Create the output directory if it doesn't exist."""

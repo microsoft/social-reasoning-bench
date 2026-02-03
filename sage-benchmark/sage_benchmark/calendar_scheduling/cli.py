@@ -240,6 +240,9 @@ async def run():
 
     load_dotenv()
 
+    # Initialize LLM tracer to collect traces for all LiteLLM calls
+    get_tracer()
+
     # Track state for resume
     skip_exec_keys: set[str] = set()
     skip_eval_keys: set[str] = set()
@@ -503,6 +506,11 @@ async def run():
             "Saved %d evaluation results to %s", len(all_eval_results), run_output.eval_path
         )
 
+        # Save LLM traces
+        traces_path = run_output.get_traces_path()
+        save_traces(traces_path)
+        logger.info("Saved LLM traces to %s", traces_path)
+
         # Cleanup checkpoint on success
         checkpoint_mgr.cleanup()
 
@@ -515,6 +523,9 @@ async def run():
         await main_task
     except asyncio.CancelledError:
         logger.info("Run cancelled, checkpoint saved to %s", run_output.checkpoint_path)
+        traces_path = run_output.get_traces_path()
+        save_traces(traces_path)
+        logger.info("Saved LLM traces to %s", traces_path)
         logger.info(
             "To resume: uv run -m sage_benchmark.calendar_scheduling --resume %s",
             run_output.output_dir,
