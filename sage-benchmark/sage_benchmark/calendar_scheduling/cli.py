@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic_core import to_json
-from sage_llm import ModelClient
+from sage_llm import ModelClient, clear_traces, get_tracer, save_traces
 
 from .agents.assistant import get_system_prompt, list_available_presets
 from .checkpoints import CheckpointManager, RunConfig

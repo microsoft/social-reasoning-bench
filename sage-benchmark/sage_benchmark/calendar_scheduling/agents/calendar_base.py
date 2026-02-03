@@ -48,6 +48,7 @@ class CalendarAgent:
         self._model_client = model_client
         self._messages: list[ChatCompletionMessageParam] = []
         self._allowed_contacts = list(allowed_contacts)
+        self._previous_response_id: str | None = None  # For thinking preservation
 
         # Default to all calendar tools if none specified
         if tools is None:
@@ -159,8 +160,12 @@ class CalendarAgent:
                 model=self._model,
                 messages=messages,
                 tools=self._openai_tools,
-                tool_choice="required",
+                tool_choice="auto",
+                previous_response_id=self._previous_response_id,
             )
+
+            # Store response ID for thinking preservation across turns
+            self._previous_response_id = completion.id
 
             message = completion.choices[0].message
             tool_calls = message.tool_calls or []
