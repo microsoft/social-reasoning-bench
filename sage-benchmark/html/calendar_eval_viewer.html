@@ -1032,6 +1032,14 @@
             </div>
           `;
         } else if (msg.role === 'assistant') {
+          if (msg.content) {
+            html += `
+              <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded p-3 border-l-4 border-emerald-500">
+                <div class="text-emerald-700 dark:text-emerald-300 font-semibold mb-1">Response</div>
+                <div class="text-xs text-emerald-800 dark:text-emerald-200 whitespace-pre-wrap ">${escapeHtml(msg.content)}</div>
+              </div>
+            `;
+          }
           if (msg.tool_calls && msg.tool_calls.length > 0) {
             msg.tool_calls.forEach(tc => {
               const fnName = tc.function?.name || 'Unknown';
@@ -1047,13 +1055,6 @@
                 </div>
               `;
             });
-          } else if (msg.content) {
-            html += `
-              <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded p-3 border-l-4 border-emerald-500">
-                <div class="text-emerald-700 dark:text-emerald-300 font-semibold mb-1">Response</div>
-                <div class="text-xs text-emerald-800 dark:text-emerald-200 whitespace-pre-wrap ">${escapeHtml(msg.content)}</div>
-              </div>
-            `;
           }
         } else if (msg.role === 'tool') {
           let content = msg.content || '';
