@@ -195,6 +195,22 @@ def parse_args() -> argparse.Namespace:
         help="Reasoning effort for judge (overrides --reasoning-effort)",
     )
 
+    # Explicit CoT flags (enables explicit chain-of-thought prompting before tool calls)
+    parser.add_argument(
+        "--explicit-cot",
+        action="store_true",
+        help="Enable explicit chain-of-thought prompting for all agents before each tool call",
+    )
+    parser.add_argument(
+        "--assistant-explicit-cot",
+        action="store_true",
+        help="Enable explicit CoT for assistant agent (overrides --explicit-cot)",
+    )
+    parser.add_argument(
+        "--requestor-explicit-cot",
+        action="store_true",
+        help="Enable explicit CoT for requestor agent (overrides --explicit-cot)",
+    )
     # Resume and checkpoint options
     parser.add_argument(
         "--resume",
@@ -365,6 +381,11 @@ async def run():
 
     logger.info("Output directory: %s", run_output.output_dir)
 
+    # Resolve explicit CoT flags with fallback to defaults
+    assistant_explicit_cot = args.assistant_explicit_cot or args.explicit_cot
+    requestor_explicit_cot = args.requestor_explicit_cot or args.explicit_cot
+
+    # Create model clients (reasoning_effort is passed normally, CoT is handled separately)
     # Initialize model clients
     assistant_client = ModelClient(
         base_url=config.assistant_base_url or config.base_url,
@@ -432,6 +453,8 @@ async def run():
             batch_size=config.batch_size,
             artifacts_by_task=artifacts_by_task,
             system_prompt=system_prompt,
+            assistant_explicit_cot=assistant_explicit_cot,
+            requestor_explicit_cot=requestor_explicit_cot,
             expose_preferences=config.expose_preferences,
             on_task_complete=checkpoint_mgr.add_execution_result,
             skip_task_keys=skip_exec_keys if skip_exec_keys else None,

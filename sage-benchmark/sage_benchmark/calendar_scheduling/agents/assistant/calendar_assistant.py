@@ -71,6 +71,7 @@ class CalendarAssistantAgent(CalendarAgent):
         allowed_contacts: list[str],
         artifacts: list[Artifact] | None = None,
         system_prompt: str | None = None,
+        explicit_cot: bool = False,
         expose_preferences: bool = False,
     ):
         super().__init__(
@@ -78,6 +79,7 @@ class CalendarAssistantAgent(CalendarAgent):
             model_client=model_client,
             allowed_contacts=allowed_contacts,
             tools=CALENDAR_TOOLS + [EndConversation],
+            explicit_cot=explicit_cot,
         )
 
         # Only add system message if a prompt is provided

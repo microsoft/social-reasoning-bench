@@ -20,12 +20,14 @@ class CalendarRequestorAgent(CalendarAgent):
         model_client: ModelClient,
         requestor: CalendarRequestor,
         allowed_contacts: list[str],
+        explicit_cot: bool = False,
     ):
         super().__init__(
             model=model,
             model_client=model_client,
             allowed_contacts=allowed_contacts,
             tools=CALENDAR_TOOLS,
+            explicit_cot=explicit_cot,
         )
 
         self._messages.extend(

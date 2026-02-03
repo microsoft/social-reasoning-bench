@@ -43,11 +43,13 @@ class CalendarAgent:
         model_client: ModelClient,
         allowed_contacts: list[str],
         tools: list[type[Tool]] | None = None,
+        explicit_cot: bool = False,
     ):
         self._model = model
         self._model_client = model_client
         self._messages: list[ChatCompletionMessageParam] = []
         self._allowed_contacts = list(allowed_contacts)
+        self._explicit_cot = explicit_cot
         self._previous_response_id: str | None = None  # For thinking preservation
 
         # Default to all calendar tools if none specified
@@ -148,6 +150,26 @@ class CalendarAgent:
             )
         )
 
+    async def _generate_cot_reasoning(self, messages: list[ChatCompletionMessageParam]) -> str:
+        """Generate chain-of-thought reasoning before tool call.
+
+        Returns the thinking content to be included in the assistant message.
+        """
+        # Add a user message prompting for CoT
+        cot_messages = list(messages)
+        cot_messages.append(
+            ChatCompletionUserMessageParam(
+                role="user",
+                content="Before taking your next action, think carefully about what should be the one next action (ONE next tool call) to do. Generate the thoughts here.",
+            )
+        )
+
+        response = await self._model_client.chat.completions.acreate(
+            model=self._model,
+            messages=cot_messages,
+        )
+        return response.choices[0].message.content or ""
+
     async def generate_tool_call(self, max_retries: int = 3) -> Tool:
         """Generate the next tool call from the LLM."""
         # Make local copy that we can modify on retry
@@ -155,10 +177,23 @@ class CalendarAgent:
         exceptions: list[Exception] = []
 
         for _ in range(max(1, max_retries)):
+            # Generate CoT reasoning for every retry if enabled
+            cot_thinking: str | None = None
+            tool_call_messages = messages
+            if self._explicit_cot:
+                cot_thinking = await self._generate_cot_reasoning(messages)
+                # Use temporary messages with CoT for tool call generation (don't modify messages)
+                tool_call_messages = messages + [
+                    ChatCompletionAssistantMessageParam(
+                        role="assistant",
+                        content=cot_thinking,
+                    )
+                ]
+
             # Generate the next action
             completion = await self._model_client.chat.completions.acreate(
                 model=self._model,
-                messages=messages,
+                messages=tool_call_messages,
                 tools=self._openai_tools,
                 tool_choice="auto",
                 previous_response_id=self._previous_response_id,
@@ -196,6 +231,12 @@ class CalendarAgent:
                     )
 
                 # Successfully parsed the tool call, append it to the context
+                # Include CoT thinking in the content if it was generated
+                if cot_thinking:
+                    self._messages.append(
+                        ChatCompletionAssistantMessageParam(role="assistant", content=cot_thinking)
+                    )
+
                 self._messages.append(
                     ChatCompletionAssistantMessageParam(
                         role="assistant",

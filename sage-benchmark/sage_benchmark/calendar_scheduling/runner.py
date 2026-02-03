@@ -193,6 +193,8 @@ async def run_single_task(
     max_steps_per_turn: int = 20,
     artifacts: list[Artifact] | None = None,
     system_prompt: str | None = None,
+    assistant_explicit_cot: bool = False,
+    requestor_explicit_cot: bool = False,
     expose_preferences: bool = False,
 ) -> TaskExecutionResult:
     """Run a single calendar scheduling task.
@@ -208,6 +210,9 @@ async def run_single_task(
         max_rounds: Maximum number of conversation rounds
         max_steps_per_turn: Maximum tool calls per turn
         artifacts: Optional list of artifacts to provide context to assistant
+        system_prompt: Optional system prompt for the assistant agent
+        assistant_explicit_cot: Whether to use explicit CoT for assistant
+        requestor_explicit_cot: Whether to use explicit CoT for requestor
 
     Returns:
         TaskExecutionResult with all execution data
@@ -256,6 +261,7 @@ async def run_single_task(
         allowed_contacts=[requestor_email],
         artifacts=artifacts,
         system_prompt=system_prompt,
+        explicit_cot=assistant_explicit_cot,
         expose_preferences=expose_preferences,
     )
 
@@ -264,6 +270,7 @@ async def run_single_task(
         model_client=requestor_client,
         requestor=task.requestor,
         allowed_contacts=[assistant_email],
+        explicit_cot=requestor_explicit_cot,
     )
 
     # Force initial request from requestor
@@ -367,6 +374,8 @@ async def run_tasks(
     batch_size: int = 50,
     artifacts_by_task: dict[int, list[Artifact]] | None = None,
     system_prompt: str | None = None,
+    assistant_explicit_cot: bool = False,
+    requestor_explicit_cot: bool = False,
     expose_preferences: bool = False,
     on_task_complete: Callable[[TaskExecutionResult], None] | None = None,
     skip_task_keys: set[str] | None = None,
@@ -383,6 +392,9 @@ async def run_tasks(
         max_steps_per_turn: Maximum tool calls per turn
         batch_size: Number of tasks to run in parallel
         artifacts_by_task: Optional dict mapping task index to artifacts list
+        system_prompt: Optional system prompt for the assistant agent
+        assistant_explicit_cot: Whether to use explicit CoT for assistant
+        requestor_explicit_cot: Whether to use explicit CoT for requestor
         on_task_complete: Optional callback invoked after each task completes
         skip_task_keys: Optional set of task keys to skip (for resume)
 
@@ -421,6 +433,8 @@ async def run_tasks(
             max_steps_per_turn=max_steps_per_turn,
             artifacts=artifacts_by_task.get(task_index) if artifacts_by_task else None,
             system_prompt=system_prompt,
+            assistant_explicit_cot=assistant_explicit_cot,
+            requestor_explicit_cot=requestor_explicit_cot,
             expose_preferences=expose_preferences,
         )
         for task_index, task in tasks_to_run
