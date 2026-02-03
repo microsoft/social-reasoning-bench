@@ -114,6 +114,7 @@ async def run_tasks(
     judge_reasoning_effort: str | None = None,
     max_rounds: int = 50,
     interviewer_type: str = "base",
+    single_field_mode: bool = False,
     malicious_strategy: int | None = None,
 ):
     """Run the complete form filling benchmark with async parallelization.
@@ -138,6 +139,7 @@ async def run_tasks(
         prompt_type: Type of prompt for one-shot mode ("base", "privacy_aware", "privacy_explained")
         max_rounds: Maximum conversation rounds for interactive mode
         interviewer_type: Type of interviewer prompt ("base" or "detail")
+        single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
 
     Returns:
@@ -220,6 +222,7 @@ async def run_tasks(
             eval_results_file=eval_results_file,
             summary_file=summary_file,
             base_url=base_url,
+            single_field_mode=single_field_mode,
         )
 
     return result
@@ -453,6 +456,7 @@ async def _run_interactive_mode(
     eval_results_file: Path | None,
     summary_file: Path | None,
     base_url: str | None = None,
+    single_field_mode: bool = False,
 ):
     """Run interactive mode (interview Q&A)."""
     execution_results: list[InteractiveTaskExecutionResult] = []
@@ -495,6 +499,7 @@ async def _run_interactive_mode(
                     max_rounds,
                     prompt_type,
                     interviewer_type,
+                    single_field_mode,
                     malicious_strategy,
                 )
                 for idx, task in enumerate(batch, start=batch_start)

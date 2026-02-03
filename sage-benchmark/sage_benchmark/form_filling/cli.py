@@ -109,6 +109,11 @@ def parse_args() -> argparse.Namespace:
         help="Type of interviewer prompt in interactive mode: 'base' or 'detail' (default: 'base')",
     )
     parser.add_argument(
+        "--single-field-mode",
+        action="store_true",
+        help="If set, interviewer asks only one question per turn (interactive mode only)",
+    )
+    parser.add_argument(
         "--malicious-strategy",
         type=int,
         default=None,
@@ -158,6 +163,7 @@ def main():
             judge_reasoning_effort=args.judge_reasoning_effort,
             max_rounds=args.max_rounds,
             interviewer_type=args.interviewer_type,
+            single_field_mode=args.single_field_mode,
             malicious_strategy=args.malicious_strategy,
         )
     )
