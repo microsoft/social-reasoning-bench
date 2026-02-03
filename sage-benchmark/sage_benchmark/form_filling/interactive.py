@@ -72,7 +72,12 @@ def _initialize_agents(
 
     form_info = get_form_as_string(task)
     interviewer = InterviewerAgent(
-        interviewer_client, interviewer_model, form_info, interviewer_type, single_field_mode, malicious_strategy
+        interviewer_client,
+        interviewer_model,
+        form_info,
+        interviewer_type,
+        single_field_mode,
+        malicious_strategy,
     )
 
     return interviewer, assistant
