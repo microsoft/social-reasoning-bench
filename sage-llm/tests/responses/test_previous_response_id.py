@@ -104,9 +104,9 @@ class TestPreviousResponseId:
         Anthropic requires thinking blocks with signatures to be passed back.
         The previous_response_id mechanism should handle this automatically.
         """
-        # First turn with reasoning
+        # First turn with reasoning (Anthropic non-Opus requires integer budget)
         response1 = client.chat.completions.create(
-            model="anthropic/claude-sonnet-4.5",
+            model="anthropic/claude-sonnet-4-5",
             messages=[{"role": "user", "content": "What is 15 * 23?"}],
             reasoning_effort=1024,
         )
@@ -127,7 +127,7 @@ class TestPreviousResponseId:
 
         # Second turn - previous_response_id should inject thinking blocks
         response2 = client.chat.completions.create(
-            model="anthropic/claude-sonnet-4.5",
+            model="anthropic/claude-sonnet-4-5",
             messages=[
                 {"role": "user", "content": "What is 15 * 23?"},
                 {"role": "assistant", "content": first_content},

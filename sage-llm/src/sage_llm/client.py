@@ -7,8 +7,7 @@ from litellm.types.utils import Choices, ModelResponse
 from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel
 
-from .trapi.models import add_allowed_params_for_trapi
-from .trapi.provider import TrapiCustomLLM
+from .trapi.provider import TrapiCustomLLM, add_allowed_params_for_trapi
 
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
@@ -30,6 +29,9 @@ litellm.modify_params = True
 _trapi_handler = TrapiCustomLLM()
 if "trapi" not in litellm._custom_providers:
     litellm._custom_providers.append("trapi")
+if "trapi" not in litellm.provider_list:
+    litellm.provider_list.append("trapi")
+if not any(item.get("provider") == "trapi" for item in litellm.custom_provider_map):
     litellm.custom_provider_map.append(
         {
             "provider": "trapi",
@@ -97,16 +99,16 @@ class Completions:
         """Translate reasoning_effort to provider-specific parameters.
 
         Validates that the type matches what the model expects:
-        - Integer budget: Anthropic (non-Opus), Gemini (all versions)
-        - String effort: Anthropic Opus 4.5, OpenAI o-series, Gemini 3+
-        - "none" string: Allowed for all providers to disable thinking
+        - Integer budget: Anthropic (non-Opus), Gemini 2.5
+        - String effort: Anthropic Opus 4.5, OpenAI o-series, Gemini 3+, TRAPI
+        - "none" string: Omitted entirely (not sent to API)
         """
         reasoning_effort = kwargs.pop("reasoning_effort", None)
-        if reasoning_effort is None:
+        if reasoning_effort is None or reasoning_effort == "none":
+            # Don't send reasoning_effort to API when disabled
             return kwargs
 
         is_int = isinstance(reasoning_effort, int)
-        is_none = reasoning_effort == "none"
 
         if model.startswith("anthropic/"):
             if "opus-4-5" in model or "opus-4.5" in model:
@@ -118,10 +120,8 @@ class Completions:
                     )
                 kwargs["reasoning_effort"] = reasoning_effort
             else:
-                # Other Anthropic: requires integer budget
-                if is_none:
-                    kwargs["thinking"] = {"type": "disabled"}
-                elif is_int:
+                # Other Anthropic: requires integer budget via thinking param
+                if is_int:
                     kwargs["thinking"] = {"type": "enabled", "budget_tokens": reasoning_effort}
                 else:
                     raise ValueError(
@@ -130,11 +130,8 @@ class Completions:
                     )
         elif model.startswith("gemini/"):
             if "2.5" in model or "2-5" in model:
-                # Gemini 2.5: integer budget
-                if is_none:
-                    kwargs["reasoning_effort"] = "none"
-                elif is_int:
-                    # Use thinking parameter - litellm's reasoning_effort integer is broken
+                # Gemini 2.5: integer budget via thinking param
+                if is_int:
                     kwargs["thinking"] = {"type": "enabled", "budget_tokens": reasoning_effort}
                 else:
                     raise ValueError(
@@ -143,13 +140,9 @@ class Completions:
                     )
             else:
                 # Gemini 3+: supports both string effort and integer budget
-                if is_none:
-                    kwargs["reasoning_effort"] = "none"
-                elif is_int:
-                    # Use thinking parameter for integer budget
+                if is_int:
                     kwargs["thinking"] = {"type": "enabled", "budget_tokens": reasoning_effort}
                 else:
-                    # String effort passed directly
                     kwargs["reasoning_effort"] = reasoning_effort
         else:
             # OpenAI and compatible providers: only o-series and gpt-5.x support reasoning_effort
@@ -162,12 +155,10 @@ class Completions:
             )
 
             if not supports_reasoning:
-                if not is_none:
-                    raise ValueError(
-                        f"Model {model} does not support reasoning_effort. "
-                        f"Only o1, o3, and gpt-5.x models support this parameter."
-                    )
-                # reasoning_effort="none" is a no-op for unsupported models
+                raise ValueError(
+                    f"Model {model} does not support reasoning_effort. "
+                    f"Only o1, o3, and gpt-5.x models support this parameter."
+                )
             elif is_int:
                 raise ValueError(
                     f"Model {model} requires string reasoning_effort ('low', 'medium', 'high'), "
@@ -267,7 +258,7 @@ class Completions:
         """Create a chat completion.
 
         Args:
-            model: Model identifier (e.g., "trapi/gcr/shared/gpt-4.1")
+            model: Model identifier (e.g., "trapi/msraif/shared/gpt-4.1")
             messages: List of message dicts with "role" and "content"
             reasoning_effort: Reasoning effort level for supported models.
                 Defaults to the instance's reasoning_effort if not provided.
@@ -320,7 +311,7 @@ class Completions:
         """Create a chat completion asynchronously.
 
         Args:
-            model: Model identifier (e.g., "trapi/gcr/shared/gpt-4.1")
+            model: Model identifier (e.g., "trapi/msraif/shared/gpt-4.1")
             messages: List of message dicts with "role" and "content"
             reasoning_effort: Reasoning effort level for supported models.
                 Defaults to the instance's reasoning_effort if not provided.

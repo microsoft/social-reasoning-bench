@@ -227,10 +227,8 @@ def translate_persona2text(persona) -> str:
         get_field = lambda key, default="N/A": persona.get(key, default)
     else:
         # It's a Pydantic model (ExpandedPersona)
-        get_field = (
-            lambda key, default="N/A": getattr(persona, key, default)
-            if getattr(persona, key, None) is not None
-            else default
+        get_field = lambda key, default="N/A": (
+            getattr(persona, key, default) if getattr(persona, key, None) is not None else default
         )
 
     # Format all persona info except background_context

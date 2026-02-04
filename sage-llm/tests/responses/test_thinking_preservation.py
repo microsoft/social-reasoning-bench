@@ -57,9 +57,9 @@ class TestThinkingPreservation:
     @pytest.mark.skipif(not HAS_ANTHROPIC, reason="ANTHROPIC_API_KEY not set")
     def test_anthropic_extended_thinking_first_turn(self, client):
         """Test Anthropic extended thinking on first turn."""
-        # Use reasoning_effort which LiteLLM translates to thinking params
+        # Anthropic non-Opus requires integer budget tokens
         response = client.chat.completions.create(
-            model="anthropic/claude-sonnet-4.5",
+            model="anthropic/claude-sonnet-4-5",
             messages=[{"role": "user", "content": "What is 15 * 23?"}],
             reasoning_effort=1024,
         )
@@ -130,9 +130,9 @@ class TestThinkingPreservation:
         when continuing a conversation with extended thinking enabled.
         litellm.modify_params=True handles this automatically.
         """
-        # First turn with reasoning_effort
+        # First turn with reasoning_effort (Anthropic non-Opus requires integer budget)
         response1 = client.chat.completions.create(
-            model="anthropic/claude-sonnet-4.5",
+            model="anthropic/claude-sonnet-4-5",
             messages=[{"role": "user", "content": "What is 15 * 23?"}],
             reasoning_effort=1024,
         )
@@ -157,7 +157,7 @@ class TestThinkingPreservation:
         # Second turn - with thinking blocks included
         # litellm.modify_params should handle the format
         response2 = client.chat.completions.create(
-            model="anthropic/claude-sonnet-4.5",
+            model="anthropic/claude-sonnet-4-5",
             messages=[
                 {"role": "user", "content": "What is 15 * 23?"},
                 assistant_message,
@@ -178,7 +178,7 @@ class TestThinkingPreservationWithoutReasoning:
         "model",
         [
             pytest.param(
-                "anthropic/claude-sonnet-4.5",
+                "anthropic/claude-sonnet-4-5",
                 id="anthropic-claude",
                 marks=pytest.mark.skipif(not HAS_ANTHROPIC, reason="ANTHROPIC_API_KEY not set"),
             ),

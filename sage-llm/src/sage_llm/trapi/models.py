@@ -1,36 +1,3 @@
-TRAPI_SCOPE = "api://trapi/.default"
-
-# Params that TRAPI supports (Azure OpenAI backend).
-# Used as an allowlist in both the LiteLLM client and the TRAPI provider.
-TRAPI_SUPPORTED_PARAMS = [
-    "frequency_penalty",
-    "logit_bias",
-    "logprobs",
-    "top_logprobs",
-    "max_tokens",
-    "max_completion_tokens",
-    "n",
-    "presence_penalty",
-    "response_format",
-    "seed",
-    "stop",
-    "stream",
-    "stream_options",
-    "temperature",
-    "top_p",
-    "tools",
-    "tool_choice",
-    "parallel_tool_calls",
-    "user",
-    "reasoning_effort",
-    "extra_body",
-]
-
-# Default API version - works for most models
-# see https://trapi-portal.research.microsoft.com/batch for latest version
-# DEFAULT_API_VERSION = "2024-10-21"
-DEFAULT_API_VERSION = "2025-04-01-preview"
-
 # Model name -> deployment name mapping
 # Reference: models.tsv
 # Note: Only includes models verified to work via test_api_version_matrix.py
@@ -70,28 +37,7 @@ DEPLOYMENTS: dict[str, str] = {
     "model-router": "model-router_2025-11-18",
 }
 
-# API versions - only specify exceptions, others use DEFAULT_API_VERSION
-# Reasoning models require 2024-12-01-preview or later
-API_VERSIONS: dict[str, str] = {
-    "o1": "2024-12-01-preview",
-    "o3": "2024-12-01-preview",
-    "o3-mini": "2024-12-01-preview",
-    "o4-mini": "2024-12-01-preview",
-}
 
-
-def add_allowed_params_for_trapi(model: str, kwargs: dict) -> dict:
-    """Add allowed_openai_params for trapi models to bypass LiteLLM validation."""
-    if model.startswith("trapi/"):
-        kwargs["allowed_openai_params"] = TRAPI_SUPPORTED_PARAMS
-    return kwargs
-
-
-def get_deployment(model: str) -> str:
+def get_model_deployment(model: str) -> str:
     """Get Azure deployment name for a model."""
     return DEPLOYMENTS.get(model, model)
-
-
-def get_api_version(model: str) -> str:
-    """Get API version for a model."""
-    return API_VERSIONS.get(model, DEFAULT_API_VERSION)

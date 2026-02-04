@@ -19,7 +19,7 @@ from sage_llm import Client
 
 client = Client()
 response = client.chat.completions.create(
-    model="trapi/gcr/shared/gpt-4.1",
+    model="trapi/msraif/shared/gpt-4.1",
     messages=[{"role": "user", "content": "Hello"}]
 )
 print(response.choices[0].message.content)
@@ -34,7 +34,7 @@ from sage_llm import AsyncClient
 async def main():
     client = Client()
     response = await client.chat.completions.acreate(
-        model="trapi/gcr/shared/gpt-4.1",
+        model="trapi/msraif/shared/gpt-4.1",
         messages=[{"role": "user", "content": "Hello"}]
     )
     print(response.choices[0].message.content)
@@ -47,6 +47,6 @@ asyncio.run(main())
 Format: `trapi/{apiPath}/{model}`
 
 Examples:
-- `trapi/gcr/shared/gpt-4.1`
+- `trapi/msraif/shared/gpt-4.1`
 - `trapi/gcr/preview/gpt-4o`
 - `trapi/msraif/shared/gpt-5.2`

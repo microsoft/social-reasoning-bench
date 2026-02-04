@@ -1,4 +1,4 @@
-from .models import DEPLOYMENTS, get_api_version, get_deployment
+from .models import DEPLOYMENTS, get_model_deployment
 from .provider import TrapiCustomLLM
 
 
@@ -11,6 +11,5 @@ __all__ = [
     "TrapiCustomLLM",
     "list_models",
     "DEPLOYMENTS",
-    "get_deployment",
-    "get_api_version",
+    "get_model_deployment",
 ]
