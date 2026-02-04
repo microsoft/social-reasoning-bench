@@ -28,7 +28,7 @@ class TestThinkingPreservation:
         [
             pytest.param(
                 "gemini/gemini-2.5-flash",
-                {"reasoning_effort": "low"},
+                {"reasoning_effort": 1024},
                 id="gemini-flash",
                 marks=pytest.mark.skipif(not HAS_GEMINI, reason="GEMINI_API_KEY not set"),
             ),
@@ -61,8 +61,7 @@ class TestThinkingPreservation:
         response = client.chat.completions.create(
             model="anthropic/claude-sonnet-4.5",
             messages=[{"role": "user", "content": "What is 15 * 23?"}],
-            timeout=60,
-            reasoning_effort="low",
+            reasoning_effort=1024,
         )
 
         assert response.choices[0].message.content is not None
@@ -79,7 +78,7 @@ class TestThinkingPreservation:
         [
             pytest.param(
                 "gemini/gemini-2.5-flash",
-                {"reasoning_effort": "low"},
+                {"reasoning_effort": 1024},
                 id="gemini-flash",
                 marks=pytest.mark.skipif(not HAS_GEMINI, reason="GEMINI_API_KEY not set"),
             ),
@@ -135,8 +134,7 @@ class TestThinkingPreservation:
         response1 = client.chat.completions.create(
             model="anthropic/claude-sonnet-4.5",
             messages=[{"role": "user", "content": "What is 15 * 23?"}],
-            timeout=60,
-            reasoning_effort="low",
+            reasoning_effort=1024,
         )
 
         first_content = response1.choices[0].message.content
@@ -165,8 +163,7 @@ class TestThinkingPreservation:
                 assistant_message,
                 {"role": "user", "content": "Now divide that result by 5."},
             ],
-            timeout=60,
-            reasoning_effort="low",
+            reasoning_effort=1024,
         )
 
         # Should succeed without 400 error about missing thinking blocks

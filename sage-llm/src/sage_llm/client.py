@@ -205,13 +205,13 @@ class Completions:
                     {"type": "text", "text": "Here is my answer"}
                 ]}]
         """
-        # Only Anthropic requires manual thinking injection
-        if not model.startswith("anthropic/"):
-            return messages
-
         prev_response = self._response_cache.get(previous_response_id)
         if not prev_response:
             logger.warning(f"previous_response_id '{previous_response_id}' not found in cache")
+            return messages
+
+        # Only Anthropic requires manual thinking injection
+        if not model.startswith("anthropic/"):
             return messages
 
         if not prev_response.choices:

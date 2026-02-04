@@ -28,7 +28,7 @@ class TestPreviousResponseId:
         [
             pytest.param(
                 "gemini/gemini-2.5-flash",
-                {"reasoning_effort": "low"},
+                {"reasoning_effort": 1024},
                 id="gemini-flash",
                 marks=pytest.mark.skipif(not HAS_GEMINI, reason="GEMINI_API_KEY not set"),
             ),
@@ -58,7 +58,7 @@ class TestPreviousResponseId:
         [
             pytest.param(
                 "gemini/gemini-2.5-flash",
-                {"reasoning_effort": "low"},
+                {"reasoning_effort": 1024},
                 id="gemini-flash",
                 marks=pytest.mark.skipif(not HAS_GEMINI, reason="GEMINI_API_KEY not set"),
             ),
@@ -108,8 +108,7 @@ class TestPreviousResponseId:
         response1 = client.chat.completions.create(
             model="anthropic/claude-sonnet-4.5",
             messages=[{"role": "user", "content": "What is 15 * 23?"}],
-            timeout=60,
-            reasoning_effort="low",
+            reasoning_effort=1024,
         )
 
         first_content = response1.choices[0].message.content
@@ -135,8 +134,7 @@ class TestPreviousResponseId:
                 {"role": "user", "content": "Now divide that result by 5."},
             ],
             previous_response_id=response1.id,
-            timeout=60,
-            reasoning_effort="low",
+            reasoning_effort=1024,
         )
 
         # Should succeed without 400 error about missing thinking blocks
@@ -146,14 +144,17 @@ class TestPreviousResponseId:
         """Test that using a non-existent previous_response_id logs a warning."""
         import logging
 
-        caplog.set_level(logging.WARNING)
+        # Ensure the logger propagates to root so caplog can capture
+        sage_logger = logging.getLogger("sage_llm.client")
+        sage_logger.propagate = True
 
-        # Use a fake response ID that doesn't exist
-        response = client.chat.completions.create(
-            model="trapi/msraif/shared/gpt-5.2",
-            messages=[{"role": "user", "content": "Hello"}],
-            previous_response_id="fake-nonexistent-id",
-        )
+        with caplog.at_level(logging.WARNING):
+            # Use a fake response ID that doesn't exist
+            response = client.chat.completions.create(
+                model="trapi/msraif/shared/gpt-5.2",
+                messages=[{"role": "user", "content": "Hello"}],
+                previous_response_id="fake-nonexistent-id",
+            )
 
         # Should still succeed (just without thinking injection)
         assert response.choices[0].message.content is not None
