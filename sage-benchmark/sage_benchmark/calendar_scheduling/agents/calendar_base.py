@@ -179,21 +179,20 @@ class CalendarAgent:
         for _ in range(max(1, max_retries)):
             # Generate CoT reasoning for every retry if enabled
             cot_thinking: str | None = None
-            tool_call_messages = messages
             if self._explicit_cot:
                 cot_thinking = await self._generate_cot_reasoning(messages)
-                # Use temporary messages with CoT for tool call generation (don't modify messages)
-                tool_call_messages = messages + [
-                    ChatCompletionAssistantMessageParam(
-                        role="assistant",
-                        content=cot_thinking,
+                if cot_thinking:
+                    messages.append(
+                        ChatCompletionAssistantMessageParam(
+                            role="assistant",
+                            content=cot_thinking,
+                        )
                     )
-                ]
 
             # Generate the next action
             completion = await self._model_client.chat.completions.acreate(
                 model=self._model,
-                messages=tool_call_messages,
+                messages=messages,
                 tools=self._openai_tools,
                 tool_choice="auto",
                 previous_response_id=self._previous_response_id,
@@ -260,6 +259,7 @@ class CalendarAgent:
                 exceptions.append(e)
                 if not tool_calls:
                     # No tool calls - use plain assistant/user message format
+                    # CoT is already appended to messages at the top of the loop
                     messages.append(
                         ChatCompletionAssistantMessageParam(
                             role="assistant",
@@ -274,6 +274,7 @@ class CalendarAgent:
                     )
                 else:
                     # Has tool calls - use tool_calls + tool message format
+                    # CoT is already appended to messages at the top of the loop
                     messages.append(
                         ChatCompletionAssistantMessageParam(
                             role="assistant",
