@@ -13,7 +13,7 @@ class RunConfig(BaseModel):
     limit: int | None = Field(default=None, description="Limit on number of tasks to load")
 
     # Model configuration
-    model: str = Field(description="Default model for all agents")
+    model: str | None = Field(default=None, description="Default model for all agents")
     assistant_model: str | None = Field(default=None, description="Model for assistant agent")
     requestor_model: str | None = Field(default=None, description="Model for requestor agent")
     judge_model: str | None = Field(default=None, description="Model for judge")

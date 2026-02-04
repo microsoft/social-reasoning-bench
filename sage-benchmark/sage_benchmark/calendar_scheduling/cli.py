@@ -253,8 +253,12 @@ def parse_args() -> argparse.Namespace:
 
     # Validate args that are required for new runs but come from checkpoint on resume
     if not args.resume:
-        if args.model is None:
-            parser.error("--model is required when not resuming")
+        if args.model is None and not all(
+            [args.assistant_model, args.requestor_model, args.judge_model]
+        ):
+            parser.error(
+                "--model is required when not resuming, unless --assistant-model, --requestor-model, and --judge-model are all specified"
+            )
         if args.assistant_system_prompt is None:
             parser.error("--assistant-system-prompt is required when not resuming")
         if args.expose_preferences is None:
