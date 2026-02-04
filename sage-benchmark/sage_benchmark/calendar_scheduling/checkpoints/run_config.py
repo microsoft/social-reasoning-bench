@@ -13,7 +13,7 @@ class RunConfig(BaseModel):
     limit: int | None = Field(default=None, description="Limit on number of tasks to load")
 
     # Model configuration
-    model: str = Field(default="gpt-4.1", description="Default model for all agents")
+    model: str = Field(description="Default model for all agents")
     assistant_model: str | None = Field(default=None, description="Model for assistant agent")
     requestor_model: str | None = Field(default=None, description="Model for requestor agent")
     judge_model: str | None = Field(default=None, description="Model for judge")
@@ -41,18 +41,30 @@ class RunConfig(BaseModel):
     judge_reasoning_effort: str | None = Field(default=None, description="Reasoning for judge")
 
     # Run parameters
-    max_rounds: int = Field(default=20, description="Maximum conversation rounds per task")
-    batch_size: int = Field(default=50, description="Number of tasks to run in parallel")
+    max_rounds: int = Field(description="Maximum conversation rounds per task")
+    max_steps_per_turn: int = Field(description="Maximum tool calls per agent turn")
+    batch_size: int = Field(description="Number of tasks to run in parallel")
 
     # System prompt
-    assistant_system_prompt: str = Field(default="none", description="System prompt preset")
+    assistant_system_prompt: str = Field(description="System prompt preset")
     assistant_system_prompt_file: str | None = Field(
         default=None, description="Path to custom system prompt file"
     )
 
+    # Explicit CoT
+    explicit_cot: bool = Field(
+        description="Enable explicit chain-of-thought prompting for all agents"
+    )
+    assistant_explicit_cot: bool | None = Field(
+        default=None, description="Explicit CoT override for assistant agent"
+    )
+    requestor_explicit_cot: bool | None = Field(
+        default=None, description="Explicit CoT override for requestor agent"
+    )
+
     # Other options
     artifacts: str | None = Field(default=None, description="Path to artifacts JSON file")
-    expose_preferences: bool = Field(default=False, description="Expose preferences to assistant")
+    expose_preferences: bool = Field(description="Expose preferences to assistant")
 
     @property
     def resolved_assistant_model(self) -> str:
@@ -89,11 +101,15 @@ class RunConfig(BaseModel):
             requestor_reasoning_effort=args.requestor_reasoning_effort,
             judge_reasoning_effort=args.judge_reasoning_effort,
             max_rounds=args.max_rounds,
+            max_steps_per_turn=args.max_steps_per_turn,
             batch_size=args.batch_size,
             assistant_system_prompt=args.assistant_system_prompt,
             assistant_system_prompt_file=str(args.assistant_system_prompt_file)
             if args.assistant_system_prompt_file
             else None,
+            explicit_cot=args.explicit_cot,
+            assistant_explicit_cot=args.assistant_explicit_cot,
+            requestor_explicit_cot=args.requestor_explicit_cot,
             artifacts=args.artifacts,
             expose_preferences=args.expose_preferences,
         )

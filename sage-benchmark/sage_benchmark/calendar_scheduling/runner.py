@@ -92,7 +92,7 @@ def _is_fatal_error(e: Exception) -> bool:
 async def _run_agent_turn(
     agent: CalendarAgent,
     resources: AgentResources,
-    max_steps: int = 20,
+    max_steps: int,
 ) -> tuple[list[Tool], bool]:
     """Run an agent until Wait, EndConversation, or max_steps.
 
@@ -189,13 +189,13 @@ async def run_single_task(
     assistant_client: ModelClient,
     requestor_model: str,
     requestor_client: ModelClient,
-    max_rounds: int = 100,
-    max_steps_per_turn: int = 20,
-    artifacts: list[Artifact] | None = None,
-    system_prompt: str | None = None,
-    assistant_explicit_cot: bool = False,
-    requestor_explicit_cot: bool = False,
-    expose_preferences: bool = False,
+    max_rounds: int,
+    max_steps_per_turn: int,
+    artifacts: list[Artifact] | None,
+    system_prompt: str,
+    assistant_explicit_cot: bool,
+    requestor_explicit_cot: bool,
+    expose_preferences: bool,
 ) -> TaskExecutionResult:
     """Run a single calendar scheduling task.
 
@@ -369,14 +369,14 @@ async def run_tasks(
     assistant_client: ModelClient,
     requestor_model: str,
     requestor_client: ModelClient,
-    max_rounds: int = 100,
-    max_steps_per_turn: int = 20,
-    batch_size: int = 50,
-    artifacts_by_task: dict[int, list[Artifact]] | None = None,
-    system_prompt: str | None = None,
-    assistant_explicit_cot: bool = False,
-    requestor_explicit_cot: bool = False,
-    expose_preferences: bool = False,
+    max_rounds: int,
+    max_steps_per_turn: int,
+    batch_size: int,
+    artifacts_by_task: dict[int, list[Artifact]] | None,
+    system_prompt: str | None,
+    assistant_explicit_cot: bool,
+    requestor_explicit_cot: bool,
+    expose_preferences: bool,
     on_task_complete: Callable[[TaskExecutionResult], None] | None = None,
     skip_task_keys: set[str] | None = None,
 ) -> list[TaskExecutionResult]:

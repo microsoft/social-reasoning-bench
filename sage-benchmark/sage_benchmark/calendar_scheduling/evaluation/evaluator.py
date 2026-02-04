@@ -76,7 +76,7 @@ async def evaluate_tasks(
     execution_results: list[TaskExecutionResult],
     model: str,
     model_client: ModelClient,
-    batch_size: int = 50,
+    batch_size: int,
     on_task_complete: Callable[[TaskEvaluationResult], None] | None = None,
     skip_task_keys: set[str] | None = None,
 ) -> list[TaskEvaluationResult]:

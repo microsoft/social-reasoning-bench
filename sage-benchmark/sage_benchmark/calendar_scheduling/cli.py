@@ -25,9 +25,18 @@ from .types import BenchmarkMetadata, BenchmarkOutput
 logger = logging.getLogger(__name__)
 
 
+def _str_to_bool(value: str) -> bool:
+    if value.lower() == "true":
+        return True
+    if value.lower() == "false":
+        return False
+    raise argparse.ArgumentTypeError(f"Expected 'true' or 'false', got '{value}'")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Calendar scheduling benchmark - runs tasks and evaluates results",
+        allow_abbrev=False,
     )
     parser.add_argument(
         "paths",
@@ -35,23 +44,22 @@ def parse_args() -> argparse.Namespace:
         help="YAML files or directories containing task definitions (optional when resuming)",
     )
     parser.add_argument(
-        "--output",
-        "-o",
-        default=None,
-        help="Output file for evaluation results (default: calendar_scheduling_MODELNAME_YYYYMMDD_HHMMSS.json)",
-    )
-    parser.add_argument(
         "--max-rounds",
         type=int,
         default=20,
         help="Maximum conversation rounds per task (default: 20)",
     )
+    parser.add_argument(
+        "--max-steps-per-turn",
+        type=int,
+        default=20,
+        help="Maximum tool calls per agent turn (default: 20)",
+    )
 
     # Default model options (can be overridden by agent-specific options)
     parser.add_argument(
         "--model",
-        default="gpt-4.1",
-        help="Default model for all agents (default: gpt-4.1)",
+        help="Default model for all agents",
     )
     parser.add_argument(
         "--base-url",
@@ -134,8 +142,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--assistant-system-prompt",
         choices=list_available_presets(),
-        default="none",
-        help="System prompt preset for assistant agent (default: none)",
+        help="System prompt preset for assistant agent (required when not resuming)",
     )
     parser.add_argument(
         "--assistant-system-prompt-file",
@@ -156,16 +163,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=50,
-        help="Number of tasks/evals to run in parallel (default: 50)",
+        default=32,
+        help="Number of tasks/evals to run in parallel (default: 32)",
     )
 
     # Preference exposure option
     parser.add_argument(
         "--expose-preferences",
-        action="store_true",
-        default=False,
-        help="Include scheduling preferences in assistant agent prompt",
+        type=_str_to_bool,
+        default=None,
+        metavar="{true,false}",
+        help="Include (true) or exclude (false) scheduling preferences in assistant agent prompt",
     )
 
     # Reasoning effort options
@@ -198,19 +206,28 @@ def parse_args() -> argparse.Namespace:
     # Explicit CoT flags (enables explicit chain-of-thought prompting before tool calls)
     parser.add_argument(
         "--explicit-cot",
-        action="store_true",
-        help="Enable explicit chain-of-thought prompting for all agents before each tool call",
+        type=_str_to_bool,
+        default=None,
+        metavar="{true,false}",
+        help="Enable (true) or disable (false) explicit chain-of-thought prompting for all agents",
     )
+
+    # Per-agent CoT overrides (optional, override --explicit-cot)
     parser.add_argument(
         "--assistant-explicit-cot",
-        action="store_true",
-        help="Enable explicit CoT for assistant agent (overrides --explicit-cot)",
+        type=_str_to_bool,
+        default=None,
+        metavar="{true,false}",
+        help="Explicit CoT override for assistant agent (overrides --explicit-cot)",
     )
     parser.add_argument(
         "--requestor-explicit-cot",
-        action="store_true",
-        help="Enable explicit CoT for requestor agent (overrides --explicit-cot)",
+        type=_str_to_bool,
+        default=None,
+        metavar="{true,false}",
+        help="Explicit CoT override for requestor agent (overrides --explicit-cot)",
     )
+
     # Resume and checkpoint options
     parser.add_argument(
         "--resume",
@@ -232,7 +249,20 @@ def parse_args() -> argparse.Namespace:
         help="Base directory for outputs (default: outputs/calendar_scheduling)",
     )
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    # Validate args that are required for new runs but come from checkpoint on resume
+    if not args.resume:
+        if args.model is None:
+            parser.error("--model is required when not resuming")
+        if args.assistant_system_prompt is None:
+            parser.error("--assistant-system-prompt is required when not resuming")
+        if args.expose_preferences is None:
+            parser.error("--expose-preferences {true,false} is required when not resuming")
+        if args.explicit_cot is None:
+            parser.error("--explicit-cot {true,false} is required when not resuming")
+
+    return args
 
 
 async def run():
@@ -329,10 +359,10 @@ async def run():
         judge_model = new_config.resolved_judge_model
 
         # Create new run output directory
-        base_dir = args.output_dir or Path("outputs/calendar_scheduling")
-        run_output = RunPaths.create_for_run(
-            assistant_model, requestor_model, judge_model, base_dir
-        )
+        if args.output_dir:
+            run_output = RunPaths(args.output_dir)
+        else:
+            run_output = RunPaths.create_for_run(assistant_model, requestor_model, judge_model)
 
         # Ensure output directory exists
         run_output.ensure_dir()
@@ -384,9 +414,17 @@ async def run():
 
     logger.info("Output directory: %s", run_output.output_dir)
 
-    # Resolve explicit CoT flags with fallback to defaults
-    assistant_explicit_cot = args.assistant_explicit_cot or args.explicit_cot
-    requestor_explicit_cot = args.requestor_explicit_cot or args.explicit_cot
+    # Resolve explicit CoT flags: per-agent overrides take precedence when set
+    assistant_explicit_cot = (
+        config.assistant_explicit_cot
+        if config.assistant_explicit_cot is not None
+        else config.explicit_cot
+    )
+    requestor_explicit_cot = (
+        config.requestor_explicit_cot
+        if config.requestor_explicit_cot is not None
+        else config.explicit_cot
+    )
 
     # Create model clients (reasoning_effort is passed normally, CoT is handled separately)
     # Initialize model clients
@@ -453,6 +491,7 @@ async def run():
             requestor_model=requestor_model,
             requestor_client=requestor_client,
             max_rounds=config.max_rounds,
+            max_steps_per_turn=config.max_steps_per_turn,
             batch_size=config.batch_size,
             artifacts_by_task=artifacts_by_task,
             system_prompt=system_prompt,
