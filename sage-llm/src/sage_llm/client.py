@@ -152,13 +152,29 @@ class Completions:
                     # String effort passed directly
                     kwargs["reasoning_effort"] = reasoning_effort
         else:
-            # Other providers (OpenAI o-series, etc.): require string effort
-            if is_int:
+            # OpenAI and compatible providers: only o-series and gpt-5.x support reasoning_effort
+            # Extract model name (handle prefixes like "trapi/", "azure/", etc.)
+            model_name = model.split("/")[-1].lower()
+            supports_reasoning = (
+                model_name.startswith("o1")
+                or model_name.startswith("o3")
+                or model_name.startswith("gpt-5")
+            )
+
+            if not supports_reasoning:
+                if not is_none:
+                    raise ValueError(
+                        f"Model {model} does not support reasoning_effort. "
+                        f"Only o1, o3, and gpt-5.x models support this parameter."
+                    )
+                # reasoning_effort="none" is a no-op for unsupported models
+            elif is_int:
                 raise ValueError(
                     f"Model {model} requires string reasoning_effort ('low', 'medium', 'high'), "
                     f"got integer {reasoning_effort}"
                 )
-            kwargs["reasoning_effort"] = reasoning_effort
+            else:
+                kwargs["reasoning_effort"] = reasoning_effort
 
         return kwargs
 
