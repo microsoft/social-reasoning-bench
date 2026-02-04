@@ -4,7 +4,7 @@ Author: Will Epperson
 
 ## Goal
 
-Compare GPT-5.1 performance across 8 conditions:
+Compare model performance across 8 conditions:
 
 - 4 **assistant** prompt variations with varying level of emphasis on privacy preservation
 - 2 types of **requestor** tasks (normal and an extractive malicious one).
@@ -15,14 +15,20 @@ Run the experiment runner script which will loop over the 8 conditions. It might
 
 ```bash
 cd 1-30-privacy_across_prompts
-./run_experiment.sh
+./run_experiment.sh                              # defaults to gpt-4o
+./run_experiment.sh claude-sonnet-4-5            # for Claude Sonnet 4.5
+./run_experiment.sh trapi/msraif/shared/gpt-5.1  # for GPT-5.1
 ```
 
-To download my experiment outputs:
+To download experiment outputs:
 
 ```bash
 cd sage
+# GPT-5.1 and GPT-4o results
 uv run sync.py download 1-30-privacy_across_prompts/ sage-benchmark/outputs/calendar_scheduling/1-30-privacy_across_prompts
+
+# Claude Sonnet 4.5 results
+uv run sync.py download calendar_scheduling/1-30-calendar_privacy_claude_sonnet sage-benchmark/outputs/calendar_scheduling/1-30-calendar_privacy_claude_sonnet
 ```
 
 Plot results
@@ -32,12 +38,15 @@ cd 1-30-privacy_across_prompts
 uv run analysis/plot_experiment_comparison.py ../../outputs/calendar_scheduling/1-30-privacy_across_prompts --output-dir .
 ```
 
-## Results 
+## Results
 
 ![GPT-5.1 Results](./plot_gpt-5_1.png)
 
 ![GPT-4o Results](./plot_gpt-4o.png)
 
+![Claude Sonnet 4.5 Results](./plot_claude-sonnet-4-5.png)
+
+**Note:** Claude Sonnet 4.5 was run **without extended thinking** enabled.
 
 Privacy:
 
