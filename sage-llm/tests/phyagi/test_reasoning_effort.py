@@ -8,7 +8,6 @@ Tests that models are accessible through the TRAPI provider using the /v1 endpoi
 
 import pytest
 from sage_llm.client import ModelClient
-from sage_llm.trapi import DEPLOYMENTS
 
 
 @pytest.fixture(scope="module")
@@ -20,7 +19,7 @@ def client():
 def test_reasoning_effort_returns_thinking_tokens(client: ModelClient):
     """Test that reasoning_effort param returns usage with thinking/reasoning tokens."""
     response = client.chat.completions.create(
-        model=f"trapi/gpt-5.2",
+        model=f"phyagi/gpt-5",
         messages=[{"role": "user", "content": "Prove 2+2 from the axioms of set theory."}],
         reasoning_effort="low",
         timeout=30,

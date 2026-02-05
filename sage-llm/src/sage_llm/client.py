@@ -7,7 +7,7 @@ from litellm.types.utils import Choices, ModelResponse
 from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel
 
-from .trapi.provider import TrapiCustomLLM, add_allowed_params_for_trapi
+from . import phyagi, trapi
 
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
@@ -25,19 +25,8 @@ logging.getLogger("azure.identity").setLevel(logging.WARNING)
 # Enable automatic handling of thinking blocks in multi-turn conversations
 litellm.modify_params = True
 
-# Register TRAPI as a custom LiteLLM provider
-_trapi_handler = TrapiCustomLLM()
-if "trapi" not in litellm._custom_providers:
-    litellm._custom_providers.append("trapi")
-if "trapi" not in litellm.provider_list:
-    litellm.provider_list.append("trapi")
-if not any(item.get("provider") == "trapi" for item in litellm.custom_provider_map):
-    litellm.custom_provider_map.append(
-        {
-            "provider": "trapi",
-            "custom_handler": _trapi_handler,
-        }
-    )
+# Suppress "Provider List" debug messages
+litellm.suppress_debug_info = True
 
 
 class Completions:
@@ -287,7 +276,10 @@ class Completions:
             )
 
         kwargs = self._add_default_kwargs(kwargs)
-        kwargs = add_allowed_params_for_trapi(model, kwargs)
+
+        # Handle custom providers by setting base_url and api_key
+        resolved_model, kwargs = trapi.handle_model(resolved_model, kwargs)
+        resolved_model, kwargs = phyagi.handle_model(resolved_model, kwargs)
 
         response = litellm.completion(
             model=resolved_model, messages=messages, num_retries=self.num_retries, **kwargs
@@ -340,7 +332,10 @@ class Completions:
             )
 
         kwargs = self._add_default_kwargs(kwargs)
-        kwargs = add_allowed_params_for_trapi(model, kwargs)
+
+        # Handle custom providers by setting base_url and api_key
+        resolved_model, kwargs = trapi.handle_model(resolved_model, kwargs)
+        resolved_model, kwargs = phyagi.handle_model(resolved_model, kwargs)
 
         response = await litellm.acompletion(
             model=resolved_model, messages=messages, num_retries=self.num_retries, **kwargs
