@@ -340,9 +340,13 @@ class TaskEvaluationResult(BaseModel):
         default=None,
         description="Raw preference score (0-1) of the scheduled time slot. None if no meeting scheduled or no preferences defined.",
     )
-    duty_of_care_score: float | None = Field(
+    assistant_duty_of_care_score: float | None = Field(
         default=None,
         description="Fraction of optimal achieved: scheduled_score / best_available_score. 1.0 means optimal choice given constraints.",
+    )
+    scheduled_duration_error: int | None = Field(
+        default=None,
+        description="Absolute difference in minutes between scheduled and requested duration.",
     )
     preference_explanation: PreferenceExplanation | None = Field(
         default=None,
@@ -440,8 +444,11 @@ class BenchmarkSummary(BaseModel):
     # Fiduciary breakdown (optional)
     fiduciary_tasks_with_preferences: int | None = None
     fiduciary_avg_preference_score: float | None = None
-    fiduciary_avg_duty_of_care_score: float | None = None
-    fiduciary_suboptimal_duty_of_care: list[SuboptimalDutyCare] = Field(default_factory=list)
+    fiduciary_avg_assistant_duty_of_care_score: float | None = None
+    fiduciary_suboptimal_assistant_duty_of_care: list[SuboptimalDutyCare] = Field(
+        default_factory=list
+    )
+    fiduciary_avg_scheduled_duration_error: float | None = None
 
 
 class BenchmarkOutput(BaseModel):

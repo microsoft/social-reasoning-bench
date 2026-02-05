@@ -227,7 +227,8 @@
                 <th class="px-3 py-2 text-left text-red-600 dark:text-red-400 font-medium cursor-help" title="Tasks where the final calendar has overlapping/conflicting events">Conflicts</th>
                 <th class="px-3 py-2 text-left text-orange-600 dark:text-orange-400 font-medium cursor-help" title="Tasks where non-movable events were modified or removed">Illegal Moves</th>
                 <th class="px-3 py-2 text-left text-purple-600 dark:text-purple-400 font-medium cursor-help" title="Average percentage of secret/confidential meetings that were leaked in email communications">Avg Leakage</th>
-                <th class="px-3 py-2 text-left text-cyan-600 dark:text-cyan-400 font-medium cursor-help" title="Average duty of care score: how well the assistant respected user scheduling preferences (scheduled_score / best_available_score)">Duty of Care</th>
+                <th class="px-3 py-2 text-left text-cyan-600 dark:text-cyan-400 font-medium cursor-help" title="Average assistant duty of care score: how well the assistant respected user scheduling preferences (scheduled_score / best_available_score)">Asst DoC</th>
+                <th class="px-3 py-2 text-left text-teal-600 dark:text-teal-400 font-medium cursor-help" title="Average duration error in minutes: difference between requested and scheduled meeting duration">Duration Error</th>
               </tr>
             </thead>
             <tbody id="slice-table-body">
@@ -253,7 +254,8 @@
                 <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Requestor</th>
                 <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Conflicts</th>
                 <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">Leaks</th>
-                <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">DoC</th>
+                <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200" title="Assistant Duty of Care">ADoC</th>
+                <th class="px-3 py-2 font-medium text-gray-700 dark:text-gray-200" title="Duration Error (minutes)">Dur Err</th>
               </tr>
             </thead>
             <tbody id="task-table-body" class="bg-white dark:bg-gray-700">
@@ -581,21 +583,26 @@
         const unwantedEvents = data.filter(r => (!r.task_satisfiable || r.requestor_is_malicious) && (r.scheduled_event_found || r.scheduled_meeting_found)).length;
         const avgLeakage = data.reduce((sum, r) => sum + (r.leakage_rate || 0), 0) / total;
 
-        // Duty of care average (only for tasks with preferences)
-        const dutyScores = data.filter(r => r.duty_of_care_score != null).map(r => r.duty_of_care_score);
-        const avgDutyCare = dutyScores.length > 0 ? dutyScores.reduce((a, b) => a + b, 0) / dutyScores.length : null;
-        const dutyCount = dutyScores.length;
+        // Duty of care averages (assistant for tasks with preferences)
+        const asstDutyScores = data.filter(r => r.assistant_duty_of_care_score != null).map(r => r.assistant_duty_of_care_score);
+        const avgAsstDutyCare = asstDutyScores.length > 0 ? asstDutyScores.reduce((a, b) => a + b, 0) / asstDutyScores.length : null;
+        const asstDutyCount = asstDutyScores.length;
 
-        return { total, metExpectations, conflicts, illegalMoves, missingEvents, unwantedEvents, avgLeakage, avgDutyCare, dutyCount };
+        // Duration error average (for scheduled meetings)
+        const durationErrors = data.filter(r => r.scheduled_duration_error != null).map(r => r.scheduled_duration_error);
+        const avgDurationError = durationErrors.length > 0 ? durationErrors.reduce((a, b) => a + b, 0) / durationErrors.length : null;
+
+        return { total, metExpectations, conflicts, illegalMoves, missingEvents, unwantedEvents, avgLeakage, avgAsstDutyCare, asstDutyCount, avgDurationError };
       }
 
       // Helper to render stats cells (without name column)
       function renderStatsCells(stats, extraClass = '') {
         if (!stats) {
-          return `<td class="px-3 py-2 text-gray-500 dark:text-gray-400" colspan="8">No tasks</td>`;
+          return `<td class="px-3 py-2 text-gray-500 dark:text-gray-400" colspan="9">No tasks</td>`;
         }
-        const { total, metExpectations, conflicts, illegalMoves, missingEvents, unwantedEvents, avgLeakage, avgDutyCare, dutyCount } = stats;
-        const dutyCareText = avgDutyCare != null ? `${(avgDutyCare * 100).toFixed(0)}% (${dutyCount}/${total})` : 'N/A';
+        const { total, metExpectations, conflicts, illegalMoves, missingEvents, unwantedEvents, avgLeakage, avgAsstDutyCare, asstDutyCount, avgDurationError } = stats;
+        const asstDutyCareText = avgAsstDutyCare != null ? `${(avgAsstDutyCare * 100).toFixed(0)}% (${asstDutyCount}/${total})` : 'N/A';
+        const durationErrorText = avgDurationError != null ? `${avgDurationError.toFixed(1)} min` : 'N/A';
         return `
           <td class="px-3 py-2 text-gray-800 dark:text-gray-100 ${extraClass}">${total}</td>
           <td class="px-3 py-2 text-green-700 dark:text-green-300 ${extraClass}">${metExpectations}/${total} (${Math.round(metExpectations/total*100)}%)</td>
@@ -604,7 +611,8 @@
           <td class="px-3 py-2 text-red-700 dark:text-red-300 ${extraClass}">${conflicts}</td>
           <td class="px-3 py-2 text-orange-700 dark:text-orange-300 ${extraClass}">${illegalMoves}</td>
           <td class="px-3 py-2 text-purple-700 dark:text-purple-300 ${extraClass}">${(avgLeakage * 100).toFixed(1)}%</td>
-          <td class="px-3 py-2 text-cyan-700 dark:text-cyan-300 ${extraClass}">${dutyCareText}</td>
+          <td class="px-3 py-2 text-cyan-700 dark:text-cyan-300 ${extraClass}">${asstDutyCareText}</td>
+          <td class="px-3 py-2 text-teal-700 dark:text-teal-300 ${extraClass}">${durationErrorText}</td>
         `;
       }
 
@@ -707,10 +715,16 @@
           ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">${leaksCount}</span>`
           : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">0</span>';
 
-        // Duty of Care badge
-        const dutyScore = result.duty_of_care_score;
-        const dutyBadge = dutyScore != null
-          ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${dutyScore >= 0.9 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : dutyScore >= 0.5 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}">${(dutyScore * 100).toFixed(0)}%</span>`
+        // Assistant Duty of Care badge
+        const asstDutyScore = result.assistant_duty_of_care_score;
+        const asstDutyBadge = asstDutyScore != null
+          ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${asstDutyScore >= 0.9 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : asstDutyScore >= 0.5 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}">${(asstDutyScore * 100).toFixed(0)}%</span>`
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">N/A</span>';
+
+        // Duration Error badge
+        const durationError = result.scheduled_duration_error;
+        const durationErrorBadge = durationError != null
+          ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${durationError === 0 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : durationError <= 30 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}">${durationError} min</span>`
           : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">N/A</span>';
 
         const selectedClass = idx === currentTaskIndex ? 'selected' : '';
@@ -723,7 +737,8 @@
           <td class="px-3 py-2">${requestorBadge}</td>
           <td class="px-3 py-2">${conflictsBadge}</td>
           <td class="px-3 py-2">${leaksBadge}</td>
-          <td class="px-3 py-2">${dutyBadge}</td>
+          <td class="px-3 py-2">${asstDutyBadge}</td>
+          <td class="px-3 py-2">${durationErrorBadge}</td>
         </tr>`;
       }).join('');
     }
@@ -826,29 +841,39 @@
 
         // Build summary
         let summaryHtml = '';
-        if (result.duty_of_care_score != null) {
-          const scoreColor = result.duty_of_care_score >= 0.9 ? 'text-green-600 dark:text-green-400'
-            : result.duty_of_care_score >= 0.5 ? 'text-yellow-600 dark:text-yellow-400'
+        if (result.assistant_duty_of_care_score != null) {
+          const scoreColor = result.assistant_duty_of_care_score >= 0.9 ? 'text-green-600 dark:text-green-400'
+            : result.assistant_duty_of_care_score >= 0.5 ? 'text-yellow-600 dark:text-yellow-400'
             : 'text-red-600 dark:text-red-400';
 
           summaryHtml += `<div class="flex items-center gap-4 mb-2">
-            <span class="font-medium">Duty of Care Score:</span>
-            <span class="${scoreColor} font-bold text-lg">${(result.duty_of_care_score * 100).toFixed(0)}%</span>
+            <span class="font-medium">Assistant Duty of Care:</span>
+            <span class="${scoreColor} font-bold text-lg">${(result.assistant_duty_of_care_score * 100).toFixed(0)}%</span>
           </div>`;
+        }
+        if (result.scheduled_duration_error != null) {
+          const durationErrorColor = result.scheduled_duration_error === 0 ? 'text-green-600 dark:text-green-400'
+            : result.scheduled_duration_error <= 30 ? 'text-yellow-600 dark:text-yellow-400'
+            : 'text-red-600 dark:text-red-400';
 
-          if (result.preference_explanation) {
-            const exp = result.preference_explanation;
-            summaryHtml += `<div class="bg-gray-50 dark:bg-gray-700 rounded p-3 text-sm">
-              <div class="mb-1"><span class="font-medium">Scheduled:</span> ${exp.scheduled_time} (score: ${exp.scheduled_score.toFixed(2)})</div>`;
-            if (exp.best_available_time && exp.best_available_score != null) {
-              summaryHtml += `<div class="mb-1"><span class="font-medium">Best Available:</span> ${exp.best_available_time} (score: ${exp.best_available_score.toFixed(2)})</div>`;
-            }
-            summaryHtml += `<div class="text-gray-600 dark:text-gray-400 italic">${escapeHtml(exp.explanation)}</div></div>`;
+          summaryHtml += `<div class="flex items-center gap-4 mb-2">
+            <span class="font-medium">Duration Error:</span>
+            <span class="${durationErrorColor} font-bold text-lg">${result.scheduled_duration_error} minutes</span>
+          </div>`;
+        }
+
+        if (result.preference_explanation) {
+          const exp = result.preference_explanation;
+          summaryHtml += `<div class="bg-gray-50 dark:bg-gray-700 rounded p-3 text-sm">
+            <div class="mb-1"><span class="font-medium">Scheduled:</span> ${exp.scheduled_time} (score: ${exp.scheduled_score.toFixed(2)})</div>`;
+          if (exp.best_available_time && exp.best_available_score != null) {
+            summaryHtml += `<div class="mb-1"><span class="font-medium">Best Available:</span> ${exp.best_available_time} (score: ${exp.best_available_score.toFixed(2)})</div>`;
           }
-        } else if (scheduledEvent) {
-          summaryHtml += `<div class="text-gray-500 dark:text-gray-400">Meeting scheduled but no preference score computed.</div>`;
-        } else {
-          summaryHtml += `<div class="text-gray-500 dark:text-gray-400">No meeting was scheduled.</div>`;
+          summaryHtml += `<div class="text-gray-600 dark:text-gray-400 italic">${escapeHtml(exp.explanation)}</div></div>`;
+        }
+
+        if (!scheduledEvent) {
+          summaryHtml += `<div class="text-gray-500 dark:text-gray-400 mt-2">No meeting was scheduled.</div>`;
         }
         dutySummary.innerHTML = summaryHtml;
       } else {

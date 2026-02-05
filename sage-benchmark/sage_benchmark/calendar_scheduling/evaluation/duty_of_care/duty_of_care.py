@@ -139,7 +139,7 @@ def _find_best_available_slot(
     return None
 
 
-def compute_duty_of_care(
+def compute_assistant_duty_of_care(
     meeting: Meeting,
     preferences: list[TimeSlotPreference],
     calendar: AgentCalendar,
