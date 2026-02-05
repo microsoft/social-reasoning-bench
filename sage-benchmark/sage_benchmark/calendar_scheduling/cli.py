@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from pydantic_core import to_json
 from sage_llm import ModelClient, clear_traces, get_tracer, save_traces
 
+from sage_benchmark.shared.cli_utils import parse_reasoning_effort
+
 from .agents.assistant import get_system_prompt, list_available_presets
 from .checkpoints import CheckpointManager, RunConfig
 from .evaluation.evaluator import (
@@ -180,25 +182,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reasoning-effort",
         "-r",
-        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        type=parse_reasoning_effort,
         default=None,
-        help="Default reasoning effort level for all agents (gpt-5.x, gemini)",
+        help="Default reasoning effort: none/minimal/low/medium/high/xhigh/default, or integer budget tokens",
     )
     parser.add_argument(
         "--assistant-reasoning-effort",
-        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        type=parse_reasoning_effort,
         default=None,
         help="Reasoning effort for assistant agent (overrides --reasoning-effort)",
     )
     parser.add_argument(
         "--requestor-reasoning-effort",
-        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        type=parse_reasoning_effort,
         default=None,
         help="Reasoning effort for requestor agent (overrides --reasoning-effort)",
     )
     parser.add_argument(
         "--judge-reasoning-effort",
-        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        type=parse_reasoning_effort,
         default=None,
         help="Reasoning effort for judge (overrides --reasoning-effort)",
     )

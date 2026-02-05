@@ -6,6 +6,7 @@ import asyncio
 from dotenv import load_dotenv
 
 from sage_benchmark.form_filling.runner import run_tasks
+from sage_benchmark.shared.cli_utils import parse_reasoning_effort
 
 
 def parse_args() -> argparse.Namespace:
@@ -91,15 +92,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reasoning-effort",
         "-r",
-        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        type=parse_reasoning_effort,
         default=None,
-        help="Reasoning effort level for agent model (gpt-5.x, gemini)",
+        help="Reasoning effort: none/minimal/low/medium/high/xhigh/default, or integer budget tokens",
     )
     parser.add_argument(
         "--judge-reasoning-effort",
-        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        type=parse_reasoning_effort,
         default=None,
-        help="Reasoning effort level for judge model (gpt-5.x, gemini)",
+        help="Reasoning effort for judge: none/minimal/low/medium/high/xhigh/default, or integer budget tokens",
     )
     parser.add_argument(
         "--interviewer-type",

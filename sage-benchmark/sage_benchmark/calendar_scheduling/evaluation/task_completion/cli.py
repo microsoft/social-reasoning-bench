@@ -14,6 +14,7 @@ from pydantic_core import to_json
 from sage_llm import ModelClient
 
 from sage_benchmark.calendar_scheduling.types import Attendee, Meeting
+from sage_benchmark.shared.cli_utils import parse_reasoning_effort
 from sage_benchmark.shared.executors import TaskPoolExecutor
 
 from .meeting_scheduled import MeetingMatchJudge
@@ -270,9 +271,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reasoning-effort",
         "-r",
-        choices=["none", "minimal", "low", "medium", "high", "xhigh", "default"],
+        type=parse_reasoning_effort,
         default=None,
-        help="Reasoning effort level (gpt-5.x, gemini)",
+        help="Reasoning effort: none/minimal/low/medium/high/xhigh/default, or integer budget tokens",
     )
     parser.add_argument(
         "--output",
