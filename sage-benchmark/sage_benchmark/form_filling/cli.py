@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
 
     # Model configuration - different depending on mode
     parser.add_argument(
-        "--model",
+        "--assistant-model",
         help="Model for form filling (one-shot mode) or assistant agent (interactive mode)",
     )
     parser.add_argument(
@@ -138,11 +138,11 @@ def main():
 
     # Validate arguments based on execution mode
     if args.execution_mode == "one-shot":
-        if not args.model:
-            raise ValueError("--model is required for one-shot mode")
+        if not args.assistant_model:
+            raise ValueError("--assistant-model is required for one-shot mode")
     elif args.execution_mode == "interactive":
-        if not args.model:
-            raise ValueError("--model is required for interactive mode (used as assistant model)")
+        if not args.assistant_model:
+            raise ValueError("--assistant-model is required for interactive mode")
         if not args.interviewer_model:
             raise ValueError("--interviewer-model is required for interactive mode")
 
@@ -153,7 +153,7 @@ def main():
         run_tasks(
             data_path=args.data,
             execution_mode=args.execution_mode,
-            model_name=args.model,
+            model_name=args.assistant_model,
             interviewer_model=args.interviewer_model,
             judge_model=args.judge_model,
             base_url=args.base_url,
