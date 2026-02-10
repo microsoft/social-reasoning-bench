@@ -110,7 +110,8 @@ async def run_tasks(
     batch_size: int = 10,
     max_concurrent_requests: int = 10,
     prompt_type: str = "base",
-    reasoning_effort: str | None = None,
+    interviewer_reasoning_effort: str | None = None,
+    assistant_reasoning_effort: str | None = None,
     judge_reasoning_effort: str | None = None,
     max_rounds: int = 50,
     interviewer_type: str = "base",
@@ -134,8 +135,9 @@ async def run_tasks(
         batch_size: Number of tasks/evals to run in parallel
         max_concurrent_requests: Maximum concurrent API requests per client
         prompt_type: Type of prompt to use ("base", "privacy_aware", "privacy_explained")
-        reasoning_effort: Reasoning effort level for agent model (gpt-5.x, gemini)
-        judge_reasoning_effort: Reasoning effort level for judge model (gpt-5.x, gemini)
+        interviewer_reasoning_effort: Reasoning effort for interviewer agent (interactive mode)
+        assistant_reasoning_effort: Reasoning effort for assistant agent (interactive) or form filler (one-shot)
+        judge_reasoning_effort: Reasoning effort level for judge model
         prompt_type: Type of prompt for one-shot mode ("base", "privacy_aware", "privacy_explained")
         max_rounds: Maximum conversation rounds for interactive mode
         interviewer_type: Type of interviewer prompt ("base" or "detail")
@@ -198,7 +200,7 @@ async def run_tasks(
             batch_size=batch_size,
             max_concurrent_requests=max_concurrent_requests,
             prompt_type=prompt_type,
-            reasoning_effort=reasoning_effort,
+            assistant_reasoning_effort=assistant_reasoning_effort,
             judge_reasoning_effort=judge_reasoning_effort,
             task_results_file=task_results_file,
             eval_results_file=eval_results_file,
@@ -218,6 +220,9 @@ async def run_tasks(
             prompt_type=prompt_type,
             interviewer_type=interviewer_type,
             malicious_strategy=malicious_strategy,
+            interviewer_reasoning_effort=interviewer_reasoning_effort,
+            assistant_reasoning_effort=assistant_reasoning_effort,
+            judge_reasoning_effort=judge_reasoning_effort,
             task_results_file=task_results_file,
             eval_results_file=eval_results_file,
             summary_file=summary_file,
@@ -238,7 +243,7 @@ async def _run_one_shot_mode(
     batch_size: int,
     max_concurrent_requests: int,
     prompt_type: str,
-    reasoning_effort: str | None,
+    assistant_reasoning_effort: str | None,
     judge_reasoning_effort: str | None,
     task_results_file: Path | None,
     eval_results_file: Path | None,
@@ -272,7 +277,7 @@ async def _run_one_shot_mode(
 
     else:
         # Run tasks in parallel batches
-        agent_client = ModelClient(base_url=base_url, reasoning_effort=reasoning_effort)
+        agent_client = ModelClient(base_url=base_url, reasoning_effort=assistant_reasoning_effort)
 
         print(f"\n{'=' * 60}")
         print(f"Running {len(tasks)} tasks in one-shot mode (batches of {batch_size})")
@@ -452,6 +457,9 @@ async def _run_interactive_mode(
     prompt_type: str,
     interviewer_type: str,
     malicious_strategy: int | None,
+    interviewer_reasoning_effort: str | None,
+    assistant_reasoning_effort: str | None,
+    judge_reasoning_effort: str | None,
     task_results_file: Path | None,
     eval_results_file: Path | None,
     summary_file: Path | None,
@@ -470,8 +478,10 @@ async def _run_interactive_mode(
 
     else:
         # Create async clients
-        interviewer_client = ModelClient()
-        assistant_client = ModelClient(base_url=base_url)
+        interviewer_client = ModelClient(reasoning_effort=interviewer_reasoning_effort)
+        assistant_client = ModelClient(
+            base_url=base_url, reasoning_effort=assistant_reasoning_effort
+        )
 
         print(f"\n{'=' * 60}")
         print(f"Running {len(tasks)} tasks in interactive mode (batches of {batch_size})")
@@ -545,7 +555,7 @@ async def _run_interactive_mode(
         print("Validation: pass/fail, pydantic schema validation.")
         print(f"{'=' * 60}\n")
 
-        judge_client = ModelClient()
+        judge_client = ModelClient(reasoning_effort=judge_reasoning_effort)
 
         successful_results = [r for r in execution_results if r.success]
         print(f"Evaluating {len(successful_results)} successful tasks in batches of {batch_size}\n")

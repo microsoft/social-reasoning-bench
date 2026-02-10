@@ -90,11 +90,16 @@ def parse_args() -> argparse.Namespace:
         help="Maximum conversation rounds per task in interactive mode (default: 50)",
     )
     parser.add_argument(
-        "--reasoning-effort",
-        "-r",
+        "--interviewer-reasoning-effort",
         type=parse_reasoning_effort,
         default=None,
-        help="Reasoning effort: none/minimal/low/medium/high/xhigh/default, or integer budget tokens",
+        help="Reasoning effort for interviewer agent (interactive mode): none/minimal/low/medium/high/xhigh/default, or integer budget tokens",
+    )
+    parser.add_argument(
+        "--assistant-reasoning-effort",
+        type=parse_reasoning_effort,
+        default=None,
+        help="Reasoning effort for assistant agent (interactive mode) or form filler (one-shot mode): none/minimal/low/medium/high/xhigh/default, or integer budget tokens",
     )
     parser.add_argument(
         "--judge-reasoning-effort",
@@ -160,7 +165,8 @@ def main():
             batch_size=args.batch_size,
             max_concurrent_requests=args.max_concurrent_requests,
             prompt_type=args.prompt_type,
-            reasoning_effort=args.reasoning_effort,
+            interviewer_reasoning_effort=args.interviewer_reasoning_effort,
+            assistant_reasoning_effort=args.assistant_reasoning_effort,
             judge_reasoning_effort=args.judge_reasoning_effort,
             max_rounds=args.max_rounds,
             interviewer_type=args.interviewer_type,
