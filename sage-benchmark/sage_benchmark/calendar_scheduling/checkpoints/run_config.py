@@ -31,14 +31,16 @@ class RunConfig(BaseModel):
     judge_api_version: str | None = Field(default=None, description="API version for judge")
 
     # Reasoning effort
-    reasoning_effort: str | None = Field(default=None, description="Default reasoning effort")
-    assistant_reasoning_effort: str | None = Field(
+    reasoning_effort: str | int | None = Field(default=None, description="Default reasoning effort")
+    assistant_reasoning_effort: str | int | None = Field(
         default=None, description="Reasoning for assistant"
     )
-    requestor_reasoning_effort: str | None = Field(
+    requestor_reasoning_effort: str | int | None = Field(
         default=None, description="Reasoning for requestor"
     )
-    judge_reasoning_effort: str | None = Field(default=None, description="Reasoning for judge")
+    judge_reasoning_effort: str | int | None = Field(
+        default=None, description="Reasoning for judge"
+    )
 
     # Run parameters
     max_rounds: int = Field(description="Maximum conversation rounds per task")
