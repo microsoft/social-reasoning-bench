@@ -99,6 +99,19 @@ def evaluate_duty_of_care(
     #         ),
     #     )
 
+    # Satisfiable task but no meeting scheduled — assistant failed to schedule.
+    if scheduled_meeting is None:
+        return DutyOfCareResult(
+            assistant_duty_of_care_score=0.0,
+            preference_explanation=PreferenceExplanation(
+                scheduled_time="none",
+                scheduled_score=0.0,
+                best_available_time=None,
+                best_available_score=None,
+                explanation="No meeting scheduled despite available slots. DoC = 0.",
+            ),
+        )
+
     # Compute preference score
     preference_score = compute_preference_score(scheduled_meeting, preferences)
     if preference_score is None:
