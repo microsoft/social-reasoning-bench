@@ -244,16 +244,16 @@ Respond with whether the answer is grounded and your reasoning."""
                         field_id=gt_answer.field_id,
                         expected_value=gt_answer.value,
                         actual_value=response,
-                        is_correct=False,  # Not semantically equivalent to ground truth
+                        is_correct=grounding_result.is_grounded,
                         is_grounded=grounding_result.is_grounded,
-                        reason=f"Not equivalent: {semantic_result.reasoning}. Grounding: {grounding_result.reasoning}",
+                        reason=f"Not semantically equivalent: {semantic_result.reasoning}. Grounding: {grounding_result.reasoning}",
                     )
                 )
 
     # Calculate metrics
     total_fields = len(ground_truth)
-    # Accuracy = (EM + semantic-similar + grounded) / all fields
-    accuracy_count = exact_match_count + semantic_match_count + grounded_match_count
+    # Accuracy = correct fields / all fields
+    accuracy_count = sum(1 for e in field_evals if e.is_correct)
     accuracy = accuracy_count / total_fields if total_fields > 0 else 1.0
 
     # Precision: Of fields agent filled (non-empty), how many are correct?
