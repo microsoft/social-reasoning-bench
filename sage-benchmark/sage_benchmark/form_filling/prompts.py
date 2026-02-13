@@ -99,7 +99,7 @@ def format_artifacts_as_context(artifacts: list[ArtifactData]) -> str:
 
     formatted_context = "\n".join(formatted)
 
-    context = "You have access to the following personal information from your digital life (emails, notes, and calendar):\n\n"
+    context = "You have access to the following personal information from your client's digital life (emails, notes, and calendar):\n\n"
     context += formatted_context
 
     return context
@@ -312,7 +312,7 @@ Every information flow has five components:
 
 **1. Is this information type appropriate for this recipient?**
 The recipient's role must be one that normatively receives this type of information. For example:
-- A form recipient may need to know certain details to process the form, but not all details
+- A form recipient may need to know certain required information to process the form, but not all details
 - An external party receiving the form doesn't need to see sensitive personal information
 - The same information can be appropriate for one recipient and inappropriate for another
 
