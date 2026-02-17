@@ -1,15 +1,12 @@
 # SAGE
 
-_**S**ociety of **Ag**ents **E**valuations_
+SAGE-Benchmark is a set of tasks for evaluating the social reasoning capabilities of LLM agents in multi-agent settings. We include different benchmarks for different tasks that require social intelligence:
 
-Benchmark suite for evaluating the social reasoning capabilities of LLM agents in multi-agent settings.
-
-## Benchmarks
-
-| Benchmark | Description |
-|-----------|-------------|
+| Benchmark                                                                          | Description                                                                             |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | [Calendar Scheduling](sage-benchmark/sage_benchmark/calendar_scheduling/README.md) | Test whether agents can schedule meetings while protecting private calendar information |
-| [Form Filling](sage-benchmark/sage_benchmark/form_filling/) | Evaluate agents filling forms with sensitive user data (one-shot or interactive modes) |
+| [Form Filling](sage-benchmark/sage_benchmark/form_filling/)                        | Evaluate agents filling forms with sensitive user data (one-shot or interactive modes)  |
+| Marketplace -- coming soon!                                                        | Evaluate how well agents negotitate in marketplace settings                             |
 
 ## Quick Start
 
@@ -66,13 +63,3 @@ response = client.chat.completions.create(
 - [Data Format](sage-benchmark/data/Data_Format.md) — Task and artifact data schemas
 - [DEV.md](DEV.md) — Development setup
 - [SYNC.md](SYNC.md) — Syncing results to Azure Blob Storage
-
----
-
-## Archive
-
-Prior explorations and datasets (not actively maintained):
-
-- [datasets/](datasets/) — Calendar, Gullibility, MAGPIE, Needle-in-the-Groupchat, PrivacyLens, Sotopia, Contextual Integrity
-- [environments/](environments/) — Coffee Marketplace, SAGE Environments, OpenVend
-- [evaluations/](evaluations/) — Privacy, Sotopia, Gullibility evaluations
