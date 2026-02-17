@@ -328,6 +328,17 @@ def _dict_to_trace(d: dict[str, Any]) -> LLMTrace:
     return LLMTrace(**d)
 
 
+class _TraceEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles non-serializable objects in traces."""
+
+    def default(self, o):
+        if callable(o):
+            return f"<function {getattr(o, '__name__', repr(o))}>"
+        if hasattr(o, "__dict__"):
+            return f"<{type(o).__name__}>"
+        return f"<non-serializable: {type(o).__name__}>"
+
+
 def save_traces(
     path: str | Path,
     traces: list[LLMTrace] | None = None,
@@ -354,7 +365,7 @@ def save_traces(
 
     path = Path(path)
     with path.open("w") as f:
-        json.dump(data, f, indent=indent)
+        json.dump(data, f, indent=indent, cls=_TraceEncoder)
 
 
 def load_traces(path: str | Path) -> list[LLMTrace]:

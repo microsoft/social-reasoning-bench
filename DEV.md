@@ -9,7 +9,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # clone and install
 git clone https://github.com/microsoft/sage.git
 cd sage
-uv sync --all-groups --all-extras
+uv sync --packages
 ```
 
 ## Checks
