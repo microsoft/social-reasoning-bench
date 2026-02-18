@@ -109,6 +109,10 @@ class AssistantAgent:
         if isinstance(arguments, str):
             arguments = json.loads(arguments)
 
+        # Record the assistant's message in history
+        if tool_call.function.name == "SendMessage":
+            self.messages.append({"role": "assistant", "content": arguments.get("message", "")})
+
         return tool_call.function.name, arguments
 
     def add_tool_result(self, result: str):
