@@ -62,6 +62,7 @@ class AssistantAgent:
         persona,
         artifacts: list,
         prompt_type: str = "base",
+        temperature: float | None = None,
     ):
         """Initialize the assistant agent.
 
@@ -71,9 +72,11 @@ class AssistantAgent:
             persona: PersonaData object with client information
             artifacts: List of ArtifactData objects
             prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained")
+            temperature: Sampling temperature for generation
         """
         self.client = client
         self.model = model
+        self.temperature = temperature
 
         system_prompt = construct_interactive_system_prompt(persona, prompt_type)
         artifacts_context = format_artifacts_as_context(artifacts)
@@ -86,11 +89,15 @@ class AssistantAgent:
 
     async def generate_action(self) -> tuple[str, dict]:
         """Generate the next action. Returns (tool_name, arguments)."""
+        gen_kwargs: dict = {}
+        if self.temperature is not None:
+            gen_kwargs["temperature"] = self.temperature
         response = await self.client.chat.completions.acreate(
             model=self.model,
             messages=self.messages,
             tools=TOOLS,
             tool_choice="required",
+            **gen_kwargs,
         )
 
         message = response.choices[0].message

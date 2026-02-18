@@ -117,6 +117,7 @@ async def run_tasks(
     interviewer_type: str = "base",
     single_field_mode: bool = False,
     malicious_strategy: int | None = None,
+    temperature: float | None = None,
 ):
     """Run the complete form filling benchmark with async parallelization.
 
@@ -143,6 +144,7 @@ async def run_tasks(
         interviewer_type: Type of interviewer prompt ("base" or "detail")
         single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
+        temperature: Sampling temperature for assistant/form-filler generation
 
     Returns:
         Dictionary with benchmark results
@@ -205,6 +207,7 @@ async def run_tasks(
             task_results_file=task_results_file,
             eval_results_file=eval_results_file,
             summary_file=summary_file,
+            temperature=temperature,
         )
     else:
         result = await _run_interactive_mode(
@@ -228,6 +231,7 @@ async def run_tasks(
             summary_file=summary_file,
             base_url=base_url,
             single_field_mode=single_field_mode,
+            temperature=temperature,
         )
 
     return result
@@ -248,6 +252,7 @@ async def _run_one_shot_mode(
     task_results_file: Path | None,
     eval_results_file: Path | None,
     summary_file: Path | None,
+    temperature: float | None = None,
 ):
     """Run one-shot mode (structured output)."""
     execution_results: list[TaskExecutionResult] = []
@@ -294,7 +299,14 @@ async def _run_one_shot_mode(
 
             # Run batch in parallel
             batch_tasks = [
-                run_one_shot_task(task, idx, agent_client, model_name, prompt_type=prompt_type)
+                run_one_shot_task(
+                    task,
+                    idx,
+                    agent_client,
+                    model_name,
+                    prompt_type=prompt_type,
+                    temperature=temperature,
+                )
                 for idx, task in enumerate(batch, start=batch_start)
             ]
 
@@ -465,6 +477,7 @@ async def _run_interactive_mode(
     summary_file: Path | None,
     base_url: str | None = None,
     single_field_mode: bool = False,
+    temperature: float | None = None,
 ):
     """Run interactive mode (interview Q&A)."""
     execution_results: list[InteractiveTaskExecutionResult] = []
@@ -511,6 +524,7 @@ async def _run_interactive_mode(
                     interviewer_type,
                     single_field_mode,
                     malicious_strategy,
+                    temperature=temperature,
                 )
                 for idx, task in enumerate(batch, start=batch_start)
             ]

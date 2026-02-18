@@ -126,6 +126,12 @@ def parse_args() -> argparse.Namespace:
         help="Use malicious interviewer with the n-th strategy (0-indexed) from strategies.yaml. "
         "When set, overrides --interviewer-type.",
     )
+    parser.add_argument(
+        "--assistant-temperature",
+        type=float,
+        default=None,
+        help="Sampling temperature for assistant/form-filler generation",
+    )
 
     return parser.parse_args()
 
@@ -172,6 +178,7 @@ def main():
             interviewer_type=args.interviewer_type,
             single_field_mode=args.single_field_mode,
             malicious_strategy=args.malicious_strategy,
+            temperature=args.assistant_temperature,
         )
     )
 

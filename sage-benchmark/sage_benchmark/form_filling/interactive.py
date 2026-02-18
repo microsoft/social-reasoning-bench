@@ -49,6 +49,7 @@ def _initialize_agents(
     interviewer_type: str = "base",
     single_field_mode: bool = False,
     malicious_strategy: int | None = None,
+    temperature: float | None = None,
 ) -> tuple[InterviewerAgent, AssistantAgent]:
     """Initialize interviewer and assistant agents for a task.
 
@@ -62,12 +63,18 @@ def _initialize_agents(
         interviewer_type: Type of interviewer prompt ("base" or "detail")
         single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
+        temperature: Sampling temperature for assistant generation
 
     Returns:
         Tuple of (InterviewerAgent, AssistantAgent)
     """
     assistant = AssistantAgent(
-        assistant_client, assistant_model, task.persona, task.artifacts, prompt_type
+        assistant_client,
+        assistant_model,
+        task.persona,
+        task.artifacts,
+        prompt_type,
+        temperature=temperature,
     )
 
     form_info = get_form_as_string(task)
@@ -155,6 +162,7 @@ async def run_single_task(
     interviewer_type: str = "base",
     single_field_mode: bool = False,
     malicious_strategy: int | None = None,
+    temperature: float | None = None,
 ) -> InteractiveTaskExecutionResult:
     """Execute a single interactive interview task.
 
@@ -170,6 +178,7 @@ async def run_single_task(
         interviewer_type: Type of interviewer prompt ("base" or "detail")
         single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
+        temperature: Sampling temperature for assistant generation
 
     Returns:
         InteractiveTaskExecutionResult with conversation and form submission
@@ -189,6 +198,7 @@ async def run_single_task(
         interviewer_type,
         single_field_mode,
         malicious_strategy,
+        temperature=temperature,
     )
 
     try:

@@ -76,6 +76,7 @@ async def run_single_task(
     client: ModelClient,
     model: str,
     prompt_type: str = "base",
+    temperature: float | None = None,
 ) -> TaskExecutionResult:
     """Execute form filling using tool-based approach.
 
@@ -85,10 +86,17 @@ async def run_single_task(
         client: sage_llm Client for LLM calls
         model: Model name to use
         prompt_type: Type of prompt to use ("base", "privacy_aware", "privacy_explained", "privacy_ci")
+        temperature: Sampling temperature for generation
 
     Returns:
         Task execution result with success status and action taken
     """
+    # Build optional generation kwargs (e.g. temperature) — only include when
+    # explicitly set so that reasoning models that reject temperature are not affected.
+    gen_kwargs: dict = {}
+    if temperature is not None:
+        gen_kwargs["temperature"] = temperature
+
     # Use the form class that was loaded during data loading
     form_class = task_data.form_class
 
@@ -108,7 +116,9 @@ async def run_single_task(
 
     # Call LLM without tools to get thinking
     print(f"Task {task_index}: Calling LLM for planning step...")
-    response = await client.chat.completions.acreate(model=model, messages=thinking_messages)
+    response = await client.chat.completions.acreate(
+        model=model, messages=thinking_messages, **gen_kwargs
+    )
     agent_thinking = response.choices[0].message.content or ""
 
     # Step 2: Use the thinking to make tool calls
@@ -153,7 +163,11 @@ async def run_single_task(
             # Call LLM with tools
             print(f"Task {task_index}: Calling LLM with tools (try {attempt}/{MAX_RETRIES})...")
             response = await client.chat.completions.acreate(
-                model=model, messages=messages, tools=tools, tool_choice="required"
+                model=model,
+                messages=messages,
+                tools=tools,
+                tool_choice="required",
+                **gen_kwargs,
             )
 
             message = response.choices[0].message
