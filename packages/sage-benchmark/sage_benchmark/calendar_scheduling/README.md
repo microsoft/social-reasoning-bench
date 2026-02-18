@@ -106,13 +106,7 @@ Open in browser to explore tasks and results:
 
 ## Data Generation
 
-Generate calendar artifacts from task definitions:
-
-```bash
-uv run -m sage_benchmark.data_gen.calendar_scheduling.make_artifacts \
-    --tasks data/calendar-scheduling/calendar-tasks.yaml \
-    --output data/calendar-scheduling/calendar-tasks-artifacts.json
-```
+See [sage-data-gen](../../../sage-data-gen/README.md).
 
 ---
 

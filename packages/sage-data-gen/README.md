@@ -1,6 +1,4 @@
-# Data Generation Pipelines
-
-## Calendar Scheduling Data Generation
+# Calendar Scheduling Data Generation
 
 Generates synthetic calendar scheduling benchmark tasks with context-aware privacy labeling using Contextual Integrity framework.
 
@@ -9,19 +7,11 @@ Generates synthetic calendar scheduling benchmark tasks with context-aware priva
 Generate full dataset:
 
 ```bash
-uv run -m data_gen.calendar_scheduling \
+sagegen calendar \
   --num-companies 5 \
   --employees-per-company 10 \
   --tasks-per-employee 3 \
   --artifacts-per-task 5
-```
-
-Run an experiment:
-
-```bash
-sagebench calendar \
-  --data data/calendar-scheduling/generated-tasks.yaml \
-  --model trapi/msraif/shared/gpt-4.1
 ```
 
 CLI Options
