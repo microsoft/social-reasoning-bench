@@ -17,6 +17,12 @@ from sage_benchmark.form_filling.evaluator import (
 from sage_benchmark.form_filling.evaluator import (
     evaluate_task as evaluate_one_shot_task,
 )
+from sage_benchmark.form_filling.gui import (
+    run_single_task as run_gui_task,
+)
+from sage_benchmark.form_filling.gui import (
+    start_http_server,
+)
 from sage_benchmark.form_filling.interactive import run_single_task as run_interactive_task
 from sage_benchmark.form_filling.loader import load_all_form_tasks
 from sage_benchmark.form_filling.one_shot import run_single_task as run_one_shot_task
@@ -97,7 +103,7 @@ def _load_prior_interactive_results(
 
 async def run_tasks(
     data_path: str,
-    execution_mode: Literal["one-shot", "interactive"],
+    execution_mode: Literal["one-shot", "interactive", "gui"],
     model_name: str,
     judge_model: str,
     interviewer_model: str | None = None,
@@ -117,14 +123,18 @@ async def run_tasks(
     interviewer_type: str = "base",
     single_field_mode: bool = False,
     malicious_strategy: int | None = None,
+    gui_forms_dir: str | None = None,
+    http_port: int = 8080,
+    max_steps: int = 30,
+    restructure_model: str | None = None,
     temperature: float | None = None,
 ):
     """Run the complete form filling benchmark with async parallelization.
 
     Args:
         data_path: Path to directory containing task directories
-        execution_mode: "one-shot" for structured output, "interactive" for interview Q&A
-        model_name: Model for form filling (one-shot) or assistant (interactive)
+        execution_mode: "one-shot", "interactive", or "gui"
+        model_name: Model for form filling (one-shot/gui) or assistant (interactive)
         judge_model: Model to use for evaluation
         interviewer_model: Model for interviewer agent (interactive mode only)
         base_url: Optional base URL for OpenAI-compatible API (e.g., vLLM)
@@ -135,15 +145,18 @@ async def run_tasks(
         task_results_path: Path to task_results.json (required for eval mode)
         batch_size: Number of tasks/evals to run in parallel
         max_concurrent_requests: Maximum concurrent API requests per client
-        prompt_type: Type of prompt to use ("base", "privacy_aware", "privacy_explained")
+        prompt_type: Type of prompt to use ("base", "privacy_aware", "privacy_explained", "privacy_ci")
         interviewer_reasoning_effort: Reasoning effort for interviewer agent (interactive mode)
         assistant_reasoning_effort: Reasoning effort for assistant agent (interactive) or form filler (one-shot)
         judge_reasoning_effort: Reasoning effort level for judge model
-        prompt_type: Type of prompt for one-shot mode ("base", "privacy_aware", "privacy_explained")
         max_rounds: Maximum conversation rounds for interactive mode
         interviewer_type: Type of interviewer prompt ("base" or "detail")
         single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
+        gui_forms_dir: Directory containing HTML form files (gui mode only)
+        http_port: HTTP server port for serving HTML forms (gui mode only)
+        max_steps: Maximum interaction steps per form (gui mode only)
+        restructure_model: Model for restructuring flat values to schema (gui mode, defaults to judge_model)
         temperature: Sampling temperature for assistant/form-filler generation
 
     Returns:
@@ -157,6 +170,8 @@ async def run_tasks(
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         if execution_mode == "one-shot":
             run_dir = output_path / f"run_{normalize_model_name(model_name)}_{timestamp_str}"
+        elif execution_mode == "gui":
+            run_dir = output_path / f"run_gui_{normalize_model_name(model_name)}_{timestamp_str}"
         else:
             run_dir = (
                 output_path
@@ -208,6 +223,25 @@ async def run_tasks(
             eval_results_file=eval_results_file,
             summary_file=summary_file,
             temperature=temperature,
+        )
+    elif execution_mode == "gui":
+        result = await _run_gui_mode(
+            tasks=tasks,
+            model_name=model_name,
+            judge_model=judge_model,
+            base_url=base_url,
+            gui_forms_dir=gui_forms_dir,
+            http_port=http_port,
+            max_steps=max_steps,
+            restructure_model=restructure_model,
+            run_mode=run_mode,
+            task_results_path=task_results_path,
+            batch_size=batch_size,
+            prompt_type=prompt_type,
+            judge_reasoning_effort=judge_reasoning_effort,
+            task_results_file=task_results_file,
+            eval_results_file=eval_results_file,
+            summary_file=summary_file,
         )
     else:
         result = await _run_interactive_mode(
@@ -445,6 +479,200 @@ async def _run_one_shot_mode(
                 )
 
     # Build and return summary
+    return _build_one_shot_summary(
+        execution_results=execution_results,
+        evaluation_results=evaluation_results,
+        model_name=model_name,
+        judge_model=judge_model,
+        run_mode=run_mode,
+        batch_size=batch_size,
+        summary_file=summary_file,
+    )
+
+
+async def _run_gui_mode(
+    tasks: list[FormTask],
+    model_name: str,
+    judge_model: str,
+    base_url: str | None,
+    gui_forms_dir: str | None,
+    http_port: int,
+    max_steps: int,
+    restructure_model: str,
+    run_mode: Literal["all", "tasks", "eval"],
+    task_results_path: str | None,
+    batch_size: int,
+    prompt_type: str,
+    judge_reasoning_effort: str | None,
+    task_results_file: Path | None,
+    eval_results_file: Path | None,
+    summary_file: Path | None,
+):
+    """Run GUI mode (vision-based browser automation)."""
+    from playwright.async_api import async_playwright
+
+    execution_results: list[TaskExecutionResult] = []
+
+    if run_mode == "eval":
+        # Load task results from file
+        if not task_results_path:
+            raise ValueError("task_results_path is required for eval mode")
+
+        print(f"Loading task results from: {task_results_path}")
+        task_results_data = load_json_list(Path(task_results_path))
+        print(f"Loaded {len(task_results_data)} task results")
+
+        task_map = {task.form_id: task for task in tasks}
+        for task_result_data in task_results_data:
+            exec_data = task_result_data["execution"]
+            form_id = task_result_data["form_id"]
+            if form_id not in task_map:
+                print(f"Warning: Form {form_id} not found in data_path, skipping")
+                continue
+            exec_result = reconstruct_task_execution_result(exec_data, task_map[form_id])
+            execution_results.append(exec_result)
+
+    else:
+        if not gui_forms_dir:
+            raise ValueError("gui_forms_dir is required for GUI mode")
+
+        # Filter tasks to those with matching HTML files
+        gui_forms_path = Path(gui_forms_dir)
+        gui_tasks = [t for t in tasks if (gui_forms_path / f"form_{t.form_id}.html").exists()]
+        if len(gui_tasks) < len(tasks):
+            print(f"Filtered to {len(gui_tasks)} tasks with GUI forms (from {len(tasks)} total)")
+        tasks = gui_tasks
+
+        # Create clients
+        agent_client = ModelClient(base_url=base_url)
+        restructure_client = ModelClient()
+
+        print(f"\n{'=' * 60}")
+        print(f"Running {len(tasks)} tasks in GUI mode (sequential)")
+        print(f"Vision model: {model_name}")
+        print(f"Restructure model: {restructure_model}")
+        print(f"Max steps per form: {max_steps}")
+        print(f"{'=' * 60}\n")
+
+        # Start HTTP server
+        abs_gui_forms_dir = str(gui_forms_path.resolve())
+        server = start_http_server(abs_gui_forms_dir, http_port)
+
+        try:
+            async with async_playwright() as pw:
+                browser = await pw.chromium.launch(headless=True)
+
+                # Run tasks sequentially (browser automation is inherently sequential)
+                for idx, task in enumerate(tasks):
+                    print(f"\n{'=' * 60}")
+                    print(f"[{idx + 1}/{len(tasks)}] form_{task.form_id}")
+                    print(f"{'=' * 60}")
+
+                    result = await run_gui_task(
+                        task=task,
+                        task_index=idx,
+                        client=agent_client,
+                        model=model_name,
+                        restructure_client=restructure_client,
+                        restructure_model=restructure_model,
+                        browser=browser,
+                        http_port=http_port,
+                        gui_forms_dir=abs_gui_forms_dir,
+                        prompt_type=prompt_type,
+                        max_steps=max_steps,
+                    )
+                    execution_results.append(result)
+
+                    if result.success:
+                        print(f"Task {idx}: FILL - Form {task.form_id}")
+                    else:
+                        print(f"Task {idx}: FAILED - {result.error_message}")
+
+                    # Save incrementally
+                    if task_results_file:
+                        append_batch_to_json_list(
+                            task_results_file,
+                            [
+                                {
+                                    "task_index": result.task_index,
+                                    "form_id": task.form_id,
+                                    "execution": result.model_dump(mode="json"),
+                                }
+                            ],
+                        )
+
+                await browser.close()
+        finally:
+            server.shutdown()
+
+    # Evaluate results in parallel batches (reuse one-shot evaluation)
+    evaluation_results: list[FormTaskEvaluationResult] = []
+
+    if run_mode != "tasks":
+        print(f"\n{'=' * 60}")
+        print("Evaluating results...")
+        print("Correctness: 0 - 1, fraction of fields matching ground truth.")
+        print("Privacy: 0 - 1, fraction of secrets protected.")
+        print("Validation: pass/fail, pydantic schema validation.")
+        print(f"{'=' * 60}\n")
+
+        judge_client = ModelClient(reasoning_effort=judge_reasoning_effort)
+
+        successful_results = [r for r in execution_results if r.success]
+        print(f"Evaluating {len(successful_results)} successful tasks in batches of {batch_size}\n")
+
+        for eval_batch_start in range(0, len(successful_results), batch_size):
+            eval_batch_end = min(eval_batch_start + batch_size, len(successful_results))
+            eval_batch = successful_results[eval_batch_start:eval_batch_end]
+
+            print(
+                f"Evaluating batch {eval_batch_start // batch_size + 1} "
+                f"(evals {eval_batch_start}-{eval_batch_end - 1})..."
+            )
+
+            eval_tasks = [
+                evaluate_one_shot_task(exec_result, exec_result.task, judge_client, judge_model)
+                for exec_result in eval_batch
+            ]
+
+            batch_eval_results = await asyncio.gather(*eval_tasks, return_exceptions=True)
+
+            batch_eval_data_to_save = []
+            for eval_idx, eval_result in enumerate(batch_eval_results):
+                if isinstance(eval_result, Exception):
+                    error_msg = (
+                        f"Evaluation {eval_batch_start + eval_idx} failed: {str(eval_result)}"
+                    )
+                    logger.error(error_msg)
+                    logger.error(traceback.format_exc())
+                    print(f"Eval {eval_batch_start + eval_idx}: FAILED - {str(eval_result)}")
+                else:
+                    evaluation_results.append(eval_result)
+                    print(
+                        f"Task {eval_result.task_index}: "
+                        f"Correctness={eval_result.correctness.accuracy:.2%} "
+                        f"({eval_result.correctness.exact_matches}/{eval_result.correctness.total_fields}), "
+                        f"Privacy={eval_result.privacy.privacy_score:.2%} "
+                        f"({len(eval_result.privacy.secrets_checked) - len(eval_result.privacy.secrets_leaked)}/{len(eval_result.privacy.secrets_checked)}), "
+                        f"Valid={'✓' if eval_result.pydantic_validation_passed else '✗'}"
+                    )
+
+                    if eval_results_file:
+                        batch_eval_data_to_save.append(
+                            {
+                                "task_index": eval_result.task_index,
+                                "form_id": eval_result.task.form_id,
+                                "evaluation": eval_result.model_dump(mode="json"),
+                            }
+                        )
+
+            if eval_results_file and batch_eval_data_to_save:
+                append_batch_to_json_list(eval_results_file, batch_eval_data_to_save)
+                print(
+                    f"Saved batch {eval_batch_start // batch_size + 1} eval results to {eval_results_file}\n"
+                )
+
+    # Reuse one-shot summary format
     return _build_one_shot_summary(
         execution_results=execution_results,
         evaluation_results=evaluation_results,

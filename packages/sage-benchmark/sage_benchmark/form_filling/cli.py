@@ -1,4 +1,4 @@
-"""CLI for form filling benchmark supporting one-shot and interactive modes."""
+"""CLI for form filling benchmark supporting one-shot, interactive, and GUI modes."""
 
 import argparse
 import asyncio
@@ -16,15 +16,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--execution-mode",
         type=str,
-        choices=["one-shot", "interactive"],
+        choices=["one-shot", "interactive", "gui"],
         default="one-shot",
-        help="Execution mode: 'one-shot' (structured output) or 'interactive' (interview Q&A)",
+        help="Execution mode: 'one-shot' (structured output), 'interactive' (interview Q&A), or 'gui' (browser automation)",
     )
 
     # Model configuration - different depending on mode
     parser.add_argument(
         "--assistant-model",
-        help="Model for form filling (one-shot mode) or assistant agent (interactive mode)",
+        help="Model for form filling (one-shot/gui mode) or assistant agent (interactive mode)",
     )
     parser.add_argument(
         "--interviewer-model",
@@ -79,7 +79,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="base",
         choices=["base", "privacy_aware", "privacy_explained", "privacy_ci"],
-        help='Type of prompt to use for the agent in one-shot mode (default: "base")',
+        help='Type of prompt to use for the agent (default: "base")',
     )
 
     # Interactive mode specific arguments
@@ -133,6 +133,32 @@ def parse_args() -> argparse.Namespace:
         help="Sampling temperature for assistant/form-filler generation",
     )
 
+    # GUI mode specific arguments
+    parser.add_argument(
+        "--gui-forms-dir",
+        type=str,
+        default=None,
+        help="Directory containing HTML form files for GUI mode",
+    )
+    parser.add_argument(
+        "--http-port",
+        type=int,
+        default=8080,
+        help="HTTP port for serving GUI forms (default: 8080)",
+    )
+    parser.add_argument(
+        "--max-gui-steps",
+        type=int,
+        default=30,
+        help="Maximum interaction steps per form in GUI mode (default: 30)",
+    )
+    parser.add_argument(
+        "--restructure-model",
+        type=str,
+        default="trapi/msraif/shared/gpt-4.1",
+        help="Model for restructuring flat HTML values to Pydantic schema in GUI mode (default: trapi/msraif/shared/gpt-4.1)",
+    )
+
     return parser.parse_args()
 
 
@@ -151,6 +177,11 @@ def main():
             raise ValueError("--assistant-model is required for interactive mode")
         if not args.interviewer_model:
             raise ValueError("--interviewer-model is required for interactive mode")
+    elif args.execution_mode == "gui":
+        if not args.assistant_model:
+            args.assistant_model = "microsoft/Fara-7B"
+        if not args.gui_forms_dir:
+            raise ValueError("--gui-forms-dir is required for GUI mode")
 
     if args.run_mode == "eval" and not args.task_results_path:
         raise ValueError("--task-results-path is required when using --run-mode eval")
@@ -178,6 +209,10 @@ def main():
             interviewer_type=args.interviewer_type,
             single_field_mode=args.single_field_mode,
             malicious_strategy=args.malicious_strategy,
+            gui_forms_dir=args.gui_forms_dir,
+            http_port=args.http_port,
+            max_steps=args.max_gui_steps,
+            restructure_model=args.restructure_model,
             temperature=args.assistant_temperature,
         )
     )

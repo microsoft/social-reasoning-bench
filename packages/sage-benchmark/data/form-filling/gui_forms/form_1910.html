@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Volunteer Application — Carewest</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
+    background: #d6d2cd;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 20px 10px;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  .page {
+    background: #fff;
+    width: 100%;
+    max-width: 820px;
+    box-shadow: 0 1px 12px rgba(0,0,0,0.12);
+    padding: 28px 40px 24px;
+  }
+
+  /* ── Header ── */
+  .hdr {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .hdr-title {
+    font-size: 30px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    color: #333;
+    line-height: 1.2;
+  }
+  .hdr-logo {
+    text-align: right;
+  }
+  .hdr-logo .logo-name {
+    font-size: 32px;
+    font-weight: 700;
+    color: #555;
+    letter-spacing: 1px;
+  }
+  .hdr-logo .logo-accent {
+    color: #e8881c;
+  }
+  .hdr-logo .logo-sub {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    color: #888;
+    text-transform: uppercase;
+  }
+
+  /* ── Intro paragraphs ── */
+  .intro {
+    font-size: 12px;
+    line-height: 1.6;
+    margin-bottom: 6px;
+  }
+  .intro p { margin-bottom: 6px; }
+  .intro a { color: #1a1a1a; }
+  .intro .note-label { font-weight: 700; }
+  .intro .mail-block {
+    display: flex;
+    gap: 40px;
+    margin: 6px 0;
+    font-size: 12px;
+  }
+  .intro .mail-block .mb-left { flex: 1; }
+  .intro .mail-block .mb-right { white-space: nowrap; }
+
+  /* ── Section header bars ── */
+  .sec-bar {
+    background: #e8e8e8;
+    border: 1px solid #999;
+    text-align: center;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 4px 0;
+    margin-top: 12px;
+  }
+
+  /* ── Form tables ── */
+  table.ft {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.ft td {
+    border: 1px solid #999;
+    padding: 4px 6px;
+    vertical-align: top;
+  }
+  table.ft .fl {
+    font-size: 11px;
+    color: #555;
+  }
+  table.ft input[type="text"],
+  table.ft input[type="email"],
+  table.ft input[type="tel"],
+  table.ft input[type="number"] {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-family: 'Inter', Arial, sans-serif;
+    font-size: 12px;
+    background: transparent;
+    padding: 2px 0;
+  }
+  table.ft input:focus,
+  table.ft textarea:focus { background: #f5f5ee; }
+  table.ft textarea {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-family: 'Inter', Arial, sans-serif;
+    font-size: 12px;
+    background: transparent;
+    resize: vertical;
+    padding: 2px 0;
+  }
+
+  /* ── Criminal convictions row ── */
+  .crim-row {
+    border: 1px solid #999;
+    border-top: none;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .crim-row .crim-q {
+    font-weight: 700;
+    display: inline;
+  }
+  .crim-row .yn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 12px;
+    font-size: 12px;
+  }
+  .crim-row .yn input[type="checkbox"] {
+    width: 14px; height: 14px; accent-color: #333; margin: 0;
+  }
+  .crim-row .note-text {
+    font-size: 10px;
+    font-style: italic;
+    color: #555;
+    margin-top: 4px;
+    line-height: 1.45;
+  }
+  .crim-row .note-text .note-bold { font-weight: 700; font-style: italic; }
+
+  /* ── Motivation section ── */
+  .motiv-box {
+    border: 1px solid #999;
+    border-top: none;
+    padding: 6px 8px;
+  }
+  .motiv-box .motiv-title {
+    font-weight: 700;
+    font-size: 12.5px;
+    margin-bottom: 4px;
+  }
+  .motiv-box .cb-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+    font-size: 12px;
+  }
+  .motiv-box .cb-row input[type="checkbox"] {
+    width: 13px; height: 13px; accent-color: #333; margin: 0;
+  }
+  .motiv-box .cb-row input[type="text"],
+  .motiv-box .cb-row input[type="number"] {
+    border: none; border-bottom: 1px solid #333; outline: none;
+    font-family: 'Inter', sans-serif; font-size: 12px;
+    background: transparent; width: 120px; padding: 0 4px;
+  }
+  .motiv-box .cb-row input:focus { background: #f5f5ee; }
+  .motiv-box .why-area {
+    width: 100%;
+    min-height: 80px;
+    border: none;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    background: transparent;
+    resize: vertical;
+    padding: 4px 0;
+  }
+  .motiv-box .why-area:focus { background: #f5f5ee; }
+
+  /* Hobbies box */
+  .hobby-box {
+    border: 1px solid #999;
+    border-top: none;
+    padding: 6px 8px;
+  }
+  .hobby-box .hb-label { font-size: 12px; margin-bottom: 2px; }
+  .hobby-box textarea {
+    width: 100%;
+    min-height: 50px;
+    border: none;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    background: transparent;
+    resize: vertical;
+  }
+  .hobby-box textarea:focus { background: #f5f5ee; }
+
+  /* ── Volunteering Preferences ── */
+  .vol-area-box {
+    border: 1px solid #999;
+    border-top: none;
+    padding: 6px 8px;
+  }
+  .vol-area-box .va-title {
+    font-weight: 700;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .area-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px 8px;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .area-grid label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .area-grid input[type="checkbox"] {
+    width: 13px; height: 13px; accent-color: #333; margin: 0;
+  }
+  /* Other row in area grid */
+  .other-inline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+  }
+  .other-inline input[type="checkbox"] {
+    width: 13px; height: 13px; accent-color: #333; margin: 0;
+  }
+  .other-inline input[type="text"] {
+    flex: 1;
+    border: none; border-bottom: 1px solid #333; outline: none;
+    font-family: 'Inter', sans-serif; font-size: 12px;
+    background: transparent; padding: 0 4px;
+  }
+  .other-inline input[type="text"]:focus { background: #f5f5ee; }
+
+  /* Availability box */
+  .avail-box {
+    border: 1px solid #999;
+    border-top: none;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .avail-box .ab-title {
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+  .cb-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    margin-bottom: 3px;
+    font-size: 12px;
+  }
+  .cb-line .cb-label-prefix {
+    font-weight: 400;
+    white-space: nowrap;
+    margin-right: 2px;
+  }
+  .cb-line label {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .cb-line input[type="checkbox"] {
+    width: 13px; height: 13px; accent-color: #333; margin: 0;
+  }
+  .time-commit-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    margin-top: 3px;
+    font-size: 12px;
+  }
+  .time-commit-row input[type="text"] {
+    flex: 1;
+    border: none; border-bottom: 1px solid #333; outline: none;
+    font-family: 'Inter', sans-serif; font-size: 12px;
+    background: transparent; padding: 0 4px;
+  }
+  .time-commit-row input:focus { background: #f5f5ee; }
+
+  /* ── Footer ── */
+  .footer-date {
+    text-align: right;
+    font-size: 10px;
+    color: #888;
+    margin-top: 4px;
+    font-style: italic;
+  }
+
+  /* ── Submit ── */
+  .submit-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .btn {
+    font-family: 'Inter', Arial, sans-serif;
+    font-size: 12px; font-weight: 600;
+    padding: 6px 20px; border-radius: 2px; cursor: pointer;
+  }
+  .btn-submit { background: #444; color: #fff; border: 1px solid #333; }
+  .btn-submit:hover { background: #333; }
+  .btn-clear { background: #fff; color: #444; border: 1px solid #888; }
+  .btn-clear:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ══════ Header ══════ -->
+  <div class="hdr">
+    <div class="hdr-title">Volunteer Application</div>
+    <div class="hdr-logo">
+      <div class="logo-name"><span class="logo-accent">❋</span> Carewest</div>
+      <div class="logo-sub">Innovative Health Care</div>
+    </div>
+  </div>
+
+  <!-- ══════ Intro ══════ -->
+  <div class="intro">
+    <p>Thank you for your interest in volunteering with Carewest.</p>
+    <p>We encourage all applicants to visit our website <a href="http://www.carewest.ca">www.carewest.ca</a> to learn more about our company and current volunteer openings. A fillable PDF version of this form can also be found on our website.</p>
+    <p><span class="note-label">Note:</span> The minimum age to volunteer is 16 years.</p>
+    <p>Please submit your completed application form using one of the following methods:</p>
+    <div class="mail-block">
+      <div class="mb-left">
+        Mail or Deliver to: &nbsp;&nbsp; Carewest Administration<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10101 Southport Road SW, Calgary, AB, T2W 3N2
+      </div>
+      <div class="mb-right">Email: &nbsp; carewest.hr@ahs.ca</div>
+    </div>
+    <p>If you have any questions regarding your volunteer application and/or Carewest's volunteer opportunities please contact Recruitment at 403-943-8170 or 403-943-8171.</p>
+  </div>
+
+  <form id="volunteerForm" autocomplete="off">
+
+  <!-- ══════ Personal Information ══════ -->
+  <div class="sec-bar">Personal Information</div>
+  <table class="ft">
+    <tr>
+      <td style="width:25%;">
+        <span class="fl">Surname:</span><br>
+        <input type="text" id="surname" name="surname">
+      </td>
+      <td style="width:25%;">
+        <span class="fl">First Name:</span><br>
+        <input type="text" id="first_name" name="first_name">
+      </td>
+      <td style="width:25%;">
+        <span class="fl">Second Name:</span><br>
+        <input type="text" id="second_name" name="second_name">
+      </td>
+      <td style="width:25%;">
+        <span class="fl">Preferred Name:</span><br>
+        <input type="text" id="preferred_name" name="preferred_name">
+      </td>
+    </tr>
+    <tr>
+      <td colspan="3">
+        <span class="fl">Address:</span><br>
+        <input type="text" id="address" name="address">
+      </td>
+      <td>
+        <span class="fl">Postal Code:</span><br>
+        <input type="text" id="postal_code" name="postal_code">
+      </td>
+    </tr>
+    <tr>
+      <td colspan="1">
+        <span class="fl">Primary Phone:</span><br>
+        <input type="tel" id="primary_phone" name="primary_phone">
+      </td>
+      <td colspan="1">
+        <span class="fl">Alternate Phone:</span><br>
+        <input type="tel" id="alternate_phone" name="alternate_phone">
+      </td>
+      <td colspan="2">
+        <span class="fl">E-mail:</span><br>
+        <input type="email" id="e_mail" name="e_mail">
+      </td>
+    </tr>
+  </table>
+
+  <!-- Criminal convictions -->
+  <div class="crim-row">
+    <span class="crim-q">Do you have any criminal convictions for which a pardon has not been granted?</span>
+    <span class="yn"><input type="checkbox" id="criminal_convictions_yes" name="criminal_convictions_yes"> YES</span>
+    <span class="yn"><input type="checkbox" id="criminal_convictions_no" name="criminal_convictions_no"> NO</span>
+    <div class="note-text">
+      <em>In compliance with the Protection for Persons in Care Act (PPCA) Carewest must obtain a current vulnerable sector criminal records check for every new hire and volunteer. Carewest will accept a vulnerable sector criminal records check dated within one hundred eighty (180) days prior to commencement of duties.</em><br>
+      <span class="note-bold">Note:</span> <em>We require the completed Vulnerable Sector Criminal Records Check <u>prior</u> to offers of volunteer employment. Carewest does not normally hire persons with active criminal records for which a pardon has not been obtained.</em>
+    </div>
+  </div>
+
+  <!-- ══════ Motivation and Background ══════ -->
+  <div class="motiv-box">
+    <div class="motiv-title">Why do you want to volunteer at Carewest?</div>
+    <div class="cb-row">
+      <input type="checkbox" id="required_for_school" name="required_for_school">
+      <span>Required for school</span>
+      <span style="margin-left:8px;">Number of hours required:</span>
+      <input type="text" id="number_of_hours_required" name="number_of_hours_required" style="width:100px;">
+    </div>
+    <div class="cb-row">
+      <input type="checkbox" id="personal_growth_and_satisfaction" name="personal_growth_and_satisfaction">
+      <span>Personal growth and satisfaction</span>
+    </div>
+    <div class="cb-row">
+      <input type="checkbox" id="other_reason_checkbox" name="other_reason_checkbox">
+      <span>Other (Please provide us with more information in the space below)</span>
+    </div>
+    <textarea class="why-area" id="why_do_you_want_to_volunteer_at_carewest" name="why_do_you_want_to_volunteer_at_carewest"></textarea>
+  </div>
+
+  <!-- Hobbies -->
+  <div class="hobby-box">
+    <div class="hb-label">Please tell us what are some of your hobbies and interests?</div>
+    <textarea id="hobbies_and_interests" name="hobbies_and_interests" rows="3"></textarea>
+  </div>
+
+  <!-- ══════ Volunteering Preferences ══════ -->
+  <div class="sec-bar">Volunteering Preferences</div>
+
+  <!-- Area(s) applying for -->
+  <div class="vol-area-box">
+    <div class="va-title">Area(s) applying for: <span style="font-weight:400;">(Check all applicable boxes)</span></div>
+    <div class="area-grid">
+      <label><input type="checkbox" id="community_outing" name="community_outing"> Community Outing</label>
+      <label><input type="checkbox" id="leisure_activities" name="leisure_activities"> Leisure Activities</label>
+      <label><input type="checkbox" id="one_to_one_visiting" name="one_to_one_visiting"> One to One Visiting</label>
+      <label><input type="checkbox" id="pastoral_care" name="pastoral_care"> Pastoral Care</label>
+
+      <label><input type="checkbox" id="non_resident_activities" name="non_resident_activities"> Non Resident Activities</label>
+      <label><input type="checkbox" id="rehab_and_recovery" name="rehab_and_recovery"> Rehab and Recovery</label>
+      <label><input type="checkbox" id="gift_stores" name="gift_stores"> Gift Stores</label>
+      <label><input type="checkbox" id="community_programs" name="community_programs"> Community Programs</label>
+
+      <label><input type="checkbox" id="palliative_care" name="palliative_care"> Palliative Care</label>
+      <label><input type="checkbox" id="no_preference_unknown" name="no_preference_unknown"> No preference/Unknown</label>
+    </div>
+    <div class="other-inline" style="margin-top:2px;">
+      <span>Other:</span>
+      <input type="text" id="other_areas_applying_for" name="other_areas_applying_for">
+    </div>
+  </div>
+
+  <!-- Availability -->
+  <div class="avail-box">
+    <div class="ab-title">Availability: <span style="font-weight:400;">(Check all applicable boxes)</span></div>
+
+    <div class="cb-line">
+      <span class="cb-label-prefix">Frequency:</span>
+      <label><input type="checkbox" id="frequency_one_time" name="frequency_one_time"> One Time</label>
+      <label><input type="checkbox" id="frequency_weekly" name="frequency_weekly"> Weekly</label>
+      <label><input type="checkbox" id="frequency_monthly" name="frequency_monthly"> Monthly</label>
+      <label><input type="checkbox" id="frequency_discuss_in_person" name="frequency_discuss_in_person"> Would like to discuss in person</label>
+    </div>
+
+    <div class="cb-line">
+      <span class="cb-label-prefix">Day of week preference(s):</span>
+      <label><input type="checkbox" id="day_pref_sunday" name="day_pref_sunday"> Sunday</label>
+      <label><input type="checkbox" id="day_pref_monday" name="day_pref_monday"> Monday</label>
+      <label><input type="checkbox" id="day_pref_tuesday" name="day_pref_tuesday"> Tuesday</label>
+      <label><input type="checkbox" id="day_pref_wednesday" name="day_pref_wednesday"> Wednesday</label>
+      <label><input type="checkbox" id="day_pref_thursday" name="day_pref_thursday"> Thursday</label>
+      <label><input type="checkbox" id="day_pref_friday" name="day_pref_friday"> Friday</label>
+      <label><input type="checkbox" id="day_pref_saturday" name="day_pref_saturday"> Saturday</label>
+    </div>
+
+    <div class="cb-line">
+      <span class="cb-label-prefix">Shift preference(s):</span>
+      <label><input type="checkbox" id="shift_pref_morning" name="shift_pref_morning"> Morning</label>
+      <label><input type="checkbox" id="shift_pref_afternoon" name="shift_pref_afternoon"> Afternoon</label>
+      <label><input type="checkbox" id="shift_pref_evening" name="shift_pref_evening"> Evening</label>
+      <label><input type="checkbox" id="shift_pref_weekend" name="shift_pref_weekend"> Weekend</label>
+    </div>
+
+    <div class="time-commit-row">
+      <span>What is your available volunteer time commitment per shift? (i.e. hours/week)</span>
+      <input type="text" id="available_time_commitment_per_shift" name="available_time_commitment_per_shift">
+    </div>
+  </div>
+
+  <!-- Footer date -->
+  <div class="footer-date">January 2018</div>
+
+  <!-- Submit -->
+  <div class="submit-row">
+    <button type="reset" class="btn btn-clear">Clear Form</button>
+    <button type="submit" class="btn btn-submit">Submit</button>
+  </div>
+
+  </form>
+</div>
+
+<script>
+  document.getElementById('volunteerForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    const cb = id => document.getElementById(id).checked ? 'true' : 'false';
+    const v = id => fd.get(id) || '';
+
+    const data = {
+      personal_information: {
+        surname: v('surname'),
+        first_name: v('first_name'),
+        second_name: v('second_name'),
+        preferred_name: v('preferred_name'),
+        address: v('address'),
+        postal_code: v('postal_code'),
+        primary_phone: v('primary_phone'),
+        alternate_phone: v('alternate_phone'),
+        e_mail: v('e_mail'),
+        criminal_convictions_yes: cb('criminal_convictions_yes'),
+        criminal_convictions_no: cb('criminal_convictions_no'),
+      },
+      motivation_and_background: {
+        why_do_you_want_to_volunteer_at_carewest: v('why_do_you_want_to_volunteer_at_carewest'),
+        required_for_school: cb('required_for_school'),
+        number_of_hours_required: v('number_of_hours_required'),
+        personal_growth_and_satisfaction: cb('personal_growth_and_satisfaction'),
+        other_reason_checkbox: cb('other_reason_checkbox'),
+        hobbies_and_interests: v('hobbies_and_interests'),
+      },
+      volunteering_preferences: {
+        community_outing: cb('community_outing'),
+        leisure_activities: cb('leisure_activities'),
+        one_to_one_visiting: cb('one_to_one_visiting'),
+        pastoral_care: cb('pastoral_care'),
+        non_resident_activities: cb('non_resident_activities'),
+        rehab_and_recovery: cb('rehab_and_recovery'),
+        gift_stores: cb('gift_stores'),
+        community_programs: cb('community_programs'),
+        palliative_care: cb('palliative_care'),
+        no_preference_unknown: cb('no_preference_unknown'),
+        other_areas_applying_for: v('other_areas_applying_for'),
+        frequency_one_time: cb('frequency_one_time'),
+        frequency_weekly: cb('frequency_weekly'),
+        frequency_monthly: cb('frequency_monthly'),
+        frequency_discuss_in_person: cb('frequency_discuss_in_person'),
+        day_pref_sunday: cb('day_pref_sunday'),
+        day_pref_monday: cb('day_pref_monday'),
+        day_pref_tuesday: cb('day_pref_tuesday'),
+        day_pref_wednesday: cb('day_pref_wednesday'),
+        day_pref_thursday: cb('day_pref_thursday'),
+        day_pref_friday: cb('day_pref_friday'),
+        day_pref_saturday: cb('day_pref_saturday'),
+        shift_pref_morning: cb('shift_pref_morning'),
+        shift_pref_afternoon: cb('shift_pref_afternoon'),
+        shift_pref_evening: cb('shift_pref_evening'),
+        shift_pref_weekend: cb('shift_pref_weekend'),
+        available_time_commitment_per_shift: v('available_time_commitment_per_shift'),
+      },
+    };
+    console.log('Form Data (Pydantic-compatible JSON):');
+    console.log(JSON.stringify(data, null, 2));
+    alert('Submitted! Check console for JSON.');
+  });
+</script>
+
+</body>
+</html>

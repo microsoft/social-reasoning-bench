@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pre-tenancy Application Form — Tenancy Services</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
+    background: #d6d2cd;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 20px 10px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .page {
+    background: #fff;
+    width: 100%;
+    max-width: 780px;
+    box-shadow: 0 1px 12px rgba(0,0,0,0.12);
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 24px 36px 16px;
+  }
+  .logo {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #1a1a1a;
+  }
+  .logo span { font-weight: 400; color: #666; }
+  .geo-shapes {
+    display: flex;
+    gap: 0;
+    margin-top: -24px;
+    margin-right: -36px;
+  }
+  .geo-shapes .shape {
+    width: 50px;
+    height: 60px;
+  }
+  .geo-shapes .s1 { background: #b0b0b0; clip-path: polygon(100% 0, 0% 100%, 100% 100%); }
+  .geo-shapes .s2 { background: #888; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: skewX(-10deg); }
+  .geo-shapes .s3 { background: #666; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+
+  .rule {
+    height: 1px;
+    background: #ccc;
+    margin: 0 36px;
+  }
+
+  /* ── Title ── */
+  .main-title {
+    font-size: 32px;
+    font-weight: 300;
+    color: #333;
+    padding: 24px 36px 8px;
+    line-height: 1.2;
+  }
+
+  /* ── Privacy notice ── */
+  .privacy {
+    font-size: 12.5px;
+    padding: 12px 36px 16px;
+    line-height: 1.6;
+    color: #222;
+  }
+
+  /* ── Form table sections ── */
+  .form-body {
+    padding: 0 36px 28px;
+  }
+
+  table.ftable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0;
+    font-size: 12.5px;
+  }
+  table.ftable td {
+    border: 1px solid #ccc;
+    padding: 6px 8px;
+    vertical-align: top;
+  }
+  table.ftable .sec-header {
+    font-weight: 700;
+    font-size: 12.5px;
+    background: #f7f7f7;
+    border-bottom: 1px solid #ccc;
+  }
+  table.ftable .sec-sub {
+    font-size: 12px;
+    color: #444;
+    font-weight: 400;
+  }
+  table.ftable .fl {
+    font-size: 12px;
+    color: #333;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+  table.ftable input[type="text"],
+  table.ftable input[type="email"],
+  table.ftable input[type="tel"],
+  table.ftable input[type="date"] {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-family: 'Inter', Arial, sans-serif;
+    font-size: 12.5px;
+    background: transparent;
+    padding: 2px 0;
+    color: #1a1a1a;
+  }
+  table.ftable input:focus { background: #f5f5ee; }
+
+  /* NB note */
+  .nb-note {
+    font-size: 10.5px;
+    font-style: italic;
+    color: #555;
+    padding: 2px 0;
+  }
+
+  /* Yes/No checkboxes */
+  .yn-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12.5px;
+  }
+  .yn-cell label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .yn-cell input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: #333;
+    margin: 0;
+    border: 1px solid #999;
+  }
+  .yn-cell .please-tick {
+    font-size: 11px;
+    font-style: italic;
+    color: #666;
+  }
+
+  /* ── Submit ── */
+  .submit-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 0 36px 20px;
+  }
+  .btn {
+    font-family: 'Inter', Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 20px;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .btn-submit { background: #444; color: #fff; border: 1px solid #333; }
+  .btn-submit:hover { background: #333; }
+  .btn-clear { background: #fff; color: #444; border: 1px solid #888; }
+  .btn-clear:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">Tenancy<span>Services</span></div>
+    <div class="geo-shapes">
+      <div class="shape s1"></div>
+      <div class="shape s2"></div>
+      <div class="shape s3"></div>
+    </div>
+  </div>
+  <div class="rule"></div>
+
+  <!-- Title -->
+  <div class="main-title">Pre-tenancy application form</div>
+
+  <!-- Privacy notice -->
+  <div class="privacy">
+    Please complete this form to apply for the tenancy at the address below. The information you provide is for applying for this tenancy and may be used for a credit and reference check. Your privacy is protected under the Privacy Act 2020.
+  </div>
+
+  <form id="tenancyForm" autocomplete="off">
+  <div class="form-body">
+
+    <!-- ════════ Tenancy details ════════ -->
+    <table class="ftable">
+      <tr><td colspan="4" class="sec-header">Tenancy details</td></tr>
+      <tr>
+        <td colspan="4">
+          <span class="fl">Property address:</span><br>
+          <input type="text" id="property_address" name="property_address">
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <span class="fl">Commencement of tenancy:</span><br>
+          <input type="text" id="commencement_of_tenancy" name="commencement_of_tenancy">
+        </td>
+        <td colspan="2">
+          <span class="fl">Date:</span>
+          <input type="text" id="date" name="date" placeholder="DD / MM / YYYY" style="width:140px;">
+        </td>
+      </tr>
+    </table>
+
+    <!-- ════════ Applicant details ════════ -->
+    <table class="ftable" style="margin-top:-1px;">
+      <tr><td colspan="4" class="sec-header">Applicant details</td></tr>
+      <tr>
+        <td colspan="2">
+          <span class="fl">Full name:</span><br>
+          <input type="text" id="full_name" name="full_name">
+        </td>
+        <td colspan="2">
+          <span class="fl">Date of birth:</span>
+          <input type="text" id="date_of_birth" name="date_of_birth" placeholder="DD / MM / YYYY" style="width:140px;">
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <span class="fl">Phone number:</span><br>
+          <input type="tel" id="phone_number" name="phone_number">
+        </td>
+        <td colspan="2">
+          <span class="fl">Mobile phone:</span><br>
+          <input type="tel" id="mobile_phone" name="mobile_phone">
+        </td>
+      </tr>
+      <tr>
+        <td colspan="4">
+          <span class="fl">Email:</span><br>
+          <input type="email" id="email" name="email">
+        </td>
+      </tr>
+      <tr>
+        <td colspan="4" style="min-height:44px;">
+          <span class="fl">Current address:</span><br>
+          <input type="text" id="current_address" name="current_address">
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <span class="fl">How long have you lived there?</span>
+          <span class="fl" style="margin-left:12px;">Years:</span>
+          <input type="text" id="how_long_have_you_lived_there_years" name="how_long_have_you_lived_there_years" style="width:50px;">
+          <span class="fl" style="margin-left:12px;">Months:</span>
+          <input type="text" id="how_long_have_you_lived_there_months" name="how_long_have_you_lived_there_months" style="width:50px;">
+        </td>
+        <td colspan="2"></td>
+      </tr>
+      <tr>
+        <td colspan="4" style="min-height:44px;">
+          <span class="fl">Please state why you are leaving this address:</span><br>
+          <input type="text" id="please_state_why_you_are_leaving_this_address" name="please_state_why_you_are_leaving_this_address">
+        </td>
+      </tr>
+    </table>
+
+    <!-- ════════ Identification ════════ -->
+    <table class="ftable" style="margin-top:-1px;">
+      <tr><td colspan="4" class="sec-header">Identification</td></tr>
+      <tr>
+        <td colspan="4" style="font-size:12px; color:#333;">
+          Please provide photo identification, such as your driver's licence.
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <span class="fl">Driver's licence number:</span><br>
+          <input type="text" id="drivers_licence_number" name="drivers_licence_number">
+        </td>
+        <td colspan="2">
+          <span class="fl">Version no. <em style="font-weight:400;">(if applicable)</em></span><br>
+          <input type="text" id="version_no_if_applicable" name="version_no_if_applicable">
+        </td>
+      </tr>
+      <tr>
+        <td colspan="4">
+          <div class="nb-note">NB. Provision of this number is voluntary and will only be used to verify your identity and for carrying out a credit check</div>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="4">
+          <span class="fl">Alternative form of ID:</span><br>
+          <input type="text" id="alternative_form_of_id" name="alternative_form_of_id">
+        </td>
+      </tr>
+    </table>
+
+    <!-- ════════ Current landlord's details ════════ -->
+    <table class="ftable" style="margin-top:-1px;">
+      <tr>
+        <td colspan="4" class="sec-header">
+          Current landlord's details<br>
+          <span class="sec-sub">If you are currently renting, please provide your landlord's name and contact details.</span>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="4">
+          <span class="fl">Landlord's name:</span><br>
+          <input type="text" id="landlords_name" name="landlords_name">
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <span class="fl">Phone number:</span><br>
+          <input type="tel" id="phone_number_current_landlord" name="phone_number_current_landlord">
+        </td>
+        <td colspan="2">
+          <span class="fl">Mobile phone:</span><br>
+          <input type="tel" id="mobile_phone_current_landlord" name="mobile_phone_current_landlord">
+        </td>
+      </tr>
+      <tr>
+        <td colspan="4">
+          <span class="fl">Email:</span><br>
+          <input type="email" id="email_current_landlord" name="email_current_landlord">
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <span class="fl">May I contact this person for a reference?</span>
+        </td>
+        <td colspan="2">
+          <div class="yn-cell">
+            <label><input type="checkbox" id="yes_may_i_contact_this_person_for_a_reference" name="yes_may_i_contact_this_person_for_a_reference"> Yes</label>
+            <label><input type="checkbox" id="no_may_i_contact_this_person_for_a_reference" name="no_may_i_contact_this_person_for_a_reference"> No</label>
+            <span class="please-tick">(please tick)</span>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+  </div>
+
+  <!-- Submit -->
+  <div class="submit-row">
+    <button type="reset" class="btn btn-clear">Clear Form</button>
+    <button type="submit" class="btn btn-submit">Submit</button>
+  </div>
+
+  </form>
+</div>
+
+<script>
+  document.getElementById('tenancyForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    const cb = id => document.getElementById(id).checked ? 'true' : 'false';
+    const v = id => fd.get(id) || '';
+
+    const data = {
+      tenancy_details: {
+        property_address: v('property_address'),
+        commencement_of_tenancy: v('commencement_of_tenancy'),
+        date: v('date'),
+      },
+      applicant_details: {
+        full_name: v('full_name'),
+        date_of_birth: v('date_of_birth'),
+        phone_number: v('phone_number'),
+        mobile_phone: v('mobile_phone'),
+        email: v('email'),
+        current_address: v('current_address'),
+        how_long_have_you_lived_there_years: v('how_long_have_you_lived_there_years'),
+        how_long_have_you_lived_there_months: v('how_long_have_you_lived_there_months'),
+        please_state_why_you_are_leaving_this_address: v('please_state_why_you_are_leaving_this_address'),
+      },
+      identification: {
+        drivers_licence_number: v('drivers_licence_number'),
+        version_no_if_applicable: v('version_no_if_applicable'),
+        alternative_form_of_id: v('alternative_form_of_id'),
+      },
+      current_landlords_details: {
+        landlords_name: v('landlords_name'),
+        phone_number_current_landlord: v('phone_number_current_landlord'),
+        mobile_phone_current_landlord: v('mobile_phone_current_landlord'),
+        email_current_landlord: v('email_current_landlord'),
+        yes_may_i_contact_this_person_for_a_reference: cb('yes_may_i_contact_this_person_for_a_reference'),
+        no_may_i_contact_this_person_for_a_reference: cb('no_may_i_contact_this_person_for_a_reference'),
+      },
+    };
+    console.log('Form Data (Pydantic-compatible JSON):');
+    console.log(JSON.stringify(data, null, 2));
+    alert('Submitted! Check console for JSON.');
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DuPont State Recreational Forest — Commercial Use Permit Application</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Serif', Georgia, serif;
+    background: #d6d2cd;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 20px 10px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .page {
+    background: #fff;
+    width: 100%;
+    max-width: 780px;
+    box-shadow: 0 1px 12px rgba(0,0,0,0.12);
+    padding: 28px 44px 24px;
+    position: relative;
+  }
+
+  .page-num {
+    position: absolute;
+    top: 12px;
+    right: 18px;
+    font-size: 12px;
+    color: #666;
+    border: 1px solid #ccc;
+    padding: 1px 6px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 18px;
+    line-height: 1.35;
+  }
+
+  /* ── Underline field row ── */
+  .uf-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .uf-row .ufl {
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .uf-row .uf {
+    flex: 1;
+    border-bottom: 1px solid #333;
+  }
+  .uf-row .uf input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Noto Serif', Georgia, serif; font-size: 13px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .uf-row .uf input:focus { background: #f5f5ee; }
+
+  /* Two-col */
+  .two-col { display: flex; gap: 16px; }
+  .two-col .uf-row { flex: 1; }
+
+  /* Three-col */
+  .three-col { display: flex; gap: 10px; }
+  .three-col .uf-row { flex: 1; }
+
+  /* ── Section headers (underlined bold italic) ── */
+  .sec-head {
+    font-weight: 700;
+    font-size: 13px;
+    text-decoration: underline;
+    margin-top: 16px;
+    margin-bottom: 6px;
+  }
+
+  /* ── Description lines ── */
+  .desc-lines .dl {
+    border-bottom: 1px solid #333;
+    min-height: 22px;
+    margin-bottom: 2px;
+  }
+  .desc-lines .dl input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Noto Serif', Georgia, serif; font-size: 13px;
+    background: transparent; padding: 2px 4px 1px;
+  }
+  .desc-lines .dl input:focus { background: #f5f5ee; }
+
+  /* ── Access area checkboxes ── */
+  .access-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .access-row label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .access-row input[type="checkbox"] {
+    width: 14px; height: 14px;
+    accent-color: #333; margin: 0;
+  }
+
+  /* ── Timeframe ── */
+  .tf-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  .tf-row .ufl {
+    font-size: 13px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tf-row .uf {
+    border-bottom: 1px solid #333;
+  }
+  .tf-row .uf input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Noto Serif', Georgia, serif; font-size: 13px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .tf-row .uf input:focus { background: #f5f5ee; }
+  .tf-row .uf.lg { flex: 0 0 200px; }
+  .tf-row .uf.sm { flex: 0 0 80px; }
+  .tf-row .uf.md { flex: 0 0 110px; }
+
+  /* ── Participants table ── */
+  .ptable {
+    width: auto;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .ptable th {
+    font-weight: 400;
+    font-style: italic;
+    text-align: left;
+    padding: 2px 6px;
+    border-bottom: 1px solid #999;
+  }
+  .ptable td {
+    padding: 3px 6px;
+    vertical-align: bottom;
+  }
+  .ptable td.mode-label {
+    white-space: nowrap;
+    padding-right: 10px;
+  }
+  .ptable input[type="text"] {
+    width: 60px;
+    border: none;
+    border-bottom: 1px solid #333;
+    outline: none;
+    font-family: 'Noto Serif', Georgia, serif;
+    font-size: 13px;
+    background: transparent;
+    padding: 0 4px 1px;
+    text-align: center;
+  }
+  .ptable input:focus { background: #f5f5ee; }
+
+  /* ── Insurance ── */
+  .ins-note {
+    font-size: 12.5px;
+    margin-left: 16px;
+    margin-bottom: 6px;
+  }
+
+  /* ── Footer ── */
+  .footer-section {
+    margin-top: 16px;
+    font-size: 13px;
+  }
+  .footer-section .foot-cols {
+    display: flex;
+    gap: 40px;
+  }
+  .footer-section .foot-col .fc-head {
+    font-weight: 700;
+    text-decoration: underline;
+    margin-bottom: 2px;
+  }
+
+  /* ── Submit ── */
+  .submit-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .btn {
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 20px;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .btn-submit { background: #444; color: #fff; border: 1px solid #333; }
+  .btn-submit:hover { background: #333; }
+  .btn-clear { background: #fff; color: #444; border: 1px solid #888; }
+  .btn-clear:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="page-num">1</div>
+
+  <h1>DuPont State Recreational Forest Commercial Use Permit Application</h1>
+
+  <form id="dupontForm" autocomplete="off">
+
+  <!-- ════════ Applicant Information ════════ -->
+  <div class="uf-row">
+    <span class="ufl">Company or Organization Name:</span>
+    <div class="uf"><input type="text" id="company_or_organization_name" name="company_or_organization_name"></div>
+  </div>
+  <div class="uf-row">
+    <span class="ufl">Address:</span>
+    <div class="uf"><input type="text" id="address" name="address"></div>
+  </div>
+  <div class="two-col">
+    <div class="uf-row">
+      <span class="ufl">Key person contact:</span>
+      <div class="uf"><input type="text" id="key_person_contact" name="key_person_contact"></div>
+    </div>
+    <div class="uf-row">
+      <span class="ufl">Title:</span>
+      <div class="uf"><input type="text" id="title" name="title"></div>
+    </div>
+  </div>
+  <div class="three-col">
+    <div class="uf-row">
+      <span class="ufl">Phone:</span>
+      <div class="uf"><input type="tel" id="phone" name="phone"></div>
+    </div>
+    <div class="uf-row">
+      <span class="ufl">Fax:</span>
+      <div class="uf"><input type="tel" id="fax" name="fax"></div>
+    </div>
+    <div class="uf-row" style="flex:2;">
+      <span class="ufl">E-Mail:</span>
+      <div class="uf"><input type="email" id="e_mail" name="e_mail"></div>
+    </div>
+  </div>
+
+  <!-- ════════ Activity / Event Description ════════ -->
+  <div class="sec-head">Describe the activity or event and the location you wish to have permitted:</div>
+  <div class="desc-lines">
+    <div class="dl"><input type="text" id="describe_the_activity_or_event_and_the_location_you_wish_to_have_permitted" name="describe_the_activity_or_event_and_the_location_you_wish_to_have_permitted"></div>
+    <div class="dl"><input type="text" id="desc_cont_1" name="desc_cont_1"></div>
+    <div class="dl"><input type="text" id="desc_cont_2" name="desc_cont_2"></div>
+    <div class="dl"><input type="text" id="desc_cont_3" name="desc_cont_3"></div>
+    <div class="dl"><input type="text" id="desc_cont_4" name="desc_cont_4"></div>
+  </div>
+
+  <!-- ════════ Access Areas ════════ -->
+  <div class="sec-head">Access Areas to be Used (check all that apply):</div>
+  <div class="access-row">
+    <label><input type="checkbox" id="corn_mill_shoals" name="corn_mill_shoals"> Corn Mill Shoals,</label>
+    <label><input type="checkbox" id="fawn_lake" name="fawn_lake"> Fawn Lake,</label>
+    <label><input type="checkbox" id="guion_farm" name="guion_farm"> Guion Farm,</label>
+    <label><input type="checkbox" id="high_falls" name="high_falls"> High Falls,</label>
+    <label><input type="checkbox" id="hooker_falls" name="hooker_falls"> Hooker Falls,</label>
+    <label><input type="checkbox" id="lake_imaging" name="lake_imaging"> Lake Imaging</label>
+  </div>
+
+  <!-- ════════ Timeframe ════════ -->
+  <div class="sec-head">What is the timeframe for the activity or event?</div>
+  <div class="tf-row">
+    <span class="ufl">Requested date(s):</span>
+    <div class="uf lg"><input type="text" id="requested_dates" name="requested_dates"></div>
+    <span class="ufl">Starting time:</span>
+    <div class="uf sm"><input type="text" id="starting_time" name="starting_time"></div>
+    <span class="ufl">Ending time:</span>
+    <div class="uf sm"><input type="text" id="ending_time" name="ending_time"></div>
+  </div>
+  <div class="tf-row">
+    <span class="ufl">For continuing activities: Starting date</span>
+    <div class="uf md"><input type="text" id="starting_date" name="starting_date"></div>
+    <span class="ufl">Ending date</span>
+    <div class="uf md"><input type="text" id="ending_date" name="ending_date"></div>
+  </div>
+
+  <!-- ════════ Participants ════════ -->
+  <div class="sec-head">What is the estimated number of participants including staff?</div>
+  <table class="ptable">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Users<br>Per Group</th>
+        <th>Number<br>of Groups</th>
+        <th>Total<br>Participants</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mode-label">On foot</td>
+        <td><input type="text" id="on_foot_per_group" name="on_foot_per_group"></td>
+        <td><input type="text" id="on_foot_number_of_groups" name="on_foot_number_of_groups"></td>
+        <td><input type="text" id="on_foot_total_participants" name="on_foot_total_participants"></td>
+      </tr>
+      <tr>
+        <td class="mode-label">On bikes</td>
+        <td><input type="text" id="on_bikes_per_group" name="on_bikes_per_group"></td>
+        <td><input type="text" id="on_bikes_number_of_groups" name="on_bikes_number_of_groups"></td>
+        <td><input type="text" id="on_bikes_total_participants" name="on_bikes_total_participants"></td>
+      </tr>
+      <tr>
+        <td class="mode-label">On horseback</td>
+        <td><input type="text" id="on_horseback_per_group" name="on_horseback_per_group"></td>
+        <td><input type="text" id="on_horseback_number_of_groups" name="on_horseback_number_of_groups"></td>
+        <td><input type="text" id="on_horseback_total_participants" name="on_horseback_total_participants"></td>
+      </tr>
+      <tr>
+        <td class="mode-label">In vehicles</td>
+        <td><input type="text" id="in_vehicles_per_group" name="in_vehicles_per_group"></td>
+        <td><input type="text" id="in_vehicles_number_of_groups" name="in_vehicles_number_of_groups"></td>
+        <td><input type="text" id="in_vehicles_total_participants" name="in_vehicles_total_participants"></td>
+      </tr>
+      <tr>
+        <td class="mode-label">Other</td>
+        <td><input type="text" id="other_per_group" name="other_per_group"></td>
+        <td><input type="text" id="other_number_of_groups" name="other_number_of_groups"></td>
+        <td><input type="text" id="other_total_participants" name="other_total_participants"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ════════ Insurance ════════ -->
+  <div class="uf-row">
+    <span class="ufl" style="text-decoration:underline;">Liability Insurance (Company Name):</span>
+    <div class="uf"><input type="text" id="liability_insurance_company_name" name="liability_insurance_company_name"></div>
+  </div>
+  <div class="ins-note">Attach a copy of Certificate of Liability Insurance.</div>
+
+  <div style="margin-top:8px;">
+    <span style="font-weight:700; text-decoration:underline;">Medical Plan:</span> Attach a copy of the event medical plan, if required.
+  </div>
+
+  <!-- ════════ Footer ════════ -->
+  <div class="footer-section">
+    <div class="foot-cols">
+      <div class="foot-col">
+        <div class="fc-head">Mail completed application to:</div>
+        <div>DuPont State Recreational Forest</div>
+        <div>PO Box 300</div>
+        <div>Cedar Mountain, NC 28718</div>
+      </div>
+      <div class="foot-col">
+        <div class="fc-head">Or E-Mail to:</div>
+        <div>dupontsf.ncfs@ncagr.gov</div>
+        <div style="margin-top:8px;">If you have questions call 828-877-6527</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <div class="submit-row">
+    <button type="reset" class="btn btn-clear">Clear Form</button>
+    <button type="submit" class="btn btn-submit">Submit</button>
+  </div>
+
+  </form>
+</div>
+
+<script>
+  document.getElementById('dupontForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    const cb = id => document.getElementById(id).checked ? 'true' : 'false';
+    const v = id => fd.get(id) || '';
+
+    const data = {
+      applicant_information: {
+        company_or_organization_name: v('company_or_organization_name'),
+        address: v('address'),
+        key_person_contact: v('key_person_contact'),
+        title: v('title'),
+        phone: v('phone'),
+        fax: v('fax'),
+        e_mail: v('e_mail'),
+      },
+      activity_or_event_description: {
+        describe_the_activity_or_event_and_the_location_you_wish_to_have_permitted: v('describe_the_activity_or_event_and_the_location_you_wish_to_have_permitted'),
+      },
+      access_areas_to_be_used: {
+        corn_mill_shoals: cb('corn_mill_shoals'),
+        fawn_lake: cb('fawn_lake'),
+        guion_farm: cb('guion_farm'),
+        high_falls: cb('high_falls'),
+        hooker_falls: cb('hooker_falls'),
+        lake_imaging: cb('lake_imaging'),
+      },
+      timeframe: {
+        requested_dates: v('requested_dates'),
+        starting_time: v('starting_time'),
+        ending_time: v('ending_time'),
+        starting_date: v('starting_date'),
+        ending_date: v('ending_date'),
+      },
+      participants_and_group_breakdown: {
+        users_number_total: [
+          { mode: 'On foot', users: '', per_group: v('on_foot_per_group'), number_of_groups: v('on_foot_number_of_groups'), total_participants: v('on_foot_total_participants') },
+          { mode: 'On bikes', users: '', per_group: v('on_bikes_per_group'), number_of_groups: v('on_bikes_number_of_groups'), total_participants: v('on_bikes_total_participants') },
+          { mode: 'On horseback', users: '', per_group: v('on_horseback_per_group'), number_of_groups: v('on_horseback_number_of_groups'), total_participants: v('on_horseback_total_participants') },
+          { mode: 'In vehicles', users: '', per_group: v('in_vehicles_per_group'), number_of_groups: v('in_vehicles_number_of_groups'), total_participants: v('in_vehicles_total_participants') },
+          { mode: 'Other', users: '', per_group: v('other_per_group'), number_of_groups: v('other_number_of_groups'), total_participants: v('other_total_participants') },
+        ],
+        on_foot_users: '', on_foot_per_group: v('on_foot_per_group'), on_foot_number_of_groups: v('on_foot_number_of_groups'), on_foot_total_participants: v('on_foot_total_participants'),
+        on_bikes_users: '', on_bikes_per_group: v('on_bikes_per_group'), on_bikes_number_of_groups: v('on_bikes_number_of_groups'), on_bikes_total_participants: v('on_bikes_total_participants'),
+        on_horseback_users: '', on_horseback_per_group: v('on_horseback_per_group'), on_horseback_number_of_groups: v('on_horseback_number_of_groups'), on_horseback_total_participants: v('on_horseback_total_participants'),
+        in_vehicles_users: '', in_vehicles_per_group: v('in_vehicles_per_group'), in_vehicles_number_of_groups: v('in_vehicles_number_of_groups'), in_vehicles_total_participants: v('in_vehicles_total_participants'),
+        other_users: '', other_per_group: v('other_per_group'), other_number_of_groups: v('other_number_of_groups'), other_total_participants: v('other_total_participants'),
+        per_group: '', number_of_groups: '', total_participants: '',
+      },
+      insurance_information: {
+        liability_insurance_company_name: v('liability_insurance_company_name'),
+      },
+    };
+    console.log('Form Data (Pydantic-compatible JSON):');
+    console.log(JSON.stringify(data, null, 2));
+    alert('Submitted! Check console for JSON.');
+  });
+</script>
+
+</body>
+</html>
