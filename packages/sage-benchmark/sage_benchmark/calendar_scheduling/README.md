@@ -35,8 +35,8 @@ The benchmark evaluates:
 cd sage-benchmark
 
 # Run 1 task to verify setup
-uv run -m sage_benchmark.calendar_scheduling \
-    ./data/calendar-scheduling/generated/generated-tasks.yaml \
+sagebench calendar \
+    --data ./data/calendar-scheduling/generated/generated-tasks.yaml \
     --model gpt-4.1 \
     --assistant-system-prompt default \
     --expose-preferences false \
@@ -47,8 +47,8 @@ uv run -m sage_benchmark.calendar_scheduling \
 ## Run Benchmark
 
 ```bash
-uv run -m sage_benchmark.calendar_scheduling \
-    ./data/calendar-scheduling/generated/generated-tasks.yaml \
+sagebench calendar \
+    --data ./data/calendar-scheduling/generated/generated-tasks.yaml \
     --model gpt-4.1 \
     --assistant-system-prompt default \
     --expose-preferences false \
@@ -60,8 +60,8 @@ Results are saved to `outputs/calendar_scheduling/`.
 ### With Different Models Per Agent
 
 ```bash
-uv run -m sage_benchmark.calendar_scheduling \
-    ./data/calendar-scheduling/generated/generated-tasks.yaml \
+sagebench calendar \
+    --data ./data/calendar-scheduling/generated/generated-tasks.yaml \
     --model gpt-4.1 \
     --assistant-model claude-sonnet-4 \
     --requestor-model gpt-4.1 \
@@ -74,8 +74,8 @@ uv run -m sage_benchmark.calendar_scheduling \
 ### With Reasoning Models
 
 ```bash
-uv run -m sage_benchmark.calendar_scheduling \
-    ./data/calendar-scheduling/generated/generated-tasks.yaml \
+sagebench calendar \
+    --data ./data/calendar-scheduling/generated/generated-tasks.yaml \
     --model o3 \
     --reasoning-effort medium \
     --assistant-system-prompt default \
@@ -124,7 +124,7 @@ uv run -m sage_benchmark.data_gen.calendar_scheduling.make_artifacts \
 
 | Argument | Description |
 |----------|-------------|
-| `paths` | YAML files or directories containing task definitions |
+| `--data` | YAML files or directories containing task definitions |
 | `--model` | Default model for all agents |
 | `--assistant-system-prompt` | System prompt preset: `none`, `default`, `privacy-focused`, etc. |
 | `--expose-preferences {true,false}` | Include scheduling preferences in assistant prompt |

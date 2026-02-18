@@ -30,8 +30,8 @@ for MODEL in "${MODELS[@]}"; do
     # Run without exposed preferences
     echo ""
     echo ">>> Hidden preferences..."
-    uv run -m sage_benchmark.calendar_scheduling \
-        "$DATA_DIR" \
+    sagebench calendar \
+        --data "$DATA_DIR" \
         --assistant-model "$MODEL" \
         --requestor-model "$MODEL" \
         --judge-model "$JUDGE_MODEL" \
@@ -45,8 +45,8 @@ for MODEL in "${MODELS[@]}"; do
     # Run with exposed preferences
     echo ""
     echo ">>> Exposed preferences..."
-    uv run -m sage_benchmark.calendar_scheduling \
-        "$DATA_DIR" \
+    sagebench calendar \
+        --data "$DATA_DIR" \
         --assistant-model "$MODEL" \
         --requestor-model "$MODEL" \
         --judge-model "$JUDGE_MODEL" \

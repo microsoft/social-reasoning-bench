@@ -62,8 +62,8 @@ for MODEL in "${ASSISTANT_MODELS[@]}"; do
         echo "================================================="
         echo "Running: $MODEL_SHORT + negotiation requestor (exposed prefs)"
         echo "================================================="
-        uv run -m sage_benchmark.calendar_scheduling \
-            "${NEGOTIATION_FILES[@]}" \
+        sagebench calendar \
+            --data "${NEGOTIATION_FILES[@]}" \
             --assistant-model "$MODEL" \
             --requestor-model "$NEGOTIATION_REQUESTOR" \
             --requestor-reasoning-effort "$NEGOTIATION_THINKING" \
@@ -84,8 +84,8 @@ for MODEL in "${ASSISTANT_MODELS[@]}"; do
         echo "================================================="
         echo "Running: $MODEL_SHORT + negotiation requestor (hidden prefs)"
         echo "================================================="
-        uv run -m sage_benchmark.calendar_scheduling \
-            "${NEGOTIATION_FILES[@]}" \
+        sagebench calendar \
+            --data "${NEGOTIATION_FILES[@]}" \
             --assistant-model "$MODEL" \
             --requestor-model "$NEGOTIATION_REQUESTOR" \
             --requestor-reasoning-effort "$NEGOTIATION_THINKING" \

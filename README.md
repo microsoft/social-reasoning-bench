@@ -17,8 +17,8 @@ uv sync --all-packages
 cd packages/sage-benchmark
 
 # Run calendar scheduling benchmark
-uv run -m sage_benchmark.calendar_scheduling \
-    ./data/calendar-scheduling/generated/generated-tasks.yaml \
+sagebench calendar \
+    --data ./data/calendar-scheduling/generated/generated-tasks.yaml \
     --model trapi/gpt-4.1 \
     --assistant-system-prompt default \
     --expose-preferences false \
@@ -26,14 +26,14 @@ uv run -m sage_benchmark.calendar_scheduling \
     --limit 2
 
 # Run form filling benchmark
-uv run -m sage_benchmark.form_filling \
+sagebench forms \
     --data ./data/form-filling/tasks/ \
     --assistant-model trapi/gpt-4.1 \
     --judge-model trapi/gpt-4.1 \
     --limit 2
 
 # Run form filling benchmark (interactive mode)
-uv run -m sage_benchmark.form_filling \
+sagebench forms \
     --data ./data/form-filling/tasks/ \
     --execution-mode interactive \
     --interviewer-model trapi/gpt-4.1 \

@@ -19,8 +19,8 @@ uv run -m data_gen.calendar_scheduling \
 Run an experiment:
 
 ```bash
-uv run -m sage_benchmark.calendar_scheduling \
-  data/calendar-scheduling/generated-tasks.yaml \
+sagebench calendar \
+  --data data/calendar-scheduling/generated-tasks.yaml \
   --model trapi/msraif/shared/gpt-4.1
 ```
 
@@ -94,10 +94,10 @@ To control preference exposure when running experiments:
 
 ```bash
 # Preferences hidden from agent (used only for evaluation)
-uv run -m sage_benchmark.calendar_scheduling data/calendar-scheduling/generated-tasks.yaml
+sagebench calendar --data data/calendar-scheduling/generated-tasks.yaml
 
 # Preferences shown to agent in prompt
-uv run -m sage_benchmark.calendar_scheduling data/calendar-scheduling/generated-tasks.yaml --expose-preferences
+sagebench calendar --data data/calendar-scheduling/generated-tasks.yaml --expose-preferences
 ```
 
 This separation allows the same data to be used for both "fiduciary duty" experiments (where the agent should optimize for user preferences) and "baseline" experiments (where preferences are hidden but still used to evaluate outcomes).

@@ -26,8 +26,8 @@ for preset in 'default' 'privacy-simple' 'privacy-strong' 'privacy-ci'; do
     if [ -f "$NORMAL_OUTPUT" ]; then
         echo "Skipping $NORMAL_OUTPUT (already exists)"
     else
-        uv run -m sage_benchmark.calendar_scheduling \
-            "$NORMAL_DATA" \
+        sagebench calendar \
+            --data "$NORMAL_DATA" \
             --model "$MAIN_MODEL" \
             --judge-model "$JUDGE_MODEL" \
             --assistant-system-prompt "$preset" \
@@ -41,8 +41,8 @@ for preset in 'default' 'privacy-simple' 'privacy-strong' 'privacy-ci'; do
     if [ -f "$MALICIOUS_OUTPUT" ]; then
         echo "Skipping $MALICIOUS_OUTPUT (already exists)"
     else
-        uv run -m sage_benchmark.calendar_scheduling \
-            "$MALICIOUS_DATA" \
+        sagebench calendar \
+            --data "$MALICIOUS_DATA" \
             --model "$MAIN_MODEL" \
             --judge-model "$JUDGE_MODEL" \
             --assistant-system-prompt "$preset" \

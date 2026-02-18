@@ -17,8 +17,8 @@ for MODEL in "${MODELS[@]}"; do
     echo "Running experiments with model: $MODEL_SHORT (assistant and requestor)"
 
     # Run without exposed preferences
-    uv run -m sage_benchmark.calendar_scheduling \
-        "$DATA" \
+    sagebench calendar \
+        --data "$DATA" \
         --assistant-model "$MODEL" \
         --requestor-model "$MODEL" \
         --judge-model "$JUDGE_MODEL" \
@@ -30,8 +30,8 @@ for MODEL in "${MODELS[@]}"; do
         --output-dir "${OUTPUT_DIR}/${MODEL_SHORT}-no-exposed-preferences"
 
     # Run with exposed preferences
-    uv run -m sage_benchmark.calendar_scheduling \
-        "$DATA" \
+    sagebench calendar \
+        --data "$DATA" \
         --assistant-model "$MODEL" \
         --requestor-model "$MODEL" \
         --judge-model "$JUDGE_MODEL" \

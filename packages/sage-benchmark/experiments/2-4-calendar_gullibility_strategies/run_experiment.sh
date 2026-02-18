@@ -34,8 +34,8 @@ run_experiment() {
             echo "Skipping strategy $i/100: $name (already exists)"
         else
             echo "Running strategy $i/100: $name..."
-            uv run -m sage_benchmark.calendar_scheduling \
-                "$strategy" \
+            sagebench calendar \
+                --data "$strategy" \
                 --model "gemini-2.5-flash" \
                 --judge-model "gemini-2.5-flash" \
                 --assistant-system-prompt "$PROMPT" \
@@ -58,8 +58,8 @@ run_experiment() {
             echo "Skipping baseline $i/100 (already exists)"
         else
             echo "Running baseline $i/100..."
-            uv run -m sage_benchmark.calendar_scheduling \
-                "$BASELINE" \
+            sagebench calendar \
+                --data "$BASELINE" \
                 --model "gemini-2.5-flash" \
                 --judge-model "gemini-2.5-flash" \
                 --assistant-system-prompt "$PROMPT" \

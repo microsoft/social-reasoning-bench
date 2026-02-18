@@ -41,8 +41,9 @@ def parse_args() -> argparse.Namespace:
         allow_abbrev=False,
     )
     parser.add_argument(
-        "paths",
-        nargs="*",
+        "--data",
+        nargs="+",
+        dest="paths",
         help="YAML files or directories containing task definitions (optional when resuming)",
     )
     parser.add_argument(
@@ -572,7 +573,7 @@ async def run():
         save_traces(traces_path)
         logger.info("Saved LLM traces to %s", traces_path)
         logger.info(
-            "To resume: uv run -m sage_benchmark.calendar_scheduling --resume %s",
+            "To resume: sagebench calendar --resume %s",
             run_output.output_dir,
         )
 

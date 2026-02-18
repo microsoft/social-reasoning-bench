@@ -39,7 +39,7 @@ run_benchmark() {
     echo "Running: $result_file"
     mkdir -p "$output_dir"
 
-    local cmd="uv run -m sage_benchmark.calendar_scheduling $tasks \
+    local cmd="sagebench calendar --data $tasks \
         --assistant-model $ASSISTANT_MODEL \
         --assistant-base-url $ASSISTANT_BASE_URL \
         --requestor-model $REQUESTOR_MODEL \
