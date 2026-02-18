@@ -14,8 +14,6 @@ SAGE-Benchmark is a set of tasks for evaluating the social reasoning capabilitie
 # Install dependencies
 uv sync --all-packages
 
-cd packages/sage-benchmark
-
 # Run calendar scheduling benchmark
 sagebench calendar \
     --data ./data/calendar-scheduling/generated/generated-tasks.yaml \

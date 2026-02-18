@@ -12,8 +12,6 @@ An agent must complete forms using provided user artifacts while:
 ## Run
 
 ```bash
-cd sage-benchmark
-
 sagebench forms \
     --data ./data/form-filling/tasks/ \
     --model gpt-4.1 \
@@ -37,8 +35,6 @@ Instead of direct form filling, an interviewer agent conducts a conversation to 
 ## Run
 
 ```bash
-cd sage-benchmark
-
 sagebench forms \
     --data ./data/form-filling/tasks/ \
     --execution-mode interactive \

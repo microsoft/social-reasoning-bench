@@ -8,8 +8,8 @@
 export GEMINI_API_KEY="${GEMINI_API_KEY:-your-api-key-here}"
 
 BASE_OUTPUT_DIR="../../outputs/calendar_scheduling"
-BASELINE="../../../datasets/gullibility/privacy_extraction_template.yaml"
-STRATEGY_DIR="../../../datasets/gullibility/output/config_calendar"
+BASELINE="../../datasets/gullibility/privacy_extraction_template.yaml"
+STRATEGY_DIR="../../datasets/gullibility/output/config_calendar"
 
 run_experiment() {
     local PROMPT=$1

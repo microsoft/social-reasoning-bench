@@ -32,8 +32,6 @@ The benchmark evaluates:
 ## Quick Start
 
 ```bash
-cd sage-benchmark
-
 # Run 1 task to verify setup
 sagebench calendar \
     --data ./data/calendar-scheduling/generated/generated-tasks.yaml \
