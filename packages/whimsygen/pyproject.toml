@@ -1,0 +1,50 @@
+[project]
+name = "whimsygen"
+version = "0.1.0"
+description = "Generate adversarial strategies from Wikipedia for testing AI robustness"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+    "beautifulsoup4>=4.12.0",
+    "aiohttp>=3.9.0",
+    "sage-llm",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/whimsygen"]
+
+[tool.uv.sources]
+sage-llm = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = [
+    # Suppress warning from sage_llm async logging handler during task cancellation
+    "ignore:coroutine 'Logging.async_success_handler' was never awaited:RuntimeWarning",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+# Prompt templates have intentionally long lines
+"src/whimsygen/strategies/extractor.py" = ["E501"]
