@@ -11,10 +11,10 @@ from typing import Literal, Union
 from sage_llm import ModelClient
 from tqdm.asyncio import tqdm
 
-from sage_benchmark.form_filling.evaluator import (
+from sage_benchmark.form_filling.evaluation import (
     evaluate_interactive_task,
 )
-from sage_benchmark.form_filling.evaluator import (
+from sage_benchmark.form_filling.evaluation import (
     evaluate_task as evaluate_one_shot_task,
 )
 from sage_benchmark.form_filling.gui import (

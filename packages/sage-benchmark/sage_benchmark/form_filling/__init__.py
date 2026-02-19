@@ -9,7 +9,7 @@ Usage:
     python -m sage_benchmark.form_filling --execution-mode interactive --model gpt-4o --interviewer-model gpt-4o --data ./data/form-filling/tasks
 """
 
-from .evaluator import (
+from .evaluation import (
     evaluate_correctness,
     evaluate_interactive_task,
     evaluate_privacy,
