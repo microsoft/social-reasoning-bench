@@ -15,6 +15,7 @@ from sage_benchmark.calendar_scheduling.types import (
 )
 from sage_benchmark.shared.executors import TaskPoolExecutor
 
+from .due_diligence import evaluate_due_diligence
 from .duty_of_care import evaluate_duty_of_care
 from .privacy import evaluate_privacy_leakage
 from .task_completion import evaluate_task_completion
@@ -56,6 +57,9 @@ async def evaluate_single_task(
     # Get scheduled duration error from completion result
     scheduled_duration_error = completion_result.scheduled_duration_error
 
+    # Evaluate due diligence (message count, preference mentions, proposals)
+    due_diligence_result = await evaluate_due_diligence(execution_result, model, model_client)
+
     logger.info("Eval %d completed", task_index)
 
     return TaskEvaluationResult(
@@ -70,6 +74,9 @@ async def evaluate_single_task(
         assistant_duty_of_care_score=assistant_duty_of_care_score,
         scheduled_duration_error=scheduled_duration_error,
         preference_explanation=preference_explanation,
+        due_diligence_message_count=due_diligence_result.message_count,
+        due_diligence_preference_mention_count=due_diligence_result.preference_mention_count,
+        due_diligence_proposal_count=due_diligence_result.proposal_count,
     )
 
 
@@ -168,13 +175,45 @@ def print_per_task_summary(eval_results: list[TaskEvaluationResult]) -> None:
             ),
         ),
     ]
-    all_cols = [task_col] + success_cols + privacy_cols + fiduciary_cols
+    due_diligence_cols = [
+        (
+            "Msgs",
+            4,
+            lambda r: (
+                str(r.due_diligence_message_count)
+                if r.due_diligence_message_count is not None
+                else "N/A"
+            ),
+        ),
+        (
+            "PrfM",
+            4,
+            lambda r: (
+                str(r.due_diligence_preference_mention_count)
+                if r.due_diligence_preference_mention_count is not None
+                else "N/A"
+            ),
+        ),
+        (
+            "Prop",
+            4,
+            lambda r: (
+                str(r.due_diligence_proposal_count)
+                if r.due_diligence_proposal_count is not None
+                else "N/A"
+            ),
+        ),
+    ]
+    all_cols = [task_col] + success_cols + privacy_cols + fiduciary_cols + due_diligence_cols
 
     # Calculate group header widths
     # Task Success group spans: columns + separators between them
     success_width = sum(col[1] for col in success_cols) + 3 * (len(success_cols) - 1)
     privacy_width = sum(col[1] for col in privacy_cols) + 3 * (len(privacy_cols) - 1)
     fiduciary_width = sum(col[1] for col in fiduciary_cols) + 3 * (len(fiduciary_cols) - 1)
+    due_diligence_width = sum(col[1] for col in due_diligence_cols) + 3 * (
+        len(due_diligence_cols) - 1
+    )
 
     # Build group header row
     # Add 2 extra chars to success header to account for " | " vs " |" boundary alignment
@@ -192,6 +231,8 @@ def print_per_task_summary(eval_results: list[TaskEvaluationResult]) -> None:
         + "Privacy".ljust(privacy_width)
         + " | "
         + "Fiduciary".ljust(fiduciary_width)
+        + " | "
+        + "Due Diligence".ljust(due_diligence_width)
     )
 
     # Build column header row
@@ -272,6 +313,17 @@ def print_evaluation_summary(summary: BenchmarkSummary) -> None:
                 summary.fiduciary_suboptimal_assistant_duty_of_care, key=lambda x: x.task_index
             ):
                 print(f"  Task {item.task_index}: {item.explanation}")
+
+    # Due diligence statistics
+    if summary.due_diligence_avg_message_count is not None:
+        print("\nDue diligence breakdown:")
+        print(f"Avg assistant messages:          {summary.due_diligence_avg_message_count:.1f}")
+        if summary.due_diligence_avg_preference_mention_count is not None:
+            print(
+                f"Avg preference mentions:        {summary.due_diligence_avg_preference_mention_count:.1f}"
+            )
+        if summary.due_diligence_avg_proposal_count is not None:
+            print(f"Avg proposals:                  {summary.due_diligence_avg_proposal_count:.1f}")
 
     print(f"{'=' * 40}")
 
@@ -360,6 +412,23 @@ def compute_evaluation_summary(eval_results: list[TaskEvaluationResult]) -> Benc
         if r.assistant_duty_of_care_score is not None and r.assistant_duty_of_care_score < 1.0
     ]
 
+    # Due diligence stats
+    dd_message_counts = [
+        r.due_diligence_message_count
+        for r in valid_results
+        if r.due_diligence_message_count is not None
+    ]
+    dd_pref_mentions = [
+        r.due_diligence_preference_mention_count
+        for r in valid_results
+        if r.due_diligence_preference_mention_count is not None
+    ]
+    dd_proposals = [
+        r.due_diligence_proposal_count
+        for r in valid_results
+        if r.due_diligence_proposal_count is not None
+    ]
+
     return BenchmarkSummary(
         total_tasks=len(eval_results),
         valid_tasks=len(valid_results),
@@ -380,4 +449,13 @@ def compute_evaluation_summary(eval_results: list[TaskEvaluationResult]) -> Benc
         fiduciary_avg_assistant_duty_of_care_score=avg_assistant_duty_score,
         fiduciary_suboptimal_assistant_duty_of_care=suboptimal_assistant_duty_of_care,
         fiduciary_avg_scheduled_duration_error=avg_scheduled_duration_error,
+        due_diligence_avg_message_count=(
+            sum(dd_message_counts) / len(dd_message_counts) if dd_message_counts else None
+        ),
+        due_diligence_avg_preference_mention_count=(
+            sum(dd_pref_mentions) / len(dd_pref_mentions) if dd_pref_mentions else None
+        ),
+        due_diligence_avg_proposal_count=(
+            sum(dd_proposals) / len(dd_proposals) if dd_proposals else None
+        ),
     )

@@ -352,6 +352,19 @@ class TaskEvaluationResult(BaseModel):
         default=None,
         description="Explanation of the preference and duty of care scores. None if no preferences defined.",
     )
+    # Due diligence metrics
+    due_diligence_message_count: int | None = Field(
+        default=None,
+        description="Total emails exchanged between assistant and requestor.",
+    )
+    due_diligence_preference_mention_count: int | None = Field(
+        default=None,
+        description="Number of assistant emails that mention time preferences.",
+    )
+    due_diligence_proposal_count: int | None = Field(
+        default=None,
+        description="Total proposals: formal tool calls + text-based proposals.",
+    )
 
     @computed_field
     @property
@@ -449,6 +462,10 @@ class BenchmarkSummary(BaseModel):
         default_factory=list
     )
     fiduciary_avg_scheduled_duration_error: float | None = None
+    # Due diligence breakdown (optional)
+    due_diligence_avg_message_count: float | None = None
+    due_diligence_avg_preference_mention_count: float | None = None
+    due_diligence_avg_proposal_count: float | None = None
 
 
 class BenchmarkOutput(BaseModel):
