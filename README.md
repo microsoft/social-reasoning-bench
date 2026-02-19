@@ -45,5 +45,6 @@ sagebench forms \
 - [Sage-Benchmark](packages/sage-benchmark/README.md) — Full setup and usage guide for each benchmark
 - [Sage-Data-Gen](packages/sage-data-gen/README.md) — Data generation pipelines
 - [Sage-LLM](packages/sage-llm/README.md) — Model client library
-- [DEV.md](docs/DEV.md) — Development setup
+- [DEV.md](docs/DEV.md) — Development setup and how to use different model providers
 - [SYNC.md](docs/SYNC.md) — Syncing results to Azure Blob Storage
+- [experiments/](experiments) - Experiment results
