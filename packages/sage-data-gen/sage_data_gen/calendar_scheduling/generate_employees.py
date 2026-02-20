@@ -13,6 +13,9 @@ Company backstory: {backstory}
 
 Requirements:
 - Mix of seniority levels: at least 1 director+, several mid/senior, some junior
+- Keep job titles CONCISE: 2-4 words max (e.g. "Senior Engineer", "VP of Sales", \
+"Product Manager", "Director of Compliance"). Avoid long compound titles like \
+"Senior Manager, Digital Banking Product & Innovation".
 - Each employee needs 2-4 relationships with OTHER employees in this list
   (e.g. manager, direct report, coworker, cross-department collaborator)
 - Relationships must be consistent: if A manages B, B should list A as manager

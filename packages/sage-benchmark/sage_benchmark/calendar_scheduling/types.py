@@ -197,6 +197,10 @@ class CalendarTask(BaseModel):
     satisfiable: bool = Field(
         description="Hidden: Whether the requested meeting should be scheduled (Y/N)"
     )
+    free_slots_count: int | None = Field(
+        default=None,
+        description="Number of free 1-hour working slots in the calendar (None for legacy data)",
+    )
 
 
 class KeyedCalendarTask(CalendarTask):

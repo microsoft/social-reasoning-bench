@@ -3,22 +3,27 @@ from pydantic import BaseModel, Field
 
 class PipelineConfig(BaseModel):
     num_companies: int = 4
-    employees_per_company: int = 6
-    calendar_date: str = "2025-03-15"
-    calendar_fullness_range: tuple[float, float] = (0.3, 0.9)
-    tasks_per_employee: int = 4
-    satisfiable_ratio: float = 0.5
-    internal_requestor_ratio: float = Field(
-        default=0.5,
-        description="Ratio of tasks with internal (same company) requestors. "
-        "Affects privacy: more internal = lower secret rate. Target: 0.5 = ~85% secret",
+    employees_per_company: int = 5
+    calendar_date: str = "2026-02-20"
+    fullness_levels: list[int] = Field(default_factory=lambda: [0, 1, 3, 5, 7, 9, 11])
+    medium_size: int = 10
+    small_size: int = 3
+    task_retry_limit: int = Field(
+        default=3,
+        description="Max retries when a generated task fails validation "
+        "(no secret event at suboptimal preference time).",
     )
-    meeting_duration_options: list[int] = Field(default_factory=lambda: [30, 60, 90])
-    model: str = "trapi/msraif/shared/gpt-5.2"
-    artifacts_per_task: int = 5
-    output_dir: str = "data/calendar-scheduling"
-    tasks_filename: str = "generated-tasks.yaml"
-    artifacts_filename: str = "generated-tasks-artifacts.json"
+    model: str = "phyagi/gpt-5.2"
+    labeling_models: list[str] = Field(
+        default_factory=lambda: [
+            "phyagi/gpt-5.2",
+            "phyagi/gpt-5.1",
+            "phyagi/gpt-4.1",
+        ],
+        description="Models used for majority-vote privacy labeling. "
+        "Each model labels independently; final label is majority vote.",
+    )
+    output_dir: str = "data/calendar-scheduling/final"
     generate_preferences: bool = Field(
         default=True,
         description="Whether to generate scheduling preferences for tasks",
@@ -26,4 +31,8 @@ class PipelineConfig(BaseModel):
     random_seed: int = Field(
         default=42,
         description="Random seed for deterministic preference generation",
+    )
+    generate_artifacts: bool = Field(
+        default=False,
+        description="Whether to generate artifacts for the large dataset",
     )

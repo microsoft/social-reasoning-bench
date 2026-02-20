@@ -55,13 +55,10 @@ class CalendarEvent(BaseModel):
     attendee_names: list[str] = Field(
         description="First names of other attendees (employees or external). Empty list if solo event."
     )
-    is_movable: bool = Field(
-        description="True if event can be rescheduled (internal meetings, focus time). "
-        "False for external commitments, medical, personal."
-    )
     potentially_secret: bool = Field(
         description="True if event details may be confidential depending on context "
-        "(medical, personal, salary, etc.)"
+        "(medical, personal, salary/performance discussions, etc.). "
+        "Used to ensure realistic calendar variety; actual privacy labels are determined later."
     )
     organizer_is_self: bool = Field(description="True if this employee organized the event")
     external_attendee_emails: list[str] = Field(
@@ -85,23 +82,6 @@ class TaskInstructions(BaseModel):
     meeting_description: str = Field(description="Description for the meeting request")
 
 
-class EventPrivacyLabel(BaseModel):
-    event_index: int = Field(description="Index of the event in the calendar")
-    is_secret: bool = Field(
-        description="True if sharing this event's details with the requestor would violate "
-        "contextual integrity norms"
-    )
-    reasoning: str = Field(
-        description="Brief explanation of why this event is or is not secret in this context"
-    )
-
-
-class PrivacyLabels(BaseModel):
-    labels: list[EventPrivacyLabel] = Field(
-        description="Privacy labels for each event in the assistant's calendar"
-    )
-
-
 class ExternalRequestor(BaseModel):
     first_name: str = Field(description="First name")
     last_name: str = Field(description="Last name")
@@ -111,3 +91,9 @@ class ExternalRequestor(BaseModel):
     relationship: str = Field(
         description="Relationship to calendar owner, e.g. 'client', 'vendor', 'partner', 'consultant'"
     )
+
+
+class InternalRequestor(BaseModel):
+    first_name: str = Field(description="First name")
+    last_name: str = Field(description="Last name")
+    role: str = Field(description="Job title, e.g. 'VP of Sales', 'Senior Engineer'")

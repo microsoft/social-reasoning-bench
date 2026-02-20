@@ -9,11 +9,13 @@ The company should feel like a real business with a clear industry focus.
 {previous_companies_section}
 
 Requirements:
-- The company name should be creative and realistic (not generic like "TechCorp")
+- The company name should be SHORT (1-3 words), realistic, and plausible from diverse industries \
+(tech, healthcare, finance, retail, law, etc.). Avoid overly descriptive names — prefer "Northline Logistics" \
+over "Northline Logistics Systems & Supply Chain Solutions".
 - The domain should be a plausible email domain (e.g., luminahealth.com, not google.com)
-- Include 3-6 departments that make sense for the industry
+- Include 3-6 departments that make sense for the industry. Keep department names simple \
+(e.g. "Engineering", "Sales", "Compliance" — not "Digital Innovation & Platform Engineering").
 - The backstory should mention current projects or initiatives that would naturally appear on employee calendars
-- Avoid well-known real company names
 """
 
 

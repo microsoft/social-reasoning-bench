@@ -183,6 +183,42 @@
     .expanded {
       max-height: none !important;
     }
+    .pref-bar {
+      position: absolute;
+      bottom: 0;
+      cursor: default;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
+    }
+    .pref-bar:hover {
+      z-index: 10;
+      filter: brightness(1.1);
+    }
+    .pref-popup {
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 6px;
+      min-width: 160px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 8px 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      z-index: 100;
+      white-space: nowrap;
+      font-size: 11px;
+      color: #374151;
+    }
+    .dark .pref-popup {
+      background: #1f2937;
+      border-color: #374151;
+      color: #e5e7eb;
+    }
+    .pref-bar:hover .pref-popup {
+      display: block;
+    }
   </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
@@ -406,8 +442,12 @@
           <div id="pref-graph-section" class="mb-4">
             <div class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">User Scheduling Preferences</div>
             <div id="pref-graph" class="h-24 bg-gray-50 dark:bg-gray-700 rounded relative"></div>
-            <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-              <span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+            <div id="pref-ticks" class="relative h-5 text-xs text-gray-500 dark:text-gray-400 mt-1"></div>
+            <div class="mt-2 flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-400">
+              <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded" style="background: rgba(22,163,74,0.75)"></span> Strongly prefer (≥0.8)</span>
+              <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded" style="background: rgba(134,239,172,0.8)"></span> Prefer (0.5–0.8)</span>
+              <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded" style="background: rgba(234,179,8,0.7)"></span> Acceptable (0.3–0.5)</span>
+              <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded" style="background: rgba(239,68,68,0.5)"></span> Avoid (&lt;0.3)</span>
             </div>
           </div>
 
@@ -1274,48 +1314,86 @@
       return layoutEvents;
     }
 
+    function prefLabel(score) {
+      if (score >= 0.8) return 'Strongly prefer';
+      if (score >= 0.5) return 'Prefer';
+      if (score >= 0.3) return 'Acceptable but not ideal';
+      return 'Avoid if possible';
+    }
+
+    function formatPrefTime(timeStr) {
+      if (!timeStr) return '';
+      const [h, m] = String(timeStr).split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return m > 0 ? `${h12}:${m.toString().padStart(2, '0')} ${ampm}` : `${h12} ${ampm}`;
+    }
+
     function renderPreferenceGraph(preferences, scheduledEvent) {
       const container = document.getElementById('pref-graph');
       if (!container) return;
 
       const TOTAL_MINUTES = 24 * 60;
+      let html = '';
 
-      // Build SVG-based preference visualization
-      let svg = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-full">`;
-
-      // Draw preference regions
       preferences.forEach(pref => {
         const startMinutes = timeToMinutes(pref.start_time);
         const endMinutes = timeToMinutes(pref.end_time);
-        const x = (startMinutes / TOTAL_MINUTES) * 100;
+        const left = (startMinutes / TOTAL_MINUTES) * 100;
         const width = ((endMinutes - startMinutes) / TOTAL_MINUTES) * 100;
         const height = pref.score * 100;
-        const y = 100 - height;
 
-        // Color based on score
-        const color = pref.score >= 0.7 ? 'rgba(34, 197, 94, 0.6)'
-          : pref.score >= 0.4 ? 'rgba(234, 179, 8, 0.6)'
-          : 'rgba(239, 68, 68, 0.4)';
+        const color = pref.score >= 0.8 ? 'rgba(22, 163, 74, 0.75)'
+          : pref.score >= 0.5 ? 'rgba(134, 239, 172, 0.8)'
+          : pref.score >= 0.3 ? 'rgba(234, 179, 8, 0.7)'
+          : 'rgba(239, 68, 68, 0.5)';
 
-        svg += `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}" />`;
-        svg += `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="none" stroke="${color.replace('0.6', '1').replace('0.4', '0.8')}" stroke-width="0.5" />`;
+        const label = prefLabel(pref.score);
+        const startStr = formatPrefTime(pref.start_time);
+        const endStr = formatPrefTime(pref.end_time);
+
+        html += `<div class="pref-bar" style="left:${left}%;width:${width}%;height:${height}%;background:${color};">
+          <div class="pref-popup">
+            <div class="font-medium mb-1">${startStr} – ${endStr}</div>
+            <div>Score: <span class="font-semibold">${pref.score.toFixed(2)}</span></div>
+            <div class="text-gray-500 dark:text-gray-400 mt-0.5">Agent sees: "${label}"</div>
+          </div>
+        </div>`;
       });
 
-      // Draw scheduled meeting marker if exists
+      // Scheduled meeting marker
       if (scheduledEvent && (scheduledEvent.start_time_24h || scheduledEvent.start_time)) {
         const startTime = scheduledEvent.start_time_24h || scheduledEvent.start_time;
         const endTime = scheduledEvent.end_time_24h || scheduledEvent.end_time;
-        const startMinutes = timeToMinutes(startTime);
-        const endMinutes = timeToMinutes(endTime);
-        const x = (startMinutes / TOTAL_MINUTES) * 100;
+        const startMinutes = timeToMinutes(String(startTime).includes(':') ? startTime : militaryToHHMM(startTime));
+        const endMinutes = timeToMinutes(String(endTime).includes(':') ? endTime : militaryToHHMM(endTime));
+        const left = (startMinutes / TOTAL_MINUTES) * 100;
         const width = ((endMinutes - startMinutes) / TOTAL_MINUTES) * 100;
-
-        svg += `<rect x="${x}" y="0" width="${width}" height="100" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,2" />`;
-        svg += `<text x="${x + width/2}" y="50" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="bold">Scheduled</text>`;
+        html += `<div style="position:absolute;left:${left}%;width:${width}%;top:0;bottom:0;border:2px dashed #3b82f6;box-sizing:border-box;z-index:5;pointer-events:none;">
+          <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#3b82f6;font-size:10px;font-weight:bold;white-space:nowrap;">Scheduled</span>
+        </div>`;
       }
 
-      svg += `</svg>`;
-      container.innerHTML = svg;
+      container.innerHTML = html;
+
+      // Hourly ticks
+      const ticks = document.getElementById('pref-ticks');
+      if (ticks) {
+        let ticksHtml = '';
+        for (let h = 0; h <= 24; h++) {
+          const pct = (h / 24) * 100;
+          const label = h === 0 ? '12a' : h === 12 ? '12p' : h === 24 ? '12a' : h < 12 ? `${h}a` : `${h - 12}p`;
+          ticksHtml += `<span class="absolute text-[10px]" style="left: ${pct}%; transform: translateX(-50%)">${label}</span>`;
+        }
+        ticks.innerHTML = ticksHtml;
+      }
+    }
+
+    function militaryToHHMM(militaryTime) {
+      if (militaryTime == null) return '00:00';
+      const h = Math.floor(militaryTime / 100);
+      const m = militaryTime % 100;
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     }
 
     function timeToMinutes(timeStr) {
