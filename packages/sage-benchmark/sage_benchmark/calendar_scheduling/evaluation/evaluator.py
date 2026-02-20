@@ -27,6 +27,7 @@ async def evaluate_single_task(
     execution_result: TaskExecutionResult,
     model: str,
     model_client: ModelClient,
+    judge_votes: int = 3,
 ) -> TaskEvaluationResult:
     """Evaluate a single task execution result."""
     task_index = execution_result.task_index
@@ -37,7 +38,9 @@ async def evaluate_single_task(
     completion_result = await evaluate_task_completion(execution_result, model, model_client)
 
     # Evaluate privacy leakage
-    leaked_secrets = await evaluate_privacy_leakage(execution_result, model, model_client)
+    leaked_secrets = await evaluate_privacy_leakage(
+        execution_result, model, model_client, n_judges=judge_votes
+    )
 
     # Evaluate duty of care (preference adherence)
     final_calendar = AgentCalendar(
@@ -87,6 +90,7 @@ async def evaluate_tasks(
     batch_size: int,
     on_task_complete: Callable[[TaskEvaluationResult], None] | None = None,
     skip_task_keys: set[str] | None = None,
+    judge_votes: int = 3,
 ) -> list[TaskEvaluationResult]:
     """Evaluate multiple task execution results in parallel batches.
 
@@ -119,7 +123,7 @@ async def evaluate_tasks(
         task_logger=logger,
     )
     return await executor.run(
-        evaluate_single_task(execution_result, model, model_client)
+        evaluate_single_task(execution_result, model, model_client, judge_votes)
         for execution_result in results_to_eval
     )
 
@@ -148,7 +152,11 @@ def print_per_task_summary(eval_results: list[TaskEvaluationResult]) -> None:
         ("Success", 7, lambda r: "YES" if r.appropriately_scheduled_or_notscheduled else "NO"),
     ]
     privacy_cols = [
-        ("Leakage", 7, lambda r: f"{r.leakage_rate:.0%}"),
+        (
+            "Leakage",
+            7,
+            lambda r: f"{r.leakage_rate:.0%}",
+        ),
     ]
     fiduciary_cols = [
         (
@@ -215,20 +223,24 @@ def print_per_task_summary(eval_results: list[TaskEvaluationResult]) -> None:
         len(due_diligence_cols) - 1
     )
 
-    # Build group header row
+    # Build group header row with centered labels surrounded by dashes
+    def make_header(label: str, width: int) -> str:
+        pad_total = width - len(label)
+        pad_left = pad_total // 2
+        pad_right = pad_total - pad_left
+        return "-" * pad_left + label + "-" * pad_right
+
     # Add 2 extra chars to success header to account for " | " vs " |" boundary alignment
-    task_success_label = " Task Success "
-    success_header_width = success_width + 2
-    pad_total = success_header_width - len(task_success_label)
-    pad_left = pad_total // 2
-    pad_right = pad_total - pad_left
-    task_success_header = "-" * pad_left + task_success_label + "-" * pad_right
+    task_success_header = make_header(" Task Success ", success_width + 2)
+    privacy_header = make_header(" Privacy ", privacy_width)
+    fiduciary_header = make_header(" Fiduciary ", fiduciary_width)
+
     group_header = (
         " " * task_col[1]
         + " |"
         + task_success_header
         + "| "
-        + "Privacy".ljust(privacy_width)
+        + privacy_header
         + " | "
         + "Fiduciary".ljust(fiduciary_width)
         + " | "
@@ -360,8 +372,11 @@ def compute_evaluation_summary(eval_results: list[TaskEvaluationResult]) -> Benc
 
     completed = sum(1 for r in valid_results if r.appropriately_scheduled_or_notscheduled)
     avg_completion = completed / len(valid_results)
-    avg_leakage = sum(r.leakage_rate for r in valid_results) / len(valid_results)
-    tasks_with_leakage = sum(1 for r in valid_results if r.leakage_rate > 0)
+
+    # Leakage stats
+    leakage_rates = [r.leakage_rate for r in valid_results]
+    avg_leakage = sum(leakage_rates) / len(leakage_rates) if leakage_rates else 0.0
+    tasks_with_leakage = sum(1 for r in leakage_rates if r > 0)
     pct_tasks_with_leakage = tasks_with_leakage / len(valid_results)
 
     conflicts = sum(1 for r in valid_results if r.has_conflicts)

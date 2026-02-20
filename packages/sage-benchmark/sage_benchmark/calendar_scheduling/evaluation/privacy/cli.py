@@ -10,15 +10,15 @@ from typing import Literal
 
 import yaml
 from dotenv import load_dotenv
+from privacy_judge import LeakageJudgment
 from pydantic import BaseModel, Field, computed_field
 from pydantic_core import to_json
 from sage_llm import ModelClient
 
-from sage_benchmark.calendar_scheduling.types import Meeting
 from sage_benchmark.shared.cli_utils import parse_reasoning_effort
 from sage_benchmark.shared.executors import TaskPoolExecutor
 
-from .judge import PrivacyLeakageJudge, PrivacyLeakageJudgement, TaskContext
+from .leakage import CalendarLeakageJudge
 
 logger = logging.getLogger(__name__)
 
@@ -82,14 +82,6 @@ class SecretFact(BaseModel):
     fact: str = Field(description="The secret fact")
 
 
-class TestCaseContext(BaseModel):
-    """Context about the calendar scheduling task for a test case."""
-
-    assistant_email: str = Field(description="Email address of the assistant")
-    requestor_email: str = Field(description="Email address of the requestor")
-    requested_meeting: Meeting = Field(description="The meeting the requestor wants to schedule")
-
-
 class PrivacyTestCase(BaseModel):
     """A single privacy leakage test case."""
 
@@ -102,10 +94,6 @@ class PrivacyTestCase(BaseModel):
     )
     expected_leaked: bool = Field(description="Whether we expect the secret to be leaked")
     category: Literal["obvious_leak", "no_leak"] = Field(description="Category of the test case")
-    context: TestCaseContext | None = Field(
-        default=None,
-        description="Optional context about the calendar scheduling task",
-    )
     notes: str | None = Field(default=None, description="Optional explanation")
 
 
@@ -209,7 +197,7 @@ def load_dataset(path: Path) -> PrivacyTestDataset:
 
 async def evaluate_test_case(
     test_case: PrivacyTestCase,
-    judge: PrivacyLeakageJudge,
+    judge: CalendarLeakageJudge,
 ) -> PrivacyTestResult:
     """Evaluate a single test case."""
     # Serialize the message to JSON for the judge
@@ -221,16 +209,7 @@ async def evaluate_test_case(
     else:
         secret_str = test_case.secret.model_dump_json(indent=2)
 
-    # Convert test case context to judge context if present
-    context: TaskContext | None = None
-    if test_case.context:
-        context = TaskContext(
-            assistant_email=test_case.context.assistant_email,
-            requestor_email=test_case.context.requestor_email,
-            requested_meeting=test_case.context.requested_meeting,
-        )
-
-    judgement = await judge.evaluate(message=message_json, secret=secret_str, context=context)
+    judgement = await judge.aevaluate(input=message_json, secret=secret_str)
 
     return PrivacyTestResult(
         test_case_id=test_case.id,
@@ -245,7 +224,7 @@ async def evaluate_test_case(
 
 async def run_single_round(
     dataset: PrivacyTestDataset,
-    judge: PrivacyLeakageJudge,
+    judge: CalendarLeakageJudge,
     round_number: int,
     batch_size: int,
 ) -> RoundResult:
@@ -351,6 +330,12 @@ def parse_args() -> argparse.Namespace:
         help="Maximum retries on evidence validation failure (default: 3)",
     )
     parser.add_argument(
+        "--n-judges",
+        type=int,
+        default=5,
+        help="Number of parallel judges for majority voting (default: 5)",
+    )
+    parser.add_argument(
         "--log-level",
         default="info",
         choices=["debug", "info", "warning", "error"],
@@ -383,10 +368,10 @@ async def run():
         api_version=args.api_version,
         reasoning_effort=args.reasoning_effort,
     )
-    judge = PrivacyLeakageJudge(
+    judge = CalendarLeakageJudge(
         model=args.model,
         model_client=model_client,
-        max_retries=args.max_retries,
+        n_judges=args.n_judges,
     )
 
     # Run multiple rounds

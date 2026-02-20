@@ -133,6 +133,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="API version for judge (overrides --api-version)",
     )
+    parser.add_argument(
+        "--judge-votes",
+        type=int,
+        default=3,
+        help="Number of judge votes for majority voting in leakage detection (default: 3)",
+    )
 
     # Artifacts option
     parser.add_argument(
@@ -246,16 +252,32 @@ def parse_args() -> argparse.Namespace:
         help="Allow resume even if source files have changed (warn instead of error)",
     )
     parser.add_argument(
+        "--force-eval",
+        action="store_true",
+        default=False,
+        help="Force re-evaluation of all tasks (use with --resume to skip execution and re-run evaluation only)",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=None,
         help="Base directory for outputs (default: outputs/calendar_scheduling)",
     )
+    parser.add_argument(
+        "--reeval",
+        type=Path,
+        default=None,
+        help="Re-evaluate an existing output JSON file (skips execution, runs evaluation only)",
+    )
 
     args = parser.parse_args()
 
+    # Validate --reeval is mutually exclusive with --resume
+    if args.reeval and args.resume:
+        parser.error("--reeval and --resume are mutually exclusive")
+
     # Validate args that are required for new runs but come from checkpoint on resume
-    if not args.resume:
+    if not args.resume and not args.reeval:
         if args.model is None and not all(
             [args.assistant_model, args.requestor_model, args.judge_model]
         ):
@@ -269,7 +291,102 @@ def parse_args() -> argparse.Namespace:
         if args.explicit_cot is None:
             parser.error("--explicit-cot {true,false} is required when not resuming")
 
+    # Validate force-eval requires resume
+    if args.force_eval and not args.resume:
+        parser.error("--force-eval requires --resume")
+
+    # Validate --reeval file exists
+    if args.reeval and not args.reeval.exists():
+        parser.error(f"--reeval file does not exist: {args.reeval}")
+
     return args
+
+
+async def run_reeval(args: argparse.Namespace):
+    """Re-evaluate an existing output JSON file with fresh evaluation."""
+    import json
+
+    # Load existing output
+    logger.info("Loading existing output from %s", args.reeval)
+    with open(args.reeval) as f:
+        data = json.load(f)
+
+    # Parse the output to extract execution results
+    existing_output = BenchmarkOutput.model_validate(data)
+    logger.info(
+        "Loaded %d evaluation results from %s",
+        len(existing_output.results),
+        args.reeval,
+    )
+
+    # Extract execution results
+    exec_results = [r.execution for r in existing_output.results]
+
+    # Determine judge model - use CLI arg, fall back to original
+    judge_model = args.judge_model or args.model or existing_output.metadata.judge_model
+    judge_base_url = args.judge_base_url or args.base_url
+    judge_api_version = args.judge_api_version or args.api_version
+    judge_reasoning_effort = args.judge_reasoning_effort or args.reasoning_effort
+
+    logger.info("Re-evaluating with judge model: %s", judge_model)
+
+    # Create judge client
+    judge_client = ModelClient(
+        base_url=judge_base_url,
+        api_version=judge_api_version,
+        reasoning_effort=judge_reasoning_effort,
+    )
+
+    # Determine output path with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    if args.output_dir:
+        stem = args.reeval.stem
+        output_path = args.output_dir / f"{stem}-reeval-{timestamp}.json"
+    else:
+        # Create output alongside input with suffix
+        stem = args.reeval.stem
+        output_path = args.reeval.parent / f"{stem}-reeval-{timestamp}.json"
+
+    # Run evaluation
+    logger.info("Evaluating %d execution results...", len(exec_results))
+    eval_results = await evaluate_tasks(
+        execution_results=exec_results,
+        model=judge_model,
+        model_client=judge_client,
+        batch_size=args.batch_size,
+        judge_votes=getattr(args, "judge_votes", 3),
+    )
+
+    # Sort by task index
+    eval_results = sorted(eval_results, key=lambda r: r.execution.task_index)
+
+    # Create new output with updated metadata
+    new_metadata = BenchmarkMetadata(
+        timestamp=datetime.now().isoformat(),
+        assistant_model=existing_output.metadata.assistant_model,
+        requestor_model=existing_output.metadata.requestor_model,
+        judge_model=judge_model,
+        max_rounds=existing_output.metadata.max_rounds,
+        batch_size=args.batch_size,
+        task_count=len(eval_results),
+        system_prompt=existing_output.metadata.system_prompt,
+        expose_preferences=existing_output.metadata.expose_preferences,
+    )
+    summary = compute_evaluation_summary(eval_results)
+    output = BenchmarkOutput(metadata=new_metadata, summary=summary, results=eval_results)
+
+    # Write output
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_bytes(to_json(output, indent=2))
+    logger.info("Saved %d re-evaluation results to %s", len(eval_results), output_path)
+
+    # Save traces
+    traces_path = output_path.parent / f"llm-traces-{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    save_traces(traces_path)
+    logger.info("Saved LLM traces to %s", traces_path)
+
+    print_per_task_summary(eval_results)
+    print_evaluation_summary(summary)
 
 
 async def run():
@@ -279,6 +396,14 @@ async def run():
 
     # Initialize LLM tracer to collect traces for all LiteLLM calls
     get_tracer()
+
+    # Handle --reeval mode (separate from normal run/resume)
+    if args.reeval:
+        # Configure logging
+        log_level = getattr(logging, args.log_level.upper())
+        logging.basicConfig(level=log_level, format="%(message)s")
+        await run_reeval(args)
+        return
 
     # Track state for resume
     skip_exec_keys: set[str] = set()
@@ -333,17 +458,26 @@ async def run():
 
             # Load completed task keys and results
             skip_exec_keys = checkpoint_mgr.get_completed_task_keys()
-            skip_eval_keys = checkpoint_mgr.get_completed_eval_keys()
             prior_exec_results = checkpoint_mgr.get_execution_results()
-            prior_eval_results = checkpoint_mgr.get_evaluation_results()
 
-            logger.info(
-                "Resuming: %d/%d executions, %d/%d evaluations already complete",
-                len(skip_exec_keys),
-                len(tasks_with_keys),
-                len(skip_eval_keys),
-                len(tasks_with_keys),
-            )
+            if args.force_eval:
+                # Force re-evaluation: skip all exec, eval everything fresh
+                skip_eval_keys = set()
+                prior_eval_results = []
+                logger.info(
+                    "Force-eval mode: skipping execution, re-evaluating all %d tasks",
+                    len(skip_exec_keys),
+                )
+            else:
+                skip_eval_keys = checkpoint_mgr.get_completed_eval_keys()
+                prior_eval_results = checkpoint_mgr.get_evaluation_results()
+                logger.info(
+                    "Resuming: %d/%d executions, %d/%d evaluations already complete",
+                    len(skip_exec_keys),
+                    len(tasks_with_keys),
+                    len(skip_eval_keys),
+                    len(tasks_with_keys),
+                )
         else:
             raise ValueError(
                 f"No valid checkpoint found at {run_output.checkpoint_path}. "
@@ -523,6 +657,7 @@ async def run():
             batch_size=config.batch_size,
             on_task_complete=checkpoint_mgr.add_evaluation_result,
             skip_task_keys=skip_eval_keys if skip_eval_keys else None,
+            judge_votes=config.judge_votes,
         )
 
         # Merge with prior results

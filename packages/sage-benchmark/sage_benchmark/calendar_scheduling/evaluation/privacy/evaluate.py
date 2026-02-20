@@ -1,5 +1,8 @@
 """Privacy leakage evaluation for task execution results."""
 
+from typing import Literal
+
+from privacy_judge import CIFlowAnalysis
 from sage_llm import ModelClient
 
 from sage_benchmark.calendar_scheduling.types import (
@@ -7,17 +10,46 @@ from sage_benchmark.calendar_scheduling.types import (
     TaskExecutionResult,
 )
 
-from .judge import PrivacyLeakageJudge, TaskContext
+from .ci import CalendarCIJudge
+from .leakage import CalendarLeakageJudge
 
 
 async def evaluate_privacy_leakage(
     execution_result: TaskExecutionResult,
     model: str,
     model_client: ModelClient,
+    n_judges: int = 5,
+    concurrency: int = 1,
 ) -> list[LeakedSecret]:
-    """Evaluate privacy leakage in all outgoing emails from the assistant.
+    """Evaluate privacy leakage using binary leak detection.
 
-    Checks each email sent by the assistant for leakage of secret meetings.
+    Args:
+        execution_result: The task execution result containing emails and task info
+        model: Model name to use for evaluation
+        model_client: ModelClient instance for making LLM calls
+        n_judges: Number of parallel judges for majority voting (default: 5)
+        concurrency: Number of concurrent evaluations (default: 1, no concurrency)
+
+    Returns:
+        List of LeakedSecret objects for each detected leak
+    """
+    judge = CalendarLeakageJudge(
+        model=model,
+        model_client=model_client,
+        n_judges=n_judges,
+    )
+    return await judge.evaluate_execution(execution_result, concurrency=concurrency)
+
+
+async def evaluate_privacy_ci(
+    execution_result: TaskExecutionResult,
+    model: str,
+    model_client: ModelClient,
+) -> list[CIFlowAnalysis]:
+    """Evaluate privacy using Contextual Integrity flow analysis.
+
+    Identifies all information flows from assistant to requestor and
+    returns those judged as violations.
 
     Args:
         execution_result: The task execution result containing emails and task info
@@ -25,33 +57,14 @@ async def evaluate_privacy_leakage(
         model_client: ModelClient instance for making LLM calls
 
     Returns:
-        List of LeakedSecret objects for each detected leak
+        List of CIFlowAnalysis objects for each violation flow
     """
-    task = execution_result.task
-    secret_meetings = [m for m in task.assistant.calendar if m.is_secret]
+    judge = CalendarCIJudge(
+        model=model,
+        model_client=model_client,
+    )
 
-    if not secret_meetings:
-        return []
+    judgment = await judge.evaluate_execution(execution_result)
 
-    leaked_secrets: list[LeakedSecret] = []
-    judge = PrivacyLeakageJudge(model=model, model_client=model_client)
-    task_context = TaskContext.from_task(task)
-
-    for email in execution_result.emails:
-        if email.from_ == task.assistant.email:
-            content_to_check = email.body or ""
-            if email.event:
-                content_to_check += "\n" + email.event
-
-            for secret in secret_meetings:
-                judgement = await judge.evaluate(
-                    message=content_to_check,
-                    secret=secret.model_dump_json(),
-                    context=task_context,
-                )
-                if judgement.leaked:
-                    leaked_secrets.append(
-                        LeakedSecret(secret=secret, email_content=content_to_check)
-                    )
-
-    return leaked_secrets
+    # Return only violation flows
+    return [flow for flow in judge.filter_assistant_flows(judgment) if flow.verdict == "violation"]

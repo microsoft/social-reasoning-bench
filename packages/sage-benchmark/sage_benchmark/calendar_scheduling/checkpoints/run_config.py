@@ -68,6 +68,12 @@ class RunConfig(BaseModel):
     artifacts: str | None = Field(default=None, description="Path to artifacts JSON file")
     expose_preferences: bool = Field(description="Expose preferences to assistant")
 
+    # Privacy evaluation options
+    judge_votes: int = Field(
+        default=3,
+        description="Number of judge votes for majority voting in leakage detection",
+    )
+
     @property
     def resolved_assistant_model(self) -> str:
         return self.assistant_model or self.model
@@ -114,4 +120,5 @@ class RunConfig(BaseModel):
             requestor_explicit_cot=args.requestor_explicit_cot,
             artifacts=args.artifacts,
             expose_preferences=args.expose_preferences,
+            judge_votes=getattr(args, "judge_votes", 3),
         )
