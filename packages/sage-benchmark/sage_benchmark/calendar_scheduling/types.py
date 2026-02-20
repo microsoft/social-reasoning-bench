@@ -189,7 +189,7 @@ class CalendarAssistant(BaseModel):
 
 
 class CalendarTask(BaseModel):
-    id: int | None = Field(default=None, description="Task identifier")
+    id: int = Field(description="Task identifier")
     type: Literal["calendar"]
     requestor: CalendarRequestor = Field(description="The requestor agent configuration")
     assistant: CalendarAssistant = Field(description="The assistant agent configuration")
@@ -294,7 +294,6 @@ class TaskExecutionResult(BaseModel):
         default="",
         description="Content hash of the task for checkpointing (sha256 of task JSON)",
     )
-    task_index: int
     task: CalendarTask
     emails: list[Email]
     final_assistant_calendar: list[Meeting]
@@ -439,14 +438,14 @@ class BenchmarkMetadata(BaseModel):
 class FailedTaskError(BaseModel):
     """Details about a failed task."""
 
-    task_index: int
+    task_id: int
     error: str
 
 
 class SuboptimalDutyCare(BaseModel):
     """Details about suboptimal duty of care for a task."""
 
-    task_index: int
+    task_id: int
     explanation: str
 
 

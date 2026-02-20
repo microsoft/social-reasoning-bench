@@ -182,7 +182,6 @@ def _force_initial_request(
 
 
 async def run_single_task(
-    task_index: int,
     task: CalendarTask,
     task_key: str,
     assistant_model: str,
@@ -200,7 +199,6 @@ async def run_single_task(
     """Run a single calendar scheduling task.
 
     Args:
-        task_index: Index of this task in the task list
         task: The CalendarTask to run
         task_key: Content hash of the task for checkpointing
         assistant_model: Model to use for the assistant agent
@@ -288,7 +286,7 @@ async def run_single_task(
 
     # Main simulation loop - assistant goes first since requestor already sent request
     for round_idx in range(max_rounds):
-        logger.info("Task %d - Round %d", task_index, round_idx + 1)
+        logger.info("Task %d - Round %d", task.id, round_idx + 1)
         rounds_completed = round_idx + 1
 
         # Inject emails into assistant's context at start of their turn
@@ -304,11 +302,11 @@ async def run_single_task(
         except Exception as e:
             if _is_fatal_error(e):
                 fatal_error = f"Assistant fatal error in round {round_idx + 1}: {str(e)}"
-                logger.error("Task %d - Fatal error: %s", task_index, fatal_error)
+                logger.error("Task %d - Fatal error: %s", task.id, fatal_error)
                 break
             # Recoverable error - already logged in _run_agent_turn
             # End this turn and continue to next round
-            logger.warning("Task %d - Recoverable error in assistant turn, ending turn", task_index)
+            logger.warning("Task %d - Recoverable error in assistant turn, ending turn", task.id)
 
         if assistant_ended:
             conversation_ended_naturally = True
@@ -327,11 +325,11 @@ async def run_single_task(
         except Exception as e:
             if _is_fatal_error(e):
                 fatal_error = f"Requestor fatal error in round {round_idx + 1}: {str(e)}"
-                logger.error("Task %d - Fatal error: %s", task_index, fatal_error)
+                logger.error("Task %d - Fatal error: %s", task.id, fatal_error)
                 break
             # Recoverable error - already logged in _run_agent_turn
             # End this turn and continue to next round
-            logger.warning("Task %d - Recoverable error in requestor turn, ending turn", task_index)
+            logger.warning("Task %d - Recoverable error in requestor turn, ending turn", task.id)
 
         if requestor_ended:
             conversation_ended_naturally = True
@@ -340,7 +338,7 @@ async def run_single_task(
     max_rounds_reached = rounds_completed >= max_rounds and not conversation_ended_naturally
     logger.info(
         "Task %d completed - rounds: %d, max_rounds_reached: %s, fatal_error: %s",
-        task_index,
+        task.id,
         rounds_completed,
         max_rounds_reached,
         fatal_error is not None,
@@ -348,7 +346,6 @@ async def run_single_task(
 
     return TaskExecutionResult(
         task_key=task_key,
-        task_index=task_index,
         task=task,
         emails=environment.get_all_emails(),
         final_assistant_calendar=list(assistant_resources.calendar.list_meetings()),
@@ -391,7 +388,7 @@ async def run_tasks(
         max_rounds: Maximum number of conversation rounds per task
         max_steps_per_turn: Maximum tool calls per turn
         batch_size: Number of tasks to run in parallel
-        artifacts_by_task: Optional dict mapping task index to artifacts list
+        artifacts_by_task: Optional dict mapping task id to artifacts list
         system_prompt: Optional system prompt for the assistant agent
         assistant_explicit_cot: Whether to use explicit CoT for assistant
         requestor_explicit_cot: Whether to use explicit CoT for requestor
@@ -403,9 +400,7 @@ async def run_tasks(
     """
     # Filter out already-completed tasks
     tasks_to_run = [
-        (task_index, task)
-        for task_index, task in enumerate(tasks)
-        if skip_task_keys is None or task.task_key not in skip_task_keys
+        task for task in tasks if skip_task_keys is None or task.task_key not in skip_task_keys
     ]
 
     if skip_task_keys:
@@ -422,7 +417,6 @@ async def run_tasks(
     )
     return await executor.run(
         run_single_task(
-            task_index=task_index,
             task=task,
             task_key=task.task_key,
             assistant_model=assistant_model,
@@ -431,11 +425,11 @@ async def run_tasks(
             requestor_client=requestor_client,
             max_rounds=max_rounds,
             max_steps_per_turn=max_steps_per_turn,
-            artifacts=artifacts_by_task.get(task_index) if artifacts_by_task else None,
+            artifacts=artifacts_by_task.get(task.id) if artifacts_by_task else None,
             system_prompt=system_prompt,
             assistant_explicit_cot=assistant_explicit_cot,
             requestor_explicit_cot=requestor_explicit_cot,
             expose_preferences=expose_preferences,
         )
-        for task_index, task in tasks_to_run
+        for task in tasks_to_run
     )

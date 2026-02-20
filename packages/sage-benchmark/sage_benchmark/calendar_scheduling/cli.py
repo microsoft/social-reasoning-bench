@@ -357,8 +357,8 @@ async def run_reeval(args: argparse.Namespace):
         judge_votes=getattr(args, "judge_votes", 3),
     )
 
-    # Sort by task index
-    eval_results = sorted(eval_results, key=lambda r: r.execution.task_index)
+    # Sort by task id
+    eval_results = sorted(eval_results, key=lambda r: r.execution.task.id)
 
     # Create new output with updated metadata
     new_metadata = BenchmarkMetadata(
@@ -663,8 +663,8 @@ async def run():
         # Merge with prior results
         all_eval_results = prior_eval_results + new_eval_results
 
-        # Sort results by task index for consistent ordering
-        all_eval_results = sorted(all_eval_results, key=lambda r: r.execution.task_index)
+        # Sort results by task id for consistent ordering
+        all_eval_results = sorted(all_eval_results, key=lambda r: r.execution.task.id)
 
         # Create final output
         final_metadata = BenchmarkMetadata(

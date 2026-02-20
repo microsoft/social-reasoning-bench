@@ -27,8 +27,12 @@ def _load_file(yaml_path: Path) -> LoadedFile:
         raise ValueError("YAML file must contain a 'tasks' key")
 
     keyed_tasks: list[KeyedCalendarTask] = []
+    seen_ids: set[int] = set()
     for task_data in data["tasks"]:
         task = CalendarTask(**task_data)
+        if task.id in seen_ids:
+            raise ValueError(f"Duplicate task id {task.id} in {yaml_path}")
+        seen_ids.add(task.id)
         task_key = compute_task_key(task)
         keyed_task = KeyedCalendarTask(**task.model_dump(), task_key=task_key)
         keyed_tasks.append(keyed_task)
@@ -61,6 +65,14 @@ def load_tasks(
         else:
             loaded_files.append(_load_file(path))
 
+    # Validate uniqueness across all loaded files
+    all_ids: set[int] = set()
+    for f in loaded_files:
+        for task in f.tasks:
+            if task.id in all_ids:
+                raise ValueError(f"Duplicate task id {task.id} across files (found in {f.path})")
+            all_ids.add(task.id)
+
     result = LoadedFiles(files=loaded_files)
 
     # Apply limit if specified (need to rebuild with limited tasks)
@@ -85,7 +97,7 @@ def load_artifacts(json_path: str | Path) -> dict[int, list[Artifact]]:
         json_path: Path to the artifacts JSON file
 
     Returns:
-        Dict mapping task_index to list of Artifact objects
+        Dict mapping task_id to list of Artifact objects
     """
     with open(json_path) as f:
         data = json.load(f)
@@ -93,9 +105,9 @@ def load_artifacts(json_path: str | Path) -> dict[int, list[Artifact]]:
     artifact_adapter = TypeAdapter(Artifact)
     result: dict[int, list[Artifact]] = {}
     for task_artifacts in data.get("task_artifacts", []):
-        task_index = task_artifacts["task_index"]
+        task_id = task_artifacts["task_id"]
         artifacts = [artifact_adapter.validate_python(a) for a in task_artifacts["artifacts"]]
-        result[task_index] = artifacts
+        result[task_id] = artifacts
 
     return result
 

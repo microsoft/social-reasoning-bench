@@ -348,8 +348,10 @@ def merge_reeval_results(reeval_files: list[Path]) -> dict[int, dict]:
         print(f"  Loading {filepath.name} (ts: {extract_timestamp(filepath) or 'base'})")
         data = load_json(filepath)
 
-        for result in data.get("results", []):
-            idx = result.get("execution", {}).get("task_index", -1)
+        for i, result in enumerate(data.get("results", [])):
+            execution = result.get("execution", {})
+            task = execution.get("task", {})
+            idx = task.get("id") if task.get("id") is not None else execution.get("task_index", i)
             if idx < 0:
                 continue
 
@@ -379,10 +381,12 @@ def find_disagreements(original_data: dict, merged_reeval: dict[int, dict]) -> l
     """Find cases where judges disagree."""
     cases = []
 
-    original_results = {
-        r.get("execution", {}).get("task_index", i): r
-        for i, r in enumerate(original_data.get("results", []))
-    }
+    original_results = {}
+    for i, r in enumerate(original_data.get("results", [])):
+        execution = r.get("execution", {})
+        task = execution.get("task", {})
+        idx = task.get("id") if task.get("id") is not None else execution.get("task_index", i)
+        original_results[idx] = r
 
     all_indices = set(original_results.keys()) | set(merged_reeval.keys())
 

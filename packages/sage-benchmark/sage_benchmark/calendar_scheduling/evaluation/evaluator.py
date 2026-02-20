@@ -30,9 +30,9 @@ async def evaluate_single_task(
     judge_votes: int = 3,
 ) -> TaskEvaluationResult:
     """Evaluate a single task execution result."""
-    task_index = execution_result.task_index
+    task_id = execution_result.task.id
     task = execution_result.task
-    logger.info("Eval %d started", task_index)
+    logger.info("Eval %d started", task_id)
 
     # Evaluate task completion (meeting scheduled, conflicts, illegal moves)
     completion_result = await evaluate_task_completion(execution_result, model, model_client)
@@ -63,7 +63,7 @@ async def evaluate_single_task(
     # Evaluate due diligence (message count, preference mentions, proposals)
     due_diligence_result = await evaluate_due_diligence(execution_result, model, model_client)
 
-    logger.info("Eval %d completed", task_index)
+    logger.info("Eval %d completed", task_id)
 
     return TaskEvaluationResult(
         execution=execution_result,
@@ -139,7 +139,7 @@ def print_per_task_summary(eval_results: list[TaskEvaluationResult]) -> None:
             "schedule" if r.task_satisfiable and not r.requestor_is_malicious else "no schedule"
         )
         invalid_marker = " [INVALID]" if not r.execution.is_valid else ""
-        return f"Task {r.execution.task_index}: {malicious}, expected {expected}{invalid_marker}"
+        return f"Task {r.execution.task.id}: {malicious}, expected {expected}{invalid_marker}"
 
     # Define columns: (header, width, getter function)
     # Task Success columns: Scheduled, Conflicts, Illegal, Result
@@ -259,7 +259,7 @@ def print_per_task_summary(eval_results: list[TaskEvaluationResult]) -> None:
     print(separator)
 
     # Print each task row (sorted by task index)
-    for result in sorted(eval_results, key=lambda r: r.execution.task_index):
+    for result in sorted(eval_results, key=lambda r: r.execution.task.id):
         row = " | ".join(col[2](result).ljust(col[1]) for col in all_cols)
         print(row)
 
@@ -276,7 +276,7 @@ def print_evaluation_summary(summary: BenchmarkSummary) -> None:
         )
         print(f"{'=' * 80}")
         for error in summary.failed_task_errors:
-            print(f"  Task {error.task_index}: {error.error}")
+            print(f"  Task {error.task_id}: {error.error}")
         print(f"{'=' * 80}\n")
 
     if summary.valid_tasks == 0:
@@ -322,9 +322,9 @@ def print_evaluation_summary(summary: BenchmarkSummary) -> None:
         if summary.fiduciary_suboptimal_assistant_duty_of_care:
             print("Suboptimal assistant duty of care:")
             for item in sorted(
-                summary.fiduciary_suboptimal_assistant_duty_of_care, key=lambda x: x.task_index
+                summary.fiduciary_suboptimal_assistant_duty_of_care, key=lambda x: x.task_id
             ):
-                print(f"  Task {item.task_index}: {item.explanation}")
+                print(f"  Task {item.task_id}: {item.explanation}")
 
     # Due diligence statistics
     if summary.due_diligence_avg_message_count is not None:
@@ -347,7 +347,7 @@ def compute_evaluation_summary(eval_results: list[TaskEvaluationResult]) -> Benc
 
     # Collect failed task errors
     failed_task_errors = [
-        FailedTaskError(task_index=r.execution.task_index, error=r.execution.fatal_error or "")
+        FailedTaskError(task_id=r.execution.task.id, error=r.execution.fatal_error or "")
         for r in eval_results
         if not r.execution.is_valid
     ]
@@ -418,7 +418,7 @@ def compute_evaluation_summary(eval_results: list[TaskEvaluationResult]) -> Benc
     # Collect suboptimal assistant duty of care explanations
     suboptimal_assistant_duty_of_care = [
         SuboptimalDutyCare(
-            task_index=r.execution.task_index,
+            task_id=r.execution.task.id,
             explanation=r.preference_explanation.explanation
             if r.preference_explanation
             else "No explanation",

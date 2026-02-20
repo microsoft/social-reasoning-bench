@@ -97,19 +97,23 @@ def merge_reeval_results(original_path: Path, reeval_paths: list[Path]) -> dict:
     with open(original_path) as f:
         merged_data = json.load(f)
 
-    results_by_idx = {
-        r.get("execution", {}).get("task_index", i): r
-        for i, r in enumerate(merged_data.get("results", []))
-    }
+    results_by_idx = {}
+    for i, r in enumerate(merged_data.get("results", [])):
+        execution = r.get("execution", {})
+        task = execution.get("task", {})
+        idx = task.get("id") if task.get("id") is not None else execution.get("task_index", i)
+        results_by_idx[idx] = r
 
     # Apply reevals in order (older first, newer overrides)
     for reeval_path in reeval_paths:
         with open(reeval_path) as f:
             reeval_data = json.load(f)
 
-        for r in reeval_data.get("results", []):
-            idx = r.get("execution", {}).get("task_index", -1)
-            if idx >= 0 and idx in results_by_idx:
+        for i, r in enumerate(reeval_data.get("results", [])):
+            execution = r.get("execution", {})
+            task = execution.get("task", {})
+            idx = task.get("id") if task.get("id") is not None else execution.get("task_index", i)
+            if idx in results_by_idx:
                 # Update leaked_secrets if present in reeval
                 if "leaked_secrets" in r:
                     results_by_idx[idx]["leaked_secrets"] = r["leaked_secrets"]
