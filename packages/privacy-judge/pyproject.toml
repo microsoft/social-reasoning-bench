@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "privacy-judge"
+version = "0.1.0"
+description = "Privacy Judge - LLM-based evaluation of information disclosure using Contextual Integrity and leak detection"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.0.0",
+    "openai>=1.0.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+    "sage-llm",
+]
+
+[project.scripts]
+privacy-judge = "privacy_judge.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/privacy_judge"]
+
+[tool.uv.sources]
+sage-llm = { workspace = true }

@@ -15,6 +15,7 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "privacy-judge",
     "sage",
     "sage-benchmark",
     "sage-data-gen",
@@ -1978,6 +1979,27 @@ wheels = [
 ]
 
 [[package]]
+name = "privacy-judge"
+version = "0.1.0"
+source = { editable = "packages/privacy-judge" }
+dependencies = [
+    { name = "click" },
+    { name = "openai" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "sage-llm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.0.0" },
+    { name = "openai", specifier = ">=1.0.0" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "sage-llm", editable = "packages/sage-llm" },
+]
+
+[[package]]
 name = "propcache"
 version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2662,6 +2684,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "litellm" },
     { name = "pandas" },
+    { name = "privacy-judge" },
     { name = "rich" },
     { name = "sage-benchmark" },
     { name = "whimsygen" },
@@ -2690,6 +2713,7 @@ dev = [
 requires-dist = [
     { name = "litellm", specifier = ">=1.81.5" },
     { name = "pandas" },
+    { name = "privacy-judge", editable = "packages/privacy-judge" },
     { name = "rich", specifier = ">=14.0.0" },
     { name = "sage-benchmark", editable = "packages/sage-benchmark" },
     { name = "torch", marker = "extra == 'torch'" },
