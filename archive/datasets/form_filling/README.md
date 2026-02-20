@@ -17,25 +17,33 @@ A comprehensive pipeline for evaluating privacy risks in AI-powered form filling
 
 ## Overview
 
-The pipeline consists of **six main stages**:
+The pipeline consists of **eight main stages**:
 
 0. **Data Filtering** → Select high-quality, high-risk forms from CommonForms dataset
+0b. **Image Extraction** → Download form images from HuggingFace dataset
 1. **Form Parsing** → Convert raw forms to structured Pydantic models
 2. **Groundtruth Generation** → Fill forms with realistic, over-detailed data
 3. **Scenario Construction** → Build rich backgrounds with privacy-sensitive secrets
 4. **Agent Inference** → AI agents fill forms using background information
 5. **Evaluation** → Assess task completion accuracy and privacy preservation
+6. **GUI HTML Generation** → Convert form images + Pydantic models into interactive HTML forms
 
 ```
 CommonForms HuggingFace Dataset
     ↓ Stage 0: process_forms_pipeline.py
 Selected High-Risk Forms (common_forms.jsonl)
+    ↓ Stage 0b: extract_form_images.py
+Form Images (form_images/form_{id}_{split}.png)
     ↓ Stage 1: parse_form.py
 Pydantic Models (.py files)
     ↓ Stage 2: form_filling_groundtruth.py
 Filled Groundtruth Forms (.json)
     ↓ Stage 3: form_filling_data_generation.py
 Complete Scenarios (form + persona + secrets + artifacts)
+    ↓ convert_to_sage_benchmark.py
+Task Directories (data/form-filling/tasks/form_{id}/)
+    ↓ Stage 6: generate_gui_html.py
+Interactive HTML Forms (form_{id}.html)
     ↓ Stage 4 & 5: form_filling_evaluation.py
 Evaluation Results (correctness + privacy)
 ```
@@ -119,6 +127,40 @@ python explore.py --id 5
 ```
 
 **Output**: `common_forms.jsonl` - Curated dataset of high-risk privacy forms
+
+---
+
+### Stage 0b: Image Extraction
+
+**Script**: [`extract_form_images.py`](extract_form_images.py)
+
+**Purpose**: Download form PNG images from the HuggingFace `jbarrow/CommonForms` dataset for all entries in `common_forms.jsonl`.
+
+#### Process
+
+```
+Input: common_forms.jsonl (list of form IDs and splits)
+  ↓
+Load HuggingFace dataset (jbarrow/CommonForms)
+  ↓
+For each entry:
+  → Access dataset by split and form ID
+  → Save image as form_{id}_{split}.png
+  ↓
+Output: form_images/form_{id}_{split}.png
+```
+
+#### Key Features
+- Resume support — skips images that already exist
+- No CLI arguments — paths are hardcoded relative to script directory
+
+#### Usage
+
+```bash
+uv run extract_form_images.py
+```
+
+**Output**: `form_images/form_{id}_{split}.png` — PNG images of scanned paper forms
 
 ---
 
@@ -369,6 +411,64 @@ python form_filling_evaluation.py \
 
 ---
 
+### Stage 6: GUI HTML Form Generation
+
+**Script**: [`generate_gui_html.py`](generate_gui_html.py)
+
+**Purpose**: Convert scanned form images and Pydantic models into interactive HTML web forms using GPT-5.2 vision. This produces browser-renderable forms that agents can interact with directly.
+
+#### Prerequisites
+
+Each task directory (`data/form-filling/tasks/form_{id}/`) must contain:
+- `image_{id}.png` — scanned form image (from `extract_form_images.py`)
+- `form_model.py` — Pydantic schema (from `convert_to_sage_benchmark.py`)
+
+#### Process
+
+```
+Input: Task directories with image_{id}.png + form_model.py
+  ↓
+For each task missing form_{id}.html:
+  → Read Pydantic model code
+  → Encode form image as base64
+  → Send both to GPT-5.2 vision with one-shot example
+  → LLM generates complete HTML5 file
+  ↓
+Output: form_{id}.html in each task directory
+```
+
+#### Key Features
+- **Visual fidelity** — faithfully recreates paper form layout (headers, sections, tables)
+- **Field mapping** — every Pydantic field gets an HTML input with matching `id` attribute
+- **Type-aware inputs** — `BooleanLike` → checkbox, dates → `<input type="date">`, `List[Row]` → table rows
+- **JavaScript submit handler** — builds nested JSON mirroring the Pydantic model hierarchy exactly
+- **Async with concurrency** — configurable parallel API calls (default: 5)
+- **Resume support** — skips tasks that already have HTML files (use `--force` to regenerate)
+- **One-shot prompting** — includes a condensed example model→HTML pair for consistent output
+
+#### Usage
+
+```bash
+uv run generate_gui_html.py \
+    --tasks-dir ../../data/form-filling/tasks \
+    --concurrency 5 \
+    --model trapi/gpt-5.2
+```
+
+**Regenerate all existing HTML files**:
+```bash
+uv run generate_gui_html.py --force
+```
+
+**Process a subset**:
+```bash
+uv run generate_gui_html.py --start 0 --limit 20
+```
+
+**Output**: `data/form-filling/tasks/form_{id}/form_{id}.html` — interactive HTML forms
+
+---
+
 ## Current Experiment Results
 
 ### Dataset
@@ -572,28 +672,45 @@ trials/form_filling/
 ├── common_forms.jsonl                     # Input: Curated high-risk forms (Stage 0 output)
 │
 ├── process_forms_pipeline.py              # Stage 0: Filter & select forms
+├── extract_form_images.py                 # Stage 0b: Download form images from HuggingFace
 ├── explore.py                             # Tool: Browse common_forms.jsonl
 ├── parse_form.py                          # Stage 1: Parse to Pydantic
 ├── form_filling_groundtruth.py            # Stage 2: Groundtruth Generation
 ├── form_filling_data_generation.py        # Stage 3: Build scenarios
+├── convert_to_sage_benchmark.py           # Convert scenarios to task directories
+├── generate_gui_html.py                   # Stage 6: Generate interactive HTML forms
 ├── form_filling_evaluation.py             # Stage 4 & 5: Inference + Eval
+│
+├── form_images/                           # Output from Stage 0b
+│   ├── form_6_train.png                   # Scanned form images
+│   ├── form_22_train.png
+│   └── ...
 │
 ├── generated_forms/                       # Output from Stage 1
 │   ├── form_1.py                          # Pydantic models
 │   ├── form_2.py
 │   └── forms_metadata.jsonl
 │
-├── output/                                # Output from Stage 4 & 5
-│   ├── form_filling_evaluations_gpt-4.1_eval_with_gpt-4.1.jsonl
-│   ├── form_filling_evaluations_gpt-4o_eval_with_gpt-4.1.jsonl
-│   └── ...
-│
 ├── groundtruth_forms/                     # Output from Stage 2
 │   ├── filled_form_1.json
 │   ├── filled_form_2.json
 │   └── ...
 │
-└── form_filling_scenarios.jsonl           # Output from Stage 3
+├── form_filling_scenarios.jsonl           # Output from Stage 3
+│
+├── output/                                # Output from Stage 4 & 5
+│   ├── form_filling_evaluations_gpt-4.1_eval_with_gpt-4.1.jsonl
+│   ├── form_filling_evaluations_gpt-4o_eval_with_gpt-4.1.jsonl
+│   └── ...
+│
+└── data/form-filling/tasks/               # Benchmark task directories
+    └── form_{id}/
+        ├── task.json                      # Persona, instruction, secrets
+        ├── form_model.py                  # Pydantic schema
+        ├── artifacts.json                 # Digital artifacts
+        ├── ground_truth.json              # Expected answers
+        ├── image_{id}.png                 # Scanned form image
+        └── form_{id}.html                 # Interactive HTML form (Stage 6)
 ```
 
 ---
@@ -652,6 +769,11 @@ uv run process_forms_pipeline.py \
 ```
 
 ```bash
+# Stage 0b: Extract form images from HuggingFace (optional - form_images/ already provided)
+uv run extract_form_images.py
+```
+
+```bash
 # Stage 1: Parse forms to Pydantic (optional - generated_forms/ already provided)
 uv run parse_form.py \
     --input common_forms.jsonl \
@@ -677,6 +799,18 @@ uv run form_filling_data_generation.py \
 ```
 
 ```bash
+# Convert scenarios to sage-benchmark task directories
+uv run convert_to_sage_benchmark.py
+```
+
+```bash
+# Stage 6: Generate interactive HTML forms (requires image + form_model.py in each task dir)
+uv run generate_gui_html.py \
+    --tasks-dir ../../data/form-filling/tasks \
+    --concurrency 5
+```
+
+```bash
 # Stage 4 & 5: Inference + Evaluation
 uv run form_filling_evaluation.py \
     --input form_filling_scenarios.jsonl \
@@ -684,10 +818,4 @@ uv run form_filling_evaluation.py \
     --agent-model gpt-4o \
     --eval-model gpt-4.1 \
     --limit 10
-```
-
-To convert `form_filling_scenarios.jsonl` to the format used in sage-benchmark you can run:
-
-```bash
-uv run convert_to_sage_benchmark.py
 ```
