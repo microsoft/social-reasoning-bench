@@ -16,7 +16,7 @@ uv sync --all-packages
 
 # Run calendar scheduling benchmark
 sagebench calendar \
-    --data ./data/calendar-scheduling/generated/generated-tasks.yaml \
+    --data ./data/calendar-scheduling/final/small.yaml \
     --model trapi/gpt-4.1 \
     --assistant-system-prompt default \
     --expose-preferences false \
