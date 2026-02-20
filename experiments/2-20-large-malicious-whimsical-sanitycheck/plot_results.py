@@ -81,19 +81,41 @@ def main():
 
     # Create figure
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    fig.suptitle("Large Malicious Whimsical Sanity Check (140 tasks, GPT-5.1)", fontsize=14, fontweight="bold")
+    fig.suptitle(
+        "Large Malicious Whimsical Sanity Check (140 tasks, GPT-5.1)",
+        fontsize=14,
+        fontweight="bold",
+    )
 
     # Plot 1: Leakage rate distribution - side-by-side bars
     ax1 = axes[0]
     bin_edges = list(range(0, 110, 10))  # 0-100% in 10% increments
-    bin_centers = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(len(bin_edges) - 1)]
+    bin_centers = [(bin_edges[i] + bin_edges[i + 1]) / 2 for i in range(len(bin_edges) - 1)]
     width = 4  # bar width
 
-    base_counts, _ = np.histogram(base_leakage_rates, bins=bin_edges) if base_leakage_rates else (np.zeros(len(bin_centers)), None)
+    base_counts, _ = (
+        np.histogram(base_leakage_rates, bins=bin_edges)
+        if base_leakage_rates
+        else (np.zeros(len(bin_centers)), None)
+    )
     mal_counts, _ = np.histogram(mal_leakage_rates, bins=bin_edges)
 
-    ax1.bar([x - width/2 for x in bin_centers], base_counts, width, color="#2ecc71", edgecolor="black", label=f"Baseline (avg: {base_leakage:.1f}%)")
-    ax1.bar([x + width/2 for x in bin_centers], mal_counts, width, color="#e74c3c", edgecolor="black", label=f"Malicious (avg: {mal_leakage:.1f}%)")
+    ax1.bar(
+        [x - width / 2 for x in bin_centers],
+        base_counts,
+        width,
+        color="#2ecc71",
+        edgecolor="black",
+        label=f"Baseline (avg: {base_leakage:.1f}%)",
+    )
+    ax1.bar(
+        [x + width / 2 for x in bin_centers],
+        mal_counts,
+        width,
+        color="#e74c3c",
+        edgecolor="black",
+        label=f"Malicious (avg: {mal_leakage:.1f}%)",
+    )
     ax1.set_xlabel("Leakage Rate (%)")
     ax1.set_ylabel("Number of Tasks")
     ax1.set_title("Privacy Leakage Distribution")
@@ -102,11 +124,29 @@ def main():
 
     # Plot 2: Duty of care distribution - side-by-side bars
     ax2 = axes[1]
-    base_doc_counts, _ = np.histogram(base_doc_scores, bins=bin_edges) if base_doc_scores else (np.zeros(len(bin_centers)), None)
+    base_doc_counts, _ = (
+        np.histogram(base_doc_scores, bins=bin_edges)
+        if base_doc_scores
+        else (np.zeros(len(bin_centers)), None)
+    )
     mal_doc_counts, _ = np.histogram(mal_doc_scores, bins=bin_edges)
 
-    ax2.bar([x - width/2 for x in bin_centers], base_doc_counts, width, color="#2ecc71", edgecolor="black", label=f"Baseline (avg: {base_doc:.1f}%)")
-    ax2.bar([x + width/2 for x in bin_centers], mal_doc_counts, width, color="#e74c3c", edgecolor="black", label=f"Malicious (avg: {mal_doc:.1f}%)")
+    ax2.bar(
+        [x - width / 2 for x in bin_centers],
+        base_doc_counts,
+        width,
+        color="#2ecc71",
+        edgecolor="black",
+        label=f"Baseline (avg: {base_doc:.1f}%)",
+    )
+    ax2.bar(
+        [x + width / 2 for x in bin_centers],
+        mal_doc_counts,
+        width,
+        color="#e74c3c",
+        edgecolor="black",
+        label=f"Malicious (avg: {mal_doc:.1f}%)",
+    )
     ax2.set_xlabel("Duty of Care (%)")
     ax2.set_ylabel("Number of Tasks")
     ax2.set_title("Duty of Care Distribution")
@@ -122,8 +162,22 @@ def main():
     x = range(len(metrics))
     width = 0.35
 
-    bars1 = ax3.bar([i - width/2 for i in x], baseline_values, width, label="Baseline", color="#2ecc71", edgecolor="black")
-    bars2 = ax3.bar([i + width/2 for i in x], malicious_values, width, label="Malicious", color="#e74c3c", edgecolor="black")
+    bars1 = ax3.bar(
+        [i - width / 2 for i in x],
+        baseline_values,
+        width,
+        label="Baseline",
+        color="#2ecc71",
+        edgecolor="black",
+    )
+    bars2 = ax3.bar(
+        [i + width / 2 for i in x],
+        malicious_values,
+        width,
+        label="Malicious",
+        color="#e74c3c",
+        edgecolor="black",
+    )
 
     ax3.set_ylabel("Percentage (%)")
     ax3.set_title("Baseline vs Malicious Comparison")
@@ -134,9 +188,21 @@ def main():
 
     # Add value labels
     for bar, val in zip(bars1, baseline_values):
-        ax3.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2, f"{val:.1f}%", ha="center", fontsize=9)
+        ax3.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 2,
+            f"{val:.1f}%",
+            ha="center",
+            fontsize=9,
+        )
     for bar, val in zip(bars2, malicious_values):
-        ax3.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2, f"{val:.1f}%", ha="center", fontsize=9)
+        ax3.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 2,
+            f"{val:.1f}%",
+            ha="center",
+            fontsize=9,
+        )
 
     plt.tight_layout()
 
