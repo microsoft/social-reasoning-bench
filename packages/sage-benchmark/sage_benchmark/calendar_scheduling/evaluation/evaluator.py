@@ -1,6 +1,7 @@
 """Evaluation logic for iTIP-style calendar scheduling tasks."""
 
 import logging
+import traceback
 from typing import Callable
 
 from sage_llm import ModelClient
@@ -34,53 +35,66 @@ async def evaluate_single_task(
     task = execution_result.task
     logger.info("Eval %d started", task_id)
 
-    # Evaluate task completion (meeting scheduled, conflicts, illegal moves)
-    completion_result = await evaluate_task_completion(execution_result, model, model_client)
+    try:
+        # Evaluate task completion (meeting scheduled, conflicts, illegal moves)
+        completion_result = await evaluate_task_completion(execution_result, model, model_client)
 
-    # Evaluate privacy leakage
-    leaked_secrets = await evaluate_privacy_leakage(
-        execution_result, model, model_client, n_judges=judge_votes
-    )
+        # Evaluate privacy leakage
+        leaked_secrets = await evaluate_privacy_leakage(
+            execution_result, model, model_client, n_judges=judge_votes
+        )
 
-    # Evaluate duty of care (preference adherence)
-    final_calendar = AgentCalendar(
-        owner=task.assistant.email,
-        meetings=execution_result.final_assistant_calendar,
-    )
-    duty_of_care_result = evaluate_duty_of_care(
-        completion_result.scheduled_meeting,
-        task.assistant.preferences,
-        final_calendar,
-        task_satisfiable=task.satisfiable,
-    )
-    preference_score = duty_of_care_result.preference_score
-    assistant_duty_of_care_score = duty_of_care_result.assistant_duty_of_care_score
-    preference_explanation = duty_of_care_result.preference_explanation
+        # Evaluate duty of care (preference adherence)
+        final_calendar = AgentCalendar(
+            owner=task.assistant.email,
+            meetings=execution_result.final_assistant_calendar,
+        )
+        duty_of_care_result = evaluate_duty_of_care(
+            completion_result.scheduled_meeting,
+            task.assistant.preferences,
+            final_calendar,
+            task_satisfiable=task.satisfiable,
+        )
+        preference_score = duty_of_care_result.preference_score
+        assistant_duty_of_care_score = duty_of_care_result.assistant_duty_of_care_score
+        preference_explanation = duty_of_care_result.preference_explanation
 
-    # Get scheduled duration error from completion result
-    scheduled_duration_error = completion_result.scheduled_duration_error
+        # Get scheduled duration error from completion result
+        scheduled_duration_error = completion_result.scheduled_duration_error
 
-    # Evaluate due diligence (message count, preference mentions, proposals)
-    due_diligence_result = await evaluate_due_diligence(execution_result, model, model_client)
+        # Evaluate due diligence (message count, preference mentions, proposals)
+        due_diligence_result = await evaluate_due_diligence(execution_result, model, model_client)
 
-    logger.info("Eval %d completed", task_id)
+        logger.info("Eval %d completed", task_id)
 
-    return TaskEvaluationResult(
-        execution=execution_result,
-        appropriately_scheduled_or_notscheduled=completion_result.success,
-        scheduled_meeting=completion_result.scheduled_meeting,
-        has_conflicts=completion_result.has_conflicts,
-        illegal_moves=completion_result.illegal_moves,
-        requestor_is_malicious=completion_result.requestor_is_malicious,
-        leaked_secrets=leaked_secrets,
-        preference_score=preference_score,
-        assistant_duty_of_care_score=assistant_duty_of_care_score,
-        scheduled_duration_error=scheduled_duration_error,
-        preference_explanation=preference_explanation,
-        due_diligence_message_count=due_diligence_result.message_count,
-        due_diligence_preference_mention_count=due_diligence_result.preference_mention_count,
-        due_diligence_proposal_count=due_diligence_result.proposal_count,
-    )
+        return TaskEvaluationResult(
+            execution=execution_result,
+            appropriately_scheduled_or_notscheduled=completion_result.success,
+            scheduled_meeting=completion_result.scheduled_meeting,
+            has_conflicts=completion_result.has_conflicts,
+            illegal_moves=completion_result.illegal_moves,
+            requestor_is_malicious=completion_result.requestor_is_malicious,
+            leaked_secrets=leaked_secrets,
+            preference_score=preference_score,
+            assistant_duty_of_care_score=assistant_duty_of_care_score,
+            scheduled_duration_error=scheduled_duration_error,
+            preference_explanation=preference_explanation,
+            due_diligence_message_count=due_diligence_result.message_count,
+            due_diligence_preference_mention_count=due_diligence_result.preference_mention_count,
+            due_diligence_proposal_count=due_diligence_result.proposal_count,
+        )
+    except Exception:
+        error_msg = traceback.format_exc()
+        logger.error("Eval %d failed: %s", task_id, error_msg)
+        return TaskEvaluationResult(
+            execution=execution_result,
+            appropriately_scheduled_or_notscheduled=False,
+            scheduled_meeting=None,
+            has_conflicts=False,
+            illegal_moves=[],
+            requestor_is_malicious=task.requestor.is_malicious,
+            eval_error=error_msg,
+        )
 
 
 async def evaluate_tasks(
@@ -279,6 +293,16 @@ def print_evaluation_summary(summary: BenchmarkSummary) -> None:
             print(f"  Task {error.task_id}: {error.error}")
         print(f"{'=' * 80}\n")
 
+    if summary.eval_error_tasks > 0:
+        print(f"\n{'=' * 80}")
+        print(
+            f"WARNING: {summary.eval_error_tasks} task(s) excluded from statistics due to evaluation errors:"
+        )
+        print(f"{'=' * 80}")
+        for error in summary.eval_errors:
+            print(f"  Task {error.task_id}: {error.error}")
+        print(f"{'=' * 80}\n")
+
     if summary.valid_tasks == 0:
         print("No valid results to summarize.")
         return
@@ -289,6 +313,7 @@ def print_evaluation_summary(summary: BenchmarkSummary) -> None:
     print(f"Total tasks:                    {summary.total_tasks}")
     print(f"Valid tasks:                    {summary.valid_tasks}")
     print(f"Failed tasks (fatal errors):    {summary.failed_tasks}")
+    print(f"Eval errors:                    {summary.eval_error_tasks}")
     print(f"Tasks that hit max_rounds:      {summary.tasks_hit_max_rounds}")
     print(
         f"Successes:                      {summary.task_successes}/{summary.valid_tasks} ({summary.task_success_rate:.1%})"
@@ -342,15 +367,24 @@ def print_evaluation_summary(summary: BenchmarkSummary) -> None:
 
 def compute_evaluation_summary(eval_results: list[TaskEvaluationResult]) -> BenchmarkSummary:
     """Compute summary statistics for evaluation results."""
-    valid_results = [r for r in eval_results if r.execution.is_valid]
-    invalid_count = len(eval_results) - len(valid_results)
+    # Exclude tasks with execution failures
+    exec_valid = [r for r in eval_results if r.execution.is_valid]
+    invalid_count = len(eval_results) - len(exec_valid)
 
-    # Collect failed task errors
+    # Collect failed task errors (execution failures)
     failed_task_errors = [
         FailedTaskError(task_id=r.execution.task.id, error=r.execution.fatal_error or "")
         for r in eval_results
         if not r.execution.is_valid
     ]
+
+    # Collect eval errors and exclude from valid results
+    eval_errors = [
+        FailedTaskError(task_id=r.execution.task.id, error=r.eval_error or "")
+        for r in exec_valid
+        if not r.is_eval_valid
+    ]
+    valid_results = [r for r in exec_valid if r.is_eval_valid]
 
     if not valid_results:
         return BenchmarkSummary(
@@ -358,6 +392,8 @@ def compute_evaluation_summary(eval_results: list[TaskEvaluationResult]) -> Benc
             valid_tasks=0,
             failed_tasks=invalid_count,
             failed_task_errors=failed_task_errors,
+            eval_error_tasks=len(eval_errors),
+            eval_errors=eval_errors,
             tasks_hit_max_rounds=0,
             task_successes=0,
             task_success_rate=0.0,
@@ -449,6 +485,8 @@ def compute_evaluation_summary(eval_results: list[TaskEvaluationResult]) -> Benc
         valid_tasks=len(valid_results),
         failed_tasks=invalid_count,
         failed_task_errors=failed_task_errors,
+        eval_error_tasks=len(eval_errors),
+        eval_errors=eval_errors,
         tasks_hit_max_rounds=hit_max_rounds,
         task_successes=completed,
         task_success_rate=avg_completion,

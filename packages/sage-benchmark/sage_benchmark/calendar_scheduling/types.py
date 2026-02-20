@@ -380,6 +380,16 @@ class TaskEvaluationResult(BaseModel):
         default=None,
         description="Total proposals: formal tool calls + text-based proposals.",
     )
+    eval_error: str | None = Field(
+        default=None,
+        description="Error message if evaluation failed. Tasks with eval errors are excluded from summary statistics.",
+    )
+
+    @computed_field
+    @property
+    def is_eval_valid(self) -> bool:
+        """Evaluation completed without errors."""
+        return self.eval_error is None
 
     @computed_field
     @property
@@ -456,6 +466,8 @@ class BenchmarkSummary(BaseModel):
     valid_tasks: int
     failed_tasks: int
     failed_task_errors: list[FailedTaskError] = Field(default_factory=list)
+    eval_error_tasks: int = 0
+    eval_errors: list[FailedTaskError] = Field(default_factory=list)
     tasks_hit_max_rounds: int
     # Task completion
     task_successes: int
