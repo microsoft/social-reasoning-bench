@@ -35,6 +35,7 @@ class TaskPoolExecutor:
         on_task_complete: Callable[[Any], None] | None = None,
         on_task_error: Callable[[Exception], None] | None = None,
         task_logger: logging.Logger | None = None,
+        quiet_cancel: bool = False,
     ):
         """Initialize the executor.
 
@@ -43,11 +44,13 @@ class TaskPoolExecutor:
             on_task_complete: Optional callback when a task completes successfully.
             on_task_error: Optional callback when a task fails.
             task_logger: Optional logger for task lifecycle events.
+            quiet_cancel: If True, suppress cancellation log messages (for nested executors).
         """
         self.batch_size = batch_size
         self._on_task_complete = on_task_complete
         self._on_task_error = on_task_error
         self._logger = task_logger or logger
+        self._quiet_cancel = quiet_cancel
 
     async def run(
         self,
@@ -102,13 +105,24 @@ class TaskPoolExecutor:
                             self._logger.exception("Task failed")
 
         except asyncio.CancelledError:
-            self._logger.warning(
-                "Executor cancelled, cleaning up %d pending tasks",
-                len(pending),
-            )
+            if not self._quiet_cancel:
+                self._logger.warning(
+                    "Executor cancelled, cleaning up %d pending tasks",
+                    len(pending),
+                )
+            # Cancel all pending tasks
             for task in pending:
                 task.cancel()
-            await asyncio.gather(*pending, return_exceptions=True)
+            # Wait briefly for cleanup, but don't block forever
+            # LLM calls can take a long time to cancel properly
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*pending, return_exceptions=True),
+                    timeout=5.0,
+                )
+            except asyncio.TimeoutError:
+                if not self._quiet_cancel:
+                    self._logger.warning("Cleanup timed out, %d tasks still running", len(pending))
             raise
 
         return results

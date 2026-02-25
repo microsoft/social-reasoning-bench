@@ -203,7 +203,7 @@ class CalendarLeakageJudge:
                 )
             return None
 
-        executor = TaskPoolExecutor(batch_size=concurrency)
+        executor = TaskPoolExecutor(batch_size=concurrency, quiet_cancel=True)
         results = await executor.run(check_leak(tup) for tup in eval_tuples)
 
         return [r for r in results if r is not None]
