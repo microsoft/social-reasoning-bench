@@ -65,7 +65,24 @@ By testing multiple strategies, we can identify which approach is most effective
 - `plot_results.py`: Visualization script
 - `results_comparison.png`: Comparison plots
 - `strategies/strategy_N/`: Generated strategy files
-- `outputs/`: Evaluation results
+- `data/`: Generated benchmark data (stored in Azure, see below)
+- `outputs/`: Evaluation results (stored in Azure, see below)
+
+## Downloading Data & Outputs
+
+The `data/` and `outputs/` directories are stored in Azure Blob Storage (too large for git).
+
+To download them, run from the repo root:
+
+```bash
+# Download generated benchmark data (~3MB)
+uv run --group azure python sync.py download experiments/2-20-whimsical-strategy-selection/data experiments/2-20-whimsical-strategy-selection/data
+
+# Download evaluation outputs (~16GB)
+uv run --group azure python sync.py download experiments/2-20-whimsical-strategy-selection/outputs experiments/2-20-whimsical-strategy-selection/outputs
+```
+
+Requires Azure CLI authentication (`az login`) and `azcopy` installed.
 
 ## Conclusion
 Strategy #1 ("Feigning Hardball Commitments") was the most effective, increasing privacy leakage by nearly 9x and reducing duty of care by 66 percentage points compared to baseline. This strategy can be used for adversarial testing of calendar scheduling assistants.

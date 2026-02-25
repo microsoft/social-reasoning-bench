@@ -421,6 +421,11 @@ async def main() -> None:
         default=42,
         help="Random seed (default: 42)",
     )
+    parser.add_argument(
+        "--strategies-file",
+        type=Path,
+        help="Path for strategy cache file. If not specified, uses data_dir/strategies.yaml",
+    )
 
     args = parser.parse_args()
 
@@ -446,7 +451,7 @@ async def main() -> None:
     data_dir = args.data_dir or input_path.parent
     data_dir.mkdir(parents=True, exist_ok=True)
     seeds_dir = data_dir / "seeds"
-    strategies_file = data_dir / "strategies.yaml"
+    strategies_file = args.strategies_file if args.strategies_file else data_dir / "strategies.yaml"
 
     # Setup strategy provider
     strategy_provider = StrategyProvider(

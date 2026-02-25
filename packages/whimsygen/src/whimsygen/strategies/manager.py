@@ -75,11 +75,7 @@ class StrategyManager:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        collection = StrategyCollection(
-            source_seed=Seed(title="combined", url="", content=""),
-            total_chunks=0,
-            strategies=self._cache,
-        )
+        collection = StrategyCollection(strategies=self._cache)
 
         with open(path, "w", encoding="utf-8") as f:
             yaml.dump(collection.model_dump(), f, allow_unicode=True, default_flow_style=False)

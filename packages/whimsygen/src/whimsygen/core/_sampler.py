@@ -163,11 +163,10 @@ class SamplingPipeline:
             self.stop()
             for task in tasks:
                 task.cancel()
-            for task in tasks:
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
+            # Wait for tasks with timeout to avoid hanging on unresponsive I/O
+            done, pending = await asyncio.wait(tasks, timeout=2.0)
+            for task in pending:
+                task.cancel()
 
     async def _consume_strategies(self) -> AsyncIterator[Strategy]:
         """Yield strategies from the queue (internal)."""

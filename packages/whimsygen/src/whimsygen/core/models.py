@@ -19,15 +19,13 @@ class Strategy(BaseModel):
 
     grounding_texts: str  # Source Wikipedia content
     game_strategies: str  # How to apply in game
-    source_seed: str = ""  # Title of the source seed
+    source_seed: str  # Title of the source seed (reference to seeds/{title}.yaml)
     source_chunk: int = 0
 
 
 class StrategyCollection(BaseModel):
-    """Collection of strategies from a Seed."""
+    """Collection of strategies (possibly from multiple seeds)."""
 
-    source_seed: "Seed"
-    total_chunks: int
     strategies: list[Strategy] = Field(default_factory=list)
 
 
