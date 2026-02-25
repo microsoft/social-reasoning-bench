@@ -79,6 +79,7 @@ def save_output(
     output: BenchmarkOutput,
     run_paths: RunPaths,
     checkpoint_mgr: CheckpointManager | None = None,
+    llm_tracing: bool = False,
 ) -> None:
     """Save output to disk and clean up checkpoint.
 
@@ -86,13 +87,15 @@ def save_output(
         output: BenchmarkOutput to save
         run_paths: Paths for output files
         checkpoint_mgr: Optional checkpoint manager to clean up
+        llm_tracing: If True, save LLM traces to disk
     """
     # Write final output
     run_paths.eval_path.write_bytes(to_json(output, indent=2))
     logger.info("Saved %d evaluation results to %s", len(output.results), run_paths.eval_path)
 
-    # Save LLM traces
-    save_llm_traces(run_paths)
+    # Save LLM traces if enabled
+    if llm_tracing:
+        save_llm_traces(run_paths)
 
     # Cleanup checkpoint on success
     if checkpoint_mgr:

@@ -60,6 +60,7 @@ class Experiment:
         config: ExperimentConfig,
         restart_exec: bool = False,
         restart_eval: bool = False,
+        llm_tracing: bool = False,
     ):
         """Initialize experiment from config.
 
@@ -67,8 +68,10 @@ class Experiment:
             config: Experiment configuration
             restart_exec: If True, ignore checkpointed execution progress
             restart_eval: If True, ignore checkpointed evaluation progress
+            llm_tracing: If True, enable LLM call tracing and save traces
         """
         self.config = config
+        self.llm_tracing = llm_tracing
         self.run_paths = create_run_paths(config)
         self.run_paths.ensure_dir()
 
@@ -106,12 +109,22 @@ class Experiment:
                         len(self.skip_eval_keys),
                     )
 
-        # Load tasks
+        # Load tasks from YAML paths
         self.tasks, file_hashes, self.artifacts_by_task = load_experiment_tasks(
             paths=config.paths,
             limit=config.limit,
             artifacts_path=config.artifacts,
         )
+
+        # Reeval mode: if no tasks from paths but we have prior execution results,
+        # reconstruct tasks from those results
+        if not self.tasks and self.prior_exec_results:
+            self.tasks = [
+                KeyedCalendarTask(**r.task.model_dump(), task_key=r.task_key)
+                for r in self.prior_exec_results
+            ]
+            file_hashes = {}
+            self.artifacts_by_task = None
 
         # Initialize checkpoint with config and file hashes
         # Resolve CoT settings
@@ -275,7 +288,7 @@ class Experiment:
 
         # Build and save output
         output = build_output(self.tasks, all_eval_results, config)
-        save_output(output, self.run_paths, self.checkpoint_mgr)
+        save_output(output, self.run_paths, self.checkpoint_mgr, self.llm_tracing)
 
         return ExperimentOutput(**output.model_dump())
 
@@ -295,11 +308,12 @@ def run_single(config: ExperimentConfig) -> ExperimentOutput:
     return asyncio.run(run_single_async(config))
 
 
-async def run_single_async(config: ExperimentConfig) -> ExperimentOutput:
+async def run_single_async(config: ExperimentConfig, llm_tracing: bool = False) -> ExperimentOutput:
     """Run a single experiment asynchronously.
 
     Args:
         config: Experiment configuration
+        llm_tracing: If True, enable LLM call tracing and save traces
 
     Returns:
         ExperimentOutput with results
@@ -307,10 +321,11 @@ async def run_single_async(config: ExperimentConfig) -> ExperimentOutput:
     Raises:
         RunCancelled: If the run is interrupted
     """
-    # Initialize LLM tracer
-    get_tracer()
+    # Initialize LLM tracer only when requested
+    if llm_tracing:
+        get_tracer()
 
-    experiment = Experiment(config)
+    experiment = Experiment(config, llm_tracing=llm_tracing)
 
     # Set up signal handlers for graceful interruption
     loop = asyncio.get_event_loop()
@@ -332,7 +347,8 @@ async def run_single_async(config: ExperimentConfig) -> ExperimentOutput:
         return await main_task
     except asyncio.CancelledError:
         logger.info("Run cancelled, checkpoint saved to %s", experiment.run_paths.checkpoint_path)
-        save_llm_traces(experiment.run_paths)
+        if llm_tracing:
+            save_llm_traces(experiment.run_paths)
         raise RunCancelled(str(experiment.run_paths.output_dir))
     finally:
         # Remove signal handlers
@@ -362,6 +378,7 @@ class ExperimentPoolExecutor:
         batch_size: int = 100,
         cancel_event: asyncio.Event | None = None,
         benchmark_logger: BenchmarkLogger | None = None,
+        llm_tracing: bool = False,
     ):
         """Initialize the pool executor.
 
@@ -370,11 +387,13 @@ class ExperimentPoolExecutor:
             batch_size: Maximum concurrent tasks across all experiments.
             cancel_event: Optional event to signal cancellation to running tasks.
             benchmark_logger: Optional logger for progress tracking.
+            llm_tracing: If True, enable LLM call tracing and save traces.
         """
         self.experiments = experiments
         self.batch_size = batch_size
         self.cancel_event = cancel_event
         self.benchmark_logger = benchmark_logger
+        self.llm_tracing = llm_tracing
 
         # Maps experiment key to experiment for result routing
         self._exp_by_key: dict[str, Experiment] = {e.key: e for e in experiments}
@@ -393,17 +412,19 @@ class ExperimentPoolExecutor:
         # Single phase: execute and evaluate each task together
         await self._run_tasks()
 
-        # Finalize and build outputs
-        outputs = []
-        for exp in self.experiments:
+        # Finalize and build outputs in parallel
+        async def finalize_experiment(exp: Experiment) -> ExperimentOutput:
             all_eval = exp.prior_eval_results + self._eval_results_by_exp[exp.key]
             all_eval = sorted(all_eval, key=lambda r: r.execution.task.id or 0)
-
             output = build_output(exp.tasks, all_eval, exp.config)
-            save_output(output, exp.run_paths, exp.checkpoint_mgr)
-            outputs.append(ExperimentOutput(**output.model_dump()))
+            # Run blocking I/O in thread pool to parallelize across experiments
+            await asyncio.to_thread(
+                save_output, output, exp.run_paths, exp.checkpoint_mgr, self.llm_tracing
+            )
+            return ExperimentOutput(**output.model_dump())
 
-        return outputs
+        outputs = await asyncio.gather(*[finalize_experiment(exp) for exp in self.experiments])
+        return list(outputs)
 
     async def _run_tasks(self):
         """Run execution + evaluation for all tasks across experiments."""
@@ -534,6 +555,7 @@ async def run_multiple(
     benchmark_logger: BenchmarkLogger | None = None,
     restart_exec: bool = False,
     restart_eval: bool = False,
+    llm_tracing: bool = False,
 ) -> tuple[int, int, int]:
     """Run multiple experiments sequentially.
 
@@ -547,6 +569,7 @@ async def run_multiple(
         benchmark_logger: Optional logger for progress tracking
         restart_exec: If True, re-run execution for all experiments (clears exec checkpoints)
         restart_eval: If True, re-run evaluation for all experiments (clears eval checkpoints)
+        llm_tracing: If True, enable LLM call tracing and save traces
 
     Returns:
         Tuple of (success_count, skipped_count, fail_count)
@@ -599,8 +622,9 @@ async def run_multiple(
         print("\nNo experiments to run (all skipped)")
         return (0, len(skipped), 0)
 
-    # Initialize tracer
-    get_tracer()
+    # Initialize tracer only when requested
+    if llm_tracing:
+        get_tracer()
 
     # Prepare all experiments
     print(f"\nPreparing {len(experiments)} experiments...")
@@ -646,6 +670,7 @@ async def run_multiple(
             batch_size=batch_size,
             cancel_event=cancel_event,
             benchmark_logger=benchmark_logger,
+            llm_tracing=llm_tracing,
         )
         main_task = asyncio.create_task(pool.run())
         outputs = await main_task
@@ -657,9 +682,10 @@ async def run_multiple(
 
     except asyncio.CancelledError:
         print("Interrupted - checkpoints saved")
-        # Save LLM traces for all experiments
-        for exp in prepared:
-            save_llm_traces(exp.run_paths)
+        # Save LLM traces for all experiments if tracing enabled
+        if llm_tracing:
+            for exp in prepared:
+                save_llm_traces(exp.run_paths)
         return (0, len(skipped), len(prepared))
     finally:
         for sig in (signal.SIGINT, signal.SIGTERM):

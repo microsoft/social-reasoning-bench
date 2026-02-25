@@ -1,30 +1,26 @@
 import argparse
 import asyncio
+import json
 import logging
 import signal
 import sys
-from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
-from pydantic_core import to_json
-from sage_llm import ModelClient, clear_traces, get_tracer, save_traces
+from sage_llm import get_tracer, save_traces
 
 from sage_benchmark.shared.cli_utils import parse_reasoning_effort
 from sage_benchmark.shared.logging import create_benchmark_logger
 
-from .agents.assistant import get_system_prompt, list_available_presets
+from .agents.assistant import list_available_presets
 from .checkpoints import CheckpointManager, RunConfig
 from .evaluation.evaluator import (
-    compute_evaluation_summary,
-    evaluate_tasks,
     print_evaluation_summary,
     print_per_task_summary,
 )
-from .loader import load_artifacts, load_tasks
+from .experiments.runner import Experiment
 from .run_paths import RunPaths
-from .runner import run_tasks
-from .types import BenchmarkMetadata, BenchmarkOutput
+from .types import BenchmarkOutput
 
 logger = logging.getLogger(__name__)
 
@@ -385,6 +381,14 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help="Re-evaluate an existing output JSON file (skips execution, runs evaluation only)",
     )
 
+    # Tracing option
+    parser.add_argument(
+        "--llm-tracing",
+        action="store_true",
+        default=False,
+        help="Enable LLM call tracing (disabled by default for performance)",
+    )
+
     # Experiment mode arguments
     parser.add_argument(
         "--experiments",
@@ -413,10 +417,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments with validation."""
     parser = create_argument_parser()
     args = parser.parse_args(argv)
-
-    # Validate --reeval is mutually exclusive with --resume
-    if args.reeval and args.resume:
-        parser.error("--reeval and --resume are mutually exclusive")
 
     # Validate --experiments is mutually exclusive with other modes
     if args.experiments:
@@ -456,99 +456,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error(f"--reeval file does not exist: {args.reeval}")
 
     return args
-
-
-async def run_reeval(args: argparse.Namespace):
-    """Re-evaluate an existing output JSON file with fresh evaluation."""
-    import json
-
-    # Load existing output
-    logger.info("Loading existing output from %s", args.reeval)
-    with open(args.reeval) as f:
-        data = json.load(f)
-
-    # Parse the output to extract execution results
-    existing_output = BenchmarkOutput.model_validate(data)
-    logger.info(
-        "Loaded %d evaluation results from %s",
-        len(existing_output.results),
-        args.reeval,
-    )
-
-    # Extract execution results
-    exec_results = [r.execution for r in existing_output.results]
-
-    # Determine judge model - use CLI arg, fall back to original
-    judge_model = args.judge_model or args.model or existing_output.metadata.judge_model
-    judge_base_url = args.judge_base_url or args.base_url
-    judge_api_version = args.judge_api_version or args.api_version
-    judge_reasoning_effort = args.judge_reasoning_effort or args.reasoning_effort
-
-    logger.info("Re-evaluating with judge model: %s", judge_model)
-
-    # Create judge client
-    judge_client = ModelClient(
-        base_url=judge_base_url,
-        api_version=judge_api_version,
-        reasoning_effort=judge_reasoning_effort,
-    )
-
-    # Determine output path with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    if args.output_dir:
-        stem = args.reeval.stem
-        output_path = args.output_dir / f"{stem}-reeval-{timestamp}.json"
-    else:
-        # Create output alongside input with suffix
-        stem = args.reeval.stem
-        output_path = args.reeval.parent / f"{stem}-reeval-{timestamp}.json"
-
-    # Run evaluation
-    logger.info("Evaluating %d execution results...", len(exec_results))
-    eval_results = await evaluate_tasks(
-        execution_results=exec_results,
-        model=judge_model,
-        model_client=judge_client,
-        batch_size=args.batch_size,
-        judge_votes=getattr(args, "judge_votes", 3),
-    )
-
-    # Sort by task id
-    eval_results = sorted(eval_results, key=lambda r: r.execution.task.id or 0)
-
-    # Create new output with updated metadata (preserve original settings, update judge)
-    new_metadata = BenchmarkMetadata(
-        timestamp=datetime.now().isoformat(),
-        assistant_model=existing_output.metadata.assistant_model,
-        requestor_model=existing_output.metadata.requestor_model,
-        judge_model=judge_model,
-        max_rounds=existing_output.metadata.max_rounds,
-        batch_size=args.batch_size,
-        task_count=len(eval_results),
-        system_prompt=existing_output.metadata.system_prompt,
-        expose_preferences=existing_output.metadata.expose_preferences,
-        # Preserve original CoT/reasoning settings
-        assistant_explicit_cot=existing_output.metadata.assistant_explicit_cot,
-        assistant_reasoning_effort=existing_output.metadata.assistant_reasoning_effort,
-        requestor_explicit_cot=existing_output.metadata.requestor_explicit_cot,
-        requestor_reasoning_effort=existing_output.metadata.requestor_reasoning_effort,
-        judge_reasoning_effort=str(judge_reasoning_effort) if judge_reasoning_effort else None,
-    )
-    summary = compute_evaluation_summary(eval_results)
-    output = BenchmarkOutput(metadata=new_metadata, summary=summary, results=eval_results)
-
-    # Write output
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(to_json(output, indent=2))
-    logger.info("Saved %d re-evaluation results to %s", len(eval_results), output_path)
-
-    # Save traces
-    traces_path = output_path.parent / f"llm-traces-{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    save_traces(traces_path)
-    logger.info("Saved LLM traces to %s", traces_path)
-
-    print_per_task_summary(eval_results)
-    print_evaluation_summary(summary)
 
 
 async def _run_experiments_with_overrides(
@@ -597,6 +504,7 @@ async def _run_experiments_with_overrides(
                 benchmark_logger=benchmark_logger,
                 restart_exec=base_args.restart_exec,
                 restart_eval=base_args.restart_eval,
+                llm_tracing=base_args.llm_tracing,
             )
         return
 
@@ -626,6 +534,7 @@ async def _run_experiments_with_overrides(
             benchmark_logger=benchmark_logger,
             restart_exec=base_args.restart_exec,
             restart_eval=base_args.restart_eval,
+            llm_tracing=base_args.llm_tracing,
         )
 
 
@@ -639,8 +548,9 @@ async def run():
     parser = create_argument_parser()
     base_args, _ = parser.parse_known_args(arg_groups[0])
 
-    # Initialize LLM tracer to collect traces for all LiteLLM calls
-    get_tracer()
+    # Initialize LLM tracer only when explicitly requested
+    if base_args.llm_tracing:
+        get_tracer()
 
     # Handle --experiments mode
     if base_args.experiments:
@@ -655,23 +565,46 @@ async def run():
     # For non-experiments mode, use standard parsing with validation
     args = parse_args()
 
-    # Handle --reeval mode (separate from normal run/resume)
+    # Handle --reeval mode: construct checkpoint from eval.json, then re-evaluate via Experiment
     if args.reeval:
-        # Configure logging
         log_level = getattr(logging, args.log_level.upper())
         logging.basicConfig(level=log_level, format="%(message)s")
-        await run_reeval(args)
+
+        # Load existing output
+        existing_output = BenchmarkOutput.model_validate(json.loads(args.reeval.read_text()))
+        logger.info("Loaded %d results from %s", len(existing_output.results), args.reeval)
+
+        # Build config from metadata + CLI overrides for judge
+        config = RunConfig.from_metadata(
+            existing_output.metadata,
+            judge_model=args.judge_model or args.model or existing_output.metadata.judge_model,
+            judge_base_url=args.judge_base_url or args.base_url,
+            judge_api_version=args.judge_api_version or args.api_version,
+            judge_reasoning_effort=args.judge_reasoning_effort or args.reasoning_effort,
+            batch_size=args.batch_size,
+            output_dir=args.output_dir or args.reeval.parent,
+        )
+
+        # Write synthetic checkpoint with execution results
+        output_dir = args.output_dir or args.reeval.parent
+        run_paths = RunPaths(output_dir)
+        run_paths.ensure_dir()
+        checkpoint_mgr = CheckpointManager(run_paths.checkpoint_path)
+        checkpoint_mgr.initialize(config, existing_output.metadata, {})
+        for result in existing_output.results:
+            checkpoint_mgr.add_execution_result(result.execution)
+
+        # Re-evaluate via Experiment
+        experiment = Experiment(config, restart_eval=True, llm_tracing=args.llm_tracing)
+        output = await experiment.run()
+
+        print_per_task_summary(output.results)
+        print_evaluation_summary(output.summary)
         return
 
-    # Track state for resume
-    skip_exec_keys: set[str] = set()
-    skip_eval_keys: set[str] = set()
-    prior_exec_results: list = []
-    prior_eval_results: list = []
-    config: RunConfig | None = None
-
-    # Handle resume - load config from checkpoint first
+    # Build config for Experiment
     if args.resume:
+        # Resume: load config from checkpoint
         if isinstance(args.resume, str):
             run_output = RunPaths.from_path(Path(args.resume))
         else:
@@ -679,74 +612,19 @@ async def run():
                 "When using --resume without a path, you must specify the run directory or checkpoint file"
             )
 
-        # Ensure output directory exists
-        run_output.ensure_dir()
-
-        # Initialize checkpoint manager and load checkpoint
         checkpoint_mgr = CheckpointManager(run_output.checkpoint_path)
         existing_checkpoint = checkpoint_mgr.load()
 
-        if existing_checkpoint and existing_checkpoint.config:
-            # Use config from checkpoint
-            loaded_config = existing_checkpoint.config
-            config = loaded_config
-            logger.info("Loaded configuration from checkpoint")
-
-            # Load tasks using paths from checkpoint config
-            loaded = load_tasks(loaded_config.paths, limit=loaded_config.limit)
-            tasks_with_keys = loaded.all_tasks
-
-            # Validate source file hashes haven't changed
-            for filename, saved_hash in existing_checkpoint.source_file_hashes.items():
-                if filename not in loaded.file_hashes:
-                    msg = f"Source file from checkpoint not found: {filename}"
-                    if args.force_resume:
-                        logger.warning(msg)
-                    else:
-                        raise ValueError(f"{msg}. Use --force-resume to continue anyway.")
-                    continue
-
-                current_hash = loaded.file_hashes[filename]
-                if current_hash != saved_hash:
-                    msg = f"Source file changed since checkpoint: {filename}"
-                    if args.force_resume:
-                        logger.warning(msg)
-                    else:
-                        raise ValueError(f"{msg}. Use --force-resume to continue anyway.")
-
-            # Load completed task keys and results
-            if args.restart_exec:
-                # Restart execution: ignore checkpointed exec progress
-                skip_exec_keys = set()
-                prior_exec_results = []
-                logger.info("Restart-exec mode: re-running all tasks from scratch")
-            else:
-                skip_exec_keys = checkpoint_mgr.get_completed_task_keys()
-                prior_exec_results = checkpoint_mgr.get_execution_results()
-
-            if args.restart_eval:
-                # Restart evaluation: skip all exec, eval everything fresh
-                skip_eval_keys = set()
-                prior_eval_results = []
-                logger.info(
-                    "Restart-eval mode: re-evaluating all %d tasks",
-                    len(skip_exec_keys) + len(prior_exec_results),
-                )
-            else:
-                skip_eval_keys = checkpoint_mgr.get_completed_eval_keys()
-                prior_eval_results = checkpoint_mgr.get_evaluation_results()
-                logger.info(
-                    "Resuming: %d/%d executions, %d/%d evaluations already complete",
-                    len(skip_exec_keys),
-                    len(tasks_with_keys),
-                    len(skip_eval_keys),
-                    len(tasks_with_keys),
-                )
-        else:
+        if not existing_checkpoint or not existing_checkpoint.config:
             raise ValueError(
                 f"No valid checkpoint found at {run_output.checkpoint_path}. "
                 "Cannot resume without a checkpoint."
             )
+
+        config = existing_checkpoint.config
+        # Set output_dir so Experiment uses the same directory
+        config = config.model_copy(update={"output_dir": run_output.output_dir})
+        logger.info("Resuming from checkpoint: %s", run_output.output_dir)
     else:
         # New run - require paths
         if not args.paths:
@@ -754,262 +632,68 @@ async def run():
                 "Task paths are required when not resuming. Use --resume to continue a previous run."
             )
 
-        # Create config from CLI arguments
-        new_config = RunConfig.from_args(args)
-        config = new_config
-
-        # Resolve model names for output directory naming
-        assistant_model = new_config.resolved_assistant_model
-        requestor_model = new_config.resolved_requestor_model
-        judge_model = new_config.resolved_judge_model
-
-        # Create new run output directory
+        config = RunConfig.from_args(args)
         if args.output_dir:
-            run_output = RunPaths(args.output_dir)
-        else:
-            run_output = RunPaths.create_for_run(assistant_model, requestor_model, judge_model)
+            config = config.model_copy(update={"output_dir": Path(args.output_dir)})
 
-        # Ensure output directory exists
-        run_output.ensure_dir()
-
-        # Initialize checkpoint manager
-        checkpoint_mgr = CheckpointManager(run_output.checkpoint_path)
-
-        # Load tasks with content-based keys
-        loaded = load_tasks(new_config.paths, limit=new_config.limit)
-        tasks_with_keys = loaded.all_tasks
-
-        # Initialize new checkpoint with config
-        # Resolve CoT settings
-        init_assistant_cot = (
-            new_config.assistant_explicit_cot
-            if new_config.assistant_explicit_cot is not None
-            else new_config.explicit_cot
-        )
-        init_requestor_cot = (
-            new_config.requestor_explicit_cot
-            if new_config.requestor_explicit_cot is not None
-            else new_config.explicit_cot
-        )
-        # Resolve reasoning effort
-        init_assistant_effort = new_config.assistant_reasoning_effort or new_config.reasoning_effort
-        init_requestor_effort = new_config.requestor_reasoning_effort or new_config.reasoning_effort
-        init_judge_effort = new_config.judge_reasoning_effort or new_config.reasoning_effort
-
-        metadata = BenchmarkMetadata(
-            timestamp=datetime.now().isoformat(),
-            assistant_model=new_config.resolved_assistant_model,
-            requestor_model=new_config.resolved_requestor_model,
-            judge_model=new_config.resolved_judge_model,
-            max_rounds=new_config.max_rounds,
-            batch_size=new_config.batch_size,
-            task_count=len(tasks_with_keys),
-            system_prompt=new_config.assistant_system_prompt,
-            expose_preferences=new_config.expose_preferences,
-            assistant_explicit_cot=init_assistant_cot,
-            assistant_reasoning_effort=str(init_assistant_effort)
-            if init_assistant_effort
-            else None,
-            requestor_explicit_cot=init_requestor_cot,
-            requestor_reasoning_effort=str(init_requestor_effort)
-            if init_requestor_effort
-            else None,
-            judge_reasoning_effort=str(init_judge_effort) if init_judge_effort else None,
-        )
-        checkpoint_mgr.initialize(new_config, metadata, loaded.file_hashes)
-
-    # At this point, config is guaranteed to be set
-    assert config is not None
-
-    # Resolve model names from config
-    assistant_model = config.resolved_assistant_model
-    requestor_model = config.resolved_requestor_model
-    judge_model = config.resolved_judge_model
-
-    # Resolve reasoning effort with fallback to defaults
-    assistant_reasoning_effort = config.assistant_reasoning_effort or config.reasoning_effort
-    requestor_reasoning_effort = config.requestor_reasoning_effort or config.reasoning_effort
-    judge_reasoning_effort = config.judge_reasoning_effort or config.reasoning_effort
-
-    # Configure logging with file handler
+    # Configure logging
     log_level = getattr(logging, args.log_level.upper())
-    logging.basicConfig(
-        level=log_level,
-        format="%(message)s",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler(run_output.get_log_path()),
-        ],
-    )
-
-    logger.info("Output directory: %s", run_output.output_dir)
+    logging.basicConfig(level=log_level, format="%(message)s")
 
     # Create benchmark logger
     benchmark_logger = create_benchmark_logger(args.logger)
 
-    # Resolve explicit CoT flags: per-agent overrides take precedence when set
-    assistant_explicit_cot = (
-        config.assistant_explicit_cot
-        if config.assistant_explicit_cot is not None
-        else config.explicit_cot
-    )
-    requestor_explicit_cot = (
-        config.requestor_explicit_cot
-        if config.requestor_explicit_cot is not None
-        else config.explicit_cot
+    # Create and run experiment
+    experiment = Experiment(
+        config,
+        restart_exec=args.restart_exec,
+        restart_eval=args.restart_eval,
+        llm_tracing=args.llm_tracing,
     )
 
-    # Create model clients (reasoning_effort is passed normally, CoT is handled separately)
-    # Initialize model clients
-    assistant_client = ModelClient(
-        base_url=config.assistant_base_url or config.base_url,
-        api_version=config.assistant_api_version or config.api_version,
-        reasoning_effort=assistant_reasoning_effort,
-    )
-    requestor_client = ModelClient(
-        base_url=config.requestor_base_url or config.base_url,
-        api_version=config.requestor_api_version or config.api_version,
-        reasoning_effort=requestor_reasoning_effort,
-    )
-    judge_client = ModelClient(
-        base_url=config.judge_base_url or config.base_url,
-        api_version=config.judge_api_version or config.api_version,
-        reasoning_effort=judge_reasoning_effort,
-    )
+    # Add file handler for logging to output directory
+    file_handler = logging.FileHandler(experiment.run_paths.get_log_path())
+    logging.getLogger().addHandler(file_handler)
 
-    # Load artifacts if provided
-    artifacts_by_task = None
-    if config.artifacts:
-        logger.info(f"Loading artifacts from {config.artifacts}...")
-        artifacts_by_task = load_artifacts(config.artifacts)
+    logger.info("Output directory: %s", experiment.run_paths.output_dir)
+    logger.info("Running %d task(s)...", experiment.task_count)
 
-    # Resolve system prompt
-    if config.assistant_system_prompt_file:
-        prompt_file = Path(config.assistant_system_prompt_file)
-        if not prompt_file.exists():
-            raise FileNotFoundError(f"System prompt file not found: {prompt_file}")
-        system_prompt: str | None = prompt_file.read_text().strip()
-        logger.info(f"Using custom system prompt from {prompt_file}")
-    else:
-        system_prompt = get_system_prompt(config.assistant_system_prompt)
-        if system_prompt is None:
-            logger.info("Running without system prompt")
-        else:
-            logger.info(f"Using system prompt preset: {config.assistant_system_prompt}")
-
-    # Set up signal handlers for graceful interruption using asyncio
+    # Set up signal handlers for graceful interruption
     loop = asyncio.get_event_loop()
     main_task: asyncio.Task | None = None
+    cancel_event = asyncio.Event()
 
     def signal_handler():
         logger.warning("Interrupt received, cancelling tasks and saving checkpoint...")
-        checkpoint_mgr.set_interrupted(True)
+        cancel_event.set()
+        experiment.checkpoint_mgr.set_interrupted(True)
         if main_task is not None:
             main_task.cancel()
 
-    # Use asyncio signal handlers for proper task cancellation
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, signal_handler)
 
-    async def run_benchmark():
-        """Inner coroutine that can be cancelled."""
-        nonlocal prior_exec_results, prior_eval_results
-
-        # Execution phase
-        new_exec_results = await run_tasks(
-            tasks=tasks_with_keys,
-            assistant_model=assistant_model,
-            assistant_client=assistant_client,
-            requestor_model=requestor_model,
-            requestor_client=requestor_client,
-            max_rounds=config.max_rounds,
-            max_steps_per_turn=config.max_steps_per_turn,
-            batch_size=config.batch_size,
-            artifacts_by_task=artifacts_by_task,
-            system_prompt=system_prompt,
-            assistant_explicit_cot=assistant_explicit_cot,
-            requestor_explicit_cot=requestor_explicit_cot,
-            expose_preferences=config.expose_preferences,
-            on_task_complete=checkpoint_mgr.add_execution_result,
-            skip_task_keys=skip_exec_keys if skip_exec_keys else None,
-            benchmark_logger=benchmark_logger,
-        )
-
-        # Merge with prior results
-        all_exec_results = prior_exec_results + new_exec_results
-
-        # Evaluation phase
-        new_eval_results = await evaluate_tasks(
-            execution_results=all_exec_results,
-            model=judge_model,
-            model_client=judge_client,
-            batch_size=config.batch_size,
-            on_task_complete=checkpoint_mgr.add_evaluation_result,
-            skip_task_keys=skip_eval_keys if skip_eval_keys else None,
-            judge_votes=config.judge_votes,
-            benchmark_logger=benchmark_logger,
-        )
-
-        # Merge with prior results
-        all_eval_results = prior_eval_results + new_eval_results
-
-        # Sort results by task id for consistent ordering
-        all_eval_results = sorted(all_eval_results, key=lambda r: r.execution.task.id or 0)
-
-        # Create final output
-        final_metadata = BenchmarkMetadata(
-            timestamp=datetime.now().isoformat(),
-            assistant_model=assistant_model,
-            requestor_model=requestor_model,
-            judge_model=judge_model,
-            max_rounds=config.max_rounds,
-            batch_size=config.batch_size,
-            task_count=len(tasks_with_keys),
-            system_prompt=config.assistant_system_prompt,
-            expose_preferences=config.expose_preferences,
-            assistant_explicit_cot=assistant_explicit_cot,
-            assistant_reasoning_effort=str(assistant_reasoning_effort)
-            if assistant_reasoning_effort
-            else None,
-            requestor_explicit_cot=requestor_explicit_cot,
-            requestor_reasoning_effort=str(requestor_reasoning_effort)
-            if requestor_reasoning_effort
-            else None,
-            judge_reasoning_effort=str(judge_reasoning_effort) if judge_reasoning_effort else None,
-        )
-        summary = compute_evaluation_summary(all_eval_results)
-        output = BenchmarkOutput(metadata=final_metadata, summary=summary, results=all_eval_results)
-
-        # Write final output
-        run_output.eval_path.write_bytes(to_json(output, indent=2))
-        logger.info(
-            "Saved %d evaluation results to %s", len(all_eval_results), run_output.eval_path
-        )
-
-        # Save LLM traces
-        traces_path = run_output.get_traces_path()
-        save_traces(traces_path)
-        logger.info("Saved LLM traces to %s", traces_path)
-
-        # Cleanup checkpoint on success
-        checkpoint_mgr.cleanup()
-
-        print_per_task_summary(all_eval_results)
-        print_evaluation_summary(summary)
-
-    # Run the benchmark as a cancellable task
     try:
-        main_task = asyncio.create_task(run_benchmark())
-        await main_task
+        with benchmark_logger:
+            main_task = asyncio.create_task(experiment.run(cancel_event=cancel_event))
+            output = await main_task
+
+        print_per_task_summary(output.results)
+        print_evaluation_summary(output.summary)
+
     except asyncio.CancelledError:
-        logger.info("Run cancelled, checkpoint saved to %s", run_output.checkpoint_path)
-        traces_path = run_output.get_traces_path()
-        save_traces(traces_path)
-        logger.info("Saved LLM traces to %s", traces_path)
+        logger.info("Run cancelled, checkpoint saved to %s", experiment.run_paths.output_dir)
+        if args.llm_tracing:
+            traces_path = experiment.run_paths.get_traces_path()
+            save_traces(traces_path)
+            logger.info("Saved LLM traces to %s", traces_path)
         logger.info(
             "To resume: sagebench calendar --resume %s",
-            run_output.output_dir,
+            experiment.run_paths.output_dir,
         )
+    finally:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.remove_signal_handler(sig)
 
 
 def main():

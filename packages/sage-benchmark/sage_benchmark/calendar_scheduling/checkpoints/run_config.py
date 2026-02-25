@@ -1,9 +1,15 @@
 """Run configuration for benchmark runs."""
 
+from __future__ import annotations
+
 import argparse
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from ..types import BenchmarkMetadata
 
 
 class RunConfig(BaseModel):
@@ -100,7 +106,7 @@ class RunConfig(BaseModel):
         return self.judge_model or self.model
 
     @classmethod
-    def from_args(cls, args: argparse.Namespace) -> "RunConfig":
+    def from_args(cls, args: argparse.Namespace) -> RunConfig:
         """Create a RunConfig from CLI arguments."""
         return cls(
             paths=args.paths,
@@ -136,3 +142,32 @@ class RunConfig(BaseModel):
             judge_votes=getattr(args, "judge_votes", 3),
             output_dir=getattr(args, "output_dir", None),
         )
+
+    @classmethod
+    def from_metadata(cls, metadata: BenchmarkMetadata, **overrides) -> RunConfig:
+        """Reconstruct a RunConfig from BenchmarkMetadata.
+
+        Used for re-evaluation where the original config is not available,
+        only the metadata stored in eval.json. Fields not present in metadata
+        (base_urls, api_versions, max_steps_per_turn, artifacts) get defaults.
+
+        Args:
+            metadata: Benchmark metadata from a completed run
+            **overrides: Fields to override (e.g. judge_model, output_dir)
+        """
+        base = dict(
+            assistant_model=metadata.assistant_model,
+            requestor_model=metadata.requestor_model,
+            judge_model=metadata.judge_model,
+            max_rounds=metadata.max_rounds,
+            batch_size=metadata.batch_size,
+            assistant_system_prompt=metadata.system_prompt,
+            expose_preferences=metadata.expose_preferences,
+            assistant_explicit_cot=metadata.assistant_explicit_cot,
+            requestor_explicit_cot=metadata.requestor_explicit_cot,
+            assistant_reasoning_effort=metadata.assistant_reasoning_effort,
+            requestor_reasoning_effort=metadata.requestor_reasoning_effort,
+            judge_reasoning_effort=metadata.judge_reasoning_effort,
+        )
+        base.update(overrides)
+        return cls(**base)

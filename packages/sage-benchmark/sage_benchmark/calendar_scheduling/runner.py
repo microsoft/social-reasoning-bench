@@ -2,13 +2,12 @@
 
 import asyncio
 import logging
+import re
 import traceback
-from typing import Callable
 
 import litellm
 import openai
 
-from sage_benchmark.shared.executors import TaskPoolExecutor
 from sage_benchmark.shared.logging import BenchmarkLogger
 
 logger = logging.getLogger(__name__)
@@ -26,7 +25,6 @@ from .environment.actions import EndConversation, RequestMeeting, Wait
 from .types import (
     Artifact,
     CalendarTask,
-    KeyedCalendarTask,
     Meeting,
     TaskExecutionResult,
     Tool,
@@ -83,11 +81,32 @@ def _is_fatal_error(e: Exception) -> bool:
         # Otherwise it's a recoverable rate limit (throttling)
         return False
 
-    # Fallback: check error string for context length issues
+    # Fallback: check error string for various fatal patterns
     # (handles cases where litellm wraps as generic APIConnectionError/BadRequestError)
     error_str = str(e).lower()
+
+    # Context length issues
     if "context_length_exceeded" in error_str or "maximum context length" in error_str:
         return True  # Fatal - context overflow
+
+    # Auth-related patterns (catches errors not mapped to specific exception types)
+    # This handles Azure CLI auth expiration and other auth failures
+    auth_patterns = [
+        r"authenticat",  # authentication, authenticated, etc.
+        r"unauthorized",
+        r"invalid.{0,20}key",
+        r"invalid.{0,20}token",
+        r"token.{0,20}expired",
+        r"access.{0,20}denied",
+        r"credential",
+        r"login.{0,20}required",
+        r"not.{0,20}authenticated",
+        r"permission.{0,20}denied",
+        r"forbidden",
+    ]
+    for pattern in auth_patterns:
+        if re.search(pattern, error_str):
+            return True  # Fatal - auth failure
 
     # All other errors are considered recoverable (timeouts, service unavailable, etc.)
     return False
@@ -311,7 +330,7 @@ async def run_single_task(
         # Assistant turn
         assistant_ended = False
         try:
-            assistant_tool_calls, assistant_ended = await _run_agent_turn(
+            _, assistant_ended = await _run_agent_turn(
                 assistant_agent, assistant_resources, max_steps_per_turn
             )
         except asyncio.CancelledError:
@@ -337,7 +356,7 @@ async def run_single_task(
         # Requestor turn
         requestor_ended = False
         try:
-            requestor_tool_calls, requestor_ended = await _run_agent_turn(
+            _, requestor_ended = await _run_agent_turn(
                 requestor_agent, requestor_resources, max_steps_per_turn
             )
         except asyncio.CancelledError:
@@ -358,21 +377,14 @@ async def run_single_task(
 
     max_rounds_reached = rounds_completed >= max_rounds and not conversation_ended_naturally
 
-    # Log completion
-    if benchmark_logger:
-        benchmark_logger.on_task_complete(
-            task.id,
-            success=fatal_error is None,
-            error=fatal_error,
-        )
-    else:
-        logger.info(
-            "Task %d completed - rounds: %d, max_rounds_reached: %s, fatal_error: %s",
-            task.id,
-            rounds_completed,
-            max_rounds_reached,
-            fatal_error is not None,
-        )
+    # Log completion (don't call on_task_complete here - that's done after eval)
+    logger.debug(
+        "Task %d execution completed - rounds: %d, max_rounds_reached: %s, fatal_error: %s",
+        task.id,
+        rounds_completed,
+        max_rounds_reached,
+        fatal_error is not None,
+    )
 
     return TaskExecutionResult(
         task_key=task_key,
@@ -388,95 +400,3 @@ async def run_single_task(
         max_rounds_reached=max_rounds_reached,
         fatal_error=fatal_error,
     )
-
-
-async def run_tasks(
-    tasks: list[KeyedCalendarTask],
-    assistant_model: str,
-    assistant_client: ModelClient,
-    requestor_model: str,
-    requestor_client: ModelClient,
-    max_rounds: int,
-    max_steps_per_turn: int,
-    batch_size: int,
-    artifacts_by_task: dict[int, list[Artifact]] | None,
-    system_prompt: str | None,
-    assistant_explicit_cot: bool,
-    requestor_explicit_cot: bool,
-    expose_preferences: bool,
-    on_task_complete: Callable[[TaskExecutionResult], None] | None = None,
-    skip_task_keys: set[str] | None = None,
-    cancel_event: asyncio.Event | None = None,
-    benchmark_logger: BenchmarkLogger | None = None,
-) -> list[TaskExecutionResult]:
-    """Run a list of tasks in parallel batches.
-
-    Args:
-        tasks: List of KeyedCalendarTask objects to run
-        assistant_model: Model to use for the assistant agent
-        assistant_client: ModelClient for the assistant
-        requestor_model: Model to use for the requestor agent
-        requestor_client: ModelClient for the requestor
-        max_rounds: Maximum number of conversation rounds per task
-        max_steps_per_turn: Maximum tool calls per turn
-        batch_size: Number of tasks to run in parallel
-        artifacts_by_task: Optional dict mapping task id to artifacts list
-        system_prompt: Optional system prompt for the assistant agent
-        assistant_explicit_cot: Whether to use explicit CoT for assistant
-        requestor_explicit_cot: Whether to use explicit CoT for requestor
-        on_task_complete: Optional callback invoked after each task completes
-        skip_task_keys: Optional set of task keys to skip (for resume)
-        cancel_event: Optional event to signal cancellation
-        benchmark_logger: Optional logger for progress tracking
-
-    Returns:
-        List of TaskExecutionResult for each task
-    """
-    # Filter out already-completed tasks
-    tasks_to_run = [
-        task for task in tasks if skip_task_keys is None or task.task_key not in skip_task_keys
-    ]
-
-    if skip_task_keys:
-        logger.info(
-            "Skipping %d already-completed tasks, running %d tasks",
-            len(tasks) - len(tasks_to_run),
-            len(tasks_to_run),
-        )
-
-    # Notify logger of phase start
-    if benchmark_logger:
-        benchmark_logger.on_phase_start("execution", len(tasks_to_run))
-
-    executor = TaskPoolExecutor(
-        batch_size=batch_size,
-        on_task_complete=on_task_complete,
-        task_logger=logger,
-    )
-    results = await executor.run(
-        run_single_task(
-            task=task,
-            task_key=task.task_key,
-            assistant_model=assistant_model,
-            assistant_client=assistant_client,
-            requestor_model=requestor_model,
-            requestor_client=requestor_client,
-            max_rounds=max_rounds,
-            max_steps_per_turn=max_steps_per_turn,
-            artifacts=artifacts_by_task.get(task.id) if artifacts_by_task else None,
-            system_prompt=system_prompt,
-            assistant_explicit_cot=assistant_explicit_cot,
-            requestor_explicit_cot=requestor_explicit_cot,
-            expose_preferences=expose_preferences,
-            cancel_event=cancel_event,
-            benchmark_logger=benchmark_logger,
-        )
-        for task in tasks_to_run
-    )
-
-    # Notify logger of phase completion
-    if benchmark_logger:
-        failed = sum(1 for r in results if r.fatal_error is not None)
-        benchmark_logger.on_phase_complete("execution", len(results) - failed, failed)
-
-    return results

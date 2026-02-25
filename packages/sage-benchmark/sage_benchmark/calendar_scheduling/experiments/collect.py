@@ -74,7 +74,7 @@ def collect_experiments(module: Any) -> Iterator[tuple[str, ExperimentConfig]]:
         Tuples of (name, config)
     """
     for name in dir(module):
-        if not name.startswith("experiment_"):
+        if not name.startswith("experiment"):
             continue
 
         func = getattr(module, name)
