@@ -15,6 +15,7 @@ from sage_benchmark.calendar_scheduling.types import (
     TaskExecutionResult,
 )
 from sage_benchmark.shared.executors import TaskPoolExecutor
+from sage_benchmark.shared.logging import BenchmarkLogger
 
 from .due_diligence import evaluate_due_diligence
 from .duty_of_care import evaluate_duty_of_care
@@ -29,11 +30,16 @@ async def evaluate_single_task(
     model: str,
     model_client: ModelClient,
     judge_votes: int = 3,
+    benchmark_logger: BenchmarkLogger | None = None,
 ) -> TaskEvaluationResult:
     """Evaluate a single task execution result."""
     task_id = execution_result.task.id
     task = execution_result.task
-    logger.info("Eval %d started", task_id)
+
+    if benchmark_logger:
+        benchmark_logger.on_task_start(task_id)
+    else:
+        logger.info("Eval %d started", task_id)
 
     try:
         # Evaluate task completion (meeting scheduled, conflicts, illegal moves)
@@ -65,7 +71,10 @@ async def evaluate_single_task(
         # Evaluate due diligence (message count, preference mentions, proposals)
         due_diligence_result = await evaluate_due_diligence(execution_result, model, model_client)
 
-        logger.info("Eval %d completed", task_id)
+        if benchmark_logger:
+            benchmark_logger.on_task_complete(task_id, success=True)
+        else:
+            logger.info("Eval %d completed", task_id)
 
         return TaskEvaluationResult(
             execution=execution_result,
@@ -85,7 +94,10 @@ async def evaluate_single_task(
         )
     except Exception:
         error_msg = traceback.format_exc()
-        logger.error("Eval %d failed: %s", task_id, error_msg)
+        if benchmark_logger:
+            benchmark_logger.on_task_complete(task_id, success=False, error=error_msg)
+        else:
+            logger.error("Eval %d failed: %s", task_id, error_msg)
         return TaskEvaluationResult(
             execution=execution_result,
             appropriately_scheduled_or_notscheduled=False,
@@ -105,6 +117,7 @@ async def evaluate_tasks(
     on_task_complete: Callable[[TaskEvaluationResult], None] | None = None,
     skip_task_keys: set[str] | None = None,
     judge_votes: int = 3,
+    benchmark_logger: BenchmarkLogger | None = None,
 ) -> list[TaskEvaluationResult]:
     """Evaluate multiple task execution results in parallel batches.
 
@@ -115,6 +128,8 @@ async def evaluate_tasks(
         batch_size: Number of evaluations to run in parallel.
         on_task_complete: Optional callback invoked after each evaluation completes.
         skip_task_keys: Optional set of task keys to skip (for resume).
+        judge_votes: Number of votes for majority voting in leakage detection.
+        benchmark_logger: Optional logger for progress tracking.
 
     Returns:
         List of TaskEvaluationResult for each execution.
@@ -131,15 +146,26 @@ async def evaluate_tasks(
             len(results_to_eval),
         )
 
+    # Notify logger of phase start
+    if benchmark_logger:
+        benchmark_logger.on_phase_start("evaluation", len(results_to_eval))
+
     executor = TaskPoolExecutor(
         batch_size=batch_size,
         on_task_complete=on_task_complete,
         task_logger=logger,
     )
-    return await executor.run(
-        evaluate_single_task(execution_result, model, model_client, judge_votes)
+    results = await executor.run(
+        evaluate_single_task(execution_result, model, model_client, judge_votes, benchmark_logger)
         for execution_result in results_to_eval
     )
+
+    # Notify logger of phase completion
+    if benchmark_logger:
+        failed = sum(1 for r in results if r.eval_error is not None)
+        benchmark_logger.on_phase_complete("evaluation", len(results) - failed, failed)
+
+    return results
 
 
 def print_per_task_summary(eval_results: list[TaskEvaluationResult]) -> None:

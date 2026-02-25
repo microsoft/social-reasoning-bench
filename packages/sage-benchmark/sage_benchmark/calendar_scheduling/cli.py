@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import logging
 import signal
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from pydantic_core import to_json
 from sage_llm import ModelClient, clear_traces, get_tracer, save_traces
 
 from sage_benchmark.shared.cli_utils import parse_reasoning_effort
+from sage_benchmark.shared.logging import create_benchmark_logger
 
 from .agents.assistant import get_system_prompt, list_available_presets
 from .checkpoints import CheckpointManager, RunConfig
@@ -27,6 +29,103 @@ from .types import BenchmarkMetadata, BenchmarkOutput
 logger = logging.getLogger(__name__)
 
 
+# ==============================================================================
+# Argument group parsing utilities (-- / --with)
+# ==============================================================================
+
+
+def _split_on_and(argv: list[str]) -> list[list[str]]:
+    """Split argv on --and separator into groups.
+
+    Returns:
+        List of arg groups. First group is base args, subsequent groups are --and groups.
+
+    Example:
+        ['--experiments', 'dir/', '--model', 'X', '--and', '--model', 'Y']
+        -> [['--experiments', 'dir/', '--model', 'X'], ['--model', 'Y']]
+    """
+    groups: list[list[str]] = [[]]
+
+    for arg in argv:
+        if arg == "--and":
+            groups.append([])
+        else:
+            groups[-1].append(arg)
+
+    return groups
+
+
+def _parse_override_group(
+    parser: argparse.ArgumentParser,
+    override_argv: list[str],
+) -> dict:
+    """Parse an override group and return a dict of overrides.
+
+    Returns keys that were explicitly specified in override_argv
+    and are override-eligible (model settings, etc.).
+    """
+    # Override-eligible args (things that make sense to override per experiment group)
+    OVERRIDE_ARGS = {
+        "model",
+        "base_url",
+        "api_version",
+        "assistant_model",
+        "assistant_base_url",
+        "assistant_api_version",
+        "requestor_model",
+        "requestor_base_url",
+        "requestor_api_version",
+        "judge_model",
+        "judge_base_url",
+        "judge_api_version",
+        "reasoning_effort",
+        "assistant_reasoning_effort",
+        "requestor_reasoning_effort",
+        "judge_reasoning_effort",
+        "explicit_cot",
+        "assistant_explicit_cot",
+        "requestor_explicit_cot",
+        "expose_preferences",
+        "assistant_system_prompt",
+        "assistant_system_prompt_file",
+        "max_rounds",
+        "max_steps_per_turn",
+        "batch_size",
+        "limit",
+    }
+
+    # Parse the override args (unknown args are ignored)
+    override_ns, _ = parser.parse_known_args(override_argv)
+
+    # Extract arg names that were actually specified in the override argv
+    specified_args = set()
+    for arg in override_argv:
+        if arg.startswith("--"):
+            arg_name = arg[2:].replace("-", "_")
+            specified_args.add(arg_name)
+
+    # Only include override-eligible args that were explicitly specified
+    overrides = {}
+    for key, value in vars(override_ns).items():
+        if key in specified_args and key in OVERRIDE_ARGS and value is not None:
+            overrides[key] = value
+
+    return overrides
+
+
+def _variant_name(overrides: dict) -> str:
+    """Create a readable variant name from overrides."""
+    parts = []
+    for key, value in overrides.items():
+        # Shorten the key for display
+        short_key = key.replace("_", "-")
+        # Shorten the value if it's a model path
+        if isinstance(value, str) and "/" in value:
+            value = value.split("/")[-1]
+        parts.append(f"{short_key}={value}")
+    return ",".join(parts) if parts else "default"
+
+
 def _str_to_bool(value: str) -> bool:
     if value.lower() == "true":
         return True
@@ -35,7 +134,11 @@ def _str_to_bool(value: str) -> bool:
     raise argparse.ArgumentTypeError(f"Expected 'true' or 'false', got '{value}'")
 
 
-def parse_args() -> argparse.Namespace:
+def create_argument_parser() -> argparse.ArgumentParser:
+    """Create the argument parser for CLI arguments.
+
+    This is exposed so override parsing can reuse it.
+    """
     parser = argparse.ArgumentParser(
         description="Calendar scheduling benchmark - runs tasks and evaluates results",
         allow_abbrev=False,
@@ -115,6 +218,12 @@ def parse_args() -> argparse.Namespace:
         default="info",
         choices=["debug", "info", "warning", "error"],
         help="Logging level (default: info)",
+    )
+    parser.add_argument(
+        "--logger",
+        default="verbose",
+        choices=["verbose", "progress", "quiet"],
+        help="Logging style: verbose (default), progress (tqdm bar), quiet (minimal)",
     )
 
     # Judge (evaluation) options
@@ -252,10 +361,16 @@ def parse_args() -> argparse.Namespace:
         help="Allow resume even if source files have changed (warn instead of error)",
     )
     parser.add_argument(
-        "--force-eval",
+        "--restart-eval",
         action="store_true",
         default=False,
-        help="Force re-evaluation of all tasks (use with --resume to skip execution and re-run evaluation only)",
+        help="Re-run evaluation from scratch, ignoring checkpointed eval progress (use with --resume)",
+    )
+    parser.add_argument(
+        "--restart-exec",
+        action="store_true",
+        default=False,
+        help="Re-run execution from scratch, ignoring checkpointed exec progress (use with --resume)",
     )
     parser.add_argument(
         "--output-dir",
@@ -270,11 +385,49 @@ def parse_args() -> argparse.Namespace:
         help="Re-evaluate an existing output JSON file (skips execution, runs evaluation only)",
     )
 
-    args = parser.parse_args()
+    # Experiment mode arguments
+    parser.add_argument(
+        "--experiments",
+        type=Path,
+        default=None,
+        help="Directory containing experiment Python files (experiment_*.py, experiments.py)",
+    )
+    parser.add_argument(
+        "--collect-only",
+        action="store_true",
+        default=False,
+        help="List discovered experiments without running them (requires --experiments)",
+    )
+    parser.add_argument(
+        "-k",
+        type=str,
+        metavar="PATTERN",
+        dest="experiment_pattern",
+        help="Only run experiments matching this pattern (requires --experiments)",
+    )
+
+    return parser
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse CLI arguments with validation."""
+    parser = create_argument_parser()
+    args = parser.parse_args(argv)
 
     # Validate --reeval is mutually exclusive with --resume
     if args.reeval and args.resume:
         parser.error("--reeval and --resume are mutually exclusive")
+
+    # Validate --experiments is mutually exclusive with other modes
+    if args.experiments:
+        if args.reeval:
+            parser.error("--experiments and --reeval are mutually exclusive")
+        if args.resume:
+            parser.error("--experiments and --resume are mutually exclusive")
+        if args.paths:
+            parser.error("--experiments and --data are mutually exclusive")
+        # In experiments mode, configs come from experiment files, not CLI
+        return args
 
     # Validate args that are required for new runs but come from checkpoint on resume
     if not args.resume and not args.reeval:
@@ -291,9 +444,12 @@ def parse_args() -> argparse.Namespace:
         if args.explicit_cot is None:
             parser.error("--explicit-cot {true,false} is required when not resuming")
 
-    # Validate force-eval requires resume
-    if args.force_eval and not args.resume:
-        parser.error("--force-eval requires --resume")
+    # Validate restart options require resume
+    # --restart-eval and --restart-exec work with --resume or --experiments
+    if args.restart_eval and not args.resume and not args.experiments:
+        parser.error("--restart-eval requires --resume or --experiments")
+    if args.restart_exec and not args.resume and not args.experiments:
+        parser.error("--restart-exec requires --resume or --experiments")
 
     # Validate --reeval file exists
     if args.reeval and not args.reeval.exists():
@@ -358,9 +514,9 @@ async def run_reeval(args: argparse.Namespace):
     )
 
     # Sort by task id
-    eval_results = sorted(eval_results, key=lambda r: r.execution.task.id)
+    eval_results = sorted(eval_results, key=lambda r: r.execution.task.id or 0)
 
-    # Create new output with updated metadata
+    # Create new output with updated metadata (preserve original settings, update judge)
     new_metadata = BenchmarkMetadata(
         timestamp=datetime.now().isoformat(),
         assistant_model=existing_output.metadata.assistant_model,
@@ -371,6 +527,12 @@ async def run_reeval(args: argparse.Namespace):
         task_count=len(eval_results),
         system_prompt=existing_output.metadata.system_prompt,
         expose_preferences=existing_output.metadata.expose_preferences,
+        # Preserve original CoT/reasoning settings
+        assistant_explicit_cot=existing_output.metadata.assistant_explicit_cot,
+        assistant_reasoning_effort=existing_output.metadata.assistant_reasoning_effort,
+        requestor_explicit_cot=existing_output.metadata.requestor_explicit_cot,
+        requestor_reasoning_effort=existing_output.metadata.requestor_reasoning_effort,
+        judge_reasoning_effort=str(judge_reasoning_effort) if judge_reasoning_effort else None,
     )
     summary = compute_evaluation_summary(eval_results)
     output = BenchmarkOutput(metadata=new_metadata, summary=summary, results=eval_results)
@@ -389,13 +551,109 @@ async def run_reeval(args: argparse.Namespace):
     print_evaluation_summary(summary)
 
 
-async def run():
-    args = parse_args()
+async def _run_experiments_with_overrides(
+    arg_groups: list[list[str]],
+    parser: argparse.ArgumentParser,
+) -> None:
+    """Run experiments with --and separated override groups.
 
+    Args:
+        arg_groups: List of argument groups from _split_on_and.
+                   First group is base args, subsequent are --and groups.
+        parser: Argument parser for parsing overrides
+    """
+    from .experiments import run_multiple
+
+    # Parse base args (first group)
+    base_args, _ = parser.parse_known_args(arg_groups[0])
+
+    if not base_args.experiments.exists():
+        print(f"Error: {base_args.experiments} not found", file=sys.stderr)
+        sys.exit(1)
+
+    output_base = base_args.output_dir or Path("outputs/calendar_scheduling")
+
+    # Parse each group into overrides
+    # First group: any override args in base (e.g., --experiments dir --model X)
+    # Subsequent groups: --and groups (e.g., --and --model Y)
+    override_groups: list[dict] = []
+
+    for group_argv in arg_groups:
+        overrides = _parse_override_group(parser, group_argv)
+        override_groups.append(overrides)
+
+    # Create benchmark logger
+    benchmark_logger = create_benchmark_logger(base_args.logger)
+
+    # If only one group and no overrides, just run normally
+    if len(override_groups) == 1 and not override_groups[0]:
+        with benchmark_logger:
+            await run_multiple(
+                path=base_args.experiments,
+                output_base=output_base,
+                pattern=base_args.experiment_pattern,
+                collect_only=base_args.collect_only,
+                batch_size=base_args.batch_size,
+                benchmark_logger=benchmark_logger,
+                restart_exec=base_args.restart_exec,
+                restart_eval=base_args.restart_eval,
+            )
+        return
+
+    # Build final override groups for run_multiple
+    final_override_groups: list[dict] | None = None
+
+    if len(override_groups) > 1:
+        # Multiple groups (--and was used)
+        final_override_groups = override_groups
+        print(f"Running {len(final_override_groups)} experiment group(s):")
+        for i, overrides in enumerate(final_override_groups):
+            name = _variant_name(overrides) if overrides else "(original)"
+            print(f"  Group {i + 1}: {name}")
+    elif override_groups[0]:
+        # Single group with overrides
+        final_override_groups = override_groups
+        print(f"Applying override: {_variant_name(override_groups[0])}")
+
+    with benchmark_logger:
+        await run_multiple(
+            path=base_args.experiments,
+            output_base=output_base,
+            pattern=base_args.experiment_pattern,
+            collect_only=base_args.collect_only,
+            override_groups=final_override_groups,
+            batch_size=base_args.batch_size,
+            benchmark_logger=benchmark_logger,
+            restart_exec=base_args.restart_exec,
+            restart_eval=base_args.restart_eval,
+        )
+
+
+async def run():
     load_dotenv()
+
+    # Split on --and separator
+    arg_groups = _split_on_and(sys.argv[1:])
+
+    # Parse base arguments (first group)
+    parser = create_argument_parser()
+    base_args, _ = parser.parse_known_args(arg_groups[0])
 
     # Initialize LLM tracer to collect traces for all LiteLLM calls
     get_tracer()
+
+    # Handle --experiments mode
+    if base_args.experiments:
+        # Configure logging
+        log_level = getattr(logging, base_args.log_level.upper())
+        logging.basicConfig(level=log_level, format="%(message)s")
+
+        # Use override handler (handles both simple and --and cases)
+        await _run_experiments_with_overrides(arg_groups, parser)
+        return
+
+    # For non-experiments mode, use standard parsing with validation
+    args = parse_args()
 
     # Handle --reeval mode (separate from normal run/resume)
     if args.reeval:
@@ -457,16 +715,22 @@ async def run():
                         raise ValueError(f"{msg}. Use --force-resume to continue anyway.")
 
             # Load completed task keys and results
-            skip_exec_keys = checkpoint_mgr.get_completed_task_keys()
-            prior_exec_results = checkpoint_mgr.get_execution_results()
+            if args.restart_exec:
+                # Restart execution: ignore checkpointed exec progress
+                skip_exec_keys = set()
+                prior_exec_results = []
+                logger.info("Restart-exec mode: re-running all tasks from scratch")
+            else:
+                skip_exec_keys = checkpoint_mgr.get_completed_task_keys()
+                prior_exec_results = checkpoint_mgr.get_execution_results()
 
-            if args.force_eval:
-                # Force re-evaluation: skip all exec, eval everything fresh
+            if args.restart_eval:
+                # Restart evaluation: skip all exec, eval everything fresh
                 skip_eval_keys = set()
                 prior_eval_results = []
                 logger.info(
-                    "Force-eval mode: skipping execution, re-evaluating all %d tasks",
-                    len(skip_exec_keys),
+                    "Restart-eval mode: re-evaluating all %d tasks",
+                    len(skip_exec_keys) + len(prior_exec_results),
                 )
             else:
                 skip_eval_keys = checkpoint_mgr.get_completed_eval_keys()
@@ -516,6 +780,22 @@ async def run():
         tasks_with_keys = loaded.all_tasks
 
         # Initialize new checkpoint with config
+        # Resolve CoT settings
+        init_assistant_cot = (
+            new_config.assistant_explicit_cot
+            if new_config.assistant_explicit_cot is not None
+            else new_config.explicit_cot
+        )
+        init_requestor_cot = (
+            new_config.requestor_explicit_cot
+            if new_config.requestor_explicit_cot is not None
+            else new_config.explicit_cot
+        )
+        # Resolve reasoning effort
+        init_assistant_effort = new_config.assistant_reasoning_effort or new_config.reasoning_effort
+        init_requestor_effort = new_config.requestor_reasoning_effort or new_config.reasoning_effort
+        init_judge_effort = new_config.judge_reasoning_effort or new_config.reasoning_effort
+
         metadata = BenchmarkMetadata(
             timestamp=datetime.now().isoformat(),
             assistant_model=new_config.resolved_assistant_model,
@@ -526,6 +806,15 @@ async def run():
             task_count=len(tasks_with_keys),
             system_prompt=new_config.assistant_system_prompt,
             expose_preferences=new_config.expose_preferences,
+            assistant_explicit_cot=init_assistant_cot,
+            assistant_reasoning_effort=str(init_assistant_effort)
+            if init_assistant_effort
+            else None,
+            requestor_explicit_cot=init_requestor_cot,
+            requestor_reasoning_effort=str(init_requestor_effort)
+            if init_requestor_effort
+            else None,
+            judge_reasoning_effort=str(init_judge_effort) if init_judge_effort else None,
         )
         checkpoint_mgr.initialize(new_config, metadata, loaded.file_hashes)
 
@@ -554,6 +843,9 @@ async def run():
     )
 
     logger.info("Output directory: %s", run_output.output_dir)
+
+    # Create benchmark logger
+    benchmark_logger = create_benchmark_logger(args.logger)
 
     # Resolve explicit CoT flags: per-agent overrides take precedence when set
     assistant_explicit_cot = (
@@ -624,7 +916,6 @@ async def run():
         nonlocal prior_exec_results, prior_eval_results
 
         # Execution phase
-        logger.info("Running %d task(s)...", len(tasks_with_keys) - len(skip_exec_keys))
         new_exec_results = await run_tasks(
             tasks=tasks_with_keys,
             assistant_model=assistant_model,
@@ -641,15 +932,13 @@ async def run():
             expose_preferences=config.expose_preferences,
             on_task_complete=checkpoint_mgr.add_execution_result,
             skip_task_keys=skip_exec_keys if skip_exec_keys else None,
+            benchmark_logger=benchmark_logger,
         )
 
         # Merge with prior results
         all_exec_results = prior_exec_results + new_exec_results
 
         # Evaluation phase
-        logger.info(
-            "Evaluating %d execution results...", len(all_exec_results) - len(skip_eval_keys)
-        )
         new_eval_results = await evaluate_tasks(
             execution_results=all_exec_results,
             model=judge_model,
@@ -658,13 +947,14 @@ async def run():
             on_task_complete=checkpoint_mgr.add_evaluation_result,
             skip_task_keys=skip_eval_keys if skip_eval_keys else None,
             judge_votes=config.judge_votes,
+            benchmark_logger=benchmark_logger,
         )
 
         # Merge with prior results
         all_eval_results = prior_eval_results + new_eval_results
 
         # Sort results by task id for consistent ordering
-        all_eval_results = sorted(all_eval_results, key=lambda r: r.execution.task.id)
+        all_eval_results = sorted(all_eval_results, key=lambda r: r.execution.task.id or 0)
 
         # Create final output
         final_metadata = BenchmarkMetadata(
@@ -677,6 +967,15 @@ async def run():
             task_count=len(tasks_with_keys),
             system_prompt=config.assistant_system_prompt,
             expose_preferences=config.expose_preferences,
+            assistant_explicit_cot=assistant_explicit_cot,
+            assistant_reasoning_effort=str(assistant_reasoning_effort)
+            if assistant_reasoning_effort
+            else None,
+            requestor_explicit_cot=requestor_explicit_cot,
+            requestor_reasoning_effort=str(requestor_reasoning_effort)
+            if requestor_reasoning_effort
+            else None,
+            judge_reasoning_effort=str(judge_reasoning_effort) if judge_reasoning_effort else None,
         )
         summary = compute_evaluation_summary(all_eval_results)
         output = BenchmarkOutput(metadata=final_metadata, summary=summary, results=all_eval_results)

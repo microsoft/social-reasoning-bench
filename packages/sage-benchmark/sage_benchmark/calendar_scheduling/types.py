@@ -443,6 +443,27 @@ class BenchmarkMetadata(BaseModel):
         default=False,
         description="Whether scheduling preferences were exposed to the assistant agent in prompts",
     )
+    # CoT and reasoning effort settings
+    assistant_explicit_cot: bool | None = Field(
+        default=None,
+        description="Whether explicit chain-of-thought was enabled for assistant",
+    )
+    assistant_reasoning_effort: str | None = Field(
+        default=None,
+        description="Reasoning effort level for assistant (none/low/medium/high or budget tokens)",
+    )
+    requestor_explicit_cot: bool | None = Field(
+        default=None,
+        description="Whether explicit chain-of-thought was enabled for requestor",
+    )
+    requestor_reasoning_effort: str | None = Field(
+        default=None,
+        description="Reasoning effort level for requestor",
+    )
+    judge_reasoning_effort: str | None = Field(
+        default=None,
+        description="Reasoning effort level for judge",
+    )
 
 
 class FailedTaskError(BaseModel):

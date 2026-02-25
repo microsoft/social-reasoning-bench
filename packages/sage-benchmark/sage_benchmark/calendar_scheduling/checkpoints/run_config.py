@@ -1,15 +1,22 @@
 """Run configuration for benchmark runs."""
 
 import argparse
+from pathlib import Path
 
 from pydantic import BaseModel, Field
 
 
 class RunConfig(BaseModel):
-    """Configuration for a benchmark run, saved for resumability."""
+    """Configuration for a benchmark run, saved for resumability.
+
+    This class is also aliased as ExperimentConfig for use with the experiments module.
+    Fields with defaults can be omitted when defining experiments in Python files.
+    """
 
     # Task paths
-    paths: list[str] = Field(description="YAML files or directories containing task definitions")
+    paths: list[str] = Field(
+        default_factory=list, description="YAML files or directories containing task definitions"
+    )
     limit: int | None = Field(default=None, description="Limit on number of tasks to load")
 
     # Model configuration
@@ -42,20 +49,20 @@ class RunConfig(BaseModel):
         default=None, description="Reasoning for judge"
     )
 
-    # Run parameters
-    max_rounds: int = Field(description="Maximum conversation rounds per task")
-    max_steps_per_turn: int = Field(description="Maximum tool calls per agent turn")
-    batch_size: int = Field(description="Number of tasks to run in parallel")
+    # Run parameters (with defaults for experiment file usage)
+    max_rounds: int = Field(default=20, description="Maximum conversation rounds per task")
+    max_steps_per_turn: int = Field(default=20, description="Maximum tool calls per agent turn")
+    batch_size: int = Field(default=32, description="Number of tasks to run in parallel")
 
-    # System prompt
-    assistant_system_prompt: str = Field(description="System prompt preset")
+    # System prompt (optional for experiment files)
+    assistant_system_prompt: str | None = Field(default=None, description="System prompt preset")
     assistant_system_prompt_file: str | None = Field(
         default=None, description="Path to custom system prompt file"
     )
 
-    # Explicit CoT
-    explicit_cot: bool = Field(
-        description="Enable explicit chain-of-thought prompting for all agents"
+    # Explicit CoT (optional for experiment files)
+    explicit_cot: bool | None = Field(
+        default=None, description="Enable explicit chain-of-thought prompting for all agents"
     )
     assistant_explicit_cot: bool | None = Field(
         default=None, description="Explicit CoT override for assistant agent"
@@ -66,7 +73,9 @@ class RunConfig(BaseModel):
 
     # Other options
     artifacts: str | None = Field(default=None, description="Path to artifacts JSON file")
-    expose_preferences: bool = Field(description="Expose preferences to assistant")
+    expose_preferences: bool | None = Field(
+        default=None, description="Expose preferences to assistant"
+    )
 
     # Privacy evaluation options
     judge_votes: int = Field(
@@ -74,16 +83,20 @@ class RunConfig(BaseModel):
         description="Number of judge votes for majority voting in leakage detection",
     )
 
+    # Experiment-specific fields
+    output_dir: Path | None = Field(default=None, description="Output directory for experiment")
+    variant: str | None = Field(default=None, description="Variant name for experiment")
+
     @property
-    def resolved_assistant_model(self) -> str:
+    def resolved_assistant_model(self) -> str | None:
         return self.assistant_model or self.model
 
     @property
-    def resolved_requestor_model(self) -> str:
+    def resolved_requestor_model(self) -> str | None:
         return self.requestor_model or self.model
 
     @property
-    def resolved_judge_model(self) -> str:
+    def resolved_judge_model(self) -> str | None:
         return self.judge_model or self.model
 
     @classmethod
@@ -121,4 +134,5 @@ class RunConfig(BaseModel):
             artifacts=args.artifacts,
             expose_preferences=args.expose_preferences,
             judge_votes=getattr(args, "judge_votes", 3),
+            output_dir=getattr(args, "output_dir", None),
         )

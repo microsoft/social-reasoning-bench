@@ -1,5 +1,6 @@
 """Runner for calendar scheduling simulations."""
 
+import asyncio
 import logging
 import traceback
 from typing import Callable
@@ -8,6 +9,7 @@ import litellm
 import openai
 
 from sage_benchmark.shared.executors import TaskPoolExecutor
+from sage_benchmark.shared.logging import BenchmarkLogger
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,8 @@ def _is_fatal_error(e: Exception) -> bool:
     - Budget exceeded (litellm proxy budget)
 
     Other errors (rate limits, timeouts, network issues) are recoverable.
+
+    Note: CancelledError is handled separately and re-raised immediately.
 
     References:
     - https://docs.litellm.ai/docs/exception_mapping
@@ -191,10 +195,12 @@ async def run_single_task(
     max_rounds: int,
     max_steps_per_turn: int,
     artifacts: list[Artifact] | None,
-    system_prompt: str,
+    system_prompt: str | None,
     assistant_explicit_cot: bool,
     requestor_explicit_cot: bool,
     expose_preferences: bool,
+    cancel_event: asyncio.Event | None = None,
+    benchmark_logger: BenchmarkLogger | None = None,
 ) -> TaskExecutionResult:
     """Run a single calendar scheduling task.
 
@@ -211,6 +217,8 @@ async def run_single_task(
         system_prompt: Optional system prompt for the assistant agent
         assistant_explicit_cot: Whether to use explicit CoT for assistant
         requestor_explicit_cot: Whether to use explicit CoT for requestor
+        cancel_event: Optional event to signal cancellation
+        benchmark_logger: Optional logger for progress tracking
 
     Returns:
         TaskExecutionResult with all execution data
@@ -286,7 +294,14 @@ async def run_single_task(
 
     # Main simulation loop - assistant goes first since requestor already sent request
     for round_idx in range(max_rounds):
-        logger.info("Task %d - Round %d", task.id, round_idx + 1)
+        # Check for cancellation at the start of each round
+        if cancel_event and cancel_event.is_set():
+            raise asyncio.CancelledError("Task cancelled via event")
+
+        if benchmark_logger:
+            benchmark_logger.on_task_round(task.id, round_idx, max_rounds)
+        else:
+            logger.info("Task %d - Round %d", task.id, round_idx + 1)
         rounds_completed = round_idx + 1
 
         # Inject emails into assistant's context at start of their turn
@@ -299,6 +314,9 @@ async def run_single_task(
             assistant_tool_calls, assistant_ended = await _run_agent_turn(
                 assistant_agent, assistant_resources, max_steps_per_turn
             )
+        except asyncio.CancelledError:
+            # Re-raise cancellation to propagate up
+            raise
         except Exception as e:
             if _is_fatal_error(e):
                 fatal_error = f"Assistant fatal error in round {round_idx + 1}: {str(e)}"
@@ -322,6 +340,9 @@ async def run_single_task(
             requestor_tool_calls, requestor_ended = await _run_agent_turn(
                 requestor_agent, requestor_resources, max_steps_per_turn
             )
+        except asyncio.CancelledError:
+            # Re-raise cancellation to propagate up
+            raise
         except Exception as e:
             if _is_fatal_error(e):
                 fatal_error = f"Requestor fatal error in round {round_idx + 1}: {str(e)}"
@@ -336,13 +357,22 @@ async def run_single_task(
             break
 
     max_rounds_reached = rounds_completed >= max_rounds and not conversation_ended_naturally
-    logger.info(
-        "Task %d completed - rounds: %d, max_rounds_reached: %s, fatal_error: %s",
-        task.id,
-        rounds_completed,
-        max_rounds_reached,
-        fatal_error is not None,
-    )
+
+    # Log completion
+    if benchmark_logger:
+        benchmark_logger.on_task_complete(
+            task.id,
+            success=fatal_error is None,
+            error=fatal_error,
+        )
+    else:
+        logger.info(
+            "Task %d completed - rounds: %d, max_rounds_reached: %s, fatal_error: %s",
+            task.id,
+            rounds_completed,
+            max_rounds_reached,
+            fatal_error is not None,
+        )
 
     return TaskExecutionResult(
         task_key=task_key,
@@ -376,6 +406,8 @@ async def run_tasks(
     expose_preferences: bool,
     on_task_complete: Callable[[TaskExecutionResult], None] | None = None,
     skip_task_keys: set[str] | None = None,
+    cancel_event: asyncio.Event | None = None,
+    benchmark_logger: BenchmarkLogger | None = None,
 ) -> list[TaskExecutionResult]:
     """Run a list of tasks in parallel batches.
 
@@ -394,6 +426,8 @@ async def run_tasks(
         requestor_explicit_cot: Whether to use explicit CoT for requestor
         on_task_complete: Optional callback invoked after each task completes
         skip_task_keys: Optional set of task keys to skip (for resume)
+        cancel_event: Optional event to signal cancellation
+        benchmark_logger: Optional logger for progress tracking
 
     Returns:
         List of TaskExecutionResult for each task
@@ -410,12 +444,16 @@ async def run_tasks(
             len(tasks_to_run),
         )
 
+    # Notify logger of phase start
+    if benchmark_logger:
+        benchmark_logger.on_phase_start("execution", len(tasks_to_run))
+
     executor = TaskPoolExecutor(
         batch_size=batch_size,
         on_task_complete=on_task_complete,
         task_logger=logger,
     )
-    return await executor.run(
+    results = await executor.run(
         run_single_task(
             task=task,
             task_key=task.task_key,
@@ -430,6 +468,15 @@ async def run_tasks(
             assistant_explicit_cot=assistant_explicit_cot,
             requestor_explicit_cot=requestor_explicit_cot,
             expose_preferences=expose_preferences,
+            cancel_event=cancel_event,
+            benchmark_logger=benchmark_logger,
         )
         for task in tasks_to_run
     )
+
+    # Notify logger of phase completion
+    if benchmark_logger:
+        failed = sum(1 for r in results if r.fatal_error is not None)
+        benchmark_logger.on_phase_complete("execution", len(results) - failed, failed)
+
+    return results
