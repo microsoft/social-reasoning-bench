@@ -2,8 +2,9 @@ import sys
 
 from sage_benchmark.calendar_scheduling.cli import main as calendar_main
 from sage_benchmark.form_filling.cli import main as forms_main
+from sage_benchmark.marketplace.cli import main as marketplace_main
 
-SUBCOMMANDS = ("calendar", "forms")
+SUBCOMMANDS = ("calendar", "forms", "marketplace")
 
 
 def main():
@@ -16,5 +17,7 @@ def main():
 
     if subcommand == "calendar":
         calendar_main()
-    else:
+    elif subcommand == "forms":
         forms_main()
+    else:
+        marketplace_main()

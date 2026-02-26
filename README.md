@@ -6,7 +6,7 @@ SAGE-Benchmark is a set of tasks for evaluating the social reasoning capabilitie
 | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | [Calendar Scheduling](packages/sage-benchmark/sage_benchmark/calendar_scheduling/README.md) | Test whether agents can schedule meetings while protecting private calendar information |
 | [Form Filling](packages/sage-benchmark/sage_benchmark/form_filling/README.md)               | Evaluate agents filling forms with sensitive user data (one-shot or interactive modes)  |
-| Marketplace -- coming soon!                                                                 | Evaluate how well agents negotitate in marketplace settings                             |
+| [Marketplace](packages/sage-benchmark/sage_benchmark/marketplace/README.md)                | Evaluate how well agents negotiate in marketplace settings                              |
 
 ## Quick Start
 
@@ -38,6 +38,12 @@ sagebench forms \
     --assistant-model trapi/gpt-4.1 \
     --judge-model trapi/gpt-4.1 \
     --limit 2
+
+# Run marketplace benchmark (minimal dataset)
+sagebench marketplace \
+    --data ./data/marketplace/minimal_tasks.yaml \
+    --model trapi/gpt-4.1 \
+    --max-steps-per-turn 3
 ```
 
 ## Documentation
