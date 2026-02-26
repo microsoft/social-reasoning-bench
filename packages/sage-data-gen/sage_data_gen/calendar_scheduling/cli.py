@@ -1,7 +1,6 @@
 import argparse
 import asyncio
 import random
-from collections import OrderedDict
 from pathlib import Path
 
 import yaml
@@ -26,35 +25,6 @@ from .stats import print_stats
 from .validate import validate_output
 from .verify import verify_tasks
 
-TASK_FIELD_ORDER = ["id", "type", "satisfiable", "free_slots_count", "requestor", "assistant"]
-
-
-def _clean_task_dict(d: dict) -> OrderedDict:
-    """Remove computed fields and enforce field ordering for readable YAML."""
-    d.pop("duration_minutes", None)
-    for v in d.values():
-        if isinstance(v, dict):
-            _clean_task_dict(v)
-        elif isinstance(v, list):
-            for item in v:
-                if isinstance(item, dict):
-                    _clean_task_dict(item)
-
-    ordered = OrderedDict()
-    for key in TASK_FIELD_ORDER:
-        if key in d:
-            ordered[key] = d[key]
-    for key in d:
-        if key not in ordered:
-            ordered[key] = d[key]
-    return ordered
-
-
-yaml.add_representer(
-    OrderedDict,
-    lambda dumper, data: dumper.represent_mapping("tag:yaml.org,2002:map", data.items()),
-)
-
 
 def _outputs_dir(config: PipelineConfig) -> Path:
     return Path(config.output_dir) / "_pipeline_outputs"
@@ -68,7 +38,7 @@ def _save_step(outputs_dir: Path, step: int, name: str, data: dict | list) -> No
 
 
 def write_tasks_yaml(tasks: list[CalendarTask], path: Path) -> None:
-    data = {"tasks": [_clean_task_dict(task.model_dump(mode="json")) for task in tasks]}
+    data = {"tasks": [task.model_dump(mode="json") for task in tasks]}
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         yaml.dump(data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)

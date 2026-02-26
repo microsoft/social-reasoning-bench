@@ -118,6 +118,8 @@ IMPORTANT:
 that duplicates or closely overlaps with any existing event listed above.
 - The requestor_instruction MUST NOT mention a specific time. Instead, say something like \
 "schedule a meeting" or "find time for" without specifying when. The time will be determined later.
+- The requestor_instruction MUST NOT mention any meeting duration or length. Do not say "1-hour", \
+"30-minute", "hour-long", or any other duration. Just say "meeting" without specifying how long it is.
 """
 
 
@@ -493,6 +495,15 @@ async def generate_task_for_archetype(
             messages=[{"role": "user", "content": prompt}],
             response_format=TaskInstructions,
         )
+
+        # Reject instructions that mention meeting duration
+        req_instruction_lower = instructions.requestor_instruction.lower()
+        if "minute" in req_instruction_lower or "hour" in req_instruction_lower:
+            print(
+                f"  Retry {attempt + 1}/{retry_limit}: requestor instruction mentions "
+                f"duration for {employee.email} × {archetype.name}"
+            )
+            continue
 
         # Apply privacy labels to the labeled calendar
         final_calendar = []
