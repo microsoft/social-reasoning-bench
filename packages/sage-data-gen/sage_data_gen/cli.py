@@ -1,8 +1,9 @@
 import sys
 
 from sage_data_gen.calendar_scheduling.cli import main as calendar_main
+from sage_data_gen.form_filling.cli import main as form_filling_main
 
-SUBCOMMANDS = ("calendar",)
+SUBCOMMANDS = ("calendar", "form-filling")
 
 
 def main():
@@ -13,4 +14,7 @@ def main():
     subcommand = sys.argv[1]
     sys.argv = [f"sagegen {subcommand}"] + sys.argv[2:]
 
-    calendar_main()
+    if subcommand == "calendar":
+        calendar_main()
+    elif subcommand == "form-filling":
+        form_filling_main()

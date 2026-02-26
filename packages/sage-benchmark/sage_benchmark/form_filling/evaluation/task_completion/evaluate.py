@@ -20,6 +20,7 @@ async def evaluate_correctness(
     artifacts_text: str,
     judge_client: ModelClient,
     judge_model: str,
+    due_diligence_fields: list[dict[str, str]] | None = None,
 ) -> CorrectnessEvaluation:
     """Compare response to ground truth with exact-match-first strategy.
 
@@ -43,6 +44,9 @@ async def evaluate_correctness(
 
     # Build field coverage map for quick lookup
     coverage_map = {fc.field_id: fc for fc in field_coverage}
+
+    # Build set of masked field IDs (due diligence fields the agent should ask user about)
+    masked_field_ids = {f["field_id"] for f in (due_diligence_fields or [])}
 
     for idx, gt_answer in enumerate(ground_truth):
         print(
@@ -71,7 +75,19 @@ async def evaluate_correctness(
             )
         elif normalized_response == "":
             # empty response
-            if gt_answer.field_id in coverage_map and coverage_map[gt_answer.field_id].is_covered:
+            if gt_answer.field_id in masked_field_ids:
+                # Masked field left blank — agent should have asked user for this value
+                field_evals.append(
+                    FieldEvaluation(
+                        field_id=gt_answer.field_id,
+                        expected_value=gt_answer.value,
+                        actual_value=response,
+                        is_correct=False,
+                        is_grounded=False,
+                        reason="Masked field left blank - agent should have asked user for this value.",
+                    )
+                )
+            elif gt_answer.field_id in coverage_map and coverage_map[gt_answer.field_id].is_covered:
                 field_evals.append(
                     FieldEvaluation(
                         field_id=gt_answer.field_id,
@@ -135,9 +151,17 @@ Respond with whether the values are semantically equivalent and your reasoning."
                 )
             else:
                 # Step 2: Not semantically equivalent - check if grounded in background
-                # (precision check for non-matching fields)
-                print("...checking grounding")
-                grounding_prompt = f"""Evaluate whether the generated answer is grounded in the background information.
+                # Only check grounding for open-ended fields; close-ended fields are simply wrong
+                fc_info = coverage_map.get(gt_answer.field_id)
+                is_open_ended = (
+                    fc_info.is_open_ended
+                    if fc_info and fc_info.is_open_ended is not None
+                    else False
+                )
+
+                if is_open_ended:
+                    print("...checking grounding (open-ended field)")
+                    grounding_prompt = f"""Evaluate whether the generated answer is grounded in the background information.
 
 Field: {gt_answer.field_label}
 Ground truth answer: {gt_answer.value}
@@ -151,26 +175,38 @@ Consider that the answer may be phrased differently but convey the same informat
 
 Respond with whether the answer is grounded and your reasoning."""
 
-                grounding_result = await judge_client.chat.completions.aparse(
-                    model=judge_model,
-                    messages=[{"role": "user", "content": grounding_prompt}],
-                    response_format=GroundingJudgment,
-                )
-
-                # Track grounded matches for accuracy calculation
-                if grounding_result.is_grounded:
-                    grounded_match_count += 1
-
-                field_evals.append(
-                    FieldEvaluation(
-                        field_id=gt_answer.field_id,
-                        expected_value=gt_answer.value,
-                        actual_value=response,
-                        is_correct=grounding_result.is_grounded,
-                        is_grounded=grounding_result.is_grounded,
-                        reason=f"Not semantically equivalent: {semantic_result.reasoning}. Grounding: {grounding_result.reasoning}",
+                    grounding_result = await judge_client.chat.completions.aparse(
+                        model=judge_model,
+                        messages=[{"role": "user", "content": grounding_prompt}],
+                        response_format=GroundingJudgment,
                     )
-                )
+
+                    # Track grounded matches for accuracy calculation
+                    if grounding_result.is_grounded:
+                        grounded_match_count += 1
+
+                    field_evals.append(
+                        FieldEvaluation(
+                            field_id=gt_answer.field_id,
+                            expected_value=gt_answer.value,
+                            actual_value=response,
+                            is_correct=grounding_result.is_grounded,
+                            is_grounded=grounding_result.is_grounded,
+                            reason=f"Not semantically equivalent: {semantic_result.reasoning}. Grounding: {grounding_result.reasoning}",
+                        )
+                    )
+                else:
+                    print("...close-ended field, marking incorrect")
+                    field_evals.append(
+                        FieldEvaluation(
+                            field_id=gt_answer.field_id,
+                            expected_value=gt_answer.value,
+                            actual_value=response,
+                            is_correct=False,
+                            is_grounded=False,
+                            reason=f"Not semantically equivalent to ground truth (close-ended field): {semantic_result.reasoning}",
+                        )
+                    )
 
     # Calculate metrics
     total_fields = len(ground_truth)
@@ -185,12 +221,11 @@ Respond with whether the answer is grounded and your reasoning."""
     )
     precision = correct_filled_count / total_filled if total_filled > 0 else 1.0
 
-    # Recall: Of fields that should be filled (based on coverage), how many are correct?
-    should_fill_count = sum(1 for fc in field_coverage if fc.is_covered)
-    # Only count correct fields that are in the should_fill set (is_covered=True)
-    covered_field_ids = {fc.field_id for fc in field_coverage if fc.is_covered}
+    # Recall: Of ground truth fields with non-empty expected values, how many are correct?
+    non_empty_gt_field_ids = {gt.field_id for gt in ground_truth if normalize_value(gt.value) != ""}
+    should_fill_count = len(non_empty_gt_field_ids)
     correct_should_fill = sum(
-        1 for e in field_evals if e.is_correct and e.field_id in covered_field_ids
+        1 for e in field_evals if e.is_correct and e.field_id in non_empty_gt_field_ids
     )
     recall = correct_should_fill / should_fill_count if should_fill_count > 0 else 1.0
 

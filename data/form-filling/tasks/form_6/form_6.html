@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Athens-Clarke County — Neighborhood Registration Form</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif:wght@700;900&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans', Arial, Helvetica, sans-serif;
+    background: #d6d2cd;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;align-items:flex-start;
+    padding: 24px 12px;
+    font-size: 13.5px;
+    line-height: 1.45;
+  }
+
+  .page {
+    background: #fff;
+    width: 100%;
+    max-width: 780px;
+    box-shadow: 0 1px 12px rgba(0,0,0,0.12);
+    padding: 0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: center;
+    padding: 24px 36px 18px;
+    gap: 20px;
+  }
+  .logo-area {
+    flex-shrink: 0;
+    width: 110px;
+    height: 100px;
+    position: relative;
+  }
+  /* Stylized ACC logo approximation */
+  .logo-area svg { width: 100%; height: 100%; }
+  .header-text {
+    flex: 1;
+    text-align: center;
+    padding-right: 110px; /* balance the logo */
+  }
+  .header-text h1 {
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: #1a1a1a;
+    margin-bottom: 2px;
+  }
+  .header-text h2 {
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-weight: 400;
+    font-size: 14.5px;
+    color: #1a1a1a;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+
+  /* ── SECTION BAR ── */
+  .section-bar {
+    background: #888;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    padding: 5px 36px;
+    margin: 8px 0 0;
+  }
+
+  /* ── FORM BODY ── */
+  .form-body {
+    padding: 0 36px;
+  }
+
+  /* ── FIELD ROW: label left, underline input right ── */
+  .field-row {
+    display: flex;
+    align-items: flex-end;
+    border-bottom: 1px solid #333;
+    padding: 10px 0 3px;
+    gap: 8px;
+    min-height: 36px;
+  }
+  .field-row.no-border {
+    border-bottom: none;
+  }
+  .field-row .field-label {
+    font-weight: 700;
+    font-size: 13px;
+    color: #1a1a1a;
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding-bottom: 1px;
+    line-height: 1.3;
+  }
+  .field-row .field-label small {
+    font-weight: 400;
+    font-size: 11px;
+    color: #444;
+  }
+  .field-row .field-label .multi-line {
+    white-space: normal;
+    max-width: 180px;
+  }
+  .field-row input[type="text"],
+  .field-row input[type="email"],
+  .field-row input[type="tel"],
+  .field-row input[type="url"],
+  .field-row input[type="date"] {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-size: 13.5px;
+    color: #1a1a1a;
+    background: transparent;
+    padding: 0 0 1px 4px;
+    min-width: 0;
+  }
+
+  /* ── CHECKBOX ROW (Type of Organization) ── */
+  .org-type-row {
+    display: flex;
+    align-items: flex-start;
+    border-bottom: 1px solid #333;
+    padding: 8px 0 6px;
+    gap: 8px;
+  }
+  .org-type-row .field-label {
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .org-type-options {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+  }
+  .cb-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .cb-item input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: #333;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .cb-item span {
+    font-size: 13px;
+    color: #1a1a1a;
+    user-select: none;
+  }
+  /* "Other:" with inline text input */
+  .other-cb-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .other-cb-group input[type="text"] {
+    border: none;
+    border-bottom: 1px solid #666;
+    outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-size: 13px;
+    width: 120px;
+    padding: 0 2px 1px;
+    background: transparent;
+  }
+
+  /* ── MULTI-LINE LABEL (left labels that wrap) ── */
+  .field-row .ml-label {
+    white-space: normal;
+    min-width: 140px;
+    max-width: 180px;
+    line-height: 1.35;
+  }
+
+  /* ── EMAIL NOTE ── */
+  .email-note {
+    font-style: italic;
+    font-size: 12px;
+    color: #333;
+    padding: 8px 0 4px;
+  }
+
+  /* ── INFO BLOCK ── */
+  .info-block {
+    padding: 10px 0 14px;
+    font-size: 12.5px;
+    color: #1a1a1a;
+    line-height: 1.5;
+  }
+  .info-block strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 13px;
+  }
+  .info-block ol {
+    padding-left: 18px;
+    margin: 2px 0;
+  }
+  .info-block ol li {
+    margin-bottom: 2px;
+  }
+  .info-block ul {
+    padding-left: 18px;
+    margin: 2px 0;
+    list-style: disc;
+  }
+  .info-block ul li {
+    margin-bottom: 4px;
+  }
+
+  /* ── OPTIONAL SECTION FIELDS ── */
+  /* same as above, reuse .field-row */
+
+  /* ── PLANNING DEPT ── */
+  .planning-section {
+    padding: 6px 36px 4px;
+  }
+  .planning-row {
+    font-style: italic;
+    font-size: 13px;
+    color: #1a1a1a;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 6px 0 3px;
+    border-bottom: 1px solid #999;
+  }
+  .planning-row:last-of-type {
+    border-bottom: none;
+  }
+  .planning-row input[type="date"] {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-size: 13px;
+    background: transparent;
+    padding: 0 4px 1px;
+  }
+
+  .planning-dept-title {
+    text-align: center;
+    padding: 16px 0 8px;
+    font-variant: small-caps;
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: 1px;
+    color: #1a1a1a;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align: center;
+    font-weight: 700;
+    font-size: 12px;
+    color: #8b1a1a;
+    padding: 8px 36px 18px;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── Focus states (subtle for realism) ── */
+  .field-row input:focus,
+  .other-cb-group input:focus,
+  .planning-row input:focus {
+    background: #f5f5ee;
+  }
+
+  /* ── Submit button (not on original but needed for interaction) ── */
+  .submit-row {
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px 36px 20px;
+    gap: 10px;
+  }
+  .btn {
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 24px;
+    border-radius: 2px;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+  }
+  .btn-submit {
+    background: #444;
+    color: #fff;
+    border: 1px solid #333;
+  }
+  .btn-submit:hover { background: #333; }
+  .btn-clear {
+    background: #fff;
+    color: #444;
+    border: 1px solid #888;
+  }
+  .btn-clear:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ════════ HEADER ════════ -->
+  <div class="header">
+    <div class="logo-area">
+      <!-- Simplified Athens-Clarke County logo -->
+      <svg viewBox="0 0 120 110" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10,95 Q10,10 60,10 Q110,10 110,60 Q110,95 60,100 Q30,102 10,95Z" fill="#7a1a1a" opacity="0.85"/>
+        <path d="M25,80 Q25,28 60,25 Q95,28 95,60 Q95,82 60,88 Q38,90 25,80Z" fill="#fff"/>
+        <text x="42" y="52" font-family="'Noto Serif', Georgia, serif" font-size="11" font-weight="900" fill="#7a1a1a">A</text>
+        <text x="37" y="68" font-family="'Noto Sans', Arial, sans-serif" font-size="8" font-weight="700" fill="#1a1a1a">ATHENS</text>
+        <text x="37" y="78" font-family="'Noto Sans', Arial, sans-serif" font-size="7.5" font-weight="700" fill="#1a1a1a">CLARKE</text>
+        <text x="37" y="88" font-family="'Noto Sans', Arial, sans-serif" font-size="7.5" font-weight="700" fill="#1a1a1a">COUNTY</text>
+      </svg>
+    </div>
+    <div class="header-text">
+      <h1>Neighborhood Notification Initiative</h1>
+      <h2>Neighborhood Registration Form</h2>
+    </div>
+  </div>
+
+  <form id="registrationForm" autocomplete="off">
+
+    <!-- ════════ REQUIRED INFORMATION ════════ -->
+    <div class="section-bar">Required Information</div>
+
+    <div class="form-body">
+
+      <!-- Organization Name -->
+      <div class="field-row">
+        <label class="field-label" for="organization_name">Organization Name:</label>
+        <input type="text" id="organization_name" name="organization_name" />
+      </div>
+
+      <!-- Type of Organization (checkboxes) -->
+      <div class="org-type-row">
+        <span class="field-label">Type of Organization:</span>
+        <div class="org-type-options">
+          <label class="cb-item">
+            <input type="checkbox" id="covenant_hoa" name="covenant_hoa" />
+            <span>Covenant-based Homeowner's Association</span>
+          </label>
+          <label class="cb-item">
+            <input type="checkbox" id="other_incorporated" name="other_incorporated" />
+            <span>Other Incorporated</span>
+          </label>
+          <label class="cb-item">
+            <input type="checkbox" id="non_profit" name="non_profit" />
+            <span>Non-profit</span>
+          </label>
+          <label class="cb-item">
+            <input type="checkbox" id="llc" name="llc" />
+            <span>LLC</span>
+          </label>
+          <div class="other-cb-group">
+            <label class="cb-item" style="gap:0;">
+              <input type="checkbox" id="other_check" />
+            </label>
+            <span style="font-size:13px;">Other:</span>
+            <input type="text" id="other_type" name="other_type" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Commission Districts -->
+      <div class="field-row">
+        <label class="field-label" for="commission_districts">Commission Districts:</label>
+        <input type="text" id="commission_districts" name="commission_districts" />
+      </div>
+
+      <!-- Contact Person -->
+      <div class="field-row">
+        <label class="field-label" for="contact_person">Contact Person:</label>
+        <input type="text" id="contact_person" name="contact_person" />
+      </div>
+
+      <!-- Contact Person Mailing Address -->
+      <div class="field-row">
+        <label class="field-label ml-label" for="contact_address">Contact Person<br>Mailing Address:</label>
+        <input type="text" id="contact_address" name="contact_person_mailing_address" />
+      </div>
+
+      <!-- Neighborhood Mailing Address -->
+      <div class="field-row">
+        <label class="field-label ml-label" for="neighborhood_address">Neighborhood Mailing<br>Address <small>(if different)</small>:</label>
+        <input type="text" id="neighborhood_address" name="neighborhood_mailing_address" />
+      </div>
+
+      <!-- Telephone Number -->
+      <div class="field-row">
+        <label class="field-label" for="telephone_number">Telephone Number:</label>
+        <input type="tel" id="telephone_number" name="telephone_number" />
+      </div>
+
+      <!-- E-mail Address -->
+      <div class="field-row">
+        <label class="field-label" for="email_address">E-mail Address*:</label>
+        <input type="email" id="email_address" name="email_address" />
+      </div>
+
+      <!-- Email note -->
+      <p class="email-note">*A valid e-mail address is required for all Contact Persons where they may receive neighborhood notifications.</p>
+
+      <!-- Info block -->
+      <div class="info-block">
+        <strong>Please include the following information with this completed registration form:</strong>
+        <ol>
+          <li>Map of neighborhood boundaries</li>
+          <li>One of the following:
+            <ul>
+              <li>For established neighborhoods – Documentation indicating your neighborhood group's organizational structure and/or legal status (i.e. by-laws, articles of incorporation, etc.)</li>
+              <li>For newly forming groups – A petition acknowledging the endorsement of the neighborhood organization and Contact Person signed by at least 20% of the property owners and/or residents within the proposed neighborhood boundaries.</li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- ════════ OPTIONAL INFORMATION ════════ -->
+    <div class="section-bar">Optional Information</div>
+
+    <div class="form-body">
+
+      <!-- Website -->
+      <div class="field-row">
+        <label class="field-label" for="website">Website:</label>
+        <input type="url" id="website" name="website" />
+      </div>
+
+      <!-- Newsletter -->
+      <div class="field-row">
+        <label class="field-label ml-label" for="newsletter">Newsletter or other<br>publication:</label>
+        <input type="text" id="newsletter" name="newsletter" />
+      </div>
+
+      <!-- Regularly scheduled meetings -->
+      <div class="field-row">
+        <label class="field-label ml-label" for="meetings" style="min-width:160px;">Regularly scheduled<br>meetings:</label>
+        <input type="text" id="meetings" name="meetings" placeholder="Provide date, time, and location:" />
+      </div>
+
+      <!-- Comments -->
+      <div class="field-row" style="min-height:56px; align-items: flex-start; padding-top: 8px;">
+        <label class="field-label ml-label" for="comments" style="min-width:160px; max-width:200px;">Comments, questions, or<br>suggested topics for<br>neighborhood planning<br>workshops:</label>
+        <input type="text" id="comments" name="comments" style="margin-top: auto;" />
+      </div>
+
+    </div>
+
+    <!-- ════════ PLANNING DEPARTMENT ════════ -->
+    <div class="planning-section">
+      <div class="planning-row">
+        <span>Date received by Planning Department:</span>
+        <input type="date" id="date_received" name="date_received" />
+      </div>
+      <div class="planning-row">
+        <span>Date approved by Mayor and Commission:</span>
+        <input type="date" id="date_approved" name="date_approved" />
+      </div>
+    </div>
+
+    <div class="planning-dept-title">Planning Department</div>
+
+    <!-- Submit -->
+    <div class="submit-row">
+      <button type="reset" class="btn btn-clear">Clear Form</button>
+      <button type="submit" class="btn btn-submit">Submit Registration</button>
+    </div>
+
+  </form>
+
+  <!-- ════════ FOOTER ════════ -->
+  <div class="footer">
+    120 W. Dougherty Street &nbsp;·&nbsp; Athens, Georgia 30601 &nbsp;·&nbsp; (706) 613-3515 &nbsp;·&nbsp; FAX (706) 613-3844
+  </div>
+
+</div>
+
+<script>
+  document.getElementById('registrationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const fd = new FormData(this);
+    const data = {
+      required_information: {
+        organization_name: fd.get('organization_name') || '',
+        covenant_based_homeowners_association: document.getElementById('covenant_hoa').checked ? 'true' : 'false',
+        other_incorporated: document.getElementById('other_incorporated').checked ? 'true' : 'false',
+        non_profit: document.getElementById('non_profit').checked ? 'true' : 'false',
+        llc: document.getElementById('llc').checked ? 'true' : 'false',
+        other: fd.get('other_type') || '',
+        commission_districts: fd.get('commission_districts') || '',
+        contact_person: fd.get('contact_person') || '',
+        contact_person_mailing_address: fd.get('contact_person_mailing_address') || '',
+        neighborhood_mailing_address_if_different: fd.get('neighborhood_mailing_address') || '',
+        telephone_number: fd.get('telephone_number') || '',
+        e_mail_address: fd.get('email_address') || '',
+      },
+      optional_information: {
+        website: fd.get('website') || '',
+        newsletter_or_other_publication: fd.get('newsletter') || '',
+        regularly_scheduled_meetings_provide_date_time_and_location: fd.get('meetings') || '',
+        comments_questions_or_suggested_topics_for_neighborhood_planning_workshops: fd.get('comments') || '',
+      },
+      planning_department_use: {
+        date_received_by_planning_department: fd.get('date_received') || '',
+        date_approved_by_mayor_and_commission: fd.get('date_approved') || '',
+      }
+    };
+
+    console.log('Form Data (Pydantic-compatible JSON):');
+    console.log(JSON.stringify(data, null, 2));
+    alert('Submitted! Check console (F12) for Pydantic-compatible JSON output.');
+  });
+</script>
+
+</body>
+</html>

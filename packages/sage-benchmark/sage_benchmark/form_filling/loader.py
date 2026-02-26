@@ -8,6 +8,8 @@ from .schemas import (
     FieldCoverageInfo,
     FormTask,
     GroundTruthAnswer,
+    NegativeInfoItem,
+    NegativeInfoPoint,
     PersonaInfo,
     SecretInfo,
 )
@@ -52,19 +54,24 @@ def load_single_form_task(task_dir: Path) -> FormTask:
             artifacts_list = artifacts_json
         artifacts = [ArtifactData(**a) for a in artifacts_list]
 
-    # Load ground_truth.json
+    # Load ground_truth.json (data-gen format: {field_id: {answer, is_open_ended}})
     gt_json_path = task_dir / "ground_truth.json"
     if not gt_json_path.exists():
         raise FileNotFoundError(f"ground_truth.json not found in {task_dir}")
 
     with open(gt_json_path, encoding="utf-8") as f:
         gt_json = json.load(f)
-        # Handle nested structure from JSONL
-        if "answers" in gt_json:
-            answers_list = gt_json["answers"]
-        else:
-            answers_list = gt_json
-        ground_truth = [GroundTruthAnswer(**a) for a in answers_list]
+
+    ground_truth = []
+    for field_id, info in gt_json.items():
+        ground_truth.append(
+            GroundTruthAnswer(
+                field_id=field_id,
+                field_label=field_id.split(".")[-1].replace("_", " ").title(),
+                value=info["answer"],
+                reasoning="from ground truth",
+            )
+        )
 
     # Verify form_model.py exists and import it
     form_model_path = task_dir / "form_model.py"
@@ -74,19 +81,53 @@ def load_single_form_task(task_dir: Path) -> FormTask:
     # Import the pydantic form class
     _, form_class = import_form_model_from_file(form_model_path)
 
-    # Parse secrets
-    secrets = [SecretInfo(**s) for s in task_json["secrets"]]
-    field_coverage = [FieldCoverageInfo(**fc) for fc in task_json["field_coverage"]]
+    # Parse secrets (flatten from question_secrets nested structure)
+    secrets = []
+    for qs in task_json["secrets"]["question_secrets"]:
+        for s in qs["secrets"]:
+            s["question_id"] = qs["question_id"]
+            s["related_question"] = qs["question_text"]
+            secrets.append(SecretInfo(**s))
+
+    # Parse field coverage from validation results
+    field_coverage = [FieldCoverageInfo(**fc) for fc in task_json["validation"]["field_coverage"]]
+
+    # Load negative_info from task.json
+    negative_info_items = []
+    for item in task_json["negative_info"]["items"]:
+        points = [NegativeInfoPoint(**p) for p in item["negative_info"]]
+        negative_info_items.append(
+            NegativeInfoItem(
+                field_id=item["field_id"],
+                field_label=item["field_label"],
+                negative_info=points,
+            )
+        )
+
+    # Load due_diligence_fields from task.json
+    due_diligence_fields = task_json["due_diligence_fields"]
+
+    # Load unmasked_ground_truth.json (if present, for oracle user)
+    # Fall back to ground_truth.json so OracleUser always has data
+    unmasked_gt_path = task_dir / "unmasked_ground_truth.json"
+    if unmasked_gt_path.exists():
+        with open(unmasked_gt_path, encoding="utf-8") as f:
+            unmasked_ground_truth = json.load(f)
+    else:
+        unmasked_ground_truth = gt_json
 
     return FormTask(
         form_id=task_json["form_id"],
-        form_title=task_json["form_title"],
-        instruction=task_json["instruction"],
+        form_title=task_json["form_info"]["title"],
+        instruction="Fill out this form for me",
         persona=PersonaInfo(**task_json["persona"]),
         artifacts=artifacts,
         secrets=secrets,
         ground_truth=ground_truth,
         field_coverage=field_coverage,
+        negative_info=negative_info_items,
+        due_diligence_fields=due_diligence_fields,
+        unmasked_ground_truth=unmasked_ground_truth,
         form_model_path=str(form_model_path),
         form_class=form_class,
     )

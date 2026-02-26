@@ -22,6 +22,7 @@ from pathlib import Path
 from pydantic import BaseModel
 from sage_llm import ModelClient
 
+from sage_benchmark.form_filling.agents.oracle_user import OracleUser
 from sage_benchmark.form_filling.prompts import (
     GUI_SYSTEM_PROMPT,
     format_artifacts_as_context,
@@ -284,6 +285,7 @@ async def run_vision_agent_on_form(
     form_url: str,
     context_messages: list[dict],
     max_steps: int = 30,
+    oracle_user: OracleUser | None = None,
 ) -> dict:
     """Run the vision agent on one form.
 
@@ -294,6 +296,7 @@ async def run_vision_agent_on_form(
         form_url: URL of the form to fill
         context_messages: List of user messages with task context (instruction, artifacts, guidance)
         max_steps: Maximum interaction steps
+        oracle_user: Optional OracleUser for answering ask_user questions
 
     Returns dict with steps taken and extracted flat form values.
     """
@@ -308,6 +311,7 @@ async def run_vision_agent_on_form(
     ]
 
     steps_log = []
+    user_qa_history = []
     terminated = False
 
     for step in range(max_steps):
@@ -353,6 +357,17 @@ async def run_vision_agent_on_form(
 
         messages.append({"role": "assistant", "content": raw_output})
 
+        # Handle ask_user action
+        if action["action"] == "ask_user" and oracle_user is not None:
+            question = action.get("question", "")
+            print(f"    Agent asks user: {question[:80]}...")
+            user_answer = await oracle_user.answer_question(question)
+            print(f"    User answers: {user_answer[:80]}...")
+            user_qa_history.append({"question": question, "answer": user_answer})
+            step_info["user_answer"] = user_answer
+            messages.append({"role": "user", "content": f"User's answer: {user_answer}"})
+            continue
+
         should_continue = await execute_action(page, action)
         await asyncio.sleep(0.5)
 
@@ -369,6 +384,7 @@ async def run_vision_agent_on_form(
         "num_steps": len(steps_log),
         "terminated": terminated,
         "form_values": form_values,
+        "user_qa_history": user_qa_history,
     }
 
 
@@ -384,9 +400,10 @@ async def run_single_task(
     restructure_model: str,
     browser,
     http_port: int,
-    gui_forms_dir: str,
+    data_path: str,
     prompt_type: str = "base",
     max_steps: int = 30,
+    oracle_user: OracleUser | None = None,
 ) -> TaskExecutionResult:
     """Execute GUI form filling for a single task.
 
@@ -399,15 +416,16 @@ async def run_single_task(
         restructure_model: Model name for restructuring
         browser: Playwright browser instance
         http_port: Port for the local HTTP server
-        gui_forms_dir: Directory containing HTML form files
+        data_path: Root directory containing task subdirectories with HTML form files
         prompt_type: Privacy prompt type
         max_steps: Maximum interaction steps
+        oracle_user: Optional OracleUser for answering ask_user questions
 
     Returns:
         TaskExecutionResult compatible with evaluate_task()
     """
     form_filename = f"form_{task.form_id}.html"
-    form_path = Path(gui_forms_dir) / form_filename
+    form_path = Path(data_path) / f"form_{task.form_id}" / form_filename
     if not form_path.exists():
         return TaskExecutionResult(
             task_index=task_index,
@@ -418,7 +436,7 @@ async def run_single_task(
             error_message=f"HTML form not found: {form_path}",
         )
 
-    form_url = f"http://localhost:{http_port}/{form_filename}"
+    form_url = f"http://localhost:{http_port}/form_{task.form_id}/{form_filename}"
 
     # Construct context messages from benchmark data (separate messages for clarity)
     context_messages = construct_gui_context_messages(task, prompt_type)
@@ -428,7 +446,13 @@ async def run_single_task(
     try:
         # Run the vision agent
         result = await run_vision_agent_on_form(
-            client, model, browser, form_url, context_messages, max_steps
+            client,
+            model,
+            browser,
+            form_url,
+            context_messages,
+            max_steps,
+            oracle_user=oracle_user,
         )
 
         flat_values = result["form_values"]

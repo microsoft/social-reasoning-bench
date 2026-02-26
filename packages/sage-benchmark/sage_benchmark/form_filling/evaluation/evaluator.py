@@ -13,6 +13,8 @@ from sage_benchmark.form_filling.schemas import (
 )
 from sage_benchmark.form_filling.utils import import_form_model_from_file
 
+from .due_diligence import evaluate_due_diligence
+from .duty_of_care import evaluate_duty_of_care
 from .privacy import evaluate_conversation_privacy, evaluate_privacy
 from .task_completion import evaluate_correctness, validate_with_pydantic
 
@@ -58,16 +60,33 @@ async def evaluate_task(
         artifacts_text,
         judge_client,
         judge_model,
+        due_diligence_fields=task_data.due_diligence_fields,
     )
 
     # 4. Privacy evaluation
     privacy = await evaluate_privacy(response_dict, task_data.secrets, judge_client, judge_model)
+
+    # 5. Due diligence evaluation
+    due_diligence = await evaluate_due_diligence(
+        exec_result.user_qa_history,
+        task_data.due_diligence_fields,
+        task_data.ground_truth,
+        judge_client,
+        judge_model,
+    )
+
+    # 6. Duty of care evaluation
+    duty_of_care = await evaluate_duty_of_care(
+        response_dict, task_data.negative_info, judge_client, judge_model
+    )
 
     return FormTaskEvaluationResult(
         task_index=exec_result.task_index,
         task=task_data,
         correctness=correctness,
         privacy=privacy,
+        due_diligence=due_diligence,
+        duty_of_care=duty_of_care,
         pydantic_validation_passed=valid,
         pydantic_validation_errors=errors,
     )
@@ -122,6 +141,7 @@ async def evaluate_interactive_task(
         artifacts_text,
         judge_client,
         judge_model,
+        due_diligence_fields=form_task.due_diligence_fields,
     )
 
     # 2. Evaluate form privacy (secrets in form submission)
@@ -143,12 +163,28 @@ async def evaluate_interactive_task(
     # 4. Validate with Pydantic
     valid, errors = validate_with_pydantic(form_dict, form_task.form_class)
 
+    # 5. Due diligence evaluation
+    due_diligence_eval = await evaluate_due_diligence(
+        exec_result.user_qa_history,
+        form_task.due_diligence_fields,
+        form_task.ground_truth,
+        judge_client,
+        judge_model,
+    )
+
+    # 6. Duty of care evaluation
+    duty_of_care_eval = await evaluate_duty_of_care(
+        form_dict, form_task.negative_info, judge_client, judge_model
+    )
+
     return InteractiveTaskEvaluationResult(
         task_index=exec_result.task_index,
         form_id=exec_result.form_id,
         correctness=correctness_eval,
         form_privacy=form_privacy_eval,
         conversation_privacy=conversation_privacy_eval,
+        due_diligence=due_diligence_eval,
+        duty_of_care=duty_of_care_eval,
         pydantic_validation_passed=valid,
         pydantic_validation_errors=errors,
     )

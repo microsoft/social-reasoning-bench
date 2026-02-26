@@ -135,12 +135,6 @@ def parse_args() -> argparse.Namespace:
 
     # GUI mode specific arguments
     parser.add_argument(
-        "--gui-forms-dir",
-        type=str,
-        default=None,
-        help="Directory containing HTML form files for GUI mode",
-    )
-    parser.add_argument(
         "--http-port",
         type=int,
         default=8080,
@@ -180,8 +174,6 @@ def main():
     elif args.execution_mode == "gui":
         if not args.assistant_model:
             args.assistant_model = "microsoft/Fara-7B"
-        if not args.gui_forms_dir:
-            raise ValueError("--gui-forms-dir is required for GUI mode")
 
     if args.run_mode == "eval" and not args.task_results_path:
         raise ValueError("--task-results-path is required when using --run-mode eval")
@@ -209,7 +201,6 @@ def main():
             interviewer_type=args.interviewer_type,
             single_field_mode=args.single_field_mode,
             malicious_strategy=args.malicious_strategy,
-            gui_forms_dir=args.gui_forms_dir,
             http_port=args.http_port,
             max_steps=args.max_gui_steps,
             restructure_model=args.restructure_model,

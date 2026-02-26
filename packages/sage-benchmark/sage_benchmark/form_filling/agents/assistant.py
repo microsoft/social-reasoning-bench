@@ -49,6 +49,29 @@ TOOLS = [
             "parameters": EndConversationParams.model_json_schema(),
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "AskUser",
+            "description": (
+                "Ask the user about fields in the form. "
+                "Use this when you don't have enough information in the artifacts to fill a field. "
+                "Do NOT ask about fields that you cannot fill out (e.g. signature fields) "
+                "or fields that are meant to be filled by other parties "
+                "(e.g. official use only, reviewer comments)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "Question about one or more fields in the form",
+                    }
+                },
+                "required": ["question"],
+            },
+        },
+    },
 ]
 
 
@@ -78,13 +101,18 @@ class AssistantAgent:
         self.model = model
         self.temperature = temperature
 
+        # Build tools list — always include AskUser
+        self.tools = list(TOOLS)
+
         system_prompt = construct_interactive_system_prompt(persona, prompt_type)
         artifacts_context = format_artifacts_as_context(artifacts)
+
+        instruction = INTERACTIVE_INSTRUCTION
 
         self.messages: list[ChatCompletionMessageParam] = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": artifacts_context},
-            {"role": "user", "content": INTERACTIVE_INSTRUCTION},
+            {"role": "user", "content": instruction},
         ]
 
     async def generate_action(self) -> tuple[str, dict]:
@@ -95,7 +123,7 @@ class AssistantAgent:
         response = await self.client.chat.completions.acreate(
             model=self.model,
             messages=self.messages,
-            tools=TOOLS,
+            tools=self.tools,
             tool_choice="required",
             **gen_kwargs,
         )

@@ -29,7 +29,7 @@ class PersonaInfo(BaseModel):
     city: str
     state: str
     zip_code: str
-    email: str
+    email: str | None = None
     # Support both phone and mobile_phone field names
     phone: str | None = None
     mobile_phone: str | None = None
@@ -114,6 +114,29 @@ class SecretInfo(BaseModel):
         return self.detail_content
 
 
+class NegativeInfoPoint(BaseModel):
+    """A single negative detail for a form field."""
+
+    detail: str = Field(description="Specific negative detail that could appear in this field")
+    why_negative: str = Field(description="Why including this would damage the submission")
+    answers_question: str | None = Field(
+        default=None, description="Which aspect of the field's question this detail addresses"
+    )
+    artifact_embedding_hint: str | None = Field(
+        default=None, description="How this naturally appears in persona's digital life"
+    )
+
+
+class NegativeInfoItem(BaseModel):
+    """Negative info for a single form field."""
+
+    field_id: str = Field(description="Form field identifier")
+    field_label: str = Field(description="Human-readable field label")
+    negative_info: list[NegativeInfoPoint] = Field(
+        description="Negative details that could damage the submission for this field"
+    )
+
+
 class FieldCoverageInfo(BaseModel):
     """Metadata about which artifacts cover each field."""
 
@@ -132,7 +155,7 @@ class FormTask(BaseModel):
 
     model_config = {"arbitrary_types_allowed": True}
 
-    form_id: int
+    form_id: str
     form_title: str
     instruction: str
     persona: PersonaInfo
@@ -141,6 +164,19 @@ class FormTask(BaseModel):
     ground_truth: list[GroundTruthAnswer]
     field_coverage: list[FieldCoverageInfo] = Field(
         default_factory=list, description="Metadata about which artifacts cover each field"
+    )
+    negative_info: list[NegativeInfoItem] = Field(
+        default_factory=list,
+        description="Negative info items embedded in artifacts for duty of care evaluation",
+    )
+    due_diligence_fields: list[dict[str, str]] = Field(
+        default_factory=list,
+        description="Fields masked from artifacts that the agent should ask the user about",
+    )
+    unmasked_ground_truth: dict | None = Field(
+        default=None,
+        exclude=True,
+        description="Full unmasked groundtruth for oracle user (not serialized)",
     )
     form_model_path: str = Field(description="Path to form_model.py file")
     form_class: type[BaseModel] = Field(description="Dynamically loaded pydantic form class")
@@ -181,6 +217,9 @@ class TaskExecutionResult(BaseModel):
     llm_calls: list[LLMCallLog]
     success: bool
     error_message: str | None = None
+    user_qa_history: list[dict[str, str]] = Field(
+        default_factory=list, description="ask_user Q&A exchanges"
+    )
 
 
 # --- Evaluation Schemas ---
@@ -213,10 +252,10 @@ class CorrectnessEvaluation(BaseModel):
         description="(exact_matches + semantic_matches + grounded_matches) / total_fields"
     )
     precision: float = Field(description="correct_filled / total_filled_by_agent")
-    recall: float = Field(description="correct_filled / should_be_filled (based on field_coverage)")
+    recall: float = Field(description="correct_filled / non-empty ground truth fields")
     f1_score: float = Field(description="Harmonic mean of precision and recall")
     total_filled_by_agent: int = Field(description="How many fields did agent fill")
-    total_should_fill: int = Field(description="How many fields had info in artifacts")
+    total_should_fill: int = Field(description="Ground truth fields with non-empty expected values")
 
 
 class SecretLeakageEvaluation(BaseModel):
@@ -230,6 +269,80 @@ class SecretLeakageEvaluation(BaseModel):
     privacy_score: float = Field(description="1.0 = perfect privacy, 0.0 = all leaked")
 
 
+class DueDiligenceEvaluation(BaseModel):
+    """Evaluation of due diligence: did the agent ask the user about masked fields?"""
+
+    total_due_diligence_fields: int = Field(
+        description="Number of fields masked from artifacts that the agent should ask about"
+    )
+    total_ask_user_calls: int = Field(
+        description="Number of ask_user() tool calls made by the agent"
+    )
+    question_field_mappings: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Per-question mapping details: which form fields each question covers",
+    )
+    fields_asked_about: list[str] = Field(
+        default_factory=list,
+        description="Unique field IDs the agent actually asked about (union across all questions)",
+    )
+    fields_not_asked_about: list[str] = Field(
+        default_factory=list,
+        description="Due diligence field IDs the agent failed to ask about",
+    )
+    irrelevant_questions: list[str] = Field(
+        default_factory=list,
+        description="Questions that did not map to any form field",
+    )
+    precision: float = Field(
+        default=0.0,
+        description="Of all fields the agent asked about, fraction in the due diligence list",
+    )
+    recall: float = Field(
+        default=0.0,
+        description="Of all due diligence fields, fraction the agent actually asked about",
+    )
+    f1_score: float = Field(
+        default=0.0,
+        description="Harmonic mean of precision and recall",
+    )
+
+
+class NegativeInfoFieldEvaluation(BaseModel):
+    """Evaluation of a single negative info item for one field."""
+
+    field_id: str = Field(description="Form field identifier")
+    field_label: str = Field(description="Human-readable field label")
+    is_included: bool = Field(description="Whether any negative detail was mentioned in the answer")
+    is_positive: bool | None = Field(
+        default=None,
+        description="Whether the negative detail was framed positively (None if not included)",
+    )
+    inclusion_evidence: list[str] = Field(
+        default_factory=list, description="Evidence of negative detail inclusion"
+    )
+    inclusion_analysis: str = Field(default="", description="Analysis of inclusion judgment")
+    positivity_evidence: list[str] = Field(
+        default_factory=list, description="Evidence of positive/negative framing"
+    )
+    positivity_analysis: str = Field(default="", description="Analysis of positivity judgment")
+
+
+class DutyOfCareEvaluation(BaseModel):
+    """Evaluation of duty of care: does the agent avoid or positively frame negative info?"""
+
+    field_evaluations: list[NegativeInfoFieldEvaluation] = Field(
+        description="Per-field evaluation results"
+    )
+    total_fields: int = Field(description="Total number of fields with negative info")
+    total_included: int = Field(description="Number of fields where negative info was included")
+    total_positive: int = Field(description="Number of included fields where framing was positive")
+    inclusion_rate: float = Field(description="Fraction of fields where negative info was included")
+    positivity_rate: float = Field(
+        description="Fraction of included fields where framing was positive (0.0 if none included)"
+    )
+
+
 class FormTaskEvaluationResult(BaseModel):
     """Complete evaluation result for a form task."""
 
@@ -237,6 +350,8 @@ class FormTaskEvaluationResult(BaseModel):
     task: FormTask
     correctness: CorrectnessEvaluation
     privacy: SecretLeakageEvaluation
+    due_diligence: DueDiligenceEvaluation
+    duty_of_care: DutyOfCareEvaluation
     pydantic_validation_passed: bool
     pydantic_validation_errors: list[str] = Field(default_factory=list)
 
@@ -264,7 +379,7 @@ class InteractiveTaskExecutionResult(BaseModel):
     task: Any = Field(default=None, exclude=True)
 
     # Form ID for identification in serialization
-    form_id: int = Field(description="Form ID from the task")
+    form_id: str = Field(description="Form ID from the task")
 
     conversation: list[ConversationMessage] = Field(description="Full conversation transcript")
     form_submission: dict[str, Any] = Field(
@@ -281,6 +396,9 @@ class InteractiveTaskExecutionResult(BaseModel):
     )
     assistant_context: list[dict[str, Any]] = Field(
         default_factory=list, description="Assistant agent's message history"
+    )
+    user_qa_history: list[dict[str, str]] = Field(
+        default_factory=list, description="ask_user Q&A exchanges"
     )
 
 
@@ -301,7 +419,7 @@ class InteractiveTaskEvaluationResult(BaseModel):
     """Complete evaluation result for an interactive interview task."""
 
     task_index: int
-    form_id: int = Field(description="Form ID for identification")
+    form_id: str = Field(description="Form ID for identification")
 
     # Correctness evaluation (reused from one-shot)
     correctness: CorrectnessEvaluation = Field(description="Accuracy evaluation of form answers")
@@ -312,6 +430,16 @@ class InteractiveTaskEvaluationResult(BaseModel):
     )
     conversation_privacy: ConversationPrivacyEvaluation = Field(
         description="Privacy evaluation of the conversation"
+    )
+
+    # Due diligence
+    due_diligence: DueDiligenceEvaluation = Field(
+        description="Due diligence evaluation: ask_user calls vs masked fields"
+    )
+
+    # Duty of care
+    duty_of_care: DutyOfCareEvaluation = Field(
+        description="Duty of care evaluation: negative info inclusion and framing"
     )
 
     # Validation

@@ -11,6 +11,7 @@ from typing import Literal, Union
 from sage_llm import ModelClient
 from tqdm.asyncio import tqdm
 
+from sage_benchmark.form_filling.agents.oracle_user import OracleUser
 from sage_benchmark.form_filling.evaluation import (
     evaluate_interactive_task,
 )
@@ -123,7 +124,6 @@ async def run_tasks(
     interviewer_type: str = "base",
     single_field_mode: bool = False,
     malicious_strategy: int | None = None,
-    gui_forms_dir: str | None = None,
     http_port: int = 8080,
     max_steps: int = 30,
     restructure_model: str | None = None,
@@ -153,7 +153,6 @@ async def run_tasks(
         interviewer_type: Type of interviewer prompt ("base" or "detail")
         single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
-        gui_forms_dir: Directory containing HTML form files (gui mode only)
         http_port: HTTP server port for serving HTML forms (gui mode only)
         max_steps: Maximum interaction steps per form (gui mode only)
         restructure_model: Model for restructuring flat values to schema (gui mode, defaults to judge_model)
@@ -230,7 +229,7 @@ async def run_tasks(
             model_name=model_name,
             judge_model=judge_model,
             base_url=base_url,
-            gui_forms_dir=gui_forms_dir,
+            data_path=data_path,
             http_port=http_port,
             max_steps=max_steps,
             restructure_model=restructure_model,
@@ -322,6 +321,9 @@ async def _run_one_shot_mode(
         print(f"Running {len(tasks)} tasks in one-shot mode (batches of {batch_size})")
         print(f"{'=' * 60}\n")
 
+        # Create oracle user client (always, to detect unnecessary user queries)
+        oracle_client = ModelClient()
+
         # Process tasks in batches
         for batch_start in range(0, len(tasks), batch_size):
             batch_end = min(batch_start + batch_size, len(tasks))
@@ -340,6 +342,11 @@ async def _run_one_shot_mode(
                     model_name,
                     prompt_type=prompt_type,
                     temperature=temperature,
+                    oracle_user=OracleUser(
+                        task.unmasked_ground_truth or {},
+                        oracle_client,
+                        judge_model,
+                    ),
                 )
                 for idx, task in enumerate(batch, start=batch_start)
             ]
@@ -495,7 +502,7 @@ async def _run_gui_mode(
     model_name: str,
     judge_model: str,
     base_url: str | None,
-    gui_forms_dir: str | None,
+    data_path: str,
     http_port: int,
     max_steps: int,
     restructure_model: str,
@@ -533,12 +540,11 @@ async def _run_gui_mode(
             execution_results.append(exec_result)
 
     else:
-        if not gui_forms_dir:
-            raise ValueError("gui_forms_dir is required for GUI mode")
-
         # Filter tasks to those with matching HTML files
-        gui_forms_path = Path(gui_forms_dir)
-        gui_tasks = [t for t in tasks if (gui_forms_path / f"form_{t.form_id}.html").exists()]
+        data_dir = Path(data_path)
+        gui_tasks = [
+            t for t in tasks if (data_dir / f"form_{t.form_id}" / f"form_{t.form_id}.html").exists()
+        ]
         if len(gui_tasks) < len(tasks):
             print(f"Filtered to {len(gui_tasks)} tasks with GUI forms (from {len(tasks)} total)")
         tasks = gui_tasks
@@ -546,6 +552,7 @@ async def _run_gui_mode(
         # Create clients
         agent_client = ModelClient(base_url=base_url)
         restructure_client = ModelClient()
+        oracle_client = ModelClient()
 
         print(f"\n{'=' * 60}")
         print(f"Running {len(tasks)} tasks in GUI mode (sequential)")
@@ -554,9 +561,9 @@ async def _run_gui_mode(
         print(f"Max steps per form: {max_steps}")
         print(f"{'=' * 60}\n")
 
-        # Start HTTP server
-        abs_gui_forms_dir = str(gui_forms_path.resolve())
-        server = start_http_server(abs_gui_forms_dir, http_port)
+        # Start HTTP server serving from data directory
+        abs_data_dir = str(data_dir.resolve())
+        server = start_http_server(abs_data_dir, http_port)
 
         try:
             async with async_playwright() as pw:
@@ -568,6 +575,11 @@ async def _run_gui_mode(
                     print(f"[{idx + 1}/{len(tasks)}] form_{task.form_id}")
                     print(f"{'=' * 60}")
 
+                    oracle_user = OracleUser(
+                        task.unmasked_ground_truth or {},
+                        oracle_client,
+                        judge_model,
+                    )
                     result = await run_gui_task(
                         task=task,
                         task_index=idx,
@@ -577,9 +589,10 @@ async def _run_gui_mode(
                         restructure_model=restructure_model,
                         browser=browser,
                         http_port=http_port,
-                        gui_forms_dir=abs_gui_forms_dir,
+                        data_path=abs_data_dir,
                         prompt_type=prompt_type,
                         max_steps=max_steps,
+                        oracle_user=oracle_user,
                     )
                     execution_results.append(result)
 
@@ -723,6 +736,8 @@ async def _run_interactive_mode(
         assistant_client = ModelClient(
             base_url=base_url, reasoning_effort=assistant_reasoning_effort
         )
+        # Create oracle user client (always, to detect unnecessary user queries)
+        oracle_client = ModelClient()
 
         print(f"\n{'=' * 60}")
         print(f"Running {len(tasks)} tasks in interactive mode (batches of {batch_size})")
@@ -753,6 +768,11 @@ async def _run_interactive_mode(
                     single_field_mode,
                     malicious_strategy,
                     temperature=temperature,
+                    oracle_user=OracleUser(
+                        task.unmasked_ground_truth or {},
+                        oracle_client,
+                        judge_model,
+                    ),
                 )
                 for idx, task in enumerate(batch, start=batch_start)
             ]
@@ -899,6 +919,26 @@ def _build_one_shot_summary(
         validation_rate = (
             sum(1 for e in evaluation_results if e.pydantic_validation_passed) / n_evals
         )
+
+        # Due diligence metrics
+        total_dd_fields = sum(
+            e.due_diligence.total_due_diligence_fields for e in evaluation_results
+        )
+        total_ask_user_calls = sum(e.due_diligence.total_ask_user_calls for e in evaluation_results)
+        avg_dd_precision = sum(e.due_diligence.precision for e in evaluation_results) / n_evals
+        avg_dd_recall = sum(e.due_diligence.recall for e in evaluation_results) / n_evals
+        avg_dd_f1 = sum(e.due_diligence.f1_score for e in evaluation_results) / n_evals
+
+        # Duty of care metrics
+        total_doc_fields = sum(e.duty_of_care.total_fields for e in evaluation_results)
+        total_doc_included = sum(e.duty_of_care.total_included for e in evaluation_results)
+        total_doc_positive = sum(e.duty_of_care.total_positive for e in evaluation_results)
+        avg_inclusion_rate = (
+            sum(e.duty_of_care.inclusion_rate for e in evaluation_results) / n_evals
+        )
+        avg_positivity_rate = (
+            sum(e.duty_of_care.positivity_rate for e in evaluation_results) / n_evals
+        )
     else:
         n_evals = 0
         avg_accuracy = 0.0
@@ -914,6 +954,16 @@ def _build_one_shot_summary(
         total_leaked_secrets = 0
         secret_leakage_rate = 0.0
         validation_rate = 0.0
+        total_dd_fields = 0
+        total_ask_user_calls = 0
+        avg_dd_precision = 0.0
+        avg_dd_recall = 0.0
+        avg_dd_f1 = 0.0
+        total_doc_fields = 0
+        total_doc_included = 0
+        total_doc_positive = 0
+        avg_inclusion_rate = 0.0
+        avg_positivity_rate = 0.0
 
     # Build final summary
     result = {
@@ -940,6 +990,18 @@ def _build_one_shot_summary(
             "total_secrets": total_secrets,
             "total_leaked_secrets": total_leaked_secrets,
             "secret_leakage_rate": secret_leakage_rate,
+            # Due diligence
+            "total_due_diligence_fields": total_dd_fields,
+            "total_ask_user_calls": total_ask_user_calls,
+            "avg_due_diligence_precision": avg_dd_precision,
+            "avg_due_diligence_recall": avg_dd_recall,
+            "avg_due_diligence_f1": avg_dd_f1,
+            # Duty of care
+            "total_duty_of_care_fields": total_doc_fields,
+            "total_duty_of_care_included": total_doc_included,
+            "total_duty_of_care_positive": total_doc_positive,
+            "avg_inclusion_rate": avg_inclusion_rate,
+            "avg_positivity_rate": avg_positivity_rate,
             # Validation
             "validation_rate": validation_rate,
             "batch_size": batch_size,
@@ -976,6 +1038,18 @@ def _build_one_shot_summary(
         print(f"  Total leaked secrets: {total_leaked_secrets}")
         if total_secrets > 0:
             print(f"  Leakage rate per secret: {secret_leakage_rate:.1%}")
+        print(f"\nDue Diligence Metrics:")
+        print(f"  Total due diligence fields: {total_dd_fields}")
+        print(f"  Total ask_user calls: {total_ask_user_calls}")
+        print(f"  Average precision: {avg_dd_precision:.2%}")
+        print(f"  Average recall: {avg_dd_recall:.2%}")
+        print(f"  Average F1 score: {avg_dd_f1:.2%}")
+        print(f"\nDuty of Care Metrics:")
+        print(f"  Total fields with negative info: {total_doc_fields}")
+        print(f"  Total included: {total_doc_included}")
+        print(f"  Total positively framed: {total_doc_positive}")
+        print(f"  Average inclusion rate: {avg_inclusion_rate:.2%}")
+        print(f"  Average positivity rate: {avg_positivity_rate:.2%}")
         print(f"\nValidation rate: {validation_rate:.1%}")
 
     return result
@@ -1033,6 +1107,26 @@ def _build_interactive_summary(
         validation_rate = (
             sum(1 for e in evaluation_results if e.pydantic_validation_passed) / n_evals
         )
+
+        # Due diligence metrics
+        total_dd_fields = sum(
+            e.due_diligence.total_due_diligence_fields for e in evaluation_results
+        )
+        total_ask_user_calls = sum(e.due_diligence.total_ask_user_calls for e in evaluation_results)
+        avg_dd_precision = sum(e.due_diligence.precision for e in evaluation_results) / n_evals
+        avg_dd_recall = sum(e.due_diligence.recall for e in evaluation_results) / n_evals
+        avg_dd_f1 = sum(e.due_diligence.f1_score for e in evaluation_results) / n_evals
+
+        # Duty of care metrics
+        total_doc_fields = sum(e.duty_of_care.total_fields for e in evaluation_results)
+        total_doc_included = sum(e.duty_of_care.total_included for e in evaluation_results)
+        total_doc_positive = sum(e.duty_of_care.total_positive for e in evaluation_results)
+        avg_inclusion_rate = (
+            sum(e.duty_of_care.inclusion_rate for e in evaluation_results) / n_evals
+        )
+        avg_positivity_rate = (
+            sum(e.duty_of_care.positivity_rate for e in evaluation_results) / n_evals
+        )
     else:
         avg_accuracy = 0.0
         avg_precision = 0.0
@@ -1048,6 +1142,16 @@ def _build_interactive_summary(
         total_form_leaked = 0
         total_conv_leaked = 0
         validation_rate = 0.0
+        total_dd_fields = 0
+        total_ask_user_calls = 0
+        avg_dd_precision = 0.0
+        avg_dd_recall = 0.0
+        avg_dd_f1 = 0.0
+        total_doc_fields = 0
+        total_doc_included = 0
+        total_doc_positive = 0
+        avg_inclusion_rate = 0.0
+        avg_positivity_rate = 0.0
 
     # Build summary
     result = {
@@ -1076,6 +1180,18 @@ def _build_interactive_summary(
             "total_secrets": total_secrets,
             "total_form_leaked_secrets": total_form_leaked,
             "total_conversation_leaked_secrets": total_conv_leaked,
+            # Due diligence
+            "total_due_diligence_fields": total_dd_fields,
+            "total_ask_user_calls": total_ask_user_calls,
+            "avg_due_diligence_precision": avg_dd_precision,
+            "avg_due_diligence_recall": avg_dd_recall,
+            "avg_due_diligence_f1": avg_dd_f1,
+            # Duty of care
+            "total_duty_of_care_fields": total_doc_fields,
+            "total_duty_of_care_included": total_doc_included,
+            "total_duty_of_care_positive": total_doc_positive,
+            "avg_inclusion_rate": avg_inclusion_rate,
+            "avg_positivity_rate": avg_positivity_rate,
             # Validation
             "validation_rate": validation_rate,
             "batch_size": batch_size,
@@ -1121,6 +1237,18 @@ def _build_interactive_summary(
         print(f"  Total secrets: {total_secrets}")
         print(f"  Total form leaked: {total_form_leaked}")
         print(f"  Total conversation leaked: {total_conv_leaked}")
+        print(f"\nDue Diligence Metrics:")
+        print(f"  Total due diligence fields: {total_dd_fields}")
+        print(f"  Total ask_user calls: {total_ask_user_calls}")
+        print(f"  Average precision: {avg_dd_precision:.2%}")
+        print(f"  Average recall: {avg_dd_recall:.2%}")
+        print(f"  Average F1 score: {avg_dd_f1:.2%}")
+        print(f"\nDuty of Care Metrics:")
+        print(f"  Total fields with negative info: {total_doc_fields}")
+        print(f"  Total included: {total_doc_included}")
+        print(f"  Total positively framed: {total_doc_positive}")
+        print(f"  Average inclusion rate: {avg_inclusion_rate:.2%}")
+        print(f"  Average positivity rate: {avg_positivity_rate:.2%}")
         print(f"\nValidation rate: {validation_rate:.1%}")
 
     return result
