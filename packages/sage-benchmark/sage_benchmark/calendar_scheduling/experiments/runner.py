@@ -254,6 +254,10 @@ class Experiment:
                 )
                 self.checkpoint_mgr.add_execution_result(exec_result)
 
+            # Skip evaluation if cancelled — eval can happen on resume
+            if cancel_event and cancel_event.is_set():
+                raise asyncio.CancelledError("Skipping evaluation due to cancellation")
+
             # Evaluate
             eval_result = await evaluate_single_task(
                 exec_result,
@@ -279,6 +283,7 @@ class Experiment:
             batch_size=config.batch_size,
             on_task_complete=on_task_complete,
             task_logger=logger,
+            cancel_event=cancel_event,
         )
         await executor.run(generate_tasks())
 
@@ -286,9 +291,10 @@ class Experiment:
         all_eval_results = self.prior_eval_results + new_eval_results
         all_eval_results = sorted(all_eval_results, key=lambda r: r.execution.task.id or 0)
 
-        # Build and save output
+        # Build and save output (skip save if cancelled — checkpoint is already saved per-task)
         output = build_output(self.tasks, all_eval_results, config)
-        save_output(output, self.run_paths, self.checkpoint_mgr, self.llm_tracing)
+        if not (cancel_event and cancel_event.is_set()):
+            save_output(output, self.run_paths, self.checkpoint_mgr, self.llm_tracing)
 
         return ExperimentOutput(**output.model_dump())
 
@@ -329,31 +335,38 @@ async def run_single_async(config: ExperimentConfig, llm_tracing: bool = False) 
 
     # Set up signal handlers for graceful interruption
     loop = asyncio.get_event_loop()
-    main_task: asyncio.Task | None = None
     cancel_event = asyncio.Event()
 
     def signal_handler():
         logger.warning("Interrupt received, cancelling tasks and saving checkpoint...")
         cancel_event.set()
         experiment.checkpoint_mgr.set_interrupted(True)
-        if main_task is not None:
-            main_task.cancel()
+        # Remove handlers so next Ctrl+C forces immediate exit
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.remove_signal_handler(sig)
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, signal_handler)
 
     try:
-        main_task = asyncio.create_task(experiment.run(cancel_event=cancel_event))
-        return await main_task
-    except asyncio.CancelledError:
-        logger.info("Run cancelled, checkpoint saved to %s", experiment.run_paths.checkpoint_path)
-        if llm_tracing:
-            save_llm_traces(experiment.run_paths)
-        raise RunCancelled(str(experiment.run_paths.output_dir))
+        output = await experiment.run(cancel_event=cancel_event)
+
+        if cancel_event.is_set():
+            logger.info(
+                "Run cancelled, checkpoint saved to %s", experiment.run_paths.checkpoint_path
+            )
+            if llm_tracing:
+                save_llm_traces(experiment.run_paths)
+            raise RunCancelled(str(experiment.run_paths.output_dir))
+
+        return output
     finally:
-        # Remove signal handlers
+        # Remove signal handlers (may already be removed by signal_handler)
         for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.remove_signal_handler(sig)
+            try:
+                loop.remove_signal_handler(sig)
+            except (ValueError, RuntimeError):
+                pass
 
 
 # ==============================================================================
@@ -408,9 +421,14 @@ class ExperimentPoolExecutor:
 
         Returns:
             List of ExperimentOutput, one per experiment.
+            Empty list if cancelled before finalization.
         """
         # Single phase: execute and evaluate each task together
         await self._run_tasks()
+
+        # Skip finalization if cancelled — checkpoints are already saved per-task
+        if self.cancel_event and self.cancel_event.is_set():
+            return []
 
         # Finalize and build outputs in parallel
         async def finalize_experiment(exp: Experiment) -> ExperimentOutput:
@@ -490,6 +508,10 @@ class ExperimentPoolExecutor:
                 # Checkpoint execution
                 exp.checkpoint_mgr.add_execution_result(exec_result)
 
+            # Skip evaluation if cancelled — eval can happen on resume
+            if self.cancel_event and self.cancel_event.is_set():
+                raise asyncio.CancelledError("Skipping evaluation due to cancellation")
+
             # Evaluate
             if not config.resolved_judge_model:
                 raise RuntimeError("Judge model must be configured")
@@ -519,20 +541,22 @@ class ExperimentPoolExecutor:
             batch_size=self.batch_size,
             on_task_complete=self._on_task_complete,
             task_logger=logger,
+            cancel_event=self.cancel_event,
         )
 
-        await executor.run(generate_tasks())
-
-        # Notify logger of phase completion
-        if self.benchmark_logger:
-            completed = sum(len(self._eval_results_by_exp[e.key]) for e in self.experiments)
-            failed = sum(
-                1
-                for e in self.experiments
-                for r in self._eval_results_by_exp[e.key]
-                if r.eval_error is not None or r.execution.fatal_error is not None
-            )
-            self.benchmark_logger.on_phase_complete("exec+eval", completed - failed, failed)
+        try:
+            await executor.run(generate_tasks())
+        finally:
+            # Always notify logger of phase completion (ensures progress bar is closed)
+            if self.benchmark_logger:
+                completed = sum(len(self._eval_results_by_exp[e.key]) for e in self.experiments)
+                failed = sum(
+                    1
+                    for e in self.experiments
+                    for r in self._eval_results_by_exp[e.key]
+                    if r.eval_error is not None or r.execution.fatal_error is not None
+                )
+                self.benchmark_logger.on_phase_complete("exec+eval", completed - failed, failed)
 
     def _on_task_complete(self, tagged_result: tuple[str, TaskEvaluationResult]):
         """Handle completion of an exec+eval task."""
@@ -646,11 +670,12 @@ async def run_multiple(
         return (0, len(skipped), len(experiments))
 
     total_tasks = sum(exp.task_count for exp in prepared)
-    print(f"Running {total_tasks} tasks across {len(prepared)} experiments (unified pool)")
+    print(
+        f"Running {total_tasks} tasks across {len(prepared)} experiments (unified pool, batch_size={batch_size})"
+    )
 
     # Run with pool executor
     loop = asyncio.get_event_loop()
-    main_task: asyncio.Task | None = None
     cancel_event = asyncio.Event()
 
     def signal_handler():
@@ -658,8 +683,9 @@ async def run_multiple(
         cancel_event.set()
         for exp in prepared:
             exp.checkpoint_mgr.set_interrupted(True)
-        if main_task is not None:
-            main_task.cancel()
+        # Remove handlers so next Ctrl+C forces immediate exit
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.remove_signal_handler(sig)
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, signal_handler)
@@ -672,21 +698,24 @@ async def run_multiple(
             benchmark_logger=benchmark_logger,
             llm_tracing=llm_tracing,
         )
-        main_task = asyncio.create_task(pool.run())
-        outputs = await main_task
+        outputs = await pool.run()
+
+        if cancel_event.is_set():
+            print("Interrupted - checkpoints saved")
+            if llm_tracing:
+                for exp in prepared:
+                    save_llm_traces(exp.run_paths)
+            return (0, len(skipped), len(prepared))
 
         # Count results
         success_count = len(outputs)
         print(f"\nDone: {success_count} succeeded, {len(skipped)} skipped, 0 failed")
         return (success_count, len(skipped), 0)
 
-    except asyncio.CancelledError:
-        print("Interrupted - checkpoints saved")
-        # Save LLM traces for all experiments if tracing enabled
-        if llm_tracing:
-            for exp in prepared:
-                save_llm_traces(exp.run_paths)
-        return (0, len(skipped), len(prepared))
     finally:
+        # Remove signal handlers (may already be removed by signal_handler)
         for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.remove_signal_handler(sig)
+            try:
+                loop.remove_signal_handler(sig)
+            except (ValueError, RuntimeError):
+                pass

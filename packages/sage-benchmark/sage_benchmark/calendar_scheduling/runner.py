@@ -315,7 +315,8 @@ async def run_single_task(
     for round_idx in range(max_rounds):
         # Check for cancellation at the start of each round
         if cancel_event and cancel_event.is_set():
-            raise asyncio.CancelledError("Task cancelled via event")
+            logger.info("Task %d cancelled via event", task.id)
+            break
 
         if benchmark_logger:
             benchmark_logger.on_task_round(task.id, round_idx, max_rounds)
@@ -347,6 +348,11 @@ async def run_single_task(
 
         if assistant_ended:
             conversation_ended_naturally = True
+            break
+
+        # Check for cancellation between turns
+        if cancel_event and cancel_event.is_set():
+            logger.info("Task %d cancelled via event", task.id)
             break
 
         # Inject emails into requestor's context at start of their turn

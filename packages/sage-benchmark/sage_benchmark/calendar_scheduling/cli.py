@@ -660,40 +660,44 @@ async def run():
 
     # Set up signal handlers for graceful interruption
     loop = asyncio.get_event_loop()
-    main_task: asyncio.Task | None = None
     cancel_event = asyncio.Event()
 
     def signal_handler():
         logger.warning("Interrupt received, cancelling tasks and saving checkpoint...")
         cancel_event.set()
         experiment.checkpoint_mgr.set_interrupted(True)
-        if main_task is not None:
-            main_task.cancel()
+        # Remove handlers so next Ctrl+C forces immediate exit
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.remove_signal_handler(sig)
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, signal_handler)
 
     try:
         with benchmark_logger:
-            main_task = asyncio.create_task(experiment.run(cancel_event=cancel_event))
-            output = await main_task
+            output = await experiment.run(cancel_event=cancel_event)
 
-        print_per_task_summary(output.results)
-        print_evaluation_summary(output.summary)
+        if cancel_event.is_set():
+            logger.info("Run cancelled, checkpoint saved to %s", experiment.run_paths.output_dir)
+            if args.llm_tracing:
+                traces_path = experiment.run_paths.get_traces_path()
+                save_traces(traces_path)
+                logger.info("Saved LLM traces to %s", traces_path)
+            logger.info(
+                "To resume: sagebench calendar --resume %s",
+                experiment.run_paths.output_dir,
+            )
+        else:
+            print_per_task_summary(output.results)
+            print_evaluation_summary(output.summary)
 
-    except asyncio.CancelledError:
-        logger.info("Run cancelled, checkpoint saved to %s", experiment.run_paths.output_dir)
-        if args.llm_tracing:
-            traces_path = experiment.run_paths.get_traces_path()
-            save_traces(traces_path)
-            logger.info("Saved LLM traces to %s", traces_path)
-        logger.info(
-            "To resume: sagebench calendar --resume %s",
-            experiment.run_paths.output_dir,
-        )
     finally:
+        # Remove signal handlers (may already be removed by signal_handler)
         for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.remove_signal_handler(sig)
+            try:
+                loop.remove_signal_handler(sig)
+            except (ValueError, RuntimeError):
+                pass
 
 
 def main():
