@@ -45,12 +45,6 @@ def main(argv: list[str] | None = None) -> None:
         help="Random seed for masking (default: 42).",
     )
     parser.add_argument(
-        "--min-secrets",
-        type=int,
-        default=10,
-        help="Minimum number of secrets to cover (default: 10).",
-    )
-    parser.add_argument(
         "--parsing-model",
         default=None,
         help="Override the parsing model.",
@@ -81,7 +75,6 @@ def main(argv: list[str] | None = None) -> None:
     config_kwargs = {
         "mask_n_fields": args.mask_fields,
         "random_seed": args.seed,
-        "min_secrets": args.min_secrets,
     }
     if args.parsing_model:
         config_kwargs["parsing_model"] = args.parsing_model

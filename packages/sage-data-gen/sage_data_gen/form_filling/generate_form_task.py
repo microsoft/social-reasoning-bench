@@ -31,7 +31,7 @@ from sage_data_gen.form_filling.stages.generate_scenario import (
 from sage_data_gen.form_filling.stages.mask_groundtruth import mask_groundtruth
 from sage_data_gen.form_filling.stages.parse_form import parse_form_image
 from sage_data_gen.form_filling.stages.validate_artifacts import (
-    ensure_minimum_secret_coverage,
+    ensure_full_secret_coverage,
     fix_missing_fields,
     fix_missing_negative_info_in_artifacts,
     get_missing_close_ended_fields,
@@ -195,8 +195,8 @@ def generate_form_task(
             negative_info=negative_info,
         )
 
-        # Step 6.1: Ensure minimum secret coverage
-        all_secrets, artifacts, validation = ensure_minimum_secret_coverage(
+        # Step 6.1: Ensure full secret coverage
+        all_secrets, artifacts, validation = ensure_full_secret_coverage(
             all_secrets,
             artifacts,
             validation,

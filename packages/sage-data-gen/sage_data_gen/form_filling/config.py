@@ -20,7 +20,6 @@ class FormFillingConfig(BaseModel):
     max_mask_retries: int = 3
 
     # Secret generation
-    min_secrets: int = 10
     max_secret_retries: int = 5
 
     # HTML generation

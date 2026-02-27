@@ -24,9 +24,6 @@ from sage_data_gen.form_filling.models import (
     GroundTruthAnswers,
     NegativeInfoCoverageResult,
     OpenEndedFieldsAnalysis,
-    QuestionSecrets,
-    SecretCoverageResult,
-    SecretDetail,
 )
 from sage_data_gen.form_filling.prompts import (
     VALIDATE_ARTIFACTS_PROMPT,
@@ -341,7 +338,7 @@ Important: Every secret MUST appear in at least one artifact."""
     return result.artifacts
 
 
-def ensure_minimum_secret_coverage(
+def ensure_full_secret_coverage(
     all_secrets: AllSecrets,
     artifacts: DigitalArtifacts,
     validation: ArtifactValidationResult,
@@ -352,10 +349,10 @@ def ensure_minimum_secret_coverage(
     config: FormFillingConfig,
     negative_info: Optional[AllNegativeInfo] = None,
 ) -> tuple:
-    """Ensure at least min_secrets are covered in artifacts.
+    """Ensure all secrets are covered in artifacts.
 
-    If fewer than min_secrets are covered, creates artifacts for missing ones.
-    If min_secrets or more are covered, removes uncovered secrets from all_secrets.
+    Repeatedly generates artifacts for uncovered secrets and re-validates
+    until all secrets are embedded or max retries are reached.
 
     Args:
         all_secrets: All secrets organized by question.
@@ -373,12 +370,16 @@ def ensure_minimum_secret_coverage(
     """
     embedded_count = len([sc for sc in validation.secret_coverage if sc.is_embedded])
     total_count = len(validation.secret_coverage)
-    min_secrets = config.min_secrets
 
     print(f"\n[Step 5.1] Secret coverage: {embedded_count}/{total_count}")
 
-    if embedded_count < min_secrets:
-        print(f"  Need to cover at least {min_secrets} secrets (currently {embedded_count})")
+    attempt = 0
+    while embedded_count < total_count and attempt < config.max_secret_retries:
+        attempt += 1
+        print(
+            f"  Attempt {attempt}/{config.max_secret_retries}: "
+            f"need to cover all {total_count} secrets (currently {embedded_count})"
+        )
 
         # Identify missing secrets
         missing_indices = [
@@ -392,66 +393,33 @@ def ensure_minimum_secret_coverage(
                     missing_secrets.append((qs.question_id, qs.question_text, secret))
                 secret_idx += 1
 
-        num_to_add = min(min_secrets - embedded_count, len(missing_secrets))
-        secrets_to_cover = missing_secrets[:num_to_add]
+        if not missing_secrets:
+            break
 
-        if secrets_to_cover:
-            print(f"  Creating artifacts for {len(secrets_to_cover)} missing secrets...")
-            new_artifacts = create_artifacts_for_missing_secrets(
-                secrets_to_cover, persona, client, config
-            )
-            artifacts = DigitalArtifacts(artifacts=artifacts.artifacts + new_artifacts)
+        print(f"  Creating artifacts for {len(missing_secrets)} missing secrets...")
+        new_artifacts = create_artifacts_for_missing_secrets(
+            missing_secrets, persona, client, config
+        )
+        artifacts = DigitalArtifacts(artifacts=artifacts.artifacts + new_artifacts)
 
-            print(f"  Re-validating with {len(artifacts.artifacts)} total artifacts...")
-            validation = validate_artifacts_with_llm(
-                ground_truth,
-                all_secrets,
-                artifacts,
-                persona,
-                field_analysis,
-                client,
-                config,
-                negative_info=negative_info,
-            )
-            embedded_count = len([sc for sc in validation.secret_coverage if sc.is_embedded])
-            print(f"  New secret coverage: {embedded_count}/{total_count}")
+        print(f"  Re-validating with {len(artifacts.artifacts)} total artifacts...")
+        validation = validate_artifacts_with_llm(
+            ground_truth,
+            all_secrets,
+            artifacts,
+            persona,
+            field_analysis,
+            client,
+            config,
+            negative_info=negative_info,
+        )
+        prev_embedded = embedded_count
+        embedded_count = len([sc for sc in validation.secret_coverage if sc.is_embedded])
+        print(f"  Secret coverage: {embedded_count}/{total_count}")
 
-    elif embedded_count >= min_secrets:
-        uncovered_count = total_count - embedded_count
-        if uncovered_count > 0:
-            print(
-                f"  Have {embedded_count} covered secrets (>={min_secrets}), "
-                f"removing {uncovered_count} uncovered secrets"
-            )
-
-            embedded_indices = [
-                i for i, sc in enumerate(validation.secret_coverage) if sc.is_embedded
-            ]
-
-            filtered_question_secrets = []
-            secret_idx = 0
-            for qs in all_secrets.question_secrets:
-                filtered = []
-                for secret in qs.secrets:
-                    if secret_idx in embedded_indices:
-                        filtered.append(secret)
-                    secret_idx += 1
-                if filtered:
-                    filtered_question_secrets.append(
-                        QuestionSecrets(
-                            question_id=qs.question_id,
-                            question_text=qs.question_text,
-                            secrets=filtered,
-                        )
-                    )
-
-            all_secrets = AllSecrets(
-                form_summary=all_secrets.form_summary,
-                question_secrets=filtered_question_secrets,
-            )
-
-            new_total = sum(len(qs.secrets) for qs in all_secrets.question_secrets)
-            print(f"  Filtered secrets: {new_total} secrets remaining (all covered)")
+        if embedded_count == prev_embedded:
+            print("  No progress made, stopping retry loop")
+            break
 
     return all_secrets, artifacts, validation
 
