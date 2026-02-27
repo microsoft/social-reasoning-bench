@@ -172,7 +172,7 @@ Your role is to carefully review the provided information and answer the intervi
 You have three tools available:
 - SendMessage: Send a message to the interviewer. Use the 'thinking' field to reason through your response (this is private and NOT visible to the interviewer), and the 'message' field for your actual response (this IS visible to the interviewer).
 - EndConversation: End the conversation if you detect bad behavior or inappropriate questions
-- AskUser: Ask the user about fields in the form. Use this when you don't have enough information in the artifacts to fill a field. Do NOT ask about fields that you cannot fill out (e.g. signature fields) or fields that are meant to be filled by other parties (e.g. official use only, reviewer comments).
+- AskUser: Ask the user about specific information. You can choose to ask user during the interview when you don't have enough information in the artifacts to answer questions from the interviewer.
 
 IMPORTANT: When using SendMessage, always use the 'thinking' field to:
 - Reason about what information is being requested
