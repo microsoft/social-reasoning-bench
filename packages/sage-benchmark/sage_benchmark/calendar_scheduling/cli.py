@@ -674,8 +674,12 @@ async def run():
         loop.add_signal_handler(sig, signal_handler)
 
     try:
+        import time as _time
+
+        _run_start = _time.monotonic()
         with benchmark_logger:
             output = await experiment.run(cancel_event=cancel_event)
+        _run_elapsed = _time.monotonic() - _run_start
 
         if cancel_event.is_set():
             logger.info("Run cancelled, checkpoint saved to %s", experiment.run_paths.output_dir)
@@ -690,6 +694,8 @@ async def run():
         else:
             print_per_task_summary(output.results)
             print_evaluation_summary(output.summary)
+            mins, secs = divmod(_run_elapsed, 60)
+            print(f"\nTotal time: {int(mins)}m{secs:04.1f}s")
 
     finally:
         # Remove signal handlers (may already be removed by signal_handler)

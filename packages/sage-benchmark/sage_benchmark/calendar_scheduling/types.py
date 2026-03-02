@@ -464,6 +464,10 @@ class BenchmarkMetadata(BaseModel):
         default=None,
         description="Reasoning effort level for judge",
     )
+    elapsed_seconds: float | None = Field(
+        default=None,
+        description="Wall-clock time in seconds for the experiment run",
+    )
 
 
 class FailedTaskError(BaseModel):

@@ -1,8 +1,11 @@
 """Core experiment runner logic."""
 
 import asyncio
+import json
 import logging
+import os
 import signal
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -214,7 +217,6 @@ class Experiment:
 
         # Count tasks that need work
         total_tasks = sum(1 for task in self.tasks if task.task_key not in self.skip_eval_keys)
-        logger.info("Running %d task(s)...", total_tasks)
 
         # Build lookup for prior exec results (for eval-only tasks)
         prior_exec_by_key = {r.task_key: r for r in self.prior_exec_results}
@@ -285,14 +287,16 @@ class Experiment:
             task_logger=logger,
             cancel_event=cancel_event,
         )
+        run_start = time.monotonic()
         await executor.run(generate_tasks())
+        elapsed = time.monotonic() - run_start
 
         # Merge with prior results and sort
         all_eval_results = self.prior_eval_results + new_eval_results
         all_eval_results = sorted(all_eval_results, key=lambda r: r.execution.task.id or 0)
 
         # Build and save output (skip save if cancelled — checkpoint is already saved per-task)
-        output = build_output(self.tasks, all_eval_results, config)
+        output = build_output(self.tasks, all_eval_results, config, elapsed_seconds=elapsed)
         if not (cancel_event and cancel_event.is_set()):
             save_output(output, self.run_paths, self.checkpoint_mgr, self.llm_tracing)
 
@@ -416,6 +420,11 @@ class ExperimentPoolExecutor:
             e.key: [] for e in experiments
         }
 
+        # Per-experiment timing: expected task count and completion time
+        self._exp_task_counts: dict[str, int] = {}
+        self._exp_finish_times: dict[str, float] = {}
+        self._pool_start_time: float = 0.0
+
     async def run(self) -> list[ExperimentOutput]:
         """Run all experiments and return their outputs.
 
@@ -434,7 +443,8 @@ class ExperimentPoolExecutor:
         async def finalize_experiment(exp: Experiment) -> ExperimentOutput:
             all_eval = exp.prior_eval_results + self._eval_results_by_exp[exp.key]
             all_eval = sorted(all_eval, key=lambda r: r.execution.task.id or 0)
-            output = build_output(exp.tasks, all_eval, exp.config)
+            elapsed = self._exp_finish_times.get(exp.key)
+            output = build_output(exp.tasks, all_eval, exp.config, elapsed_seconds=elapsed)
             # Run blocking I/O in thread pool to parallelize across experiments
             await asyncio.to_thread(
                 save_output, output, exp.run_paths, exp.checkpoint_mgr, self.llm_tracing
@@ -456,6 +466,12 @@ class ExperimentPoolExecutor:
             sum(1 for task in exp.tasks if task.task_key not in exp.skip_eval_keys)
             for exp in self.experiments
         )
+
+        # Initialize per-experiment task counts for timing
+        self._pool_start_time = time.monotonic()
+        for exp in self.experiments:
+            count = sum(1 for task in exp.tasks if task.task_key not in exp.skip_eval_keys)
+            self._exp_task_counts[exp.key] = count
 
         if self.benchmark_logger:
             self.benchmark_logger.on_phase_start("exec+eval", total_tasks)
@@ -562,6 +578,21 @@ class ExperimentPoolExecutor:
         """Handle completion of an exec+eval task."""
         exp_key, result = tagged_result
         self._eval_results_by_exp[exp_key].append(result)
+
+        # Log when an experiment's last task completes
+        expected = self._exp_task_counts.get(exp_key, 0)
+        completed = len(self._eval_results_by_exp[exp_key])
+        if expected > 0 and completed == expected:
+            elapsed = time.monotonic() - self._pool_start_time
+            self._exp_finish_times[exp_key] = elapsed
+            exp = self._exp_by_key[exp_key]
+            variant = exp.config.variant or exp_key
+            logger.info(
+                "Experiment %s finished (%d tasks) in %.1fs",
+                variant,
+                expected,
+                elapsed,
+            )
 
 
 # ==============================================================================
@@ -698,7 +729,9 @@ async def run_multiple(
             benchmark_logger=benchmark_logger,
             llm_tracing=llm_tracing,
         )
+        sweep_start = time.monotonic()
         outputs = await pool.run()
+        sweep_elapsed = time.monotonic() - sweep_start
 
         if cancel_event.is_set():
             print("Interrupted - checkpoints saved")
@@ -707,9 +740,37 @@ async def run_multiple(
                     save_llm_traces(exp.run_paths)
             return (0, len(skipped), len(prepared))
 
+        # Log per-experiment timing summary
+        if pool._exp_finish_times:
+            print("\n--- Experiment timing ---")
+            for exp in prepared:
+                elapsed = pool._exp_finish_times.get(exp.key)
+                variant = exp.config.variant or exp.key
+                if elapsed is not None:
+                    mins, secs = divmod(elapsed, 60)
+                    print(f"  {variant}: {int(mins)}m{secs:04.1f}s")
+
+        # Save sweep_metadata.json to the common output directory
+        all_output_dirs = [exp.run_paths.output_dir for exp in prepared]
+        sweep_output_dir = (
+            Path(os.path.commonpath(all_output_dirs)) if all_output_dirs else output_base
+        )
+        sweep_meta = {
+            "total_sweep_seconds": sweep_elapsed,
+            "experiment_count": len(prepared),
+            "skipped_count": len(skipped),
+            "timestamp": datetime.now().isoformat(),
+        }
+        sweep_meta_path = sweep_output_dir / "sweep_metadata.json"
+        sweep_meta_path.parent.mkdir(parents=True, exist_ok=True)
+        sweep_meta_path.write_text(json.dumps(sweep_meta, indent=2))
+        logger.info("Saved sweep metadata to %s", sweep_meta_path)
+
         # Count results
         success_count = len(outputs)
+        mins, secs = divmod(sweep_elapsed, 60)
         print(f"\nDone: {success_count} succeeded, {len(skipped)} skipped, 0 failed")
+        print(f"Total sweep time: {int(mins)}m{secs:04.1f}s")
         return (success_count, len(skipped), 0)
 
     finally:

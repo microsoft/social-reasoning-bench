@@ -21,6 +21,7 @@ def build_output(
     tasks: list[KeyedCalendarTask],
     eval_results: list[TaskEvaluationResult],
     config: ExperimentConfig,
+    elapsed_seconds: float | None = None,
 ) -> BenchmarkOutput:
     """Build final benchmark output from evaluation results.
 
@@ -64,6 +65,7 @@ def build_output(
         requestor_explicit_cot=requestor_cot,
         requestor_reasoning_effort=str(requestor_effort) if requestor_effort else None,
         judge_reasoning_effort=str(judge_effort) if judge_effort else None,
+        elapsed_seconds=elapsed_seconds,
     )
 
     summary = compute_evaluation_summary(eval_results)
