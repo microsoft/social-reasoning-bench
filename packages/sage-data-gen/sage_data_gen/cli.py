@@ -2,8 +2,9 @@ import sys
 
 from sage_data_gen.calendar_scheduling.cli import main as calendar_main
 from sage_data_gen.form_filling.cli import main as form_filling_main
+from sage_data_gen.marketplace.cli import main as marketplace_main
 
-SUBCOMMANDS = ("calendar", "form-filling")
+SUBCOMMANDS = ("calendar", "form-filling", "marketplace")
 
 
 def main():
@@ -18,3 +19,5 @@ def main():
         calendar_main()
     elif subcommand == "form-filling":
         form_filling_main()
+    elif subcommand == "marketplace":
+        marketplace_main()
