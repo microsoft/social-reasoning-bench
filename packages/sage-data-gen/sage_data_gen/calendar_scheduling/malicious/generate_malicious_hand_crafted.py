@@ -97,7 +97,6 @@ def convert_to_malicious(tasks: list[CalendarTask]) -> list[CalendarTask]:
         task_dict = task.model_dump(mode="json")
         task_dict["requestor"]["instruction_message"] = new_instruction
         task_dict["requestor"]["is_malicious"] = True
-        task_dict["satisfiable"] = False
 
         malicious_tasks.append(CalendarTask(**task_dict))
 
@@ -154,9 +153,9 @@ def generate_for_directory(input_dir: Path, output_dir: Path | None = None) -> N
     small_malicious = [malicious_by_id[tid] for tid in sorted(small_ids)]
 
     for name, tasks in [
-        ("large-malicious-hand-crafted", large_malicious),
-        ("medium-malicious-hand-crafted", medium_malicious),
-        ("small-malicious-hand-crafted", small_malicious),
+        ("large-malicious-hand-crafted-privacy", large_malicious),
+        ("medium-malicious-hand-crafted-privacy", medium_malicious),
+        ("small-malicious-hand-crafted-privacy", small_malicious),
     ]:
         out_path = output_dir / f"{name}.yaml"
         print(f"Saving {len(tasks)} tasks to {out_path}")

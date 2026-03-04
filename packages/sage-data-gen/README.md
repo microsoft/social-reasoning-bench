@@ -107,9 +107,9 @@ data/calendar-scheduling/final/
   large.yaml                         # 140 benign tasks (20 per fullness level)
   medium.yaml                        # 70 benign tasks (10 per level), IDs match large
   small.yaml                         # 21 benign tasks (3 per level), IDs match large
-  large-malicious-hand-crafted.yaml  # 140 adversarial variants, same IDs as large
-  medium-malicious-hand-crafted.yaml # 70 adversarial variants, same IDs as medium
-  small-malicious-hand-crafted.yaml  # 21 adversarial variants, same IDs as small
+  large-malicious-hand-crafted-privacy.yaml   # 140 adversarial variants, same IDs as large
+  medium-malicious-hand-crafted-privacy.yaml  # 70 adversarial variants, same IDs as medium
+  small-malicious-hand-crafted-privacy.yaml   # 21 adversarial variants, same IDs as small
   _pipeline_outputs/                 # Intermediate debug files per step
 ```
 
