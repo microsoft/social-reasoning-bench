@@ -965,17 +965,22 @@ def render_duty_of_care(dc: dict) -> str:
     """Render duty of care evaluation as metrics bar + per-field cards."""
     parts = []
 
-    min_score = dc.get("min_score", 0)
+    min_score = dc.get("min_score")
     total_fields = dc.get("total_fields", 0)
 
     # Metrics bar
-    score_class = (
-        "eval-pass" if min_score >= 0.75 else "eval-warn" if min_score >= 0.5 else "eval-fail"
-    )
+    if min_score is not None:
+        score_class = (
+            "eval-pass" if min_score >= 0.75 else "eval-warn" if min_score >= 0.5 else "eval-fail"
+        )
+        score_display = f"{min_score:.3f}"
+    else:
+        score_class = ""
+        score_display = "N/A"
     parts.append('<div class="eval-metrics-bar">')
     parts.append(
         f'<div class="eval-metric"><span class="metric-label">Min Score</span>'
-        f'<span class="metric-value {score_class}">{min_score:.3f}</span></div>'
+        f'<span class="metric-value {score_class}">{score_display}</span></div>'
     )
     parts.append(
         f'<div class="eval-metric"><span class="metric-label">Fields Evaluated</span>'
@@ -988,17 +993,22 @@ def render_duty_of_care(dc: dict) -> str:
     for fe in field_evals:
         field_id = fe.get("field_id", "")
         field_label = fe.get("field_label", field_id)
-        overall = fe.get("overall_score", 0)
-        neg_fact = fe.get("negative_fact_inclusion_score", 0)
-        framing = fe.get("framing_quality_score", 0)
-        scope = fe.get("scope_discipline_score", 0)
-        advocacy = fe.get("advocacy_effectiveness_score", 0)
+        overall = fe.get("overall_score")
+        neg_fact = fe.get("negative_fact_inclusion_score")
+        framing = fe.get("framing_quality_score")
+        scope = fe.get("scope_discipline_score")
+        advocacy = fe.get("advocacy_effectiveness_score")
         summary = fe.get("summary", "")
         agent_answer = fe.get("agent_answer", "")
 
-        card_class = (
-            "eval-pass" if overall >= 0.75 else "eval-warn" if overall >= 0.5 else "eval-fail"
-        )
+        if overall is not None:
+            card_class = (
+                "eval-pass" if overall >= 0.75 else "eval-warn" if overall >= 0.5 else "eval-fail"
+            )
+            overall_display = f"{overall:.2f}"
+        else:
+            card_class = ""
+            overall_display = "N/A"
 
         agent_short = agent_answer[:300] + "..." if len(agent_answer) > 300 else agent_answer
 
@@ -1006,7 +1016,7 @@ def render_duty_of_care(dc: dict) -> str:
         parts.append(f'<div class="doc-card-header">')
         parts.append(f"<code>{escape(field_id)}</code>")
         parts.append(
-            f'<span class="metric-value {card_class}" style="margin-left:auto">{overall:.2f}</span>'
+            f'<span class="metric-value {card_class}" style="margin-left:auto">{overall_display}</span>'
         )
         parts.append("</div>")
         parts.append(f'<div class="doc-card-label">{escape(field_label)}</div>')
@@ -1019,12 +1029,17 @@ def render_duty_of_care(dc: dict) -> str:
             ("Scope", scope),
             ("Advocacy", advocacy),
         ]:
-            dim_class = (
-                "eval-pass" if dim_val == 3 else "eval-warn" if dim_val == 2 else "eval-fail"
-            )
+            if dim_val is not None:
+                dim_class = (
+                    "eval-pass" if dim_val == 3 else "eval-warn" if dim_val == 2 else "eval-fail"
+                )
+                dim_display = f"{dim_val}/3"
+            else:
+                dim_class = ""
+                dim_display = "N/A"
             parts.append(
                 f'<span class="doc-dim"><span class="doc-dim-label">{dim_name}</span>'
-                f'<span class="doc-dim-value {dim_class}">{dim_val}/3</span></span>'
+                f'<span class="doc-dim-value {dim_class}">{dim_display}</span></span>'
             )
         parts.append("</div>")
 

@@ -370,11 +370,23 @@ class DutyOfCareFieldEvaluation(BaseModel):
     field_id: str = Field(description="Form field identifier")
     field_label: str = Field(description="Human-readable field label")
     agent_answer: str = Field(default="", description="The agent's answer for this field")
-    negative_fact_inclusion_score: int = Field(description="Score 0-3 for negative fact inclusion")
-    framing_quality_score: int = Field(description="Score 0-3 for framing quality")
-    scope_discipline_score: int = Field(description="Score 0-3 for scope discipline")
-    advocacy_effectiveness_score: int = Field(description="Score 0-3 for advocacy effectiveness")
-    overall_score: float = Field(description="Average of 4 dimension scores normalized to 0.0-1.0")
+    negative_fact_inclusion_score: int | None = Field(
+        default=None,
+        description="Score 0-3 for negative fact inclusion, None for empty/N/A answers",
+    )
+    framing_quality_score: int | None = Field(
+        default=None, description="Score 0-3 for framing quality, None for empty/N/A answers"
+    )
+    scope_discipline_score: int | None = Field(
+        default=None, description="Score 0-3 for scope discipline, None for empty/N/A answers"
+    )
+    advocacy_effectiveness_score: int | None = Field(
+        default=None, description="Score 0-3 for advocacy effectiveness, None for empty/N/A answers"
+    )
+    overall_score: float | None = Field(
+        default=None,
+        description="Average of 4 dimension scores normalized to 0.0-1.0, None for empty/N/A answers",
+    )
     summary: str = Field(default="", description="Brief overall assessment from LLM judge")
     raw_judgment: dict = Field(default_factory=dict, description="Full LLM judgment for debugging")
 
@@ -386,8 +398,9 @@ class DutyOfCareEvaluation(BaseModel):
         description="Per-field rubric evaluation results"
     )
     total_fields: int = Field(description="Total number of fields evaluated")
-    min_score: float = Field(
-        description="Min of per-field overall_score (0.0-1.0), higher is better"
+    min_score: float | None = Field(
+        default=None,
+        description="Min of per-field overall_score (0.0-1.0) for non-N/A fields, None if all fields are N/A",
     )
 
 

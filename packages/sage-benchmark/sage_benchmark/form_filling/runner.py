@@ -956,7 +956,12 @@ def _build_one_shot_summary(
 
         # Duty of care metrics
         total_doc_fields = sum(e.duty_of_care.total_fields for e in evaluation_results)
-        avg_duty_of_care_score = sum(e.duty_of_care.min_score for e in evaluation_results) / n_evals
+        scored_doc_evals = [e for e in evaluation_results if e.duty_of_care.min_score is not None]
+        avg_duty_of_care_score = (
+            sum(e.duty_of_care.min_score for e in scored_doc_evals) / len(scored_doc_evals)
+            if scored_doc_evals
+            else None
+        )
     else:
         n_evals = 0
         avg_accuracy = 0.0
@@ -981,7 +986,7 @@ def _build_one_shot_summary(
         avg_au_recall = 0.0
         avg_au_f1 = 0.0
         total_doc_fields = 0
-        avg_duty_of_care_score = 0.0
+        avg_duty_of_care_score = None
 
     # Build final summary
     result = {
@@ -1070,11 +1075,16 @@ def _build_one_shot_summary(
         print(f"    Average F1 score: {avg_au_f1:.2%}")
         print(f"\nDuty of Care Metrics:")
         print(f"  Total fields evaluated: {total_doc_fields}")
-        print(f"  Average min duty of care score: {avg_duty_of_care_score:.2f}")
-        # Print the worst field across all evaluated tasks
+        doc_score_display = (
+            f"{avg_duty_of_care_score:.2f}" if avg_duty_of_care_score is not None else "N/A"
+        )
+        print(f"  Average min duty of care score: {doc_score_display}")
+        # Print the worst field across all evaluated tasks (skip N/A fields)
         worst_field = None
         for e in evaluation_results:
             for fe in e.duty_of_care.field_evaluations:
+                if fe.overall_score is None:
+                    continue
                 if worst_field is None or fe.overall_score < worst_field.overall_score:
                     worst_field = fe
         if worst_field is not None:
@@ -1170,7 +1180,12 @@ def _build_interactive_summary(
 
         # Duty of care metrics
         total_doc_fields = sum(e.duty_of_care.total_fields for e in evaluation_results)
-        avg_duty_of_care_score = sum(e.duty_of_care.min_score for e in evaluation_results) / n_evals
+        scored_doc_evals = [e for e in evaluation_results if e.duty_of_care.min_score is not None]
+        avg_duty_of_care_score = (
+            sum(e.duty_of_care.min_score for e in scored_doc_evals) / len(scored_doc_evals)
+            if scored_doc_evals
+            else None
+        )
     else:
         avg_accuracy = 0.0
         avg_precision = 0.0
@@ -1197,7 +1212,7 @@ def _build_interactive_summary(
         avg_au_recall = 0.0
         avg_au_f1 = 0.0
         total_doc_fields = 0
-        avg_duty_of_care_score = 0.0
+        avg_duty_of_care_score = None
 
     # Build summary
     result = {
@@ -1303,11 +1318,16 @@ def _build_interactive_summary(
         print(f"    Average F1 score: {avg_au_f1:.2%}")
         print(f"\nDuty of Care Metrics:")
         print(f"  Total fields evaluated: {total_doc_fields}")
-        print(f"  Average min duty of care score: {avg_duty_of_care_score:.2f}")
-        # Print the worst field across all evaluated tasks
+        doc_score_display = (
+            f"{avg_duty_of_care_score:.2f}" if avg_duty_of_care_score is not None else "N/A"
+        )
+        print(f"  Average min duty of care score: {doc_score_display}")
+        # Print the worst field across all evaluated tasks (skip N/A fields)
         worst_field = None
         for e in evaluation_results:
             for fe in e.duty_of_care.field_evaluations:
+                if fe.overall_score is None:
+                    continue
                 if worst_field is None or fe.overall_score < worst_field.overall_score:
                     worst_field = fe
         if worst_field is not None:
