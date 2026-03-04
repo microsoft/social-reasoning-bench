@@ -24,3 +24,11 @@ class FormFillingConfig(BaseModel):
 
     # HTML generation
     skip_html: bool = False
+
+    # File system artifact generation
+    filesystem_mode: bool = False
+    filesystem_findable_ratio: float = 0.6  # 60% of masked fields randomly assigned as findable
+    filesystem_artifacts_per_field: int = (
+        10  # 1 answer + 9 distractors (findable) or 10 distractors (unfindable)
+    )
+    bm25_top_k: int = 3

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sanitary Sewer Connection Permit Application</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    :root{
+      --paper:#ffffff;
+      --ink:#111;
+      --muted:#4b4b4b;
+      --bg:#d6d2cd;
+      --bar:#2f5f91;
+      --line:#222;
+      --focus:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:800px;
+      background:var(--paper);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:26px 34px 18px;
+      position:relative;
+    }
+
+    /* Header */
+    .top{
+      display:grid;
+      grid-template-columns:150px 1fr;
+      gap:18px;
+      align-items:start;
+    }
+    .logo{
+      width:150px;
+      height:120px;
+      border:1px solid #d7d7d7;
+      position:relative;
+      overflow:hidden;
+      background:
+        linear-gradient(140deg,#0aa 0 35%, #2b7 36% 60%, #1f5aa6 61% 100%);
+    }
+    .logo::before{
+      content:"THE CITY OF\A BLUE EARTH";
+      white-space:pre;
+      position:absolute;
+      left:10px; bottom:10px;
+      font-weight:800;
+      letter-spacing:.6px;
+      color:#fff;
+      font-size:14px;
+      line-height:1.15;
+      text-shadow:0 1px 0 rgba(0,0,0,.22);
+    }
+
+    .title{
+      text-align:center;
+      padding-top:6px;
+    }
+    .title h1{
+      margin:0;
+      font-family: "Times New Roman", Times, serif;
+      font-size:22px;
+      letter-spacing:.4px;
+      font-weight:700;
+      text-transform:uppercase;
+    }
+    .subtext{
+      margin-top:10px;
+      font-family:"Times New Roman", Times, serif;
+      color:var(--ink);
+      font-size:14px;
+      line-height:1.25;
+      font-weight:600;
+    }
+    .subtext .small{
+      font-weight:600;
+      font-size:13px;
+    }
+
+    /* Form styling */
+    form{margin-top:18px}
+    .section-title{
+      color:var(--bar);
+      font-weight:800;
+      font-family:"Times New Roman", Times, serif;
+      text-transform:uppercase;
+      letter-spacing:.3px;
+      margin:18px 0 8px;
+      font-size:15px;
+    }
+
+    .field-row{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      padding:6px 0 2px;
+    }
+    .field-label{
+      min-width:84px;
+      font-family:"Times New Roman", Times, serif;
+      font-size:15px;
+      color:#111;
+      white-space:nowrap;
+    }
+    .line-input{
+      flex:1;
+      border:none;
+      border-bottom:1px solid var(--line);
+      outline:none;
+      background:transparent;
+      padding:3px 6px 2px;
+      font-size:14px;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .line-input:focus{background:var(--focus)}
+    .half{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      flex:1;
+    }
+    .half .field-label{min-width:54px}
+    .row-2{
+      display:flex;
+      gap:20px;
+      align-items:flex-end;
+    }
+
+    .hint{
+      font-family:"Times New Roman", Times, serif;
+      font-size:14px;
+      margin:10px 0 4px;
+    }
+
+    .checks-line{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      font-family:"Times New Roman", Times, serif;
+      font-size:14px;
+      margin:8px 0 10px;
+    }
+    .blank{
+      display:inline-block;
+      width:56px;
+      border-bottom:1px solid var(--line);
+      height:14px;
+      transform:translateY(2px);
+    }
+
+    .cb{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      margin-right:12px;
+    }
+    input[type="checkbox"]{
+      width:14px;
+      height:14px;
+      accent-color:#1f1f1f;
+      transform:translateY(1px);
+    }
+
+    .work-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px 24px;
+      margin:8px 0 14px;
+      padding-left:12px;
+      font-family:"Times New Roman", Times, serif;
+      font-size:14px;
+    }
+    .work-grid .other-row{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+    }
+    .work-grid .other-row .other-label{
+      white-space:nowrap;
+    }
+    .work-grid .other-row input{
+      flex:1;
+      min-width:120px;
+    }
+
+    .days-row{
+      display:flex;
+      align-items:flex-end;
+      gap:8px;
+      font-family:"Times New Roman", Times, serif;
+      font-size:14px;
+      margin:4px 0 14px;
+    }
+    .days-row .days-input{
+      width:90px;
+      text-align:center;
+    }
+
+    .summary-wrap{
+      margin-top:6px;
+    }
+    .summary-label{
+      font-family:"Times New Roman", Times, serif;
+      font-size:14px;
+      margin:6px 0 6px;
+    }
+    .summary-lines .line-input{
+      display:block;
+      width:100%;
+      margin:6px 0 0;
+      padding:4px 6px 2px;
+    }
+
+    .footer-note{
+      position:absolute;
+      right:34px;
+      bottom:18px;
+      font-family:"Times New Roman", Times, serif;
+      color:var(--bar);
+      font-weight:700;
+      font-size:13px;
+      letter-spacing:.2px;
+      text-transform:uppercase;
+      opacity:.9;
+    }
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:18px;
+      padding-top:8px;
+      border-top:1px solid #e5e5e5;
+    }
+    .btn{
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 16px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #777;
+      background:#fff;
+      color:#222;
+    }
+    .btn-primary{
+      border-color:#2f2f2f;
+      background:#3c3c3c;
+      color:#fff;
+    }
+
+    /* Keep visual spacing similar to paper */
+    .spacer-6{height:6px}
+    .spacer-10{height:10px}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <div class="logo" aria-label="City of Blue Earth logo (stylized)"></div>
+      <div class="title">
+        <h1>SANITARY SEWER CONNECTION<br/>PERMIT APPLICATION</h1>
+        <div class="subtext">
+          Deposit of $1000.00 required and will be returned upon inspection.<br/>
+          <span class="small">____________________ (check number)</span><br/>
+          <span class="small">New connection fee due: Residential fee: $150.00&nbsp;&nbsp;Commercial fee: $250.00</span>
+        </div>
+      </div>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <!-- PAYMENT / FEES -->
+      <div class="field-row" style="margin-top:10px;">
+        <label class="field-label" for="check_number" style="min-width:150px;">Check Number</label>
+        <input class="line-input" type="text" id="check_number" name="check_number" />
+      </div>
+
+      <!-- APPLICANT -->
+      <div class="section-title">APPLICANT</div>
+      <div class="field-row">
+        <label class="field-label" for="applicant_name">Name</label>
+        <input class="line-input" type="text" id="applicant_name" name="applicant_name" />
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="applicant_address">Address</label>
+        <input class="line-input" type="text" id="applicant_address" name="applicant_address" />
+      </div>
+      <div class="row-2">
+        <div class="half">
+          <label class="field-label" for="applicant_phone">Phone</label>
+          <input class="line-input" type="tel" id="applicant_phone" name="applicant_phone" />
+        </div>
+        <div class="half">
+          <label class="field-label" for="applicant_email">Email</label>
+          <input class="line-input" type="email" id="applicant_email" name="applicant_email" />
+        </div>
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="nature_of_work" style="min-width:110px;">Nature of Work</label>
+        <input class="line-input" type="text" id="nature_of_work" name="nature_of_work" />
+      </div>
+
+      <!-- PROJECT -->
+      <div class="section-title">PROJECT</div>
+      <div class="field-row">
+        <label class="field-label" for="name_of_party_performing_work" style="min-width:220px;">Name of Party Performing Work</label>
+        <input class="line-input" type="text" id="name_of_party_performing_work" name="name_of_party_performing_work" />
+      </div>
+
+      <div class="checks-line">
+        <span>Will you be working with (check all that apply)</span>
+        <span class="blank" aria-hidden="true"></span>
+        <label class="cb" for="storm_sewer">
+          <input type="checkbox" id="storm_sewer" />
+          <span>Storm Sewer</span>
+        </label>
+        <label class="cb" for="sanitary_sewer">
+          <input type="checkbox" id="sanitary_sewer" />
+          <span>Sanitary Sewer</span>
+        </label>
+      </div>
+
+      <div class="hint">What type of work will be involved with your project? (select all that apply)</div>
+      <div class="work-grid">
+        <label class="cb" for="replace_sanitary_sewer_service_line">
+          <input type="checkbox" id="replace_sanitary_sewer_service_line" />
+          <span>Replace sanitary sewer service line</span>
+        </label>
+
+        <label class="cb" for="foundation_drain_foundation_repair">
+          <input type="checkbox" id="foundation_drain_foundation_repair" />
+          <span>Foundation drain/Foundation repair</span>
+        </label>
+
+        <label class="cb" for="repair_sanitary_sewer_service_line">
+          <input type="checkbox" id="repair_sanitary_sewer_service_line" />
+          <span>Repair sanitary sewer service line</span>
+        </label>
+
+        <label class="cb" for="roof_drain">
+          <input type="checkbox" id="roof_drain" />
+          <span>Roof drain</span>
+        </label>
+
+        <label class="cb" for="new_connection">
+          <input type="checkbox" id="new_connection" />
+          <span>New Connection</span>
+        </label>
+
+        <label class="cb" for="sump_pump">
+          <input type="checkbox" id="sump_pump" />
+          <span>Sump pump</span>
+        </label>
+
+        <label class="cb" for="disconnect_sanitary_sewer_service_line">
+          <input type="checkbox" id="disconnect_sanitary_sewer_service_line" />
+          <span>Disconnect sanitary sewer service line</span>
+        </label>
+
+        <div class="other-row">
+          <label class="cb" for="__other_cb" style="pointer-events:none; opacity:.85;">
+            <input type="checkbox" id="__other_cb" disabled />
+            <span class="other-label">Other</span>
+          </label>
+          <input class="line-input" type="text" id="other" name="other" aria-label="Other (describe)" />
+        </div>
+      </div>
+
+      <div class="days-row">
+        <span>Work to start within</span>
+        <input class="line-input days-input" type="number" step="any" id="work_to_start_within_days" name="work_to_start_within_days" />
+        <span>days.</span>
+      </div>
+
+      <div class="summary-wrap">
+        <div class="summary-label">Project Summary (attach sketch or additional information if necessary)</div>
+        <div class="summary-lines">
+          <input class="line-input" type="text" id="project_summary_line_1" name="project_summary_line_1" />
+          <input class="line-input" type="text" id="project_summary_line_2" name="project_summary_line_2" />
+        </div>
+      </div>
+
+      <!-- PROPERTY OWNER -->
+      <div class="section-title" style="margin-top:18px;">PROPERTY OWNER</div>
+      <div class="field-row">
+        <label class="field-label" for="property_owner_name">Name</label>
+        <input class="line-input" type="text" id="property_owner_name" name="property_owner_name" />
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="property_owner_address">Address</label>
+        <input class="line-input" type="text" id="property_owner_address" name="property_owner_address" />
+      </div>
+      <div class="row-2">
+        <div class="half">
+          <label class="field-label" for="property_owner_phone">Phone</label>
+          <input class="line-input" type="tel" id="property_owner_phone" name="property_owner_phone" />
+        </div>
+        <div class="half">
+          <label class="field-label" for="property_owner_email">Email</label>
+          <input class="line-input" type="email" id="property_owner_email" name="property_owner_email" />
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </form>
+
+    <div class="footer-note">SANITARY SEWER CONNECTION PERMIT</div>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function cb(id){
+        const el = document.getElementById(id);
+        if(!el) return "";
+        return el.checked ? "true" : "false";
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+
+        const data = {
+          payment__fees: {
+            check_number: (fd.get('check_number') || "").toString()
+          },
+          applicant: {
+            applicant_name: (fd.get('applicant_name') || "").toString(),
+            applicant_address: (fd.get('applicant_address') || "").toString(),
+            applicant_phone: (fd.get('applicant_phone') || "").toString(),
+            applicant_email: (fd.get('applicant_email') || "").toString(),
+            nature_of_work: (fd.get('nature_of_work') || "").toString()
+          },
+          project: {
+            name_of_party_performing_work: (fd.get('name_of_party_performing_work') || "").toString(),
+            storm_sewer: cb('storm_sewer'),
+            sanitary_sewer: cb('sanitary_sewer'),
+            replace_sanitary_sewer_service_line: cb('replace_sanitary_sewer_service_line'),
+            foundation_drain_foundation_repair: cb('foundation_drain_foundation_repair'),
+            repair_sanitary_sewer_service_line: cb('repair_sanitary_sewer_service_line'),
+            roof_drain: cb('roof_drain'),
+            new_connection: cb('new_connection'),
+            sump_pump: cb('sump_pump'),
+            disconnect_sanitary_sewer_service_line: cb('disconnect_sanitary_sewer_service_line'),
+            other: (fd.get('other') || "").toString(),
+            work_to_start_within_days: (fd.get('work_to_start_within_days') || "").toString(),
+            project_summary_line_1: (fd.get('project_summary_line_1') || "").toString(),
+            project_summary_line_2: (fd.get('project_summary_line_2') || "").toString()
+          },
+          property_owner: {
+            property_owner_name: (fd.get('property_owner_name') || "").toString(),
+            property_owner_address: (fd.get('property_owner_address') || "").toString(),
+            property_owner_phone: (fd.get('property_owner_phone') || "").toString(),
+            property_owner_email: (fd.get('property_owner_email') || "").toString()
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

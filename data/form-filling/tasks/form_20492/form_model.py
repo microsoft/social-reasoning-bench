@@ -12,19 +12,19 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class OrganizationContactInformation(BaseModel):
+class OrganizationInformation(BaseModel):
     """Basic information about the organization and applicant"""
 
     organization_name: str = Field(
         ...,
         description=(
-            "Legal name of the organization applying for RoundUP funds .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Legal name of the organization applying for funds .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    phone_number: str = Field(
+    phone: str = Field(
         ...,
         description=(
             "Primary phone number for the organization or contact person .If you cannot "
@@ -53,11 +53,11 @@ class OrganizationContactInformation(BaseModel):
         ),
     )
 
-    non_profit_yes: BooleanLike = Field(
+    are_you_a_non_profit_organization_yes: BooleanLike = Field(
         ..., description="Select if the organization is a non-profit"
     )
 
-    non_profit_no: BooleanLike = Field(
+    are_you_a_non_profit_organization_no: BooleanLike = Field(
         ..., description="Select if the organization is not a non-profit"
     )
 
@@ -66,28 +66,27 @@ class OrganizationContactInformation(BaseModel):
     )
 
     type_of_request_group: BooleanLike = Field(
-        ..., description="Check if the funding request is for a group need"
+        ..., description="Check if the funding request is for a group"
     )
 
     type_of_request_community: BooleanLike = Field(
-        ..., description="Check if the funding request is for a community-wide need"
+        ..., description="Check if the funding request is for a community project or purpose"
     )
 
 
 class FundingRequestDetails(BaseModel):
-    """Details about how funds will be used and community impact"""
+    """Details about how the requested funds will be used and community impact"""
 
     how_will_the_funds_be_used: str = Field(
         ...,
         description=(
-            "Describe specifically how the requested funds will be spent .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Describe specifically how the requested funds will be used .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    benefits_to_stoughton_community: str = Field(
+    what_are_the_benefits_to_the_stoughton_community: str = Field(
         ...,
         description=(
             "Explain how this request will benefit the Stoughton community .If you cannot "
@@ -97,10 +96,10 @@ class FundingRequestDetails(BaseModel):
         ),
     )
 
-    other_information_to_share: str = Field(
+    what_other_information_would_you_like_to_share: str = Field(
         default="",
         description=(
-            "Any additional details or context you would like to provide .If you cannot "
+            "Provide any additional information relevant to this request .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
@@ -108,16 +107,15 @@ class FundingRequestDetails(BaseModel):
     )
 
 
-class ApplicantSignatures(BaseModel):
+class Signatures(BaseModel):
     """Applicant signatures and dates"""
 
     applicant_signature_1: str = Field(
         ...,
         description=(
-            "Signature of the first applicant or authorized representative .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            'Signature of the applicant .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
@@ -128,10 +126,10 @@ class ApplicantSignatures(BaseModel):
     applicant_signature_2: str = Field(
         default="",
         description=(
-            "Signature of the second applicant or additional authorized representative, if "
-            'applicable .If you cannot fill this, write "N/A". If this field should not '
-            "be filled by you (for example, it belongs to another person or office), leave "
-            'it blank (empty string "").'
+            "Signature of a second applicant or authorized representative (if applicable) "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
@@ -147,10 +145,10 @@ class ApplicationForFundsFromRoundupProgramDonation(BaseModel):
     Application for Funds from RoundUP Program Donation
     """
 
-    organization__contact_information: OrganizationContactInformation = Field(
-        ..., description="Organization & Contact Information"
+    organization_information: OrganizationInformation = Field(
+        ..., description="Organization Information"
     )
     funding_request_details: FundingRequestDetails = Field(
         ..., description="Funding Request Details"
     )
-    applicant_signatures: ApplicantSignatures = Field(..., description="Applicant Signatures")
+    signatures: Signatures = Field(..., description="Signatures")

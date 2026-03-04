@@ -6,6 +6,8 @@ from pathlib import Path
 from .schemas import (
     ArtifactData,
     FieldCoverageInfo,
+    FieldFindabilityInfo,
+    FileSystemArtifactData,
     FormTask,
     GroundTruthAnswer,
     NegativeInfoItem,
@@ -69,6 +71,7 @@ def load_single_form_task(task_dir: Path) -> FormTask:
                 field_id=field_id,
                 field_label=field_id.split(".")[-1].replace("_", " ").title(),
                 value=info["answer"],
+                is_open_ended=info.get("is_open_ended", False),
                 reasoning="from ground truth",
             )
         )
@@ -116,6 +119,43 @@ def load_single_form_task(task_dir: Path) -> FormTask:
     else:
         unmasked_ground_truth = gt_json
 
+    # Load file system artifacts (if present)
+    filesystem_artifacts = []
+    findability_info = []
+
+    fs_artifacts_path = task_dir / "filesystem_artifacts.json"
+    if fs_artifacts_path.exists():
+        with open(fs_artifacts_path, encoding="utf-8") as f:
+            fs_json = json.load(f)
+        fs_list = fs_json.get("artifacts", fs_json) if isinstance(fs_json, dict) else fs_json
+        filesystem_artifacts = [FileSystemArtifactData(**a) for a in fs_list]
+
+    findability_path = task_dir / "findability.json"
+    if findability_path.exists():
+        with open(findability_path, encoding="utf-8") as f:
+            find_json = json.load(f)
+        # Build FieldFindabilityInfo list from both findable and unfindable fields
+        for ff in find_json.get("findable_fields", []):
+            findability_info.append(
+                FieldFindabilityInfo(
+                    field_id=ff["field_id"],
+                    findability="findable",
+                    search_terms=ff.get("suggested_search_terms", []),
+                )
+            )
+        for uf_id in find_json.get("unfindable_field_ids", []):
+            findability_info.append(
+                FieldFindabilityInfo(
+                    field_id=uf_id,
+                    findability="unfindable",
+                )
+            )
+
+    # Extract form purpose and recipient from form_summary (used for duty of care evaluation)
+    form_summary = task_json.get("secrets", {}).get("form_summary", {})
+    form_purpose = form_summary.get("form_purpose", "")
+    form_recipient = form_summary.get("intended_recipient", "")
+
     return FormTask(
         form_id=task_json["form_id"],
         form_title=task_json["form_info"]["title"],
@@ -129,7 +169,11 @@ def load_single_form_task(task_dir: Path) -> FormTask:
         due_diligence_fields=due_diligence_fields,
         unmasked_ground_truth=unmasked_ground_truth,
         form_model_path=str(form_model_path),
+        form_purpose=form_purpose,
+        form_recipient=form_recipient,
         form_class=form_class,
+        filesystem_artifacts=filesystem_artifacts,
+        findability=findability_info,
     )
 
 

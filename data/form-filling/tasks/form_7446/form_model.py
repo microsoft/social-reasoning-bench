@@ -24,8 +24,6 @@ class StudentInformation(BaseModel):
         ),
     )
 
-    date: str = Field(..., description="Date the complaint form is completed")  # YYYY-MM-DD format
-
     given_name: str = Field(
         ...,
         description=(
@@ -38,16 +36,16 @@ class StudentInformation(BaseModel):
     student_number: str = Field(
         ...,
         description=(
-            "Student's RMIT student identification number .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Student\'s RMIT identification number .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     class_: str = Field(
         ...,
         description=(
-            "Class or course group the student is enrolled in .If you cannot fill this, "
+            "Name or code of the class related to the complaint .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -56,33 +54,35 @@ class StudentInformation(BaseModel):
     students_rmit_email_address: str = Field(
         ...,
         description=(
-            "Official RMIT student email address used for correspondence .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Official RMIT student email address where responses will be sent .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
+
+    date: str = Field(..., description="Date the complaint form is completed")  # YYYY-MM-DD format
 
 
 class ComplaintDetails(BaseModel):
     """Information about the nature and details of the complaint"""
 
-    problem_with_class: BooleanLike = Field(
-        default="", description="Tick if the complaint is about a class"
+    problem_class: BooleanLike = Field(
+        default="", description="Select if the complaint is about a class"
     )
 
-    problem_with_teacher: BooleanLike = Field(
-        default="", description="Tick if the complaint is about a teacher"
+    teacher: BooleanLike = Field(
+        default="", description="Select if the complaint is about a teacher"
     )
 
-    problem_with_classmate: BooleanLike = Field(
-        default="", description="Tick if the complaint is about a classmate"
+    classmate: BooleanLike = Field(
+        default="", description="Select if the complaint is about a classmate"
     )
 
-    problem_with_other: str = Field(
+    other: str = Field(
         default="",
         description=(
-            "If the problem is not listed, describe the other issue .If you cannot fill "
+            "If the complaint is about something else, describe it here .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -91,16 +91,15 @@ class ComplaintDetails(BaseModel):
     detailed_description_of_your_complaint: str = Field(
         ...,
         description=(
-            "Provide a detailed description of the complaint, including what happened, "
-            'when, and who was involved .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Provide a detailed description of the issue or complaint .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
 
 class OfficeUseOnly(BaseModel):
-    """Administrative fields for internal processing"""
+    """Administrative processing information completed by staff"""
 
     date_time_received: str = Field(
         default="",
@@ -115,16 +114,22 @@ class OfficeUseOnly(BaseModel):
     received_by: str = Field(
         default="",
         description=(
-            "Name of staff member who received the complaint form (office use only) .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "Name of the staff member who received the complaint form (office use only) .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
     )
 
 
-class StudentComplaintForm(BaseModel):
-    """Student Complaint Form"""
+class RmitUniversityEnglishWorldwideStudentComplaintForm(BaseModel):
+    """
+        RMIT UNIVERSITY                                      English Worldwide
+
+    Student Complaint Form
+
+        ''
+    """
 
     student_information: StudentInformation = Field(..., description="Student Information")
     complaint_details: ComplaintDetails = Field(..., description="Complaint Details")

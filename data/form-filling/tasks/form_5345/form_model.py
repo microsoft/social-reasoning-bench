@@ -18,25 +18,27 @@ class EventApplicantInformation(BaseModel):
     tip_challenge_event_location: str = Field(
         ...,
         description=(
-            "Name or location of the TIP Challenge event .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Location of the TIP Challenge event for which this reference is being provided "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
     name_of_adopter_competitor_applicant: str = Field(
         ...,
         description=(
-            "Full name of the adopter/competitor applicant .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Full name of the adopter/competitor applicant for whom the reference is being "
+            'given .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
     adopter_competitor_applicants_phone: str = Field(
         ...,
         description=(
-            "Primary phone number for the adopter/competitor applicant .If you cannot fill "
+            "Primary phone number of the adopter/competitor applicant .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -67,9 +69,9 @@ class ReferenceContactInformation(BaseModel):
     ref_phone_2: str = Field(
         default="",
         description=(
-            "Secondary phone number for the reference .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Secondary phone number for the reference (if any) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -89,7 +91,7 @@ class TrainerEvaluation(BaseModel):
     how_long_have_you_known_this_trainer: str = Field(
         ...,
         description=(
-            "Length of time the reference has known the trainer (e.g., years, months) .If "
+            "Length of time you have known the trainer (e.g., number of years, months) .If "
             'you cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
@@ -99,7 +101,7 @@ class TrainerEvaluation(BaseModel):
     how_often_do_you_see_this_trainer_ride_or_work_horses: str = Field(
         ...,
         description=(
-            "Frequency with which the reference observes the trainer working with horses "
+            "Describe how frequently you observe the trainer riding or working with horses "
             '.If you cannot fill this, write "N/A". If this field should not be filled by '
             "you (for example, it belongs to another person or office), leave it blank "
             '(empty string "").'
@@ -109,40 +111,40 @@ class TrainerEvaluation(BaseModel):
     do_you_feel_that_their_facilities_are_suitable_for_working_with_a_wild_horse: str = Field(
         ...,
         description=(
-            "Reference’s assessment of whether the trainer’s facilities are appropriate for "
-            'wild horses .If you cannot fill this, write "N/A". If this field should not '
-            "be filled by you (for example, it belongs to another person or office), leave "
-            'it blank (empty string "").'
+            "Explain whether the trainer's facilities are appropriate for working with a "
+            'wild horse and why .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
     do_you_have_any_concerns_about_the_horses_in_the_care_of_this_trainer: str = Field(
         ...,
         description=(
-            "Any concerns the reference has about the welfare or management of horses under "
-            'this trainer’s care .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Describe any concerns you may have about the horses under this trainer's care "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
     would_you_recommend_this_trainer_to_people_with_unbroken_or_difficult_horses: str = Field(
         ...,
         description=(
-            "Explanation of whether and why the reference would recommend this trainer for "
-            'unbroken or difficult horses .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "State whether you would recommend this trainer for unbroken or difficult "
+            'horses and explain your reasoning .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     personal_comments_regarding_skill_work_ethic_values_etc: str = Field(
         default="",
         description=(
-            "Additional comments about the trainer’s skills, work ethic, values, and "
-            'character .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
+            "Additional comments about the trainer's skills, work ethic, values, and other "
+            'relevant qualities .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
@@ -151,7 +153,7 @@ class TrainerReferenceForm(BaseModel):
     """
     TRAINER REFERENCE FORM
 
-    Two Reference Forms must be submitted with each application. If the individual providing the reference would like for the information to remain confidential, please feel free to mail this form directly to the TIP Challenge Manager: Ann Hanlin.
+    Two Reference Forms must be submitted with each application. If the individual providing the reference would like for the information to remain confidential, please feel free to mail this form directly to the TIP Challenge Manager.
     """
 
     event__applicant_information: EventApplicantInformation = Field(

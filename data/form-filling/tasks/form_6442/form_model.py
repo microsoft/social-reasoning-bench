@@ -16,87 +16,86 @@ class ComplaintType(BaseModel):
     """Type of animal nuisance complaint being filed"""
 
     barking_dog_complaint: BooleanLike = Field(
-        ..., description="Check if this complaint is specifically about a barking dog"
+        default="", description="Check if the complaint is specifically about a barking dog"
     )
 
     general_nuisance_complaint: BooleanLike = Field(
-        ...,
-        description="Check if this complaint is about a general animal nuisance (not just barking)",
+        default="", description="Check if the complaint is about a general animal nuisance"
     )
 
 
-class ComplainantInformation(BaseModel):
-    """Primary complainant’s required contact information and signature"""
+class ComplainantRequired(BaseModel):
+    """Primary complainant information"""
 
-    name: str = Field(
+    complainant_name: str = Field(
         ...,
         description=(
-            'Complainant\'s full name .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
-        ),
-    )
-
-    date: str = Field(
-        ..., description="Date the complaint is signed by the complainant"
-    )  # YYYY-MM-DD format
-
-    signature: str = Field(
-        ...,
-        description=(
-            'Signature of the complainant .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
-        ),
-    )
-
-    address: str = Field(
-        ...,
-        description=(
-            'Street address of the complainant .If you cannot fill this, write "N/A". If '
+            'Primary complainant\'s full name .If you cannot fill this, write "N/A". If '
             "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
-    zip: str = Field(..., description="Zip code for the complainant's address")
+    complainant_date: str = Field(
+        ..., description="Date the primary complainant completed the form"
+    )  # YYYY-MM-DD format
 
-    phone: str = Field(
+    complainant_signature: str = Field(
         ...,
         description=(
-            "Primary phone number for the complainant .If you cannot fill this, write "
+            'Signature of the primary complainant .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    complainant_address: str = Field(
+        ...,
+        description=(
+            "Mailing address of the primary complainant .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    email: str = Field(
+    complainant_zip: str = Field(..., description="ZIP code for the primary complainant's address")
+
+    complainant_phone: str = Field(
+        ...,
+        description=(
+            'Primary complainant\'s phone number .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    complainant_email: str = Field(
         default="",
         description=(
-            'Email address of the complainant .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
+            'Primary complainant\'s email address .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
 
 class AdditionalComplainant1Optional(BaseModel):
-    """First additional complainant’s optional contact information and signature"""
+    """First additional complainant information"""
 
-    additional_complainant_name: str = Field(
+    additional_complainant_1_name: str = Field(
         default="",
         description=(
-            "Full name of the first additional complainant .If you cannot fill this, write "
+            "First additional complainant's full name .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    additional_complainant_date: str = Field(
-        default="", description="Date the first additional complainant signs"
+    additional_complainant_1_date: str = Field(
+        default="", description="Date the first additional complainant completed the form"
     )  # YYYY-MM-DD format
 
-    additional_complainant_signature: str = Field(
+    additional_complainant_1_signature: str = Field(
         default="",
         description=(
             "Signature of the first additional complainant .If you cannot fill this, write "
@@ -105,29 +104,29 @@ class AdditionalComplainant1Optional(BaseModel):
         ),
     )
 
-    additional_complainant_address: str = Field(
+    additional_complainant_1_address: str = Field(
         default="",
         description=(
-            "Street address of the first additional complainant .If you cannot fill this, "
+            "Mailing address of the first additional complainant .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    additional_complainant_zip: str = Field(
-        default="", description="Zip code for the first additional complainant's address"
+    additional_complainant_1_zip: str = Field(
+        default="", description="ZIP code for the first additional complainant's address"
     )
 
-    additional_complainant_phone: str = Field(
+    additional_complainant_1_phone: str = Field(
         default="",
         description=(
-            "Phone number for the first additional complainant .If you cannot fill this, "
+            "Phone number of the first additional complainant .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    additional_complainant_email: str = Field(
+    additional_complainant_1_email: str = Field(
         default="",
         description=(
             "Email address of the first additional complainant .If you cannot fill this, "
@@ -138,22 +137,22 @@ class AdditionalComplainant1Optional(BaseModel):
 
 
 class AdditionalComplainant2Optional(BaseModel):
-    """Second additional complainant’s optional contact information and signature"""
+    """Second additional complainant information"""
 
-    second_additional_complainant_name: str = Field(
+    additional_complainant_2_name: str = Field(
         default="",
         description=(
-            "Full name of the second additional complainant .If you cannot fill this, write "
+            "Second additional complainant's full name .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    second_additional_complainant_date: str = Field(
-        default="", description="Date the second additional complainant signs"
+    additional_complainant_2_date: str = Field(
+        default="", description="Date the second additional complainant completed the form"
     )  # YYYY-MM-DD format
 
-    second_additional_complainant_signature: str = Field(
+    additional_complainant_2_signature: str = Field(
         default="",
         description=(
             "Signature of the second additional complainant .If you cannot fill this, write "
@@ -162,29 +161,29 @@ class AdditionalComplainant2Optional(BaseModel):
         ),
     )
 
-    second_additional_complainant_address: str = Field(
+    additional_complainant_2_address: str = Field(
         default="",
         description=(
-            "Street address of the second additional complainant .If you cannot fill this, "
+            "Mailing address of the second additional complainant .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    second_additional_complainant_zip: str = Field(
-        default="", description="Zip code for the second additional complainant's address"
+    additional_complainant_2_zip: str = Field(
+        default="", description="ZIP code for the second additional complainant's address"
     )
 
-    second_additional_complainant_phone: str = Field(
+    additional_complainant_2_phone: str = Field(
         default="",
         description=(
-            "Phone number for the second additional complainant .If you cannot fill this, "
+            "Phone number of the second additional complainant .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    second_additional_complainant_email: str = Field(
+    additional_complainant_2_email: str = Field(
         default="",
         description=(
             "Email address of the second additional complainant .If you cannot fill this, "
@@ -195,34 +194,42 @@ class AdditionalComplainant2Optional(BaseModel):
 
 
 class IncidentDetails(BaseModel):
-    """Required date, time, and notes about the nuisance incident"""
+    """Date, time, location, and notes about the nuisance incident"""
 
     incident_date: str = Field(
-        ..., description="Date on which the nuisance incident occurred"
+        ..., description="Date when the nuisance incident occurred"
     )  # YYYY-MM-DD format
 
     incident_time: str = Field(
         ...,
         description=(
-            "Time at which the nuisance incident occurred, including am/pm .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Time when the nuisance incident occurred, including am/pm .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    location_of_nuisance: str = Field(
+        ...,
+        description=(
+            "Address or description of where the nuisance occurred .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     other_notes: str = Field(
         default="",
         description=(
-            "Additional notes or details about the incident .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Additional information or comments about the incident .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
 
-class OwnerofAnimals(BaseModel):
-    """Required information about the owner of the animal(s)"""
+class OwnerofAnimalsRequired(BaseModel):
+    """Owner contact information"""
 
     owner_last_name: str = Field(
         ...,
@@ -245,90 +252,85 @@ class OwnerofAnimals(BaseModel):
     owner_address: str = Field(
         ...,
         description=(
-            'Street address of the animal owner .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            'Address of the animal owner .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
     owner_city: str = Field(
         ...,
         description=(
-            'City for the animal owner\'s address .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    owner_zip: str = Field(..., description="Zip code for the animal owner's address")
-
-
-class AnimalDescription(BaseModel):
-    """Details describing the animal(s) involved"""
-
-    breed: str = Field(
-        default="",
-        description=(
-            'Breed of the animal(s) involved .If you cannot fill this, write "N/A". If '
+            'City of the animal owner\'s address .If you cannot fill this, write "N/A". If '
             "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
-    color: str = Field(
+    owner_zip: str = Field(..., description="ZIP code of the animal owner's address")
+
+
+class DescriptionofAnimals(BaseModel):
+    """Details identifying the animal(s) involved"""
+
+    animal_breed: str = Field(
         default="",
         description=(
-            "Primary color or markings of the animal(s) .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Breed of the animal .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
-    sex: str = Field(
+    animal_color: str = Field(
         default="",
         description=(
-            "Sex of the animal(s), e.g., male or female .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Color or markings of the animal .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
+    )
+
+    animal_sex: Literal["Male", "Female", "Unknown", "N/A", ""] = Field(
+        default="", description="Sex of the animal"
     )
 
     animal_name: str = Field(
         default="",
         description=(
-            'Name of the animal(s), if known .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            'Name of the animal, if known .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
 
 class OfficeUseOnly(BaseModel):
-    """For internal office processing and tracking of the complaint"""
+    """For internal office processing and tracking"""
 
-    office_use_only_date_received: str = Field(
-        default="", description="For office use only: date the complaint form was received"
+    office_use_date_received: str = Field(
+        default="", description="Date the office received the complaint (office use only)"
     )  # YYYY-MM-DD format
 
     date_received: str = Field(
-        default="", description="For office use only: date the complaint was logged/received"
+        default="", description="Date the complaint was received"
     )  # YYYY-MM-DD format
 
     reference_complaint: str = Field(
         default="",
         description=(
-            "Reference information for a related or prior complaint .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Reference or related complaint identifier, if any .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     complaint_number: str = Field(
         default="",
         description=(
-            "Internal complaint number assigned by the office .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Unique complaint number assigned by the office .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -341,9 +343,7 @@ class AnimalNuisanceComplaintForm(BaseModel):
     """
 
     complaint_type: ComplaintType = Field(..., description="Complaint Type")
-    complainant_information: ComplainantInformation = Field(
-        ..., description="Complainant Information"
-    )
+    complainant_required: ComplainantRequired = Field(..., description="Complainant (Required)")
     additional_complainant_1_optional: AdditionalComplainant1Optional = Field(
         ..., description="Additional Complainant 1 (Optional)"
     )
@@ -351,6 +351,10 @@ class AnimalNuisanceComplaintForm(BaseModel):
         ..., description="Additional Complainant 2 (Optional)"
     )
     incident_details: IncidentDetails = Field(..., description="Incident Details")
-    owner_of_animals: OwnerofAnimals = Field(..., description="Owner of Animal(s)")
-    animal_description: AnimalDescription = Field(..., description="Animal Description")
+    owner_of_animals_required: OwnerofAnimalsRequired = Field(
+        ..., description="Owner of Animal(s) (Required)"
+    )
+    description_of_animals: DescriptionofAnimals = Field(
+        ..., description="Description of Animal(s)"
+    )
     office_use_only: OfficeUseOnly = Field(..., description="Office Use Only")

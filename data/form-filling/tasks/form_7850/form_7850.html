@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CLUB APPLICATION - RETURN TO POOL TRAINING (PHASE 3)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    :root{
+      --bg:#d6d2cd;
+      --page:#ffffff;
+      --ink:#102033;
+      --line:#2c5ea8;
+      --head:#0c2a63;
+      --headText:#ffffff;
+      --cell:#e6e6e6;
+      --label:#dfe8fb;
+      --focus:#f5f5ee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--page);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      border:2px solid var(--line);
+    }
+
+    .top-title{
+      background:#dfe6f8;
+      border-bottom:2px solid var(--line);
+      padding:14px 18px 10px;
+      text-align:center;
+      font-weight:800;
+      letter-spacing:.3px;
+      text-transform:uppercase;
+      color:#0b2a6f;
+    }
+    .top-title .sub{
+      margin-top:6px;
+      display:block;
+      font-weight:800;
+      font-size:20px;
+    }
+    .top-title .main{
+      font-size:20px;
+      line-height:1.15;
+    }
+
+    form{margin:0}
+    .section-bar{
+      background:var(--head);
+      color:var(--headText);
+      font-weight:800;
+      text-transform:uppercase;
+      font-size:13px;
+      letter-spacing:.9px;
+      padding:6px 10px;
+      border-top:2px solid var(--line);
+      border-bottom:2px solid var(--line);
+    }
+
+    /* Table layout to mimic scanned form */
+    .grid{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:13px;
+    }
+    .grid td, .grid th{
+      border:2px solid var(--line);
+      vertical-align:top;
+      padding:0;
+    }
+
+    .label-cell{
+      background:var(--label);
+      padding:7px 8px;
+      font-weight:600;
+      line-height:1.25;
+    }
+    .value-cell{
+      background:var(--cell);
+      padding:0;
+    }
+
+    .value-inner{
+      padding:6px 8px;
+      min-height:28px;
+    }
+
+    input[type="text"], input[type="email"], input[type="date"], textarea{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      color:inherit;
+      padding:2px 2px;
+    }
+    textarea{
+      resize:vertical;
+      min-height:96px;
+      line-height:1.35;
+    }
+    .tall textarea{min-height:120px}
+    input:focus, textarea:focus{
+      background:var(--focus);
+    }
+
+    /* Yes/No box layout */
+    .yn-wrap{
+      display:grid;
+      grid-template-columns: 1fr 84px 84px;
+      align-items:stretch;
+      min-height:34px;
+    }
+    .yn-wrap .yn-label{
+      padding:7px 8px;
+      background:var(--label);
+      font-weight:600;
+      border-right:2px solid var(--line);
+    }
+    .yn-wrap .yn-col{
+      background:var(--cell);
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      gap:4px;
+      padding:6px 0;
+      border-left:2px solid var(--line);
+    }
+    .yn-wrap .yn-col:first-of-type{border-left:none}
+    .yn-wrap .yn-head{
+      font-size:12px;
+      font-weight:700;
+      color:#173a77;
+      line-height:1;
+      margin-top:1px;
+    }
+    .cb{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      user-select:none;
+    }
+    input[type="checkbox"]{
+      width:16px;
+      height:16px;
+      accent-color:#2b4f8f;
+      cursor:pointer;
+    }
+
+    .comm-block{
+      border-left:2px solid var(--line);
+      border-right:2px solid var(--line);
+      border-bottom:2px solid var(--line);
+    }
+    .comm-label{
+      background:var(--label);
+      border-bottom:2px solid var(--line);
+      padding:7px 8px;
+      font-weight:700;
+      font-size:13px;
+    }
+    .comm-value{
+      background:var(--cell);
+      padding:6px 8px;
+    }
+    .comm-value textarea{min-height:120px}
+    .comm-value.big textarea{min-height:140px}
+
+    .actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:12px 12px 16px;
+      border-top:2px solid var(--line);
+      background:#f7f7f7;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 16px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #6b6b6b;
+    }
+    .btn-clear{background:#fff;color:#333}
+    .btn-submit{background:#2f3f5a;color:#fff;border-color:#1f2c41}
+
+    /* keep look close to paper */
+    .hint{
+      font-size:11px;
+      opacity:.75;
+      padding:0 10px 10px;
+    }
+
+    @media (max-width:640px){
+      .yn-wrap{grid-template-columns: 1fr 74px 74px;}
+      .top-title .main{font-size:17px}
+      .top-title .sub{font-size:18px}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-title">
+      <div class="main">CLUB APPLICATION - RETURN TO POOL TRAINING</div>
+      <span class="sub">PHASE 3</span>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="section-bar">GENERAL INFORMATION</div>
+
+      <table class="grid" aria-label="General Information">
+        <colgroup>
+          <col style="width:43%"/>
+          <col style="width:57%"/>
+        </colgroup>
+
+        <tr>
+          <td class="label-cell"><label for="club_name">Club Name:</label></td>
+          <td class="value-cell">
+            <div class="value-inner">
+              <input type="text" id="club_name" name="club_name" />
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="label-cell"><label for="coach_name">Coach Name:</label></td>
+          <td class="value-cell">
+            <div class="value-inner">
+              <input type="text" id="coach_name" name="coach_name" />
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="label-cell"><label for="email_address">Email Address:</label></td>
+          <td class="value-cell">
+            <div class="value-inner">
+              <input type="email" id="email_address" name="email_address" />
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="label-cell"><label for="date">Date:</label></td>
+          <td class="value-cell">
+            <div class="value-inner">
+              <input type="date" id="date" name="date" />
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="label-cell"><label for="proposed_start_date">Proposed Start Date:</label></td>
+          <td class="value-cell">
+            <div class="value-inner">
+              <input type="date" id="proposed_start_date" name="proposed_start_date" />
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="label-cell"><label for="proposed_pools">Proposed Pool(s):</label></td>
+          <td class="value-cell">
+            <div class="value-inner">
+              <input type="text" id="proposed_pools" name="proposed_pools" />
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td colspan="2" class="value-cell">
+            <div class="yn-wrap">
+              <div class="yn-label">Have all COVID-19 Declarations been received?</div>
+              <div class="yn-col">
+                <div class="yn-head">Yes</div>
+                <label class="cb" title="Yes">
+                  <input type="checkbox" id="have_all_covid_19_declarations_been_received_yes" name="have_all_covid_19_declarations_been_received_yes"/>
+                </label>
+              </div>
+              <div class="yn-col">
+                <div class="yn-head">No</div>
+                <label class="cb" title="No">
+                  <input type="checkbox" id="have_all_covid_19_declarations_been_received_no" name="have_all_covid_19_declarations_been_received_no"/>
+                </label>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td colspan="2" class="value-cell">
+            <div class="yn-wrap">
+              <div class="yn-label">Are all Swimmers and Coaches fully registered with Swim NS?</div>
+              <div class="yn-col">
+                <div class="yn-head">Yes</div>
+                <label class="cb">
+                  <input type="checkbox" id="are_all_swimmers_and_coaches_fully_registered_with_swim_ns_yes" name="are_all_swimmers_and_coaches_fully_registered_with_swim_ns_yes"/>
+                </label>
+              </div>
+              <div class="yn-col">
+                <div class="yn-head">No</div>
+                <label class="cb">
+                  <input type="checkbox" id="are_all_swimmers_and_coaches_fully_registered_with_swim_ns_no" name="are_all_swimmers_and_coaches_fully_registered_with_swim_ns_no"/>
+                </label>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td colspan="2" class="value-cell">
+            <div class="yn-wrap">
+              <div class="yn-label">Have you submitted all information required to activate your Kinduct account?</div>
+              <div class="yn-col">
+                <div class="yn-head">Yes</div>
+                <label class="cb">
+                  <input type="checkbox" id="have_you_submitted_all_information_required_to_activate_your_kinduct_account_yes" name="have_you_submitted_all_information_required_to_activate_your_kinduct_account_yes"/>
+                </label>
+              </div>
+              <div class="yn-col">
+                <div class="yn-head">No</div>
+                <label class="cb">
+                  <input type="checkbox" id="have_you_submitted_all_information_required_to_activate_your_kinduct_account_no" name="have_you_submitted_all_information_required_to_activate_your_kinduct_account_no"/>
+                </label>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td colspan="2" class="value-cell">
+            <div class="yn-wrap">
+              <div class="yn-label">Are you familiar with the use of the Kinduct online health monitoring platform?</div>
+              <div class="yn-col">
+                <div class="yn-head">Yes</div>
+                <label class="cb">
+                  <input type="checkbox" id="are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_yes" name="are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_yes"/>
+                </label>
+              </div>
+              <div class="yn-col">
+                <div class="yn-head">No</div>
+                <label class="cb">
+                  <input type="checkbox" id="are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_no" name="are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_no"/>
+                </label>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td colspan="2" class="value-cell">
+            <div class="yn-wrap">
+              <div class="yn-label">Have you reviewed your Club Plan Form with your Facility Aquatic Director or designate?</div>
+              <div class="yn-col">
+                <div class="yn-head">Yes</div>
+                <label class="cb">
+                  <input type="checkbox" id="have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_yes" name="have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_yes"/>
+                </label>
+              </div>
+              <div class="yn-col">
+                <div class="yn-head">No</div>
+                <label class="cb">
+                  <input type="checkbox" id="have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_no" name="have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_no"/>
+                </label>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td colspan="2" class="value-cell">
+            <div class="yn-wrap">
+              <div class="yn-label">Have you reviewed Facility Re-Opening Plan?</div>
+              <div class="yn-col">
+                <div class="yn-head">Yes</div>
+                <label class="cb">
+                  <input type="checkbox" id="have_you_reviewed_facility_re_opening_plan_yes" name="have_you_reviewed_facility_re_opening_plan_yes"/>
+                </label>
+              </div>
+              <div class="yn-col">
+                <div class="yn-head">No</div>
+                <label class="cb">
+                  <input type="checkbox" id="have_you_reviewed_facility_re_opening_plan_no" name="have_you_reviewed_facility_re_opening_plan_no"/>
+                </label>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="label-cell"><label for="please_enter_any_additional_planning_notes_here">Please enter any additional planning notes here</label></td>
+          <td class="value-cell tall">
+            <div class="value-inner">
+              <textarea id="please_enter_any_additional_planning_notes_here" name="please_enter_any_additional_planning_notes_here"></textarea>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <div class="section-bar">COMMUNICATION</div>
+
+      <div class="comm-block">
+        <div class="comm-label">
+          <label for="describe_how_the_return_to_swimming_plan_will_be_communicated_to_your_club">
+            Describe how the Return to Swimming Plan will be communicated to your Club:
+          </label>
+        </div>
+        <div class="comm-value">
+          <textarea id="describe_how_the_return_to_swimming_plan_will_be_communicated_to_your_club" name="describe_how_the_return_to_swimming_plan_will_be_communicated_to_your_club"></textarea>
+        </div>
+
+        <div class="comm-label">
+          <label for="describe_how_swimmers_parents_will_be_informed_of_all_safety_precautions_they_must_follow_that_are_implemented_by_your_club">
+            Describe how swimmers/parents will be informed of all safety precautions they must follow that are implemented by your Club:
+          </label>
+        </div>
+        <div class="comm-value big">
+          <textarea id="describe_how_swimmers_parents_will_be_informed_of_all_safety_precautions_they_must_follow_that_are_implemented_by_your_club" name="describe_how_swimmers_parents_will_be_informed_of_all_safety_precautions_they_must_follow_that_are_implemented_by_your_club"></textarea>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="reset" class="btn btn-clear">Clear Form</button>
+        <button type="submit" class="btn btn-submit">Submit</button>
+      </div>
+
+      <div class="hint">
+        Note: Checkboxes serialize as "true" or "false" on submit.
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Helper to enforce Yes/No exclusivity per pair, without changing schema fields.
+    function makeExclusivePair(yesId, noId){
+      const yes = document.getElementById(yesId);
+      const no = document.getElementById(noId);
+      if(!yes || !no) return;
+
+      yes.addEventListener('change', () => { if(yes.checked) no.checked = false; });
+      no.addEventListener('change', () => { if(no.checked) yes.checked = false; });
+    }
+
+    makeExclusivePair('have_all_covid_19_declarations_been_received_yes','have_all_covid_19_declarations_been_received_no');
+    makeExclusivePair('are_all_swimmers_and_coaches_fully_registered_with_swim_ns_yes','are_all_swimmers_and_coaches_fully_registered_with_swim_ns_no');
+    makeExclusivePair('have_you_submitted_all_information_required_to_activate_your_kinduct_account_yes','have_you_submitted_all_information_required_to_activate_your_kinduct_account_no');
+    makeExclusivePair('are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_yes','are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_no');
+    makeExclusivePair('have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_yes','have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_no');
+    makeExclusivePair('have_you_reviewed_facility_re_opening_plan_yes','have_you_reviewed_facility_re_opening_plan_no');
+
+    document.getElementById('mainForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      const fd = new FormData(this);
+      const cb = (id) => (document.getElementById(id)?.checked ? "true" : "false");
+
+      const data = {
+        general_information: {
+          club_name: (fd.get('club_name') || '').toString(),
+          coach_name: (fd.get('coach_name') || '').toString(),
+          email_address: (fd.get('email_address') || '').toString(),
+          date: (fd.get('date') || '').toString(),
+          proposed_start_date: (fd.get('proposed_start_date') || '').toString(),
+          proposed_pools: (fd.get('proposed_pools') || '').toString(),
+
+          have_all_covid_19_declarations_been_received_yes: cb('have_all_covid_19_declarations_been_received_yes'),
+          have_all_covid_19_declarations_been_received_no: cb('have_all_covid_19_declarations_been_received_no'),
+
+          are_all_swimmers_and_coaches_fully_registered_with_swim_ns_yes: cb('are_all_swimmers_and_coaches_fully_registered_with_swim_ns_yes'),
+          are_all_swimmers_and_coaches_fully_registered_with_swim_ns_no: cb('are_all_swimmers_and_coaches_fully_registered_with_swim_ns_no'),
+
+          have_you_submitted_all_information_required_to_activate_your_kinduct_account_yes: cb('have_you_submitted_all_information_required_to_activate_your_kinduct_account_yes'),
+          have_you_submitted_all_information_required_to_activate_your_kinduct_account_no: cb('have_you_submitted_all_information_required_to_activate_your_kinduct_account_no'),
+
+          are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_yes: cb('are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_yes'),
+          are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_no: cb('are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_no'),
+
+          have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_yes: cb('have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_yes'),
+          have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_no: cb('have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_no'),
+
+          have_you_reviewed_facility_re_opening_plan_yes: cb('have_you_reviewed_facility_re_opening_plan_yes'),
+          have_you_reviewed_facility_re_opening_plan_no: cb('have_you_reviewed_facility_re_opening_plan_no'),
+
+          please_enter_any_additional_planning_notes_here: (fd.get('please_enter_any_additional_planning_notes_here') || '').toString()
+        },
+        communication: {
+          describe_how_the_return_to_swimming_plan_will_be_communicated_to_your_club: (fd.get('describe_how_the_return_to_swimming_plan_will_be_communicated_to_your_club') || '').toString(),
+          describe_how_swimmers_parents_will_be_informed_of_all_safety_precautions_they_must_follow_that_are_implemented_by_your_club: (fd.get('describe_how_swimmers_parents_will_be_informed_of_all_safety_precautions_they_must_follow_that_are_implemented_by_your_club') || '').toString()
+        }
+      };
+
+      console.log(JSON.stringify(data, null, 2));
+      alert('Submitted! Check the console for the generated JSON.');
+    });
+  </script>
+</body>
+</html>

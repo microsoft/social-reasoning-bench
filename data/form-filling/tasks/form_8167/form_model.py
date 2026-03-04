@@ -13,46 +13,41 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class ContentProvision(BaseModel):
-    """What content you can provide vs what needs to be sourced"""
+    """What content you can provide vs what the agency should source"""
 
     copy_we_can_provide: BooleanLike = Field(
-        default="",
-        description="Select if you will provide the written copy content for the website.",
+        default="", description="Indicate if you will provide written copy content for the website."
     )
 
     photography_we_can_provide: BooleanLike = Field(
-        default="", description="Select if you will provide photography for the website."
+        default="", description="Indicate if you will provide photography for the website."
     )
 
     videos_animation_we_can_provide: BooleanLike = Field(
         default="",
-        description="Select if you will provide video or animation assets for the website.",
+        description="Indicate if you will provide video or animation assets for the website.",
     )
 
     logos_and_graphics_we_can_provide: BooleanLike = Field(
-        default="",
-        description="Select if you will provide logo files and other graphic assets for the website.",
+        default="", description="Indicate if you will provide logo files and other graphic assets."
     )
 
     copy_well_need_you_to_source: BooleanLike = Field(
-        default="",
-        description="Select if you need the agency to create or source written copy content.",
+        default="", description="Indicate if you need the agency to create or source written copy."
     )
 
     photography_well_need_you_to_source: BooleanLike = Field(
-        default="", description="Select if you need the agency to create or source photography."
+        default="", description="Indicate if you need the agency to source or create photography."
     )
 
     videos_animation_well_need_you_to_source: BooleanLike = Field(
         default="",
-        description="Select if you need the agency to create or source video or animation assets.",
+        description="Indicate if you need the agency to source or create video or animation assets.",
     )
 
     logos_and_graphics_well_need_you_to_source: BooleanLike = Field(
         default="",
-        description=(
-            "Select if you need the agency to create or source logo files and other graphic assets."
-        ),
+        description="Indicate if you need the agency to create or source logos and other graphics.",
     )
 
 
@@ -69,11 +64,11 @@ class WebsiteFunctionality(BaseModel):
 
     document_library: BooleanLike = Field(
         default="",
-        description="Select if the website should include a document or file library for downloads.",
+        description="Select if the website should include a document or resource library.",
     )
 
     image_gallery: BooleanLike = Field(
-        default="", description="Select if the website should include an image gallery."
+        default="", description="Select if the website should include an image gallery feature."
     )
 
     enquiry_form_or_other_types_of_form: BooleanLike = Field(
@@ -83,16 +78,16 @@ class WebsiteFunctionality(BaseModel):
 
     data_capture_and_export: BooleanLike = Field(
         default="",
-        description="Select if the website should capture user data and allow exporting it.",
+        description="Select if the website should support data capture and export functionality.",
     )
 
     location_maps: BooleanLike = Field(
-        default="", description="Select if the website should include embedded location maps."
+        default="", description="Select if the website should include maps showing locations."
     )
 
     password_protected_areas: BooleanLike = Field(
         default="",
-        description="Select if parts of the website should be restricted behind password protection.",
+        description="Select if parts of the website should be restricted behind login or passwords.",
     )
 
     news_blog: BooleanLike = Field(

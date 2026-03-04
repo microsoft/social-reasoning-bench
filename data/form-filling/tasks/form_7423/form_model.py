@@ -12,8 +12,8 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class ApplicationDetails(BaseModel):
-    """Basic information about the food truck and applicant"""
+class ApplicantEventDetails(BaseModel):
+    """Basic information about the food truck, applicant, and requested dates"""
 
     food_truck_name: str = Field(
         ...,
@@ -61,21 +61,39 @@ class ApplicationDetails(BaseModel):
     )
 
 
-class FoodTruckInformation(BaseModel):
-    """Details about the food vending unit and its operation"""
+class RequiredDocumentation(BaseModel):
+    """Documents and approvals that must be attached to the application"""
 
     completed_agreement_form_with_certificate_of_insurance_naming_the_village_of_lions_bay_as_additional_insured_attached: BooleanLike = Field(
         ...,
         description=(
-            "Indicate whether the completed agreement form and certificate of insurance are "
-            "attached"
+            "Indicate whether the completed agreement form and required certificate of "
+            "insurance are attached"
         ),
     )
 
     photos_of_the_food_vending_unit_showing_all_sides_attached: BooleanLike = Field(
         ...,
-        description="Indicate whether photos of the food vending unit showing all sides are attached",
+        description="Indicate whether photos of the food vending unit from all sides are attached",
     )
+
+    health_authority_approval_attached: BooleanLike = Field(
+        ..., description="Indicate whether proof of Health Authority approval is attached"
+    )
+
+    any_other_required_approvals_please_list_i_e_fire_inspection_etc: str = Field(
+        default="",
+        description=(
+            "List any additional approvals obtained (e.g., fire inspection) and provide "
+            'details .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
+        ),
+    )
+
+
+class FoodTruckDetails(BaseModel):
+    """Details about the food truck, its offerings, and operations"""
 
     list_of_food_and_beverages_to_be_sold: str = Field(
         ...,
@@ -87,31 +105,16 @@ class FoodTruckInformation(BaseModel):
         ),
     )
 
-    dimensions_of_food_vending_unit_length: str = Field(
-        ...,
-        description=(
-            'Length of the food vending unit .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
+    dimensions_of_food_vending_unit_length: Union[float, Literal["N/A", ""]] = Field(
+        ..., description="Length of the food vending unit (specify units if applicable)"
     )
 
-    dimensions_of_food_vending_unit_width: str = Field(
-        ...,
-        description=(
-            'Width of the food vending unit .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
+    dimensions_of_food_vending_unit_width: Union[float, Literal["N/A", ""]] = Field(
+        ..., description="Width of the food vending unit (specify units if applicable)"
     )
 
-    dimensions_of_food_vending_unit_height: str = Field(
-        ...,
-        description=(
-            'Height of the food vending unit .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
+    dimensions_of_food_vending_unit_height: Union[float, Literal["N/A", ""]] = Field(
+        ..., description="Height of the food vending unit (specify units if applicable)"
     )
 
     location_and_description_of_cooking_and_or_food_preparation_facilities_if_applicable: str = (
@@ -127,31 +130,13 @@ class FoodTruckInformation(BaseModel):
     )
 
     number_of_employees: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Total number of employees working in the food truck"
-    )
-
-
-class ApprovalsandCompliance(BaseModel):
-    """Regulatory approvals and impact mitigation strategies"""
-
-    health_authority_approval_attached: BooleanLike = Field(
-        ..., description="Indicate whether proof of Health Authority approval is attached"
-    )
-
-    any_other_required_approvals_please_list_i_e_fire_inspection_etc: str = Field(
-        default="",
-        description=(
-            "List any additional required approvals, such as fire inspection or other "
-            'permits .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
-        ),
+        ..., description="Total number of employees who will be working at the food truck"
     )
 
     strategies_to_mitigate_impact_on_surrounding_land_uses_due_to_noise_litter_dust_odor_smoke_or_other_issues_and_covid_19_strategies: str = Field(
         ...,
         description=(
-            "Describe measures to reduce impacts such as noise, litter, dust, odor, smoke, "
+            "Describe measures to reduce impacts such as noise, litter, dust, odour, smoke, "
             "and outline COVID-19 safety strategies .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
@@ -159,28 +144,25 @@ class ApprovalsandCompliance(BaseModel):
     )
 
 
-class AdministrativeDecision(BaseModel):
-    """Municipal approval or decline of the application"""
+class Approval(BaseModel):
+    """Internal use for approval decision and sign-off"""
 
-    approved: BooleanLike = Field(
-        default="", description="Indicates that the application has been approved"
-    )
+    approved: BooleanLike = Field(default="", description="Indicate if the application is approved")
 
-    declined: BooleanLike = Field(
-        default="", description="Indicates that the application has been declined"
-    )
+    declined: BooleanLike = Field(default="", description="Indicate if the application is declined")
 
     approved_by: str = Field(
         default="",
         description=(
-            "Name or signature of the approving official .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Name of the official who approved or declined the application .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
     date_of_approval: str = Field(
-        default="", description="Date on which the application was approved or declined"
+        default="", description="Date on which the application decision was made"
     )  # YYYY-MM-DD format
 
 
@@ -191,11 +173,9 @@ class FoodTruckApplication(BaseModel):
     Please submit applications and all accompanying documents to office@lionsbay.ca for approval.
     """
 
-    application_details: ApplicationDetails = Field(..., description="Application Details")
-    food_truck_information: FoodTruckInformation = Field(..., description="Food Truck Information")
-    approvals_and_compliance: ApprovalsandCompliance = Field(
-        ..., description="Approvals and Compliance"
+    applicant__event_details: ApplicantEventDetails = Field(
+        ..., description="Applicant & Event Details"
     )
-    administrative_decision: AdministrativeDecision = Field(
-        ..., description="Administrative Decision"
-    )
+    required_documentation: RequiredDocumentation = Field(..., description="Required Documentation")
+    food_truck_details: FoodTruckDetails = Field(..., description="Food Truck Details")
+    approval: Approval = Field(..., description="Approval")

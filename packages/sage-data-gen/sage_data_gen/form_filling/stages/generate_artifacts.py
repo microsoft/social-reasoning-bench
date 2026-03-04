@@ -110,5 +110,28 @@ NEGATIVE INFO EMBEDDING RULES:
         temperature=0.7,
     )
 
+    # Warn about hallucinated IDs (validation will rebuild contains_secrets accurately)
+    valid_secret_ids = {s["id"] for s in secrets_for_prompt}
+    for artifact in result.artifacts:
+        if artifact.contains_secrets:
+            phantom = set(artifact.contains_secrets) - valid_secret_ids
+            if phantom:
+                print(
+                    f"  Warning: artifact has phantom secret IDs (will be fixed by validation): {phantom}"
+                )
+
+    if negative_info and negative_info.items:
+        valid_neg_ids = set()
+        for i, item in enumerate(negative_info.items):
+            for j in range(len(item.negative_info)):
+                valid_neg_ids.add(f"NEG{i + 1}_{j + 1}")
+        for artifact in result.artifacts:
+            if artifact.contains_negative_info:
+                phantom = set(artifact.contains_negative_info) - valid_neg_ids
+                if phantom:
+                    print(
+                        f"  Warning: artifact has phantom negative info IDs (will be fixed by validation): {phantom}"
+                    )
+
     print(f"  Created {len(result.artifacts)} artifacts")
     return result

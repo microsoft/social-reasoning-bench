@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class MemberInformation(BaseModel):
-    """Basic information about the member"""
+    """Basic information about the member and admission details"""
 
     last_name: str = Field(
         ...,
@@ -33,7 +33,7 @@ class MemberInformation(BaseModel):
         ),
     )
 
-    insurance_id_number: str = Field(
+    insurance_id: str = Field(
         ...,
         description=(
             "Member's insurance identification number .If you cannot fill this, write "
@@ -56,28 +56,24 @@ class MemberInformation(BaseModel):
     address: str = Field(
         ...,
         description=(
-            "Member's mailing or residential address .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Member\'s mailing address .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
     date_of_admit: str = Field(
-        ..., description="Member's admission date for this episode of care"
+        ..., description="Date the member was admitted for services"
     )  # YYYY-MM-DD format
 
     date_span_requested: str = Field(
         ...,
         description=(
-            "Requested date range for authorization (from–to) .If you cannot fill this, "
+            "Range of dates for which authorization is requested .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
-
-
-class ProviderandFacilityInformation(BaseModel):
-    """PCP, requesting/attending providers, and treating facility details"""
 
     primary_care_physician_pcp: str = Field(
         default="",
@@ -87,6 +83,10 @@ class ProviderandFacilityInformation(BaseModel):
             'another person or office), leave it blank (empty string "").'
         ),
     )
+
+
+class RequestingProvider(BaseModel):
+    """Information about the requesting provider"""
 
     requesting_provider: str = Field(
         ...,
@@ -100,43 +100,47 @@ class ProviderandFacilityInformation(BaseModel):
     tin_requesting_provider: str = Field(
         ...,
         description=(
-            "Tax Identification Number for the requesting provider .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Tax Identification Number of the requesting provider .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     address_requesting_provider: str = Field(
         ...,
         description=(
-            "Mailing or practice address of the requesting provider .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Mailing address of the requesting provider .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     npi_requesting_provider: str = Field(
         ...,
         description=(
-            "National Provider Identifier for the requesting provider .If you cannot fill "
+            "National Provider Identifier of the requesting provider .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
+
+class AttendingProvider(BaseModel):
+    """Information about the attending provider"""
+
     attending_provider: str = Field(
         default="",
         description=(
-            "Name of the attending provider responsible for care .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            'Name of the attending provider .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     tin_attending_provider: str = Field(
         default="",
         description=(
-            "Tax Identification Number for the attending provider .If you cannot fill this, "
+            "Tax Identification Number of the attending provider .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -145,20 +149,24 @@ class ProviderandFacilityInformation(BaseModel):
     address_attending_provider: str = Field(
         default="",
         description=(
-            "Mailing or practice address of the attending provider .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Mailing address of the attending provider .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     npi_attending_provider: str = Field(
         default="",
         description=(
-            "National Provider Identifier for the attending provider .If you cannot fill "
+            "National Provider Identifier of the attending provider .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
+
+
+class TreatingFacility(BaseModel):
+    """Information about the treating facility"""
 
     treating_facility: str = Field(
         ...,
@@ -172,7 +180,7 @@ class ProviderandFacilityInformation(BaseModel):
     tin_treating_facility: str = Field(
         ...,
         description=(
-            "Tax Identification Number for the treating facility .If you cannot fill this, "
+            "Tax Identification Number of the treating facility .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -181,16 +189,16 @@ class ProviderandFacilityInformation(BaseModel):
     address_treating_facility: str = Field(
         ...,
         description=(
-            'Address of the treating facility .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Mailing address of the treating facility .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     npi_treating_facility: str = Field(
         ...,
         description=(
-            "National Provider Identifier for the treating facility .If you cannot fill "
+            "National Provider Identifier of the treating facility .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -198,52 +206,52 @@ class ProviderandFacilityInformation(BaseModel):
 
 
 class ServiceRequestDetails(BaseModel):
-    """Requested level of care and coding information"""
+    """Details of the requested level of care and diagnosis/procedure codes"""
 
     requested_level_of_care_asam_level: str = Field(
         ...,
         description=(
-            "Requested level of care or ASAM level for this authorization .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Requested level of care or ASAM level for services .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     icd_10_codes: str = Field(
         ...,
         description=(
-            "Relevant ICD-10 diagnosis code or codes .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "ICD-10 diagnosis code or codes related to this request .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     revenue_cpt_codes: str = Field(
         ...,
         description=(
-            "Applicable revenue and/or CPT procedure codes .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Revenue and/or CPT procedure code or codes for requested services .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     mental_health: BooleanLike = Field(
-        default="", description="Check if the request is for mental health services"
+        ..., description="Check if the request is for mental health services"
     )
 
     substance_use: BooleanLike = Field(
-        default="", description="Check if the request is for substance use services"
+        ..., description="Check if the request is for substance use services"
     )
 
 
-class AuthorizationJustification(BaseModel):
-    """Explanations for expedited review and out-of-network use"""
+class ExpeditedandInNetworkJustification(BaseModel):
+    """Justification for expedited review and out-of-network use"""
 
     explanation_required_expedite: str = Field(
         default="",
         description=(
-            "Explanation and supporting details for requesting an expedited review .If you "
+            "Explanation and supporting details for requesting expedited review .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
@@ -253,16 +261,16 @@ class AuthorizationJustification(BaseModel):
     explanation_required_in_network_benefits: str = Field(
         default="",
         description=(
-            "Explanation why services cannot be provided by an in-network provider/facility "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
+            "Explanation why services cannot be provided by an in-network provider or "
+            'facility .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
 
 class UtilizationReviewContactInformation(BaseModel):
-    """Contact details for utilization review"""
+    """Contact information for utilization review"""
 
     name_utilization_review_contact_information: str = Field(
         ...,
@@ -292,22 +300,27 @@ class UtilizationReviewContactInformation(BaseModel):
     )
 
 
-class ProvidenceFacilityBasedBehavioralHealthAuthorizationRequest(BaseModel):
+class ProvidenceBehavioralHealthInpatientResidentialAuthRequest(BaseModel):
     """
-    Providence Facility Based Behavioral Health Authorization Request
+        PROVIDENCE
+    Health Plan
 
-    Providence Facility Based Behavioral Health Authorization Request
+    Facility Based Behavioral Health
+    Inpatient, Residential, Partial Hospitalization and IOP
+    Prior Authorization Request
+
+        Facility Based Behavioral Health Inpatient, Residential, Partial Hospitalization and IOP Prior Authorization Request. This form is used to request prior authorization for facility-based behavioral health services (mental health or substance use) for Providence Health Plan and Providence Medicare Advantage Plan members; chart notes are required, and it cannot be used to request ABA therapy, TMS, or outpatient behavioral health services.
     """
 
     member_information: MemberInformation = Field(..., description="Member Information")
-    provider_and_facility_information: ProviderandFacilityInformation = Field(
-        ..., description="Provider and Facility Information"
-    )
+    requesting_provider: RequestingProvider = Field(..., description="Requesting Provider")
+    attending_provider: AttendingProvider = Field(..., description="Attending Provider")
+    treating_facility: TreatingFacility = Field(..., description="Treating Facility")
     service_request_details: ServiceRequestDetails = Field(
         ..., description="Service Request Details"
     )
-    authorization_justification: AuthorizationJustification = Field(
-        ..., description="Authorization Justification"
+    expedited_and_in_network_justification: ExpeditedandInNetworkJustification = Field(
+        ..., description="Expedited and In-Network Justification"
     )
     utilization_review_contact_information: UtilizationReviewContactInformation = Field(
         ..., description="Utilization Review Contact Information"

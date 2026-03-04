@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>South Carolina Agritourism — Farm Profile (Contact Info)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ink:#1e2a2a;
+      --muted:#4a4a4a;
+      --line:#1e5c61;
+      --bar:#d8deba;
+      --barText:#7a8f3a;
+      --pageW:810px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:#d6d2cd;
+      color:#111;
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:var(--pageW);
+      background:#fff;
+      box-shadow:0 2px 14px rgba(0,0,0,.14);
+      padding:26px 34px 18px;
+      position:relative;
+    }
+
+    /* Header area */
+    .top{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:18px;
+      align-items:start;
+    }
+    .brand{
+      display:grid;
+      grid-template-columns: 120px 1fr;
+      gap:14px;
+      align-items:center;
+    }
+    .logo{
+      width:120px;height:92px;
+      border-radius:6px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+    }
+    .logo svg{width:120px;height:92px;display:block}
+    .titleBlock .kicker{
+      font-size:15px;
+      letter-spacing:.12em;
+      font-weight:700;
+      color:#0d5b63;
+      text-transform:uppercase;
+      margin:2px 0 4px;
+    }
+    .titleBlock .title{
+      font-size:44px;
+      line-height:1.0;
+      font-weight:800;
+      letter-spacing:.02em;
+      color:#a34a2d;
+      text-transform:uppercase;
+      margin:0;
+    }
+    .desc{
+      grid-column:1 / -1;
+      margin-top:12px;
+      color:#2c2c2c;
+      font-size:12.8px;
+      line-height:1.55;
+    }
+
+    /* Official use box */
+    .official{
+      width:220px;
+      border:2px solid #2f7b85;
+      padding:10px 10px 8px;
+      color:#0d2f35;
+    }
+    .official .cap{
+      font-weight:800;
+      font-size:12.5px;
+      letter-spacing:.11em;
+      color:#0d5b63;
+      text-transform:uppercase;
+      text-align:center;
+      margin:0 0 10px;
+    }
+    .miniRow{
+      display:flex;
+      align-items:flex-end;
+      gap:8px;
+      margin:6px 0;
+      font-size:12px;
+    }
+    .miniRow label{white-space:nowrap}
+    .miniLine{
+      flex:1;
+      border-bottom:2px solid #2f7b85;
+      height:16px;
+      display:flex;
+      align-items:center;
+    }
+    .miniLine input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      padding:0 2px 1px;
+      font-size:12px;
+      height:16px;
+    }
+    .miniChecks{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:4px 10px;
+      margin:6px 0 2px;
+      font-size:12px;
+    }
+    .cb{
+      display:flex; align-items:center; gap:6px;
+      user-select:none;
+      white-space:nowrap;
+    }
+    input[type="checkbox"]{
+      width:13px;height:13px;
+      accent-color:#1b616b;
+      margin:0;
+    }
+
+    /* Section bar */
+    .section-bar{
+      margin:18px 0 12px;
+      background:var(--bar);
+      padding:8px 12px 7px;
+      font-weight:800;
+      letter-spacing:.22em;
+      color:var(--barText);
+      text-transform:uppercase;
+      font-size:15px;
+      border:1px solid rgba(0,0,0,.05);
+    }
+
+    /* Form rows */
+    form{margin:0}
+    .rows{padding:0 2px}
+    .field-row{
+      display:flex;
+      align-items:flex-end;
+      gap:12px;
+      padding:9px 0 6px;
+    }
+    .field-row .label{
+      min-width:210px;
+      font-size:13px;
+      color:#1f1f1f;
+    }
+    .field-row .line{
+      flex:1;
+      border-bottom:2px solid var(--line);
+      height:22px;
+      display:flex;
+      align-items:center;
+    }
+    .field-row .line input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font-size:13.2px;
+      height:20px;
+      padding:0 4px 1px;
+      color:#111;
+    }
+    .field-row .line input:focus,
+    .miniLine input:focus,
+    textarea:focus{
+      background:#f5f5ee;
+      box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);
+    }
+
+    .two-col{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px 36px;
+      margin-top:2px;
+    }
+    .pair{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      padding:7px 0 6px;
+    }
+    .pair .label{
+      min-width:70px;
+      font-size:13px;
+    }
+    .pair .line{
+      flex:1;
+      border-bottom:2px solid var(--line);
+      height:22px;
+      display:flex;
+      align-items:center;
+    }
+    .pair .line input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font-size:13.2px;
+      height:20px;
+      padding:0 4px 1px;
+    }
+
+    .note{
+      margin:10px 0 8px;
+      font-size:12.7px;
+      line-height:1.45;
+      color:#262626;
+    }
+    .note a{color:#0a5a63; text-decoration:underline}
+    .bigbox{
+      border:2px solid var(--line);
+      padding:10px;
+      min-height:250px;
+    }
+    textarea{
+      width:100%;
+      min-height:230px;
+      border:none;
+      outline:none;
+      resize:vertical;
+      font:inherit;
+      font-size:13.2px;
+      background:transparent;
+      line-height:1.45;
+    }
+
+    .footer{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      margin-top:14px;
+      font-size:11.5px;
+      color:#333;
+    }
+    .actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:14px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+    }
+    .btn-submit{
+      background:#2f2f2f;
+      color:#fff;
+      border:1px solid #1f1f1f;
+    }
+    .btn-clear{
+      background:#fff;
+      color:#333;
+      border:1px solid #777;
+    }
+
+    /* Small helper for required star (visual only) */
+    .req{font-weight:800}
+    @media print{
+      body{background:#fff; padding:0}
+      .page{box-shadow:none; max-width:none}
+      .actions{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <div class="brand">
+        <div class="logo" aria-label="SC Agritourism Farm Fun logo (stylized)">
+          <!-- Simple inline SVG approximation of the logo mark -->
+          <svg viewBox="0 0 160 120" role="img" aria-hidden="true">
+            <defs>
+              <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0" stop-color="#9cc356"/>
+                <stop offset="1" stop-color="#6ea63f"/>
+              </linearGradient>
+            </defs>
+            <!-- fan rays -->
+            <g transform="translate(22,6)">
+              <path d="M58 54 L58 6 A48 48 0 0 1 75 10 Z" fill="url(#g)"/>
+              <path d="M58 54 L76 10 A48 48 0 0 1 91 19 Z" fill="url(#g)"/>
+              <path d="M58 54 L91 19 A48 48 0 0 1 103 32 Z" fill="url(#g)"/>
+              <path d="M58 54 L103 32 A48 48 0 0 1 108 47 Z" fill="url(#g)"/>
+              <path d="M58 54 L108 47 A48 48 0 0 1 106 63 Z" fill="url(#g)"/>
+              <path d="M58 54 L106 63 A48 48 0 0 1 98 76 Z" fill="url(#g)"/>
+              <path d="M58 54 L98 76 A48 48 0 0 1 84 85 Z" fill="url(#g)"/>
+              <path d="M58 54 L84 85 A48 48 0 0 1 68 88 Z" fill="url(#g)"/>
+              <path d="M58 54 L68 88 A48 48 0 0 1 52 86 Z" fill="url(#g)"/>
+              <path d="M58 54 L52 86 A48 48 0 0 1 39 78 Z" fill="url(#g)"/>
+              <path d="M58 54 L39 78 A48 48 0 0 1 31 65 Z" fill="url(#g)"/>
+              <path d="M58 54 L31 65 A48 48 0 0 1 30 49 Z" fill="url(#g)"/>
+              <path d="M58 54 L30 49 A48 48 0 0 1 36 34 Z" fill="url(#g)"/>
+              <path d="M58 54 L36 34 A48 48 0 0 1 48 21 Z" fill="url(#g)"/>
+              <path d="M58 54 L48 21 A48 48 0 0 1 62 13 Z" fill="url(#g)"/>
+            </g>
+            <!-- circle / badge -->
+            <g transform="translate(22,6)">
+              <circle cx="80" cy="62" r="22" fill="#0d5b63"/>
+              <text x="80" y="66" text-anchor="middle" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#fff">FARM FUN</text>
+            </g>
+            <!-- side text -->
+            <path id="arcLeft" d="M30,100 C40,70 55,55 80,45" fill="none"/>
+            <text font-family="Inter, Arial" font-size="18" font-weight="700" fill="#a34a2d">
+              <textPath href="#arcLeft" startOffset="0%">SC Agritourism</textPath>
+            </text>
+          </svg>
+        </div>
+        <div class="titleBlock">
+          <div class="kicker">SOUTH CAROLINA AGRITOURISM</div>
+          <h1 class="title">FARM PROFILE</h1>
+        </div>
+      </div>
+
+      <div class="official" aria-label="Official Use Only">
+        <div class="cap">OFFICIAL USE ONLY</div>
+
+        <div class="miniRow">
+          <label for="received">Received</label>
+          <div class="miniLine">
+            <input id="received" name="received" type="date" placeholder="YYYY-MM-DD" />
+          </div>
+        </div>
+
+        <div class="miniChecks">
+          <label class="cb" for="new">
+            <input id="new" name="new" type="checkbox" />
+            <span>New</span>
+          </label>
+          <label class="cb" for="update">
+            <input id="update" name="update" type="checkbox" />
+            <span>Update</span>
+          </label>
+        </div>
+
+        <div class="miniRow" style="margin-top:6px">
+          <label style="min-width:58px">New File</label>
+          <div style="display:flex; gap:14px; align-items:center;">
+            <label class="cb" for="new_file_yes">
+              <input id="new_file_yes" name="new_file_yes" type="checkbox" />
+              <span>Yes</span>
+            </label>
+            <label class="cb" for="new_file_no">
+              <input id="new_file_no" name="new_file_no" type="checkbox" />
+              <span>No</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="miniRow" style="margin-top:8px">
+          <label for="completed">Completed</label>
+          <div class="miniLine">
+            <input id="completed" name="completed" type="date" placeholder="YYYY-MM-DD" />
+          </div>
+        </div>
+      </div>
+
+      <div class="desc">
+        The SC Agritourism Program is an exciting effort established to assist consumers in locating farm experiences as well as helping
+        farm producers plan, develop, and promote tourist attractions on their farm. From pick your own berry operations, to major
+        consumer events, Agritourism takes on many shapes and forms throughout South Carolina. Please take a few minutes to fill out this
+        form to update your information and return it today!
+      </div>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="section-bar">CONTACT INFO</div>
+
+      <div class="rows">
+        <div class="field-row">
+          <div class="label"><span class="req">Business/Farm Name</span></div>
+          <div class="line">
+            <input type="text" id="business_farm_name" name="business_farm_name" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="label"><span class="req">Contact Person(s)</span></div>
+          <div class="line">
+            <input type="text" id="contact_persons" name="contact_persons" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="label"><span class="req">Physical Address</span></div>
+          <div class="line">
+            <input type="text" id="physical_address" name="physical_address" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="label"><span class="req">County where business is located</span></div>
+          <div class="line">
+            <input type="text" id="county_where_business_is_located" name="county_where_business_is_located" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="label">Mailing Address <span style="font-style:italic;color:#333">(If different from above)</span></div>
+          <div class="line">
+            <input type="text" id="mailing_address_if_different_from_above" name="mailing_address_if_different_from_above" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="label"><span class="req">Phone Number(s)</span></div>
+          <div class="line">
+            <input type="tel" id="phone_numbers" name="phone_numbers" />
+          </div>
+        </div>
+
+        <div class="two-col" style="margin-top:2px">
+          <div class="pair">
+            <div class="label"><span class="req">Email</span></div>
+            <div class="line">
+              <input type="email" id="email" name="email" />
+            </div>
+          </div>
+          <div class="pair">
+            <div class="label">Website</div>
+            <div class="line">
+              <input type="text" id="website" name="website" />
+            </div>
+          </div>
+          <div class="pair">
+            <div class="label">Facebook</div>
+            <div class="line">
+              <input type="text" id="facebook" name="facebook" />
+            </div>
+          </div>
+          <div class="pair">
+            <div class="label">Twitter</div>
+            <div class="line">
+              <input type="text" id="twitter" name="twitter" />
+            </div>
+          </div>
+        </div>
+
+        <div class="note">
+          Please provide a brief description of your business and/or products. Please include information relevant to potential buyers/visitors.
+          The information provided will be listed on <a href="#" onclick="return false;">SCFarmFun.org</a> as a way to help promote your farm/business.
+        </div>
+
+        <div class="bigbox">
+          <textarea id="brief_description_of_your_business_and_or_products" name="brief_description_of_your_business_and_or_products"></textarea>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-clear" type="reset">Clear Form</button>
+        <button class="btn btn-submit" type="submit">Submit</button>
+      </div>
+    </form>
+
+    <div class="footer">
+      <div>Updated 7/9/21</div>
+      <div>1</div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function cbString(id){
+        const el = document.getElementById(id);
+        return el && el.checked ? "true" : "false";
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+
+        const data = {
+          official_use_only: {
+            received: (fd.get('received') || "").toString(),
+            new: cbString('new'),
+            update: cbString('update'),
+            new_file_yes: cbString('new_file_yes'),
+            new_file_no: cbString('new_file_no'),
+            completed: (fd.get('completed') || "").toString()
+          },
+          contact_info: {
+            business_farm_name: (fd.get('business_farm_name') || "").toString(),
+            contact_persons: (fd.get('contact_persons') || "").toString(),
+            physical_address: (fd.get('physical_address') || "").toString(),
+            county_where_business_is_located: (fd.get('county_where_business_is_located') || "").toString(),
+            mailing_address_if_different_from_above: (fd.get('mailing_address_if_different_from_above') || "").toString(),
+            phone_numbers: (fd.get('phone_numbers') || "").toString(),
+            email: (fd.get('email') || "").toString(),
+            website: (fd.get('website') || "").toString(),
+            facebook: (fd.get('facebook') || "").toString(),
+            twitter: (fd.get('twitter') || "").toString(),
+            brief_description_of_your_business_and_or_products: (fd.get('brief_description_of_your_business_and_or_products') || "").toString()
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for JSON output.');
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -10,6 +10,7 @@ from sage_llm import ModelClient
 from sage_benchmark.form_filling.agents.assistant import AssistantAgent
 from sage_benchmark.form_filling.agents.interviewer import InterviewerAgent
 from sage_benchmark.form_filling.agents.oracle_user import OracleUser
+from sage_benchmark.form_filling.environment.bm25_index import BM25Index
 from sage_benchmark.form_filling.schemas import (
     ConversationMessage,
     FormTask,
@@ -51,6 +52,8 @@ def _initialize_agents(
     single_field_mode: bool = False,
     malicious_strategy: int | None = None,
     temperature: float | None = None,
+    file_system: bool = False,
+    bm25_index: BM25Index | None = None,
 ) -> tuple[InterviewerAgent, AssistantAgent]:
     """Initialize interviewer and assistant agents for a task.
 
@@ -65,6 +68,8 @@ def _initialize_agents(
         single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
         temperature: Sampling temperature for assistant generation
+        file_system: If True, add file-system search/read tools to assistant
+        bm25_index: BM25 index for file-system tool execution
 
     Returns:
         Tuple of (InterviewerAgent, AssistantAgent)
@@ -76,6 +81,8 @@ def _initialize_agents(
         task.artifacts,
         prompt_type,
         temperature=temperature,
+        file_system=file_system,
+        bm25_index=bm25_index,
     )
 
     form_info = get_form_as_string(task)
@@ -206,6 +213,7 @@ async def run_single_task(
     temperature: float | None = None,
     oracle_user: OracleUser | None = None,
     max_ask_rounds: int = 50,
+    file_system: bool = False,
 ) -> InteractiveTaskExecutionResult:
     """Execute a single interactive interview task.
 
@@ -224,6 +232,7 @@ async def run_single_task(
         temperature: Sampling temperature for assistant generation
         oracle_user: Oracle user for answering ask_user questions
         max_ask_rounds: Maximum number of ask_user rounds (default: 50)
+        file_system: If True, use file-system mode with search/read tools
 
     Returns:
         InteractiveTaskExecutionResult with conversation and form submission
@@ -232,6 +241,11 @@ async def run_single_task(
     user_qa_history: list[dict[str, str]] = []
     interviewer = None
     assistant = None
+
+    # Initialize BM25 index for file-system mode
+    bm25_index: BM25Index | None = None
+    if file_system and task.filesystem_artifacts:
+        bm25_index = BM25Index([a.model_dump() for a in task.filesystem_artifacts])
 
     # 1. INITIALIZATION
     interviewer, assistant = _initialize_agents(
@@ -245,6 +259,8 @@ async def run_single_task(
         single_field_mode,
         malicious_strategy,
         temperature=temperature,
+        file_system=file_system,
+        bm25_index=bm25_index,
     )
 
     try:

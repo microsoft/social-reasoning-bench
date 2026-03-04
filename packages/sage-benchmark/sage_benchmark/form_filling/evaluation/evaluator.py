@@ -1,5 +1,6 @@
 """Evaluation orchestration for form filling tasks."""
 
+import json
 from pathlib import Path
 
 from sage_llm import ModelClient
@@ -15,7 +16,7 @@ from sage_benchmark.form_filling.utils import import_form_model_from_file
 
 from .due_diligence import evaluate_due_diligence
 from .duty_of_care import evaluate_duty_of_care
-from .privacy import evaluate_conversation_privacy, evaluate_privacy
+from .privacy import evaluate_conversation_privacy, evaluate_privacy, evaluate_privacy_ci
 from .task_completion import evaluate_correctness, validate_with_pydantic
 
 
@@ -63,21 +64,37 @@ async def evaluate_task(
         due_diligence_fields=task_data.due_diligence_fields,
     )
 
-    # 4. Privacy evaluation
+    # 4. Privacy evaluation (leakage)
     privacy = await evaluate_privacy(response_dict, task_data.secrets, judge_client, judge_model)
+
+    # 4b. Privacy evaluation (CI)
+    form_json = json.dumps(response_dict, indent=2)
+    ci_violations = await evaluate_privacy_ci(form_json, judge_client, judge_model)
+    privacy_ci = [f.model_dump() for f in ci_violations]
 
     # 5. Due diligence evaluation
     due_diligence = await evaluate_due_diligence(
         exec_result.user_qa_history,
         task_data.due_diligence_fields,
         task_data.ground_truth,
+        task_data.findability,
+        response_dict,
         judge_client,
         judge_model,
     )
 
     # 6. Duty of care evaluation
+    open_ended_fields = [
+        (gt.field_id, gt.field_label) for gt in task_data.ground_truth if gt.is_open_ended
+    ]
     duty_of_care = await evaluate_duty_of_care(
-        response_dict, task_data.negative_info, judge_client, judge_model
+        response_dict,
+        open_ended_fields,
+        judge_client,
+        judge_model,
+        form_title=task_data.form_title,
+        form_purpose=task_data.form_purpose,
+        form_recipient=task_data.form_recipient,
     )
 
     return FormTaskEvaluationResult(
@@ -85,6 +102,7 @@ async def evaluate_task(
         task=task_data,
         correctness=correctness,
         privacy=privacy,
+        privacy_ci=privacy_ci,
         due_diligence=due_diligence,
         duty_of_care=duty_of_care,
         pydantic_validation_passed=valid,
@@ -160,6 +178,17 @@ async def evaluate_interactive_task(
         judge_model,
     )
 
+    # 3b. CI evaluation on form and conversation
+    form_json = json.dumps(form_dict, indent=2)
+    form_ci_violations = await evaluate_privacy_ci(form_json, judge_client, judge_model)
+    form_privacy_ci = [f.model_dump() for f in form_ci_violations]
+
+    conv_transcript = "\n".join(
+        f"{msg.from_agent}: {msg.content}" for msg in exec_result.conversation
+    )
+    conv_ci_violations = await evaluate_privacy_ci(conv_transcript, judge_client, judge_model)
+    conversation_privacy_ci = [f.model_dump() for f in conv_ci_violations]
+
     # 4. Validate with Pydantic
     valid, errors = validate_with_pydantic(form_dict, form_task.form_class)
 
@@ -168,13 +197,24 @@ async def evaluate_interactive_task(
         exec_result.user_qa_history,
         form_task.due_diligence_fields,
         form_task.ground_truth,
+        form_task.findability,
+        form_dict,
         judge_client,
         judge_model,
     )
 
     # 6. Duty of care evaluation
+    open_ended_fields = [
+        (gt.field_id, gt.field_label) for gt in form_task.ground_truth if gt.is_open_ended
+    ]
     duty_of_care_eval = await evaluate_duty_of_care(
-        form_dict, form_task.negative_info, judge_client, judge_model
+        form_dict,
+        open_ended_fields,
+        judge_client,
+        judge_model,
+        form_title=form_task.form_title,
+        form_purpose=form_task.form_purpose,
+        form_recipient=form_task.form_recipient,
     )
 
     return InteractiveTaskEvaluationResult(
@@ -183,6 +223,8 @@ async def evaluate_interactive_task(
         correctness=correctness_eval,
         form_privacy=form_privacy_eval,
         conversation_privacy=conversation_privacy_eval,
+        form_privacy_ci=form_privacy_ci,
+        conversation_privacy_ci=conversation_privacy_ci,
         due_diligence=due_diligence_eval,
         duty_of_care=duty_of_care_eval,
         pydantic_validation_passed=valid,

@@ -18,7 +18,7 @@ class Tenancydetails(BaseModel):
     property_address: str = Field(
         ...,
         description=(
-            "Street address of the rental property you are applying for .If you cannot fill "
+            "Full address of the rental property you are applying for .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -35,28 +35,28 @@ class Tenancydetails(BaseModel):
     )
 
     date: str = Field(
-        ..., description="Calendar date the tenancy is intended to commence"
+        ..., description="Calendar date the tenancy is to commence"
     )  # YYYY-MM-DD format
 
 
 class Applicantdetails(BaseModel):
-    """Personal and contact details of the applicant"""
+    """Personal and contact information about the applicant"""
 
     full_name: str = Field(
         ...,
         description=(
-            'Applicant’s full legal name .If you cannot fill this, write "N/A". If this '
+            'Applicant\'s full legal name .If you cannot fill this, write "N/A". If this '
             "field should not be filled by you (for example, it belongs to another person "
             'or office), leave it blank (empty string "").'
         ),
     )
 
-    date_of_birth: str = Field(..., description="Applicant’s date of birth")  # YYYY-MM-DD format
+    date_of_birth: str = Field(..., description="Applicant's date of birth")  # YYYY-MM-DD format
 
     phone_number: str = Field(
         ...,
         description=(
-            'Applicant’s primary phone number .If you cannot fill this, write "N/A". If '
+            'Applicant\'s primary phone number .If you cannot fill this, write "N/A". If '
             "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
@@ -65,7 +65,7 @@ class Applicantdetails(BaseModel):
     mobile_phone: str = Field(
         default="",
         description=(
-            'Applicant’s mobile phone number .If you cannot fill this, write "N/A". If '
+            'Applicant\'s mobile phone number .If you cannot fill this, write "N/A". If '
             "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
@@ -74,7 +74,7 @@ class Applicantdetails(BaseModel):
     email: str = Field(
         ...,
         description=(
-            'Applicant’s email address .If you cannot fill this, write "N/A". If this '
+            'Applicant\'s email address .If you cannot fill this, write "N/A". If this '
             "field should not be filled by you (for example, it belongs to another person "
             'or office), leave it blank (empty string "").'
         ),
@@ -83,26 +83,27 @@ class Applicantdetails(BaseModel):
     current_address: str = Field(
         ...,
         description=(
-            "Applicant’s current residential address .If you cannot fill this, write "
+            "Applicant's current residential address .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
     how_long_have_you_lived_there_years: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Number of full years you have lived at your current address"
+        ..., description="Number of years the applicant has lived at the current address"
     )
 
     how_long_have_you_lived_there_months: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Additional number of months you have lived at your current address"
+        ...,
+        description="Additional number of months the applicant has lived at the current address",
     )
 
     please_state_why_you_are_leaving_this_address: str = Field(
-        ...,
+        default="",
         description=(
-            "Reason you are moving from your current address .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Reason for leaving the current address .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -113,10 +114,10 @@ class Identification(BaseModel):
     drivers_licence_number: str = Field(
         default="",
         description=(
-            "Number from your driver’s licence (optional, used for identity and credit "
-            'check) .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
+            "Number from your driver’s licence for identification and credit check .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
@@ -133,21 +134,21 @@ class Identification(BaseModel):
     alternative_form_of_id: str = Field(
         default="",
         description=(
-            "Details of another form of photo identification (e.g. passport, 18+ card) .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Details of another form of photo identification (e.g. passport) .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
 
 class Currentlandlordsdetails(BaseModel):
-    """Contact and reference permission for current landlord"""
+    """Contact details for the applicant’s current landlord and reference permission"""
 
     landlords_name: str = Field(
         default="",
         description=(
-            'Name of your current landlord .If you cannot fill this, write "N/A". If this '
+            'Current landlord\'s full name .If you cannot fill this, write "N/A". If this '
             "field should not be filled by you (for example, it belongs to another person "
             'or office), leave it blank (empty string "").'
         ),
@@ -156,16 +157,16 @@ class Currentlandlordsdetails(BaseModel):
     phone_number_current_landlord: str = Field(
         default="",
         description=(
-            "Current landlord’s primary phone number .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Current landlord\'s phone number .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     mobile_phone_current_landlord: str = Field(
         default="",
         description=(
-            "Current landlord’s mobile phone number .If you cannot fill this, write "
+            "Current landlord's mobile phone number .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -174,22 +175,18 @@ class Currentlandlordsdetails(BaseModel):
     email_current_landlord: str = Field(
         default="",
         description=(
-            'Current landlord’s email address .If you cannot fill this, write "N/A". If '
+            'Current landlord\'s email address .If you cannot fill this, write "N/A". If '
             "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
-    yes_may_i_contact_this_person_for_a_reference: BooleanLike = Field(
-        default="",
-        description="Select if you give permission to contact your current landlord for a reference",
+    may_i_contact_this_person_for_a_reference_yes: BooleanLike = Field(
+        default="", description="Tick to allow the landlord to be contacted for a reference"
     )
 
-    no_may_i_contact_this_person_for_a_reference: BooleanLike = Field(
-        default="",
-        description=(
-            "Select if you do not give permission to contact your current landlord for a reference"
-        ),
+    may_i_contact_this_person_for_a_reference_no: BooleanLike = Field(
+        default="", description="Tick to decline permission to contact the landlord for a reference"
     )
 
 
@@ -204,5 +201,5 @@ class PretenancyApplicationForm(BaseModel):
     applicant_details: Applicantdetails = Field(..., description="Applicant details")
     identification: Identification = Field(..., description="Identification")
     current_landlords_details: Currentlandlordsdetails = Field(
-        ..., description="Current landlord’s details"
+        ..., description="Current landlord/s details"
     )

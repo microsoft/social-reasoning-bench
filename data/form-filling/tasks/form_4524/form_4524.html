@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SEI — Application for Acceptance as an SEI Biobased Testing Laboratory</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    :root{
+      --ink:#1b2b34;
+      --muted:#5b6b75;
+      --line:#2a3b46;
+      --bar:#4a4a4a;
+      --paper:#ffffff;
+      --bg:#d6d2cd;
+      --focus:#f5f5ee;
+      --accent:#0b4c7a;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 2px 18px rgba(0,0,0,.12);
+      padding:26px 34px 22px;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:18px;
+      padding-bottom:10px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:flex-start;
+      gap:14px;
+      min-width:250px;
+    }
+
+    .logo{
+      width:64px;height:48px;
+      border:2px solid #0f4a73;
+      border-radius:10px;
+      position:relative;
+      background:linear-gradient(135deg,#0f4a73 0%, #0a3f64 100%);
+      flex:0 0 auto;
+    }
+    .logo:before{
+      content:"SEI";
+      position:absolute;
+      left:10px; top:9px;
+      color:#fff;
+      font-weight:800;
+      letter-spacing:1px;
+      font-size:20px;
+    }
+    .brand small{
+      display:block;
+      color:var(--muted);
+      font-size:11px;
+      margin-top:2px;
+    }
+    .brand .aff{
+      font-weight:700;
+      color:#2d4d5d;
+      font-size:13px;
+      line-height:1.1;
+      margin-top:2px;
+    }
+
+    h1{
+      font-size:22px;
+      margin:10px 0 8px;
+      font-weight:700;
+      color:#1d3e54;
+      line-height:1.2;
+      max-width:620px;
+    }
+
+    .intro{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.45;
+      margin-bottom:10px;
+    }
+    .bullets{
+      margin:8px 0 16px 0;
+      padding-left:18px;
+      font-size:12px;
+      color:#314652;
+      line-height:1.5;
+    }
+    .bullets li{margin:3px 0}
+
+    .section-title{
+      margin:18px 0 8px;
+      font-size:16px;
+      font-weight:700;
+      color:#1d3e54;
+    }
+
+    .note{
+      font-size:11px;
+      color:var(--muted);
+      line-height:1.35;
+      margin:6px 0 10px;
+    }
+    .note b{color:#2a3b46}
+
+    .form-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:18px 34px;
+      padding:4px 0 10px;
+    }
+
+    .field-row{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      border-bottom:1px solid #2a3b46;
+      padding:9px 0 3px;
+      min-height:38px;
+    }
+    .field-row label{
+      font-size:12px;
+      color:#344b57;
+      white-space:nowrap;
+      flex:0 0 auto;
+    }
+    input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="number"]{
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      font-size:12.5px;
+      padding:0 0 1px 6px;
+      width:100%;
+      min-width:120px;
+      color:#15232b;
+    }
+    input::placeholder{color:#a3adb4}
+    input:focus{
+      background:var(--focus);
+      border-radius:2px;
+    }
+
+    .subsection{
+      margin-top:12px;
+      border-top:1px solid rgba(42,59,70,.25);
+      padding-top:12px;
+    }
+    .subheader{
+      font-size:13px;
+      color:var(--accent);
+      font-weight:700;
+      margin:0 0 8px;
+    }
+
+    .wide{
+      grid-column:1 / -1;
+    }
+
+    .single-col{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+    }
+
+    .prompt{
+      font-size:11px;
+      color:var(--muted);
+      margin:0 0 2px;
+    }
+
+    .footer{
+      margin-top:18px;
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding-top:10px;
+      border-top:1px solid rgba(42,59,70,.25);
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:600;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #8a949b;
+      background:#fff;
+      color:#263b46;
+    }
+    .btn:hover{filter:brightness(0.98)}
+    .btn-primary{
+      border:1px solid #2b3a44;
+      background:#3f4b52;
+      color:#fff;
+    }
+
+    /* Keep layout similar on small screens */
+    @media (max-width: 720px){
+      .page{padding:20px 16px}
+      .form-grid{grid-template-columns:1fr; gap:14px}
+      .topbar{flex-direction:column; align-items:flex-start}
+      h1{font-size:20px}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <div class="aff">An Affiliate of<br/>ASTM INTERNATIONAL</div>
+          <small>SEI Biobased Certification Program</small>
+        </div>
+      </div>
+      <div style="text-align:right; color:#7b8790; font-size:11px; padding-top:6px;">
+        Form
+      </div>
+    </div>
+
+    <h1>Application for Acceptance as an&nbsp; SEI Biobased<br/>Testing Laboratory</h1>
+
+    <div class="intro">
+      SEI has been awarded a contract by the U.S. Department of Agriculture (“USDA”) to provide certification services supporting the USDA’s development and administration of the BioPreferred Product Certification and Labeling Program (“the Program”).
+    </div>
+
+    <div class="intro" style="margin-top:6px;">
+      To be registered by SEI as an accepted biobased testing laboratory, a laboratory shall meet the following requirements:
+    </div>
+    <ul class="bullets">
+      <li>Be accredited to ISO 17025 General Requirements for the Competence of Calibration and Testing Laboratory</li>
+      <li>Demonstrated capability to perform testing according to ASTM D6866, Standard Test Method for Determining the Biobased Content of Solid, Liquid, and Gaseous Radiocarbon Analysis</li>
+      <li>Willingness to comply with the SEI Practice for Documentation and Reporting of Laboratory Results for Biobased Products in accord with ASTM Test Method D6866 (Annex to the Laboratory Testing Agreement for Biobased Products)</li>
+      <li>Execution of the SEI Laboratory Testing Agreement</li>
+      <li>Laboratory shall not have direct exposure to artificial carbon-14</li>
+    </ul>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="section-title">1. Information of Applicant’s Laboratory:</div>
+      <div class="note">
+        <b>NOTE</b><br/>
+        The following information will appear in the listing of SEI accepted testing laboratories on the SEI Biobased Certification Program web page and be used for communication purposes.
+      </div>
+
+      <div class="form-grid">
+        <div class="field-row">
+          <label for="laboratory_name">Laboratory Name</label>
+          <input type="text" id="laboratory_name" name="laboratory_name" />
+        </div>
+
+        <div class="field-row">
+          <label for="website">Website</label>
+          <input type="url" id="website" name="website" placeholder="https://"/>
+        </div>
+
+        <div class="field-row">
+          <label for="first_name">First Name</label>
+          <input type="text" id="first_name" name="first_name"/>
+        </div>
+
+        <div class="field-row">
+          <label for="last_name">Last Name</label>
+          <input type="text" id="last_name" name="last_name"/>
+        </div>
+
+        <div class="field-row">
+          <label for="address">Address</label>
+          <input type="text" id="address" name="address"/>
+        </div>
+
+        <div class="field-row">
+          <label for="address_second_line">Address</label>
+          <input type="text" id="address_second_line" name="address_second_line" placeholder="Suite / Building (optional)"/>
+        </div>
+
+        <div class="field-row">
+          <label for="city">City</label>
+          <input type="text" id="city" name="city"/>
+        </div>
+
+        <div class="field-row">
+          <label for="state_province">State/Province</label>
+          <input type="text" id="state_province" name="state_province"/>
+        </div>
+
+        <div class="field-row">
+          <label for="country">Country</label>
+          <input type="text" id="country" name="country"/>
+        </div>
+
+        <div class="field-row">
+          <label for="postal_code">Postal code</label>
+          <input type="text" id="postal_code" name="postal_code"/>
+        </div>
+
+        <div class="field-row">
+          <label for="tel_please_do_not_include_country_code_or_1">Tel (please do not include country code or "1")</label>
+          <input type="tel" id="tel_please_do_not_include_country_code_or_1" name="tel_please_do_not_include_country_code_or_1" placeholder="(###) ###-####"/>
+        </div>
+
+        <div class="field-row">
+          <label for="e_mail">E-mail</label>
+          <input type="email" id="e_mail" name="e_mail" placeholder="name@domain.com"/>
+        </div>
+      </div>
+
+      <div class="section-title">2. Organization and Human Resources of the Testing Laboratory</div>
+
+      <div class="subsection">
+        <div class="subheader">2.1&nbsp;&nbsp;&nbsp;Organization</div>
+
+        <div class="single-col">
+          <div>
+            <div class="prompt">2.1.1 &nbsp; Legal status of the testing laboratory—is the laboratory a corporation, partnership, or a division, subsidiary, or part of a larger corporate entity:</div>
+            <div class="field-row">
+              <label for="legal_status_of_the_testing_laboratory" style="min-width:160px;">Legal status</label>
+              <input type="text" id="legal_status_of_the_testing_laboratory" name="legal_status_of_the_testing_laboratory"/>
+            </div>
+          </div>
+
+          <div>
+            <div class="prompt">2.1.2 &nbsp; Number of persons employed in the testing laboratory:</div>
+            <div class="field-row">
+              <label for="number_of_persons_employed_in_the_testing_laboratory" style="min-width:250px;">Number of persons employed</label>
+              <input type="number" step="any" id="number_of_persons_employed_in_the_testing_laboratory" name="number_of_persons_employed_in_the_testing_laboratory" placeholder='e.g., 25 or N/A'/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function v(id){
+        const el = document.getElementById(id);
+        return (el && typeof el.value !== 'undefined') ? (el.value ?? '') : '';
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          information_of_applicants_laboratory: {
+            laboratory_name: v('laboratory_name'),
+            website: v('website'),
+            first_name: v('first_name'),
+            last_name: v('last_name'),
+            address: v('address'),
+            address_second_line: v('address_second_line'),
+            city: v('city'),
+            state_province: v('state_province'),
+            country: v('country'),
+            postal_code: v('postal_code'),
+            tel_please_do_not_include_country_code_or_1: v('tel_please_do_not_include_country_code_or_1'),
+            e_mail: v('e_mail')
+          },
+          organization_and_human_resources_of_the_testing_laboratory: {
+            legal_status_of_the_testing_laboratory: v('legal_status_of_the_testing_laboratory'),
+            number_of_persons_employed_in_the_testing_laboratory: (v('number_of_persons_employed_in_the_testing_laboratory') || '')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

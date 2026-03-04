@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Application for Excess Credit — Eberly College of Business and Information Technology</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    :root{
+      --ink:#111;
+      --muted:#444;
+      --rule:#2a2a2a;
+      --paper:#fff;
+      --bg:#d6d2cd;
+      --bar:#4a4a4a;
+      --focus:#f5f5ee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+      font-size:13px;
+      line-height:1.25;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:22px 28px 20px;
+    }
+
+    .title{
+      text-align:center;
+      margin:6px 0 10px;
+    }
+    .title .t1{
+      font-weight:800;
+      letter-spacing:.3px;
+      font-size:16px;
+      text-transform:uppercase;
+    }
+    .title .t2{
+      font-weight:700;
+      font-size:14px;
+      margin-top:2px;
+    }
+
+    .section-bar{
+      background:var(--bar);
+      color:#fff;
+      font-weight:800;
+      letter-spacing:1.6px;
+      text-transform:uppercase;
+      font-size:11px;
+      padding:6px 10px;
+      margin:14px 0 0;
+    }
+
+    .block{
+      border:1.5px solid var(--rule);
+      margin:10px 0 12px;
+    }
+    .grid{
+      display:grid;
+    }
+    .cell{
+      border-right:1px solid var(--rule);
+      border-bottom:1px solid var(--rule);
+      min-height:36px;
+      position:relative;
+      padding:4px 6px 2px;
+    }
+    .cell:last-child{border-right:none}
+    .row-last .cell{border-bottom:none}
+
+    .lab{
+      font-size:11px;
+      color:var(--ink);
+      margin:0 0 2px;
+    }
+    .in{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:2px 2px 2px 2px;
+    }
+    .in:focus{background:var(--focus)}
+    .hint{
+      font-size:11px;
+      color:var(--muted);
+      margin:6px 2px 0;
+    }
+
+    .mini-note{
+      font-size:11px;
+      margin:6px 0 8px;
+      color:#222;
+    }
+
+    .requirements{
+      width:72%;
+      margin:10px auto 10px;
+      border:1.5px solid var(--rule);
+      font-size:12px;
+    }
+    .requirements .hdr{
+      text-align:center;
+      padding:6px 8px;
+      border-bottom:1px solid var(--rule);
+      font-weight:700;
+    }
+    .requirements table{
+      width:100%;
+      border-collapse:collapse;
+    }
+    .requirements td{
+      border-right:1px solid var(--rule);
+      border-bottom:1px solid var(--rule);
+      padding:4px 6px;
+      vertical-align:top;
+    }
+    .requirements tr:last-child td{border-bottom:none}
+    .requirements td:last-child{border-right:none}
+    .requirements .em{font-style:italic}
+
+    .para{
+      margin:8px 2px 10px;
+      font-size:12px;
+      color:#111;
+    }
+
+    .textarea-box{
+      border:1.5px solid var(--rule);
+      height:170px;
+      padding:8px;
+      margin:8px 0 14px;
+      position:relative;
+    }
+    .textarea-box .lbl-top{
+      position:absolute;
+      top:6px;
+      left:8px;
+      font-size:12px;
+      font-weight:600;
+      background:transparent;
+    }
+    textarea{
+      width:100%;
+      height:100%;
+      border:none;
+      outline:none;
+      resize:none;
+      background:transparent;
+      font:inherit;
+      padding:20px 4px 4px;
+      line-height:1.25;
+    }
+    textarea:focus{background:var(--focus)}
+
+    .courses-box{
+      border:1.5px solid var(--rule);
+      margin:10px 0 10px;
+    }
+    .courses-head{
+      display:flex;
+      align-items:flex-end;
+      gap:8px;
+      padding:6px 8px 4px;
+      border-bottom:1px solid var(--rule);
+      font-size:12px;
+    }
+    .courses-head .fill{
+      display:inline-flex;
+      align-items:flex-end;
+      gap:6px;
+      margin-left:auto;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .inline{
+      display:inline-block;
+      min-width:90px;
+      border-bottom:1px solid #000;
+      padding:0 2px 2px;
+    }
+    .inline input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:0 2px 1px;
+    }
+    .inline input:focus{background:var(--focus)}
+
+    table.course-table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:12px;
+    }
+    .course-table th,.course-table td{
+      border-right:1px solid var(--rule);
+      border-bottom:1px solid var(--rule);
+      padding:0;
+      vertical-align:middle;
+    }
+    .course-table tr:last-child td{border-bottom:none}
+    .course-table th:last-child,.course-table td:last-child{border-right:none}
+    .course-table th{
+      padding:6px 6px;
+      font-weight:700;
+      text-align:center;
+      background:#fff;
+    }
+    .course-table td{
+      height:26px;
+      padding:0 4px;
+    }
+    .course-table input{
+      width:100%;
+      height:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:4px 4px;
+    }
+    .course-table input:focus{background:var(--focus)}
+
+    .total-row{
+      margin:10px 0 6px;
+      display:flex;
+      justify-content:flex-end;
+      align-items:flex-end;
+      gap:8px;
+      font-size:12px;
+    }
+    .total-row .line{
+      width:120px;
+      border-bottom:1px solid #000;
+      padding:0 2px 2px;
+    }
+    .total-row .line input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:0 2px 1px;
+      text-align:left;
+    }
+    .total-row .line input:focus{background:var(--focus)}
+
+    .approvals{
+      margin-top:10px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+    }
+    .approval-row{
+      display:grid;
+      grid-template-columns: 1.2fr 140px 1fr 1fr;
+      gap:10px;
+      align-items:end;
+      font-size:12px;
+    }
+    .sigline, .dateline{
+      border-bottom:1px solid #000;
+      padding:0 2px 2px;
+    }
+    .sigline input, .dateline input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:0 2px 1px;
+    }
+    .sigline input:focus, .dateline input:focus{background:var(--focus)}
+    .checks{
+      display:flex;
+      gap:14px;
+      justify-content:flex-start;
+      align-items:center;
+      white-space:nowrap;
+    }
+    .checks label{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+    }
+    input[type="checkbox"]{
+      width:14px;height:14px;
+      accent-color:#333;
+    }
+
+    .bottom{
+      margin-top:10px;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:10px;
+    }
+    .footer-path{
+      font-size:11px;
+      color:#222;
+    }
+    .office-box{
+      border:1.5px solid var(--rule);
+      width:230px;
+      font-size:12px;
+    }
+    .office-box table{
+      width:100%;
+      border-collapse:collapse;
+    }
+    .office-box td{
+      border-right:1px solid var(--rule);
+      border-bottom:1px solid var(--rule);
+      padding:6px 8px;
+    }
+    .office-box tr:last-child td{border-bottom:none}
+    .office-box td:last-child{border-right:none}
+    .office-box .smallcell{
+      width:46%;
+    }
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:14px;
+      padding-top:10px;
+      border-top:1px solid #ddd;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+    }
+    .btn-clear{
+      background:#fff;
+      color:#333;
+      border:1px solid #888;
+    }
+    .btn-submit{
+      background:#444;
+      color:#fff;
+      border:1px solid #333;
+    }
+
+    /* top info grid sizes */
+    .student-grid{
+      grid-template-columns: 2fr 1fr;
+    }
+    .student-grid .cell{min-height:44px}
+
+    .contact-grid{
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .standing-grid{
+      grid-template-columns: 1fr 1fr 1fr 1.7fr;
+    }
+    .percent{
+      position:absolute;
+      right:8px;
+      bottom:6px;
+      font-weight:700;
+    }
+
+    @media (max-width:720px){
+      .approval-row{grid-template-columns:1fr; gap:6px}
+      .requirements{width:100%}
+      .bottom{flex-direction:column; align-items:flex-start}
+      .office-box{width:100%}
+      .courses-head{flex-direction:column; align-items:flex-start}
+      .courses-head .fill{margin-left:0}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="title">
+      <div class="t1">APPLICATION FOR EXCESS CREDIT</div>
+      <div class="t2">Eberly College of Business and Information Technology</div>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="section-bar">Student Information</div>
+
+      <!-- Name / Banner ID -->
+      <div class="block">
+        <div class="grid student-grid">
+          <div class="cell">
+            <div class="lab">Name</div>
+            <input class="in" type="text" id="name" name="name" />
+          </div>
+          <div class="cell" style="border-right:none;">
+            <div class="lab">Banner ID</div>
+            <input class="in" type="text" id="banner_id" name="banner_id" />
+          </div>
+          <div class="cell row-last" style="grid-column:1 / -1; border-right:none; border-bottom:none; padding:0;">
+            <div class="grid contact-grid" style="border-top:1px solid var(--rule);">
+              <div class="cell" style="border-top:none;">
+                <div class="lab">Cell Phone</div>
+                <input class="in" type="tel" id="cell_phone" name="cell_phone" />
+              </div>
+              <div class="cell" style="border-top:none;">
+                <div class="lab">IUP Email</div>
+                <input class="in" type="email" id="iup_email" name="iup_email" />
+              </div>
+              <div class="cell" style="border-top:none; border-right:none;">
+                <div class="lab">Major</div>
+                <input class="in" type="text" id="major" name="major" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-bar">Academic Standing</div>
+
+      <!-- CGPA / credits attempted / earned / completion rate -->
+      <div class="block">
+        <div class="grid standing-grid">
+          <div class="cell">
+            <div class="lab">CGPA*</div>
+            <input class="in" type="text" inputmode="decimal" id="cgpa" name="cgpa" />
+          </div>
+          <div class="cell">
+            <div class="lab">IUP Credits Attempted*</div>
+            <input class="in" type="text" inputmode="decimal" id="iup_credits_attempted" name="iup_credits_attempted" />
+          </div>
+          <div class="cell">
+            <div class="lab">IUP Credits Earned*</div>
+            <input class="in" type="text" inputmode="decimal" id="iup_credits_earned" name="iup_credits_earned" />
+          </div>
+          <div class="cell" style="border-right:none;">
+            <div class="lab">IUP Credit Completion Rate (credits attempted/credits earned)</div>
+            <input class="in" type="text" inputmode="decimal" id="iup_credit_completion_rate_credits_attempted_credits_earned" name="iup_credit_completion_rate_credits_attempted_credits_earned" />
+            <span class="percent">%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mini-note">
+        *Information available at MyIUP&gt;&gt;Academics&gt;&gt;View Academic Record&gt;&gt;Transcript: Unofficial
+      </div>
+
+      <div class="requirements" aria-label="Excess credit approval requirements">
+        <div class="hdr">Excess credit approval requirements for fall or spring semester:</div>
+        <table>
+          <tr>
+            <td style="width:26%;">18 or 19 credits =</td>
+            <td style="width:38%;">Minimum 2.50 CGPA <span class="em">and…</span></td>
+            <td>…Review and signature approval of advisor, department chairperson and assistant dean</td>
+          </tr>
+          <tr>
+            <td>20 or 21 credits =</td>
+            <td>Minimum 3.25 CGPA <span class="em">and…</span></td>
+            <td> </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="para">
+        Excess credit approval with an unmet CGPA requirement for the fall or spring semesters will be granted only in consideration of immediate degree completion.
+        Any excess credit approval for the winter term will be granted only in consideration of immediate degree completion.
+      </div>
+
+      <div class="section-bar">Request Details</div>
+
+      <div class="textarea-box">
+        <div class="lbl-top">Justification for the request:</div>
+        <textarea id="justification_for_the_request" name="justification_for_the_request"></textarea>
+      </div>
+
+      <div class="courses-box">
+        <div class="courses-head">
+          <div><strong>List all classes you are planning to take for the</strong></div>
+          <div class="fill">
+            <div class="inline" title="Semester">
+              <input type="text" id="semester" name="semester" aria-label="Semester" />
+            </div>
+            <div><strong>Semester 20</strong></div>
+            <div class="inline" style="min-width:60px" title="Year last two digits">
+              <input type="text" id="year_20" name="year_20" inputmode="numeric" aria-label="Year (last two digits)" />
+            </div>
+          </div>
+        </div>
+
+        <table class="course-table" aria-label="Courses table">
+          <colgroup>
+            <col style="width:9%">
+            <col style="width:10%">
+            <col style="width:73%">
+            <col style="width:8%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Course<br/>Dept</th>
+              <th>Course<br/>Number</th>
+              <th>Course Name</th>
+              <th>Credits</th>
+            </tr>
+          </thead>
+          <tbody id="courseTableBody">
+            <!-- 8 rows like the paper form -->
+            <tr>
+              <td><input type="text" id="course_dept_0" name="course_dept_0" aria-label="Course Dept row 1"></td>
+              <td><input type="text" id="course_number_0" name="course_number_0" aria-label="Course Number row 1"></td>
+              <td><input type="text" id="course_name_0" name="course_name_0" aria-label="Course Name row 1"></td>
+              <td><input type="text" id="credits_0" name="credits_0" inputmode="decimal" aria-label="Credits row 1"></td>
+            </tr>
+            <tr>
+              <td><input type="text" id="course_dept_1" name="course_dept_1" aria-label="Course Dept row 2"></td>
+              <td><input type="text" id="course_number_1" name="course_number_1" aria-label="Course Number row 2"></td>
+              <td><input type="text" id="course_name_1" name="course_name_1" aria-label="Course Name row 2"></td>
+              <td><input type="text" id="credits_1" name="credits_1" inputmode="decimal" aria-label="Credits row 2"></td>
+            </tr>
+            <tr>
+              <td><input type="text" id="course_dept_2" name="course_dept_2" aria-label="Course Dept row 3"></td>
+              <td><input type="text" id="course_number_2" name="course_number_2" aria-label="Course Number row 3"></td>
+              <td><input type="text" id="course_name_2" name="course_name_2" aria-label="Course Name row 3"></td>
+              <td><input type="text" id="credits_2" name="credits_2" inputmode="decimal" aria-label="Credits row 3"></td>
+            </tr>
+            <tr>
+              <td><input type="text" id="course_dept_3" name="course_dept_3" aria-label="Course Dept row 4"></td>
+              <td><input type="text" id="course_number_3" name="course_number_3" aria-label="Course Number row 4"></td>
+              <td><input type="text" id="course_name_3" name="course_name_3" aria-label="Course Name row 4"></td>
+              <td><input type="text" id="credits_3" name="credits_3" inputmode="decimal" aria-label="Credits row 4"></td>
+            </tr>
+            <tr>
+              <td><input type="text" id="course_dept_4" name="course_dept_4" aria-label="Course Dept row 5"></td>
+              <td><input type="text" id="course_number_4" name="course_number_4" aria-label="Course Number row 5"></td>
+              <td><input type="text" id="course_name_4" name="course_name_4" aria-label="Course Name row 5"></td>
+              <td><input type="text" id="credits_4" name="credits_4" inputmode="decimal" aria-label="Credits row 5"></td>
+            </tr>
+            <tr>
+              <td><input type="text" id="course_dept_5" name="course_dept_5" aria-label="Course Dept row 6"></td>
+              <td><input type="text" id="course_number_5" name="course_number_5" aria-label="Course Number row 6"></td>
+              <td><input type="text" id="course_name_5" name="course_name_5" aria-label="Course Name row 6"></td>
+              <td><input type="text" id="credits_5" name="credits_5" inputmode="decimal" aria-label="Credits row 6"></td>
+            </tr>
+            <tr>
+              <td><input type="text" id="course_dept_6" name="course_dept_6" aria-label="Course Dept row 7"></td>
+              <td><input type="text" id="course_number_6" name="course_number_6" aria-label="Course Number row 7"></td>
+              <td><input type="text" id="course_name_6" name="course_name_6" aria-label="Course Name row 7"></td>
+              <td><input type="text" id="credits_6" name="credits_6" inputmode="decimal" aria-label="Credits row 7"></td>
+            </tr>
+            <tr>
+              <td><input type="text" id="course_dept_7" name="course_dept_7" aria-label="Course Dept row 8"></td>
+              <td><input type="text" id="course_number_7" name="course_number_7" aria-label="Course Number row 8"></td>
+              <td><input type="text" id="course_name_7" name="course_name_7" aria-label="Course Name row 8"></td>
+              <td><input type="text" id="credits_7" name="credits_7" inputmode="decimal" aria-label="Credits row 8"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="total-row">
+        <div>Total number of credits for which approval is requested:</div>
+        <div class="line">
+          <input type="text" id="total_number_of_credits_for_which_approval_is_requested" name="total_number_of_credits_for_which_approval_is_requested" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="section-bar">Approvals</div>
+
+      <div class="approvals">
+        <!-- Advisor -->
+        <div class="approval-row">
+          <div style="display:flex; align-items:end; gap:8px;">
+            <div style="min-width:110px;">Advisor Signature</div>
+            <div class="sigline" style="flex:1;">
+              <input type="text" id="advisor_signature" name="advisor_signature" aria-label="Advisor signature" />
+            </div>
+          </div>
+          <div style="display:flex; align-items:end; gap:8px;">
+            <div style="min-width:34px;">Date</div>
+            <div class="dateline" style="flex:1;">
+              <input type="date" id="advisor_signature_date" name="advisor_signature_date" aria-label="Advisor signature date" />
+            </div>
+          </div>
+          <div class="checks">
+            <label>
+              <input type="checkbox" id="advisor_approved" name="advisor_approved" />
+              approved
+            </label>
+          </div>
+          <div class="checks">
+            <label>
+              <input type="checkbox" id="advisor_denied" name="advisor_denied" />
+              denied
+            </label>
+          </div>
+        </div>
+
+        <!-- Chairperson -->
+        <div class="approval-row">
+          <div style="display:flex; align-items:end; gap:8px;">
+            <div style="min-width:110px;">Chairperson Signature</div>
+            <div class="sigline" style="flex:1;">
+              <input type="text" id="chairperson_signature" name="chairperson_signature" aria-label="Chairperson signature" />
+            </div>
+          </div>
+          <div style="display:flex; align-items:end; gap:8px;">
+            <div style="min-width:34px;">Date</div>
+            <div class="dateline" style="flex:1;">
+              <input type="date" id="chairperson_signature_date" name="chairperson_signature_date" aria-label="Chairperson signature date" />
+            </div>
+          </div>
+          <div class="checks">
+            <label>
+              <input type="checkbox" id="chairperson_approved" name="chairperson_approved" />
+              approved
+            </label>
+          </div>
+          <div class="checks">
+            <label>
+              <input type="checkbox" id="chairperson_denied" name="chairperson_denied" />
+              denied
+            </label>
+          </div>
+        </div>
+
+        <!-- Assistant Dean -->
+        <div class="approval-row">
+          <div style="display:flex; align-items:end; gap:8px;">
+            <div style="min-width:110px;">Assistant Dean Signature</div>
+            <div class="sigline" style="flex:1;">
+              <input type="text" id="assistant_dean_signature" name="assistant_dean_signature" aria-label="Assistant dean signature" />
+            </div>
+          </div>
+          <div style="display:flex; align-items:end; gap:8px;">
+            <div style="min-width:34px;">Date</div>
+            <div class="dateline" style="flex:1;">
+              <input type="date" id="assistant_dean_signature_date" name="assistant_dean_signature_date" aria-label="Assistant dean signature date" />
+            </div>
+          </div>
+          <div class="checks">
+            <label>
+              <input type="checkbox" id="assistant_dean_approved" name="assistant_dean_approved" />
+              approved
+            </label>
+          </div>
+          <div class="checks">
+            <label>
+              <input type="checkbox" id="assistant_dean_denied" name="assistant_dean_denied" />
+              denied
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom">
+        <div class="footer-path">O:\ADean\A Dean Office\Forms\Excess Credit Application rev Feb 2020.doc</div>
+
+        <div class="office-box" aria-label="Office use only">
+          <table>
+            <tr>
+              <td class="smallcell">Date:</td>
+              <td>Entered in Banner</td>
+            </tr>
+            <tr>
+              <td class="smallcell">Date:</td>
+              <td>Student Notified</td>
+            </tr>
+          </table>
+          <!-- Hidden-looking but actually functional inputs placed over "Date:" cells -->
+          <div style="display:grid; grid-template-columns: 46% 54%; position:relative; margin-top:-76px; pointer-events:none;">
+            <div style="padding:6px 8px; border-right:1px solid transparent; border-bottom:1px solid transparent; pointer-events:auto;">
+              <input type="date" id="date_entered_in_banner" name="date_entered_in_banner" style="width:100%; border:none; outline:none; background:transparent; font:inherit; padding:0 2px;" aria-label="Date entered in Banner"/>
+            </div>
+            <div></div>
+            <div style="padding:6px 8px; border-right:1px solid transparent; pointer-events:auto;">
+              <input type="date" id="date_student_notified" name="date_student_notified" style="width:100%; border:none; outline:none; background:transparent; font:inherit; padding:0 2px;" aria-label="Date student notified"/>
+            </div>
+            <div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button type="reset" class="btn btn-clear">Clear Form</button>
+        <button type="submit" class="btn btn-submit">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function cbString(id){
+        const el = document.getElementById(id);
+        return el && el.checked ? "true" : "false";
+      }
+      function val(id){
+        const el = document.getElementById(id);
+        return el ? (el.value ?? "") : "";
+      }
+
+      function rowFilled(i){
+        return (val(`course_dept_${i}`).trim() ||
+                val(`course_number_${i}`).trim() ||
+                val(`course_name_${i}`).trim() ||
+                val(`credits_${i}`).trim());
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const course_table = [];
+        for(let i=0;i<8;i++){
+          if(rowFilled(i)){
+            course_table.push({
+              course_dept: val(`course_dept_${i}`),
+              course_number: val(`course_number_${i}`),
+              course_name: val(`course_name_${i}`),
+              credits: val(`credits_${i}`)
+            });
+          }
+        }
+
+        const data = {
+          student_information: {
+            name: val('name'),
+            banner_id: val('banner_id'),
+            cell_phone: val('cell_phone'),
+            iup_email: val('iup_email'),
+            major: val('major')
+          },
+          academic_standing: {
+            cgpa: val('cgpa'),
+            iup_credits_attempted: val('iup_credits_attempted'),
+            iup_credits_earned: val('iup_credits_earned'),
+            iup_credit_completion_rate_credits_attempted_credits_earned: val('iup_credit_completion_rate_credits_attempted_credits_earned')
+          },
+          request_details: {
+            justification_for_the_request: val('justification_for_the_request'),
+            semester: val('semester'),
+            year_20: val('year_20'),
+            course_table: course_table,
+            total_number_of_credits_for_which_approval_is_requested: val('total_number_of_credits_for_which_approval_is_requested')
+          },
+          approvals: {
+            advisor_signature: val('advisor_signature'),
+            advisor_signature_date: val('advisor_signature_date'),
+            advisor_approved: cbString('advisor_approved'),
+            advisor_denied: cbString('advisor_denied'),
+
+            chairperson_signature: val('chairperson_signature'),
+            chairperson_signature_date: val('chairperson_signature_date'),
+            chairperson_approved: cbString('chairperson_approved'),
+            chairperson_denied: cbString('chairperson_denied'),
+
+            assistant_dean_signature: val('assistant_dean_signature'),
+            assistant_dean_signature_date: val('assistant_dean_signature_date'),
+            assistant_dean_approved: cbString('assistant_dean_approved'),
+            assistant_dean_denied: cbString('assistant_dean_denied'),
+
+            date_entered_in_banner: val('date_entered_in_banner'),
+            date_student_notified: val('date_student_notified')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

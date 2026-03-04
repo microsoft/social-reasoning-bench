@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rebuild Letter Request</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:#d6d2cd;
+      color:#111;
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:#fff;
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:26px 34px 18px;
+    }
+
+    .top-title{
+      text-align:center;
+      font-weight:700;
+      letter-spacing:.6px;
+      font-size:18px;
+      margin:0 0 14px;
+    }
+
+    .section-bar{
+      margin:10px 0 8px;
+      padding:6px 10px;
+      background:#4b4b4b;
+      color:#fff;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:1.6px;
+      font-size:12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .section-bar .right{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:700;
+      letter-spacing:1.2px;
+    }
+
+    .fine-line{
+      border-top:2px solid #1b1b1b;
+      margin:8px 0 0;
+    }
+
+    .form-body{
+      padding:0 2px;
+    }
+
+    .row{
+      display:flex;
+      gap:18px;
+      align-items:flex-end;
+      margin:8px 0;
+      flex-wrap:wrap;
+    }
+
+    .field{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      min-width:240px;
+      flex:1;
+    }
+    .field.small{min-width:160px; flex:0 0 200px;}
+    .field.tiny{min-width:120px; flex:0 0 140px;}
+    .label{
+      font-weight:700;
+      font-size:12px;
+      text-transform:uppercase;
+      white-space:nowrap;
+    }
+
+    .line-input{
+      flex:1;
+      border:none;
+      border-bottom:1.6px solid #1b1b1b;
+      outline:none;
+      background:transparent;
+      padding:2px 6px 3px;
+      font-size:13px;
+      min-height:22px;
+    }
+    .line-input:focus{
+      background:#f5f5ee;
+    }
+
+    .subnote{
+      font-size:11px;
+      color:#222;
+      margin-top:2px;
+      line-height:1.25;
+    }
+
+    .grid-address{
+      display:grid;
+      grid-template-columns: 1.4fr 1fr .5fr .6fr;
+      gap:14px;
+      margin:6px 0 2px;
+    }
+    .grid-address .cell{min-width:0}
+    .grid-address .cap{
+      font-size:11px;
+      text-align:center;
+      color:#1a1a1a;
+      margin-top:2px;
+    }
+
+    .table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:8px;
+    }
+    .table th{
+      font-size:11px;
+      font-weight:600;
+      text-align:center;
+      padding:6px 4px;
+      border-bottom:1.6px solid #1b1b1b;
+    }
+    .table td{
+      padding:8px 6px 6px;
+      vertical-align:bottom;
+      border-bottom:1px solid #1b1b1b;
+    }
+    .idx{
+      width:26px;
+      text-align:center;
+      font-weight:700;
+      font-size:12px;
+    }
+
+    .hint{
+      font-size:11px;
+      color:#111;
+      margin:8px 0 10px;
+      line-height:1.35;
+    }
+    .hint em{font-style:italic}
+    .linkish{
+      color:#0b58a6;
+      text-decoration:underline;
+    }
+
+    .current-grid{
+      display:grid;
+      grid-template-columns: 210px 1fr;
+      gap:10px 16px;
+      align-items:end;
+      margin-top:6px;
+    }
+    .left-text{
+      font-size:12px;
+      line-height:1.2;
+    }
+
+    .checkbox-row{
+      display:flex;
+      align-items:center;
+      gap:18px;
+      flex-wrap:wrap;
+    }
+    .cb{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    input[type="checkbox"]{
+      width:14px;height:14px;
+      accent-color:#111;
+      transform:translateY(1px);
+    }
+
+    .inline-line{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      width:100%;
+    }
+
+    .wide-text{
+      width:100%;
+      border:none;
+      border-bottom:1.6px solid #1b1b1b;
+      outline:none;
+      background:transparent;
+      padding:2px 6px 3px;
+      font-size:13px;
+      min-height:24px;
+    }
+    .wide-text:focus{background:#f5f5ee;}
+
+    .footer-block{
+      margin-top:12px;
+      font-size:12px;
+      line-height:1.3;
+      text-align:center;
+    }
+    .footer-block strong{font-weight:700}
+    .checklist{
+      margin-top:12px;
+      font-size:12px;
+    }
+    .checklist-title{
+      font-weight:700;
+      text-transform:uppercase;
+      margin:0 0 6px;
+    }
+    ol{margin:6px 0 0 18px}
+    li{margin:4px 0}
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:14px 0 2px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:600;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #777;
+      background:#fff;
+      color:#222;
+    }
+    .btn.primary{
+      background:#3f3f3f;
+      border-color:#2b2b2b;
+      color:#fff;
+    }
+
+    /* Small helpers */
+    .muted{
+      color:#333;
+      font-size:11px;
+      font-style:italic;
+      margin:2px 0 0;
+    }
+    .right-date{
+      width:190px;
+      min-width:190px;
+    }
+
+    @media (max-width:700px){
+      .page{padding:18px 14px}
+      .grid-address{grid-template-columns:1fr 1fr}
+      .current-grid{grid-template-columns:1fr}
+      .field.small,.field.tiny{flex:1; min-width:180px}
+      .right-date{width:100%; min-width:0}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1 class="top-title">REBUILD LETTER REQUEST</h1>
+
+    <form id="mainForm" autocomplete="off">
+      <!-- APPLICANT INFORMATION -->
+      <div class="section-bar">
+        <div>APPLICANT INFORMATION</div>
+        <div class="right">
+          <div>DATE:</div>
+          <input class="line-input right-date" type="date" id="applicant_information_date" name="applicant_information_date" />
+        </div>
+      </div>
+
+      <div class="form-body">
+        <div class="row">
+          <div class="field">
+            <label class="label" for="applicant">APPLICANT:</label>
+            <input class="line-input" type="text" id="applicant" name="applicant" />
+          </div>
+          <div class="field">
+            <label class="label" for="org_business">ORG/BUSINESS:</label>
+            <input class="line-input" type="text" id="org_business" name="org_business" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label class="label" for="phone">PHONE:</label>
+            <input class="line-input" type="tel" id="phone" name="phone" />
+          </div>
+          <div class="field">
+            <label class="label" for="email">EMAIL:</label>
+            <input class="line-input" type="email" id="email" name="email" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <div class="field" style="flex:1; min-width:260px;">
+            <label class="label" for="address_full">ADDRESS:</label>
+            <input class="line-input" type="text" id="address_full" name="address_full" />
+          </div>
+        </div>
+
+        <div class="grid-address">
+          <div class="cell">
+            <input class="line-input" type="text" id="address_street" name="address_street" aria-label="Address" />
+            <div class="cap">Address</div>
+          </div>
+          <div class="cell">
+            <input class="line-input" type="text" id="address_city" name="address_city" aria-label="City" />
+            <div class="cap">City</div>
+          </div>
+          <div class="cell">
+            <input class="line-input" type="text" id="address_state" name="address_state" aria-label="State" />
+            <div class="cap">State</div>
+          </div>
+          <div class="cell">
+            <input class="line-input" type="text" id="address_zip" name="address_zip" aria-label="Zip" />
+            <div class="cap">Zip</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROPERTY INFORMATION -->
+      <div class="section-bar" style="margin-top:14px;">
+        <div>PROPERTY INFORMATION</div>
+        <div></div>
+      </div>
+
+      <div class="form-body">
+        <table class="table" aria-label="Property information for up to three parcels">
+          <thead>
+            <tr>
+              <th class="idx"></th>
+              <th>Parcel ID</th>
+              <th>Address</th>
+              <th>City</th>
+              <th>Zip</th>
+              <th>Township</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="idx">1</td>
+              <td><input class="line-input" type="text" id="parcel_1_parcel_id" name="parcel_1_parcel_id" /></td>
+              <td><input class="line-input" type="text" id="parcel_1_address" name="parcel_1_address" /></td>
+              <td><input class="line-input" type="text" id="parcel_1_city" name="parcel_1_city" /></td>
+              <td><input class="line-input" type="text" id="parcel_1_zip" name="parcel_1_zip" /></td>
+              <td><input class="line-input" type="text" id="parcel_1_township" name="parcel_1_township" /></td>
+            </tr>
+            <tr>
+              <td class="idx">2</td>
+              <td><input class="line-input" type="text" id="parcel_2_parcel_id" name="parcel_2_parcel_id" /></td>
+              <td><input class="line-input" type="text" id="parcel_2_address" name="parcel_2_address" /></td>
+              <td><input class="line-input" type="text" id="parcel_2_city" name="parcel_2_city" /></td>
+              <td><input class="line-input" type="text" id="parcel_2_zip" name="parcel_2_zip" /></td>
+              <td><input class="line-input" type="text" id="parcel_2_township" name="parcel_2_township" /></td>
+            </tr>
+            <tr>
+              <td class="idx">3</td>
+              <td><input class="line-input" type="text" id="parcel_3_parcel_id" name="parcel_3_parcel_id" /></td>
+              <td><input class="line-input" type="text" id="parcel_3_address" name="parcel_3_address" /></td>
+              <td><input class="line-input" type="text" id="parcel_3_city" name="parcel_3_city" /></td>
+              <td><input class="line-input" type="text" id="parcel_3_zip" name="parcel_3_zip" /></td>
+              <td><input class="line-input" type="text" id="parcel_3_township" name="parcel_3_township" /></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="hint">
+          <em>If you are requesting a rebuild letter for multiple adjacent properties owned by the same person/organization list each parcel. If more than 3 parcels attach a list of the remaining parcels. The properties must all have the same zoning, and same use. Each new zone or use requires a separate application.</em>
+        </div>
+      </div>
+
+      <!-- CURRENT USE(S) -->
+      <div class="section-bar" style="margin-top:10px;">
+        <div>CURRENT USE(S)</div>
+        <div></div>
+      </div>
+
+      <div class="form-body">
+        <div class="current-grid">
+          <div class="left-text">Current Zoning</div>
+          <div>
+            <div class="inline-line">
+              <input class="wide-text" type="text" id="current_zoning" name="current_zoning" />
+              <div class="muted" style="white-space:nowrap;">To verify zoning go to the following link <span class="linkish">http://sjcindiana.com/996/Zoning-Map</span></div>
+            </div>
+          </div>
+
+          <div class="left-text">Describe the current use(s) of the property.</div>
+          <div>
+            <input class="wide-text" type="text" id="describe_current_uses_of_the_property" name="describe_current_uses_of_the_property" />
+          </div>
+
+          <div class="left-text">
+            Property meets all development standard requirements of current ordinance.
+          </div>
+          <div>
+            <div class="checkbox-row" role="group" aria-label="Property meets all development standards">
+              <label class="cb">
+                <input type="checkbox" id="property_meets_all_development_standards_yes" />
+                <span>Yes</span>
+              </label>
+              <label class="cb">
+                <input type="checkbox" id="property_meets_all_development_standards_no" />
+                <span>No</span>
+              </label>
+              <div class="muted">If “No” you must be able to check “Yes” to one or both of the following to receive a rebuild letter.</div>
+            </div>
+          </div>
+
+          <div class="left-text">Has the property been granted a variance and/or special use/exception?</div>
+          <div>
+            <div class="checkbox-row" role="group" aria-label="Variance or special use/exception">
+              <label class="cb">
+                <input type="checkbox" id="variance_special_use_yes" />
+                <span>Yes</span>
+              </label>
+              <label class="cb">
+                <input type="checkbox" id="variance_special_use_no" />
+                <span>No</span>
+              </label>
+              <div class="muted">If “Yes” describe.</div>
+            </div>
+            <div class="row" style="margin:8px 0 0;">
+              <div class="field" style="flex:1; min-width:260px;">
+                <label class="label" for="variance_special_use_description" style="text-transform:none; font-weight:600;">Description</label>
+                <input class="line-input" type="text" id="variance_special_use_description" name="variance_special_use_description" />
+              </div>
+              <div class="field tiny">
+                <label class="label" for="variance_special_use_date_approved" style="text-transform:none; font-weight:600;">Date Approved</label>
+                <input class="line-input" type="date" id="variance_special_use_date_approved" name="variance_special_use_date_approved" />
+              </div>
+            </div>
+          </div>
+
+          <div class="left-text">
+            Has a “Certificate of Legally Established Nonconforming Use” been issued for this property?
+          </div>
+          <div>
+            <div class="checkbox-row" role="group" aria-label="Certificate of legally established nonconforming use status">
+              <label class="cb">
+                <input type="checkbox" id="certificate_nonconforming_use_yes" />
+                <span>Yes</span>
+              </label>
+              <label class="cb">
+                <input type="checkbox" id="certificate_nonconforming_use_no" />
+                <span>No</span>
+              </label>
+              <label class="cb">
+                <input type="checkbox" id="certificate_nonconforming_use_in_progress" />
+                <span>In progress</span>
+              </label>
+
+              <div class="field tiny" style="margin-left:auto;">
+                <label class="label" for="certificate_nonconforming_use_date_approved" style="text-transform:none; font-weight:600;">Date Approved</label>
+                <input class="line-input" type="date" id="certificate_nonconforming_use_date_approved" name="certificate_nonconforming_use_date_approved" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-block">
+          <div>Mail or drop off application and fees to the address below. Make checks payable to “Area Plan Commission”.</div>
+          <div style="margin-top:6px;">
+            <strong>ATTN: Area Plan Commission</strong><br/>
+            <strong>227 W. Jefferson</strong><br/>
+            <strong>11th Floor County City Building</strong><br/>
+            <strong>South Bend, IN 46601</strong>
+          </div>
+        </div>
+
+        <div class="checklist">
+          <div class="checklist-title">Application Checklist</div>
+          <ol>
+            <li>Application</li>
+            <li>Property information for parcels that could not fit on application if applicable</li>
+            <li>Site plan verifying set backs</li>
+            <li>Fees: $50.</li>
+          </ol>
+        </div>
+
+        <div class="submit-row">
+          <button class="btn" type="reset">Clear Form</button>
+          <button class="btn primary" type="submit">Submit</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      const get = (fd, name) => (fd.get(name) ?? '').toString();
+      const cb = (id) => document.getElementById(id)?.checked ? "true" : "false";
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+
+        const data = {
+          applicant_information: {
+            applicant_information_date: get(fd, 'applicant_information_date'),
+            applicant: get(fd, 'applicant'),
+            org_business: get(fd, 'org_business'),
+            phone: get(fd, 'phone'),
+            email: get(fd, 'email'),
+            address_full: get(fd, 'address_full'),
+            address_street: get(fd, 'address_street'),
+            address_city: get(fd, 'address_city'),
+            address_state: get(fd, 'address_state'),
+            address_zip: get(fd, 'address_zip')
+          },
+          property_information: {
+            parcel_1_parcel_id: get(fd, 'parcel_1_parcel_id'),
+            parcel_1_address: get(fd, 'parcel_1_address'),
+            parcel_1_city: get(fd, 'parcel_1_city'),
+            parcel_1_zip: get(fd, 'parcel_1_zip'),
+            parcel_1_township: get(fd, 'parcel_1_township'),
+
+            parcel_2_parcel_id: get(fd, 'parcel_2_parcel_id'),
+            parcel_2_address: get(fd, 'parcel_2_address'),
+            parcel_2_city: get(fd, 'parcel_2_city'),
+            parcel_2_zip: get(fd, 'parcel_2_zip'),
+            parcel_2_township: get(fd, 'parcel_2_township'),
+
+            parcel_3_parcel_id: get(fd, 'parcel_3_parcel_id'),
+            parcel_3_address: get(fd, 'parcel_3_address'),
+            parcel_3_city: get(fd, 'parcel_3_city'),
+            parcel_3_zip: get(fd, 'parcel_3_zip'),
+            parcel_3_township: get(fd, 'parcel_3_township')
+          },
+          current_uses_and_zoning: {
+            current_zoning: get(fd, 'current_zoning'),
+            describe_current_uses_of_the_property: get(fd, 'describe_current_uses_of_the_property'),
+
+            property_meets_all_development_standards_yes: cb('property_meets_all_development_standards_yes'),
+            property_meets_all_development_standards_no: cb('property_meets_all_development_standards_no'),
+
+            variance_special_use_yes: cb('variance_special_use_yes'),
+            variance_special_use_no: cb('variance_special_use_no'),
+            variance_special_use_description: get(fd, 'variance_special_use_description'),
+            variance_special_use_date_approved: get(fd, 'variance_special_use_date_approved'),
+
+            certificate_nonconforming_use_yes: cb('certificate_nonconforming_use_yes'),
+            certificate_nonconforming_use_no: cb('certificate_nonconforming_use_no'),
+            certificate_nonconforming_use_in_progress: cb('certificate_nonconforming_use_in_progress'),
+            certificate_nonconforming_use_date_approved: get(fd, 'certificate_nonconforming_use_date_approved')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for the JSON output.');
+      });
+    })();
+  </script>
+</body>
+</html>

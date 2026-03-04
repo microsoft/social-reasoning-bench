@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personal Financial Statement</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans', Arial, Helvetica, sans-serif;
+    background: #d6d2cd;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;align-items:flex-start;
+    padding: 20px 10px;
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+
+  .page {
+    background: #fff;
+    width: 100%;
+    max-width: 860px;
+    box-shadow: 0 1px 12px rgba(0,0,0,0.12);
+    padding: 28px 36px 24px;
+  }
+
+  /* ── Important notice ── */
+  .notice {
+    font-size: 12.5px;
+    margin-bottom: 18px;
+    line-height: 1.55;
+  }
+  .notice strong { text-decoration: underline; }
+
+  /* ── Main table ── */
+  table.main-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+  table.main-table th,
+  table.main-table td {
+    border: 1px solid #333;
+    padding: 3px 5px;
+    vertical-align: top;
+    text-align: left;
+  }
+  table.main-table th {
+    font-weight: 700;
+    font-size: 11.5px;
+    text-align: center;
+    background: #fff;
+  }
+  /* Column widths */
+  col.col-asset { width: 155px; }
+  col.col-pv { width: 85px; }
+  col.col-liability { width: 155px; }
+  col.col-pay { width: 80px; }
+  col.col-bal { width: 80px; }
+
+  /* Header row spanning */
+  .hdr-group { text-align: center; font-weight: 700; font-size: 11.5px; }
+
+  /* Input fields inside table cells */
+  table.main-table input[type="text"],
+  table.main-table input[type="number"] {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-size: 12px;
+    background: transparent;
+    padding: 1px 2px;
+    color: #1a1a1a;
+  }
+  table.main-table input:focus {
+    background: #f5f5ee;
+  }
+
+  /* Radio group for auto insurance term */
+  .term-radios {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: 11px;
+    margin-top: 2px;
+  }
+  .term-radios label {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+  }
+  .term-radios input[type="radio"] {
+    width: 12px;
+    height: 12px;
+    accent-color: #333;
+    margin: 0;
+  }
+
+  /* Taller rows for description fields */
+  .desc-cell { min-height: 24px; }
+
+  /* Empty row spacer */
+  .spacer-row td { height: 22px; }
+
+  /* TOTAL row */
+  .total-row td {
+    font-weight: 700;
+    border-top: 2px solid #333;
+  }
+
+  /* ── Customer Comments ── */
+  .comments-section {
+    border: 1px solid #333;
+    border-top: none;
+    padding: 0;
+    margin-bottom: 18px;
+  }
+  .comments-label {
+    font-weight: 700;
+    font-size: 12px;
+    padding: 4px 6px;
+    border-bottom: 1px solid #999;
+    background: #fff;
+  }
+  .comments-lines {
+    padding: 2px 6px;
+  }
+  .comments-lines input {
+    display: block;
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid #bbb;
+    outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-size: 12px;
+    padding: 5px 2px;
+    background: transparent;
+  }
+  .comments-lines input:last-child {
+    border-bottom: none;
+  }
+  .comments-lines input:focus {
+    background: #f5f5ee;
+  }
+
+  /* ── Authorization ── */
+  .auth-section {
+    font-size: 11.5px;
+    line-height: 1.55;
+    margin-bottom: 24px;
+  }
+  .auth-section u { font-weight: 700; }
+
+  /* ── Signature block ── */
+  .sig-block {
+    display: flex;
+    gap: 24px;
+    margin-top: 20px;
+  }
+  .sig-pair {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .sig-pair .sig-line {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    margin-bottom: 2px;
+  }
+  .sig-pair .sig-line span.x-mark {
+    font-size: 13px;
+    font-weight: 400;
+  }
+  .sig-pair .sig-line input {
+    flex: 1;
+    border: none;
+    border-bottom: 1px solid #333;
+    outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-size: 12px;
+    padding: 2px 4px;
+    background: transparent;
+  }
+  .sig-pair .sig-line input:focus {
+    background: #f5f5ee;
+  }
+  .sig-pair .sig-labels {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+  }
+  .sig-pair .sig-labels span {
+    flex: 1;
+  }
+  .sig-pair .sig-labels span:last-child {
+    flex: 0 0 120px;
+  }
+
+  /* ── Submit ── */
+  .submit-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .btn {
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 20px;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .btn-submit { background: #444; color: #fff; border: 1px solid #333; }
+  .btn-submit:hover { background: #333; }
+  .btn-clear { background: #fff; color: #444; border: 1px solid #888; }
+  .btn-clear:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- Notice -->
+  <p class="notice">
+    <strong>IMPORTANT:</strong> Please complete this Personal Financial Statement. Please indicate all property owned and debts owed. Please list all assets including collateral used. If using a co-signer he/she needs to complete the following information also. Attach additional sheets if necessary.
+  </p>
+
+  <form id="financialForm" autocomplete="off">
+
+    <!-- ════════ Main Assets & Liabilities Table ════════ -->
+    <table class="main-table">
+      <colgroup>
+        <col class="col-asset">
+        <col class="col-pv">
+        <col class="col-liability">
+        <col class="col-pay">
+        <col class="col-bal">
+        <col class="col-pay">
+        <col class="col-bal">
+      </colgroup>
+
+      <!-- Header row 1 -->
+      <thead>
+        <tr>
+          <th rowspan="2">ASSETS (OWNS)</th>
+          <th rowspan="2">Present value</th>
+          <th rowspan="2">LIABILITIES</th>
+          <th colspan="2" class="hdr-group">Borrower</th>
+          <th colspan="2" class="hdr-group">Co-Signer</th>
+        </tr>
+        <tr>
+          <th>Payments</th>
+          <th>Present<br>Balance</th>
+          <th>Payments</th>
+          <th>Present<br>Balance</th>
+        </tr>
+      </thead>
+
+      <tbody>
+
+        <!-- Home / Rent or Mortgage -->
+        <tr>
+          <td rowspan="2">Home</td>
+          <td rowspan="2"><input type="text" id="home_present_value" name="home_present_value"></td>
+          <td>Rent or Mortgage<br>To Whom</td>
+          <td><input type="text" id="rent_or_mortgage_payments" name="rent_or_mortgage_payments"></td>
+          <td><input type="text" id="rent_or_mortgage_present_balance_borrower" name="rent_or_mortgage_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="rent_or_mortgage_present_balance_co_signer" name="rent_or_mortgage_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Home Insurance -->
+        <tr>
+          <td>Home Insurance</td>
+          <td><input type="text" id="home_insurance_payments" name="home_insurance_payments"></td>
+          <td><input type="text" id="home_insurance_present_balance_borrower" name="home_insurance_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="home_insurance_present_balance_co_signer" name="home_insurance_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Spacer -->
+        <tr class="spacer-row"><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+
+        <!-- Auto 1 -->
+        <tr>
+          <td>Auto -Year, Make and<br>Model</td>
+          <td><input type="text" id="auto_year_make_model_present_value" name="auto_year_make_model_present_value"></td>
+          <td>Auto</td>
+          <td><input type="text" id="auto_payments" name="auto_payments"></td>
+          <td><input type="text" id="auto_present_balance_borrower" name="auto_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="auto_present_balance_co_signer" name="auto_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Auto 2 -->
+        <tr>
+          <td>Auto – Year, Make and<br>Model</td>
+          <td><input type="text" id="auto_2_year_make_model_present_value" name="auto_2_year_make_model_present_value"></td>
+          <td>Auto</td>
+          <td><input type="text" id="auto_2_payments" name="auto_2_payments"></td>
+          <td><input type="text" id="auto_2_present_balance_borrower" name="auto_2_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="auto_2_present_balance_co_signer" name="auto_2_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Spacer -->
+        <tr class="spacer-row"><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+
+        <!-- Auto Insurance -->
+        <tr>
+          <td></td>
+          <td></td>
+          <td>
+            Auto Insurance<br>
+            <span style="font-size:11px;">(Pick One:</span>
+            <div class="term-radios">
+              <label><input type="radio" name="auto_insurance_term" id="term_1" value="1"> 1</label>
+              <label><input type="radio" name="auto_insurance_term" id="term_3" value="3"> 3</label>
+              <label><input type="radio" name="auto_insurance_term" id="term_6" value="6"> 6</label>
+              <label><input type="radio" name="auto_insurance_term" id="term_12" value="12"> 12</label>
+              <span style="font-size:11px;">months)</span>
+            </div>
+          </td>
+          <td><input type="text" id="auto_insurance_payments" name="auto_insurance_payments"></td>
+          <td><input type="text" id="auto_insurance_present_balance_borrower" name="auto_insurance_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="auto_insurance_present_balance_co_signer" name="auto_insurance_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Other Real Estate -->
+        <tr>
+          <td></td>
+          <td><input type="text" id="other_real_estate_present_value" name="other_real_estate_present_value"></td>
+          <td>Other Real Estate</td>
+          <td><input type="text" id="other_real_estate_payments" name="other_real_estate_payments"></td>
+          <td><input type="text" id="other_real_estate_present_balance_borrower" name="other_real_estate_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="other_real_estate_present_balance_co_signer" name="other_real_estate_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Other Real Estate description -->
+        <tr>
+          <td colspan="2"><input type="text" id="other_real_estate_description" name="other_real_estate_description" style="width:100%;"></td>
+          <td></td><td></td><td></td><td></td><td></td>
+        </tr>
+
+        <!-- Spacer -->
+        <tr class="spacer-row"><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+
+        <!-- Spokane Tribal Credit Long Term Loan -->
+        <tr>
+          <td></td>
+          <td><input type="text" id="spokane_tribal_credit_long_term_loan_present_value" name="spokane_tribal_credit_long_term_loan_present_value"></td>
+          <td>Spokane Tribal Credit<br>Long Term Loan</td>
+          <td><input type="text" id="spokane_tribal_credit_long_term_loan_payments" name="spokane_tribal_credit_long_term_loan_payments"></td>
+          <td><input type="text" id="spokane_tribal_credit_long_term_loan_present_balance_borrower" name="spokane_tribal_credit_long_term_loan_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="spokane_tribal_credit_long_term_loan_present_balance_co_signer" name="spokane_tribal_credit_long_term_loan_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Spokane Tribal Credit Short Term Loan -->
+        <tr>
+          <td></td>
+          <td><input type="text" id="spokane_tribal_credit_short_term_loan_present_value" name="spokane_tribal_credit_short_term_loan_present_value"></td>
+          <td>Spokane Tribal Credit<br>Short Term Loan</td>
+          <td><input type="text" id="spokane_tribal_credit_short_term_loan_payments" name="spokane_tribal_credit_short_term_loan_payments"></td>
+          <td><input type="text" id="spokane_tribal_credit_short_term_loan_present_balance_borrower" name="spokane_tribal_credit_short_term_loan_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="spokane_tribal_credit_short_term_loan_present_balance_co_signer" name="spokane_tribal_credit_short_term_loan_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Spokane Tribal Credit Auto Repair Loan -->
+        <tr>
+          <td></td>
+          <td><input type="text" id="spokane_tribal_credit_auto_repair_loan_present_value" name="spokane_tribal_credit_auto_repair_loan_present_value"></td>
+          <td>Spokane Tribal Credit<br>Auto Repair Loan</td>
+          <td><input type="text" id="spokane_tribal_credit_auto_repair_loan_payments" name="spokane_tribal_credit_auto_repair_loan_payments"></td>
+          <td><input type="text" id="spokane_tribal_credit_auto_repair_loan_present_balance_borrower" name="spokane_tribal_credit_auto_repair_loan_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="spokane_tribal_credit_auto_repair_loan_present_balance_co_signer" name="spokane_tribal_credit_auto_repair_loan_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Spokane Tribal Credit Education Loan -->
+        <tr>
+          <td></td>
+          <td><input type="text" id="spokane_tribal_credit_education_loan_present_value" name="spokane_tribal_credit_education_loan_present_value"></td>
+          <td>Spokane Tribal Credit<br>Education Loan</td>
+          <td><input type="text" id="spokane_tribal_credit_education_loan_payments" name="spokane_tribal_credit_education_loan_payments"></td>
+          <td><input type="text" id="spokane_tribal_credit_education_loan_present_balance_borrower" name="spokane_tribal_credit_education_loan_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="spokane_tribal_credit_education_loan_present_balance_co_signer" name="spokane_tribal_credit_education_loan_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Education Loan description -->
+        <tr>
+          <td colspan="3"><input type="text" id="education_loan_description" name="education_loan_description" style="width:100%;"></td>
+          <td></td><td></td><td></td><td></td>
+        </tr>
+
+        <!-- Credit Cards / Other debt -->
+        <tr>
+          <td></td>
+          <td><input type="text" id="credit_cards_other_debt_present_value" name="credit_cards_other_debt_present_value"></td>
+          <td>Credit Cards/Other debt</td>
+          <td><input type="text" id="credit_cards_other_debt_payments" name="credit_cards_other_debt_payments"></td>
+          <td><input type="text" id="credit_cards_other_debt_present_balance_borrower" name="credit_cards_other_debt_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="credit_cards_other_debt_present_balance_co_signer" name="credit_cards_other_debt_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Credit card description lines -->
+        <tr>
+          <td colspan="3"><input type="text" id="credit_cards_other_debt_description_line_1" name="credit_cards_other_debt_description_line_1" style="width:100%;"></td>
+          <td></td><td></td><td></td><td></td>
+        </tr>
+        <tr>
+          <td colspan="3"><input type="text" id="credit_cards_other_debt_description_line_2" name="credit_cards_other_debt_description_line_2" style="width:100%;"></td>
+          <td></td><td></td><td></td><td></td>
+        </tr>
+        <tr>
+          <td colspan="3"><input type="text" id="credit_cards_other_debt_description_line_3" name="credit_cards_other_debt_description_line_3" style="width:100%;"></td>
+          <td></td><td></td><td></td><td></td>
+        </tr>
+
+        <!-- Spacer rows (blank lines in original) -->
+        <tr class="spacer-row"><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr class="spacer-row"><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+
+        <!-- Alimony / Child Support -->
+        <tr>
+          <td></td>
+          <td><input type="text" id="alimony_child_support_present_value" name="alimony_child_support_present_value"></td>
+          <td>Alimony/Child Support</td>
+          <td><input type="text" id="alimony_child_support_payments" name="alimony_child_support_payments"></td>
+          <td><input type="text" id="alimony_child_support_present_balance_borrower" name="alimony_child_support_present_balance_borrower"></td>
+          <td></td>
+          <td><input type="text" id="alimony_child_support_present_balance_co_signer" name="alimony_child_support_present_balance_co_signer"></td>
+        </tr>
+
+        <!-- Alimony description -->
+        <tr>
+          <td colspan="3"><input type="text" id="alimony_child_support_description" name="alimony_child_support_description" style="width:100%;"></td>
+          <td></td><td></td><td></td><td></td>
+        </tr>
+
+        <!-- TOTAL row -->
+        <tr class="total-row">
+          <td></td>
+          <td style="font-weight:700;">TOTAL: <input type="text" id="total_assets" name="total_assets" style="width:60%;"></td>
+          <td style="font-weight:700;">TOTAL: <input type="text" id="total_liabilities" name="total_liabilities" style="width:60%;"></td>
+          <td></td><td></td><td></td><td></td>
+        </tr>
+
+        <!-- Additional total comments -->
+        <tr>
+          <td colspan="7"><input type="text" id="additional_total_comments_line" name="additional_total_comments_line" style="width:100%;"></td>
+        </tr>
+
+      </tbody>
+    </table>
+
+    <!-- ════════ Customer Comments ════════ -->
+    <div class="comments-section">
+      <div class="comments-label">CUSTOMER COMMENTS:</div>
+      <div class="comments-lines">
+        <input type="text" id="customer_comments_line_1" name="customer_comments_line_1">
+        <input type="text" id="customer_comments_line_2" name="customer_comments_line_2">
+        <input type="text" id="customer_comments_line_3" name="customer_comments_line_3">
+        <input type="text" id="customer_comments_line_4" name="customer_comments_line_4">
+        <input type="text" id="customer_comments_line_5" name="customer_comments_line_5">
+      </div>
+    </div>
+
+    <!-- ════════ Authorization ════════ -->
+    <div class="auth-section">
+      <p>I/We hereby authorize anyone to release income/credit information concerning myself/ourselves to Spokane Tribal Credit. This authorization is given to enable STC to evaluate my/our request for credit. I/We certify that all statements are true and complete and are submitted for the purpose of obtaining credit. <u>Verification will be obtained from any source named in the application and from any credit-reporting agency</u>. I agree that the application shall remain STC property whether it is approved or not approved.</p>
+    </div>
+
+    <!-- ════════ Signatures ════════ -->
+    <div class="sig-block">
+      <div class="sig-pair">
+        <div class="sig-line">
+          <span class="x-mark">X</span>
+          <input type="text" id="applicant_signature" name="applicant_signature">
+          <input type="date" id="applicant_date" name="applicant_date" style="flex:0 0 130px;">
+        </div>
+        <div class="sig-labels">
+          <span>Applicant</span>
+          <span>Date</span>
+        </div>
+      </div>
+      <div class="sig-pair">
+        <div class="sig-line">
+          <span class="x-mark">X</span>
+          <input type="text" id="co_applicant_signature" name="co_applicant_signature">
+          <input type="date" id="co_applicant_date" name="co_applicant_date" style="flex:0 0 130px;">
+        </div>
+        <div class="sig-labels">
+          <span>Co-Applicant</span>
+          <span>Date</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="submit-row">
+      <button type="reset" class="btn btn-clear">Clear Form</button>
+      <button type="submit" class="btn btn-submit">Submit</button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+  document.getElementById('financialForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Get selected radio for auto insurance term
+    const termEl = document.querySelector('input[name="auto_insurance_term"]:checked');
+    const fd = new FormData(this);
+    const data = {
+      assets_and_liabilities: {
+        home_present_value: fd.get('home_present_value') || '',
+        rent_or_mortgage_payments: fd.get('rent_or_mortgage_payments') || '',
+        rent_or_mortgage_present_balance_borrower: fd.get('rent_or_mortgage_present_balance_borrower') || '',
+        rent_or_mortgage_present_balance_co_signer: fd.get('rent_or_mortgage_present_balance_co_signer') || '',
+        home_insurance_payments: fd.get('home_insurance_payments') || '',
+        home_insurance_present_balance_borrower: fd.get('home_insurance_present_balance_borrower') || '',
+        home_insurance_present_balance_co_signer: fd.get('home_insurance_present_balance_co_signer') || '',
+        auto_year_make_model_present_value: fd.get('auto_year_make_model_present_value') || '',
+        auto_payments: fd.get('auto_payments') || '',
+        auto_present_balance_borrower: fd.get('auto_present_balance_borrower') || '',
+        auto_present_balance_co_signer: fd.get('auto_present_balance_co_signer') || '',
+        auto_2_year_make_model_present_value: fd.get('auto_2_year_make_model_present_value') || '',
+        auto_2_payments: fd.get('auto_2_payments') || '',
+        auto_2_present_balance_borrower: fd.get('auto_2_present_balance_borrower') || '',
+        auto_2_present_balance_co_signer: fd.get('auto_2_present_balance_co_signer') || '',
+        auto_insurance_term: termEl ? termEl.value : '',
+        auto_insurance_payments: fd.get('auto_insurance_payments') || '',
+        auto_insurance_present_balance_borrower: fd.get('auto_insurance_present_balance_borrower') || '',
+        auto_insurance_present_balance_co_signer: fd.get('auto_insurance_present_balance_co_signer') || '',
+        other_real_estate_present_value: fd.get('other_real_estate_present_value') || '',
+        other_real_estate_payments: fd.get('other_real_estate_payments') || '',
+        other_real_estate_present_balance_borrower: fd.get('other_real_estate_present_balance_borrower') || '',
+        other_real_estate_present_balance_co_signer: fd.get('other_real_estate_present_balance_co_signer') || '',
+        other_real_estate_description: fd.get('other_real_estate_description') || '',
+        spokane_tribal_credit_long_term_loan_present_value: fd.get('spokane_tribal_credit_long_term_loan_present_value') || '',
+        spokane_tribal_credit_long_term_loan_payments: fd.get('spokane_tribal_credit_long_term_loan_payments') || '',
+        spokane_tribal_credit_long_term_loan_present_balance_borrower: fd.get('spokane_tribal_credit_long_term_loan_present_balance_borrower') || '',
+        spokane_tribal_credit_long_term_loan_present_balance_co_signer: fd.get('spokane_tribal_credit_long_term_loan_present_balance_co_signer') || '',
+        spokane_tribal_credit_short_term_loan_present_value: fd.get('spokane_tribal_credit_short_term_loan_present_value') || '',
+        spokane_tribal_credit_short_term_loan_payments: fd.get('spokane_tribal_credit_short_term_loan_payments') || '',
+        spokane_tribal_credit_short_term_loan_present_balance_borrower: fd.get('spokane_tribal_credit_short_term_loan_present_balance_borrower') || '',
+        spokane_tribal_credit_short_term_loan_present_balance_co_signer: fd.get('spokane_tribal_credit_short_term_loan_present_balance_co_signer') || '',
+        spokane_tribal_credit_auto_repair_loan_present_value: fd.get('spokane_tribal_credit_auto_repair_loan_present_value') || '',
+        spokane_tribal_credit_auto_repair_loan_payments: fd.get('spokane_tribal_credit_auto_repair_loan_payments') || '',
+        spokane_tribal_credit_auto_repair_loan_present_balance_borrower: fd.get('spokane_tribal_credit_auto_repair_loan_present_balance_borrower') || '',
+        spokane_tribal_credit_auto_repair_loan_present_balance_co_signer: fd.get('spokane_tribal_credit_auto_repair_loan_present_balance_co_signer') || '',
+        spokane_tribal_credit_education_loan_present_value: fd.get('spokane_tribal_credit_education_loan_present_value') || '',
+        spokane_tribal_credit_education_loan_payments: fd.get('spokane_tribal_credit_education_loan_payments') || '',
+        spokane_tribal_credit_education_loan_present_balance_borrower: fd.get('spokane_tribal_credit_education_loan_present_balance_borrower') || '',
+        spokane_tribal_credit_education_loan_present_balance_co_signer: fd.get('spokane_tribal_credit_education_loan_present_balance_co_signer') || '',
+        education_loan_description: fd.get('education_loan_description') || '',
+        credit_cards_other_debt_present_value: fd.get('credit_cards_other_debt_present_value') || '',
+        credit_cards_other_debt_payments: fd.get('credit_cards_other_debt_payments') || '',
+        credit_cards_other_debt_present_balance_borrower: fd.get('credit_cards_other_debt_present_balance_borrower') || '',
+        credit_cards_other_debt_present_balance_co_signer: fd.get('credit_cards_other_debt_present_balance_co_signer') || '',
+        credit_cards_other_debt_description_line_1: fd.get('credit_cards_other_debt_description_line_1') || '',
+        credit_cards_other_debt_description_line_2: fd.get('credit_cards_other_debt_description_line_2') || '',
+        credit_cards_other_debt_description_line_3: fd.get('credit_cards_other_debt_description_line_3') || '',
+        alimony_child_support_present_value: fd.get('alimony_child_support_present_value') || '',
+        alimony_child_support_payments: fd.get('alimony_child_support_payments') || '',
+        alimony_child_support_present_balance_borrower: fd.get('alimony_child_support_present_balance_borrower') || '',
+        alimony_child_support_present_balance_co_signer: fd.get('alimony_child_support_present_balance_co_signer') || '',
+        alimony_child_support_description: fd.get('alimony_child_support_description') || '',
+        total_assets: fd.get('total_assets') || '',
+        total_liabilities: fd.get('total_liabilities') || '',
+        additional_total_comments_line: fd.get('additional_total_comments_line') || '',
+      },
+      customer_comments: {
+        customer_comments_line_1: fd.get('customer_comments_line_1') || '',
+        customer_comments_line_2: fd.get('customer_comments_line_2') || '',
+        customer_comments_line_3: fd.get('customer_comments_line_3') || '',
+        customer_comments_line_4: fd.get('customer_comments_line_4') || '',
+        customer_comments_line_5: fd.get('customer_comments_line_5') || '',
+      },
+      authorization_and_signatures: {
+        applicant_signature: fd.get('applicant_signature') || '',
+        co_applicant_signature: fd.get('co_applicant_signature') || '',
+        applicant_date: fd.get('applicant_date') || '',
+        co_applicant_date: fd.get('co_applicant_date') || '',
+      },
+    };
+    console.log('Form Data (Pydantic-compatible JSON):');
+    console.log(JSON.stringify(data, null, 2));
+    alert('Submitted! Check console (F12) for JSON output.');
+  });
+</script>
+
+</body>
+</html>

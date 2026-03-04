@@ -12,7 +12,7 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class EmployeesOffWorkTableEmployeeNameRow(BaseModel):
+class EmployeesOffWorkTableRow(BaseModel):
     """Single row in EMPLOYEE NAME"""
 
     employee_name: str = Field(default="", description="Employee_Name")
@@ -23,68 +23,27 @@ class EmployeesOffWorkTableEmployeeNameRow(BaseModel):
     life_waiver_approved: str = Field(default="", description="Life_Waiver_Approved")
 
 
-class EmployeesOffWorkTableOccupationRow(BaseModel):
-    """Single row in OCCUPATION"""
+class RequestforQuotation(BaseModel):
+    """General information about the client to assist in underwriting"""
 
-    employee_name: str = Field(default="", description="Employee_Name")
-    occupation: str = Field(default="", description="Occupation")
-    date_of_disability: str = Field(default="", description="Date_Of_Disability")
-    nature_of_disability: str = Field(default="", description="Nature_Of_Disability")
-    prognosis: str = Field(default="", description="Prognosis")
-    life_waiver_approved: str = Field(default="", description="Life_Waiver_Approved")
-
-
-class EmployeesOffWorkTableDateOfDisabilityRow(BaseModel):
-    """Single row in DATE OF DISABILITY"""
-
-    employee_name: str = Field(default="", description="Employee_Name")
-    occupation: str = Field(default="", description="Occupation")
-    date_of_disability: str = Field(default="", description="Date_Of_Disability")
-    nature_of_disability: str = Field(default="", description="Nature_Of_Disability")
-    prognosis: str = Field(default="", description="Prognosis")
-    life_waiver_approved: str = Field(default="", description="Life_Waiver_Approved")
+    information_about_your_client: str = Field(
+        default="",
+        description=(
+            "General background and important details about the client to assist "
+            'underwriting .If you cannot fill this, write "N/A". If this field should not '
+            "be filled by you (for example, it belongs to another person or office), leave "
+            'it blank (empty string "").'
+        ),
+    )
 
 
-class EmployeesOffWorkTableNatureOfDisabilityRow(BaseModel):
-    """Single row in NATURE OF DISABILITY"""
+class ClientQuestions(BaseModel):
+    """Detailed questions about the client's business, employees, coverage, and experience"""
 
-    employee_name: str = Field(default="", description="Employee_Name")
-    occupation: str = Field(default="", description="Occupation")
-    date_of_disability: str = Field(default="", description="Date_Of_Disability")
-    nature_of_disability: str = Field(default="", description="Nature_Of_Disability")
-    prognosis: str = Field(default="", description="Prognosis")
-    life_waiver_approved: str = Field(default="", description="Life_Waiver_Approved")
-
-
-class EmployeesOffWorkTablePrognosisRow(BaseModel):
-    """Single row in PROGNOSIS"""
-
-    employee_name: str = Field(default="", description="Employee_Name")
-    occupation: str = Field(default="", description="Occupation")
-    date_of_disability: str = Field(default="", description="Date_Of_Disability")
-    nature_of_disability: str = Field(default="", description="Nature_Of_Disability")
-    prognosis: str = Field(default="", description="Prognosis")
-    life_waiver_approved: str = Field(default="", description="Life_Waiver_Approved")
-
-
-class EmployeesOffWorkTableLifeWaiverApprovedRow(BaseModel):
-    """Single row in LIFE WAIVER APPROVED?"""
-
-    employee_name: str = Field(default="", description="Employee_Name")
-    occupation: str = Field(default="", description="Occupation")
-    date_of_disability: str = Field(default="", description="Date_Of_Disability")
-    nature_of_disability: str = Field(default="", description="Nature_Of_Disability")
-    prognosis: str = Field(default="", description="Prognosis")
-    life_waiver_approved: str = Field(default="", description="Life_Waiver_Approved")
-
-
-class ClientInformation(BaseModel):
-    """Basic information about the client and their business"""
-
-    nature_of_business: str = Field(
+    nature_of_business_please_provide_specific_details: str = Field(
         ...,
         description=(
-            "Describe the client's nature of business with specific details. .If you cannot "
+            "Describe the client’s nature of business with specific details .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
@@ -92,161 +51,146 @@ class ClientInformation(BaseModel):
     )
 
     number_of_years_in_business: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Total number of years the business has been operating."
+        ..., description="Total number of years the business has been operating"
     )
 
-
-class EmployeeWorkforceDetails(BaseModel):
-    """Details about employees, family relationships, WSIB coverage, and premium contributions"""
-
-    seasonal_or_contract_employees_yes: BooleanLike = Field(
-        ..., description="Indicate yes if the client has any seasonal or contract employees."
+    are_there_any_seasonal_or_contract_employees_yes: BooleanLike = Field(
+        ..., description="Indicate Yes if there are any seasonal or contract employees"
     )
 
-    seasonal_or_contract_employees_no: BooleanLike = Field(
-        ...,
-        description="Indicate no if the client does not have any seasonal or contract employees.",
+    are_there_any_seasonal_or_contract_employees_no: BooleanLike = Field(
+        ..., description="Indicate No if there are no seasonal or contract employees"
     )
 
-    seasonal_or_contract_employees_details: str = Field(
+    if_yes_please_specify: str = Field(
         default="",
         description=(
-            "If there are seasonal or contract employees, provide details (e.g., roles, "
-            'duration, number). .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "If there are seasonal or contract employees, specify details .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
-    fifty_percent_family_employees_yes: BooleanLike = Field(
-        ..., description="Indicate yes if at least half of the employees are from the same family."
+    are_50_or_more_of_the_employees_from_the_same_family_yes: BooleanLike = Field(
+        ..., description="Indicate Yes if at least half of the employees are from the same family"
     )
 
-    fifty_percent_family_employees_no: BooleanLike = Field(
-        ..., description="Indicate no if less than half of the employees are from the same family."
+    are_50_or_more_of_the_employees_from_the_same_family_no: BooleanLike = Field(
+        ..., description="Indicate No if less than half of the employees are from the same family"
     )
 
-    family_relationship_and_household: str = Field(
+    relationship_and_if_they_reside_in_the_same_household: str = Field(
         default="",
         description=(
-            "If 50% or more of employees are from the same family, describe the "
-            "relationships and whether they live in the same household. .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Describe the family relationships and whether they live in the same household "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
-    wsib_covered_yes: BooleanLike = Field(
+    are_all_employees_and_owners_covered_by_workers_compensation_wsib_yes: BooleanLike = Field(
         ...,
         description=(
-            "Indicate yes if all employees and owners are covered by Workers Compensation (WSIB)."
+            "Indicate Yes if all employees and owners are covered by Workers Compensation (WSIB)"
         ),
     )
 
-    wsib_covered_no: BooleanLike = Field(
+    are_all_employees_and_owners_covered_by_workers_compensation_wsib_no: BooleanLike = Field(
         ...,
         description=(
-            "Indicate no if any employees or owners are not covered by Workers Compensation (WSIB)."
+            "Indicate No if any employees or owners are not covered by Workers Compensation (WSIB)"
         ),
     )
 
-    employer_pays_percent: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Percentage of the premium paid by the employer (minimum 50%)."
+    employer_pays_premium_contribution_basis: Union[float, Literal["N/A", ""]] = Field(
+        ..., description="Percentage of the premium paid by the employer (minimum 50%)"
     )
 
-    employee_pays_percent: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Percentage of the premium paid by the employees."
+    employee_pays_premium_contribution_basis: Union[float, Literal["N/A", ""]] = Field(
+        ..., description="Percentage of the premium paid by the employees"
     )
 
-
-class EmployeesCurrentlyOffWork(BaseModel):
-    """Information about employees who are currently off work"""
-
-    employees_off_work_yes: BooleanLike = Field(
+    are_there_any_employees_currently_off_work_excluding_normal_vacation_yes: BooleanLike = Field(
         ...,
         description=(
-            "Indicate yes if any employees are currently off work other than for normal vacation."
+            "Indicate Yes if any employees are currently off work (excluding normal vacation)"
         ),
     )
 
-    employees_off_work_no: BooleanLike = Field(
+    are_there_any_employees_currently_off_work_excluding_normal_vacation_no: BooleanLike = Field(
         ...,
+        description="Indicate No if no employees are currently off work (excluding normal vacation)",
+    )
+
+    employees_off_work_table: List[EmployeesOffWorkTableRow] = Field(
+        default="",
         description=(
-            "Indicate no if no employees are currently off work other than for normal vacation."
+            "Table to list employees currently off work, including occupation, disability "
+            "details, prognosis, and life waiver status"
+        ),
+    )  # List of table rows
+
+    occupation: str = Field(
+        default="",
+        description=(
+            "Occupation of the employee (used as a column header in the off-work employees "
+            'table) .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
-    employees_off_work_table_employee_name: List[EmployeesOffWorkTableEmployeeNameRow] = Field(
+    date_of_disability: str = Field(
         default="",
         description=(
-            "Table to list employees currently off work and details of their disability status."
+            "Date the disability began (used as a column header in the off-work employees table)"
         ),
-    )  # List of table rows
+    )  # YYYY-MM-DD format
 
-    employees_off_work_table_occupation: List[EmployeesOffWorkTableOccupationRow] = Field(
+    nature_of_disability: str = Field(
         default="",
         description=(
-            "Duplicate reference to the off-work employees table (see EMPLOYEE NAME field "
-            "for columns)."
+            "Description of the nature of the disability (used as a column header in the "
+            'off-work employees table) .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
-    )  # List of table rows
-
-    employees_off_work_table_date_of_disability: List[EmployeesOffWorkTableDateOfDisabilityRow] = (
-        Field(
-            default="",
-            description=(
-                "Duplicate reference to the off-work employees table (see EMPLOYEE NAME field "
-                "for columns)."
-            ),
-        )
-    )  # List of table rows
-
-    employees_off_work_table_nature_of_disability: List[
-        EmployeesOffWorkTableNatureOfDisabilityRow
-    ] = Field(
-        default="",
-        description=(
-            "Duplicate reference to the off-work employees table (see EMPLOYEE NAME field "
-            "for columns)."
-        ),
-    )  # List of table rows
-
-    employees_off_work_table_prognosis: List[EmployeesOffWorkTablePrognosisRow] = Field(
-        default="",
-        description=(
-            "Duplicate reference to the off-work employees table (see EMPLOYEE NAME field "
-            "for columns)."
-        ),
-    )  # List of table rows
-
-    employees_off_work_table_life_waiver_approved: List[
-        EmployeesOffWorkTableLifeWaiverApprovedRow
-    ] = Field(
-        default="",
-        description=(
-            "Duplicate reference to the off-work employees table (see EMPLOYEE NAME field "
-            "for columns)."
-        ),
-    )  # List of table rows
-
-
-class CurrentCoverageQuotationDetails(BaseModel):
-    """Current insurance, plan comparison, and experience/rate information"""
-
-    currently_insured_yes: BooleanLike = Field(
-        ..., description="Indicate yes if the client is currently insured with another carrier."
     )
 
-    currently_insured_no: BooleanLike = Field(
-        ..., description="Indicate no if the client is not currently insured with another carrier."
+    prognosis: str = Field(
+        default="",
+        description=(
+            "Prognosis for the employee’s condition (used as a column header in the "
+            'off-work employees table) .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
+        ),
+    )
+
+    life_waiver_approved: BooleanLike = Field(
+        default="",
+        description=(
+            "Indicate whether a life waiver has been approved (used as a column header in "
+            "the off-work employees table)"
+        ),
+    )
+
+    are_they_currently_insured_yes: BooleanLike = Field(
+        ..., description="Indicate Yes if the group is currently insured"
+    )
+
+    are_they_currently_insured_no: BooleanLike = Field(
+        ..., description="Indicate No if the group is not currently insured"
     )
 
     current_carrier: str = Field(
         default="",
         description=(
-            "Name of the current insurance carrier, if any. .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Name of the current insurance carrier .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -254,38 +198,38 @@ class CurrentCoverageQuotationDetails(BaseModel):
         default="",
         description=(
             "Number of years the client has been with the current carrier (maximum 2 "
-            "insurers in the past 5 years)."
+            "insurers in past 5 years)"
         ),
     )
 
     renewal_date: str = Field(
-        default="", description="Renewal date of the current insurance policy."
+        default="", description="Renewal date of the current insurance plan"
     )  # YYYY-MM-DD format
 
-    benefits_same_as_current_yes: BooleanLike = Field(
-        ..., description="Indicate yes if the quoted benefits match the current plan."
+    are_benefits_being_quoted_the_same_as_their_current_plan_yes: BooleanLike = Field(
+        ..., description="Indicate Yes if the quoted benefits match the current plan"
     )
 
-    benefits_same_as_current_no: BooleanLike = Field(
-        ..., description="Indicate no if the quoted benefits differ from the current plan."
+    are_benefits_being_quoted_the_same_as_their_current_plan_no: BooleanLike = Field(
+        ..., description="Indicate No if the quoted benefits differ from the current plan"
     )
 
-    benefits_difference_explanation: str = Field(
+    if_not_explain_why: str = Field(
         default="",
         description=(
-            "If benefits differ from the current plan, explain the reasons for the changes. "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
+            "Explain why the quoted benefits differ from the current plan .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
     experience_and_rates_provided_yes: BooleanLike = Field(
-        ..., description="Indicate yes if experience and rate information has been provided."
+        ..., description="Indicate Yes if experience and rates information has been provided"
     )
 
     experience_and_rates_provided_no: BooleanLike = Field(
-        ..., description="Indicate no if experience and rate information has not been provided."
+        ..., description="Indicate No if experience and rates information has not been provided"
     )
 
 
@@ -296,13 +240,5 @@ class RequestForQuotation(BaseModel):
     Please provide any information about your client. Any important details will assist in the underwriting process.
     """
 
-    client_information: ClientInformation = Field(..., description="Client Information")
-    employee__workforce_details: EmployeeWorkforceDetails = Field(
-        ..., description="Employee & Workforce Details"
-    )
-    employees_currently_off_work: EmployeesCurrentlyOffWork = Field(
-        ..., description="Employees Currently Off Work"
-    )
-    current_coverage__quotation_details: CurrentCoverageQuotationDetails = Field(
-        ..., description="Current Coverage & Quotation Details"
-    )
+    request_for_quotation: RequestforQuotation = Field(..., description="Request for Quotation")
+    client_questions: ClientQuestions = Field(..., description="Client Questions")

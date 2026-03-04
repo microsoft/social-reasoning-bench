@@ -23,8 +23,9 @@ from pydantic import BaseModel
 from sage_llm import ModelClient
 
 from sage_benchmark.form_filling.agents.oracle_user import OracleUser
+from sage_benchmark.form_filling.environment.bm25_index import BM25Index
+from sage_benchmark.form_filling.gui_prompt import build_gui_system_prompt
 from sage_benchmark.form_filling.prompts import (
-    GUI_SYSTEM_PROMPT,
     format_artifacts_as_context,
     get_thinking_prompt,
     translate_persona_to_text,
@@ -94,23 +95,32 @@ def start_http_server(directory: str, port: int) -> http.server.HTTPServer:
 # ── Action parsing ──
 
 
-def parse_action(text: str) -> dict | None:
-    """Parse a tool call action from the LLM response text."""
+def parse_action(text: str) -> tuple[str | None, dict | None]:
+    """Parse a tool call from the LLM response text.
+
+    Returns:
+        Tuple of (tool_name, arguments_dict). tool_name is None if no tool call
+        was found. For computer_use actions, arguments_dict contains the action params.
+        For other tools (e.g. file-system tools), arguments_dict contains the tool args.
+    """
     match = re.search(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", text, re.DOTALL)
     if match:
         try:
             parsed = json.loads(match.group(1))
-            return parsed.get("arguments", parsed)
+            tool_name = parsed.get("name")
+            arguments = parsed.get("arguments", parsed)
+            return tool_name, arguments
         except json.JSONDecodeError:
             pass
+    # Fallback: look for action dicts (computer_use format)
     for m in re.finditer(r'\{[^{}]*"action"\s*:\s*"[^"]+?"[^{}]*\}', text, re.DOTALL):
         try:
             parsed = json.loads(m.group())
             if "action" in parsed:
-                return parsed
+                return "computer_use", parsed
         except json.JSONDecodeError:
             continue
-    return None
+    return None, None
 
 
 # ── Screenshot ──
@@ -278,6 +288,9 @@ Instructions:
 # ── Run vision agent on a single form ──
 
 
+FILE_SYSTEM_TOOL_NAMES = {"search_email", "read_email", "search_calendar", "read_calendar"}
+
+
 async def run_vision_agent_on_form(
     client: ModelClient,
     model: str,
@@ -286,6 +299,8 @@ async def run_vision_agent_on_form(
     context_messages: list[dict],
     max_steps: int = 30,
     oracle_user: OracleUser | None = None,
+    file_system: bool = False,
+    bm25_index: BM25Index | None = None,
 ) -> dict:
     """Run the vision agent on one form.
 
@@ -297,16 +312,25 @@ async def run_vision_agent_on_form(
         context_messages: List of user messages with task context (instruction, artifacts, guidance)
         max_steps: Maximum interaction steps
         oracle_user: Optional OracleUser for answering ask_user questions
+        file_system: If True, file-system tools are available
+        bm25_index: BM25Index for executing file-system tool calls
 
     Returns dict with steps taken and extracted flat form values.
     """
+    # Build system prompt using gui_prompt.py
+    system_prompt, (resized_width, resized_height) = build_gui_system_prompt(
+        VIEWPORT["width"],
+        VIEWPORT["height"],
+        file_system=file_system,
+    )
+
     context = await browser.new_context(viewport=VIEWPORT)
     page = await context.new_page()
     await page.goto(form_url, wait_until="domcontentloaded")
     await asyncio.sleep(1)
 
     messages = [
-        {"role": "system", "content": GUI_SYSTEM_PROMPT},
+        {"role": "system", "content": system_prompt},
         *context_messages,
     ]
 
@@ -338,7 +362,7 @@ async def run_vision_agent_on_form(
             print(f"    LLM error at step {step + 1}: {e}")
             break
 
-        action = parse_action(raw_output)
+        tool_name, action = parse_action(raw_output)
         if not action:
             messages.append({"role": "assistant", "content": raw_output})
             continue
@@ -346,19 +370,35 @@ async def run_vision_agent_on_form(
         step_info = {
             "step": step + 1,
             "thought": raw_output.split("<tool_call>")[0].strip(),
+            "tool_name": tool_name,
             "action": action,
         }
         steps_log.append(step_info)
+
+        messages.append({"role": "assistant", "content": raw_output})
+
+        # Handle file-system tool calls
+        if tool_name in FILE_SYSTEM_TOOL_NAMES and bm25_index is not None:
+            print(
+                f"    Step {step + 1}: {tool_name}({json.dumps(action)})"
+                f"\n      Thought: {step_info['thought']}"
+            )
+            result_str = bm25_index.execute_tool(tool_name, action)
+            print(f"    {tool_name} returned {len(result_str)} chars")
+            messages.append(
+                {"role": "user", "content": f"<tool_response>\n{result_str}\n</tool_response>"}
+            )
+            continue
+
+        # From here on, it's a computer_use action with an "action" key
         print(
-            f"    Step {step + 1}: {action['action']} "
+            f"    Step {step + 1}: {action.get('action', tool_name)} "
             f"{json.dumps({k: v for k, v in action.items() if k != 'action'})}"
             f"\n      Thought: {step_info['thought']}"
         )
 
-        messages.append({"role": "assistant", "content": raw_output})
-
         # Handle ask_user action
-        if action["action"] == "ask_user" and oracle_user is not None:
+        if action.get("action") == "ask_user" and oracle_user is not None:
             question = action.get("question", "")
             print(f"    Agent asks user: {question[:80]}...")
             user_answer = await oracle_user.answer_question(question)
@@ -404,6 +444,7 @@ async def run_single_task(
     prompt_type: str = "base",
     max_steps: int = 30,
     oracle_user: OracleUser | None = None,
+    file_system: bool = False,
 ) -> TaskExecutionResult:
     """Execute GUI form filling for a single task.
 
@@ -420,6 +461,7 @@ async def run_single_task(
         prompt_type: Privacy prompt type
         max_steps: Maximum interaction steps
         oracle_user: Optional OracleUser for answering ask_user questions
+        file_system: If True, enable file-system tools (search/read email/calendar)
 
     Returns:
         TaskExecutionResult compatible with evaluate_task()
@@ -441,6 +483,11 @@ async def run_single_task(
     # Construct context messages from benchmark data (separate messages for clarity)
     context_messages = construct_gui_context_messages(task, prompt_type)
 
+    # Initialize BM25 index for file-system mode
+    bm25_index: BM25Index | None = None
+    if file_system and task.filesystem_artifacts:
+        bm25_index = BM25Index([a.model_dump() for a in task.filesystem_artifacts])
+
     print(f"[Task {task_index}] Running GUI agent on form_{task.form_id}...")
 
     try:
@@ -453,6 +500,8 @@ async def run_single_task(
             context_messages,
             max_steps,
             oracle_user=oracle_user,
+            file_system=file_system,
+            bm25_index=bm25_index,
         )
 
         flat_values = result["form_values"]

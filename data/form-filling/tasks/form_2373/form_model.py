@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class StudentData(BaseModel):
-    """Personal and academic information about the student"""
+    """Basic information about the student"""
 
     first_name: str = Field(
         ...,
@@ -85,9 +85,10 @@ class SupervisorData(BaseModel):
     title: str = Field(
         ...,
         description=(
-            "Academic title of the supervisor (e.g. Prof., Dr.) .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Academic or professional title of the supervisor (e.g. Prof., Dr.) .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
@@ -130,9 +131,9 @@ class SupervisorData(BaseModel):
     subject_area: str = Field(
         ...,
         description=(
-            "Subject area or discipline of the thesis supervision .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Supervisor's subject area or discipline .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -152,24 +153,17 @@ class ThesisInformation(BaseModel):
     text_of_the_expose: str = Field(
         ...,
         description=(
-            "Full text of the exposé, maximum length 3,500 keystrokes including spaces, "
-            'following the listed guidelines .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Full text of the exposé (maximum length: 3,500 keystrokes including spaces) "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
 
-class ChamberOfCommerceBolzanoThesesOnEconomyApplicationForm(BaseModel):
+class ThesisProposalsSouthTyrolEconomyApplicationForm(BaseModel):
     """
-        CHAMBER OF COMMERCE,
-    INDUSTRY, CRAFTS AND
-    AGRICULTURE OF BOLZANO
-
-    Institute for
-    economic research
-
-    CALL FOR PROPOSALS "BACHELOR’S AND MASTER’S
+        CALL FOR PROPOSALS "BACHELOR’S AND MASTER’S
     THESES ON THE SOUTH TYROLEAN ECONOMY"
 
     APPLICATION FORM

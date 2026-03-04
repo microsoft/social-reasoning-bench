@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class PreviousDisciplinaryActionsTableRow(BaseModel):
-    """Single row in Form of Discipline"""
+    """Single row in Form of Discipline / Date of Discipline / Reason(s) for Discipline"""
 
     form_of_discipline: str = Field(default="", description="Form_Of_Discipline")
     date_of_discipline: str = Field(default="", description="Date_Of_Discipline")
@@ -24,7 +24,7 @@ class EmployeeandDepartmentInformation(BaseModel):
     """Basic information about the employee and department"""
 
     date: str = Field(
-        ..., description="Date the discipline notice and request for approval form is completed"
+        ..., description="Date this discipline notice and request for approval form is completed"
     )  # YYYY-MM-DD format
 
     department: str = Field(
@@ -39,10 +39,10 @@ class EmployeeandDepartmentInformation(BaseModel):
     name_of_employee: str = Field(
         ...,
         description=(
-            "Full name of the employee who is the subject of the disciplinary action .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Full name of the employee who is the subject of the discipline .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -76,61 +76,69 @@ class EmployeeandDepartmentInformation(BaseModel):
 
 
 class RecommendedDiscipline(BaseModel):
-    """Details of the discipline being recommended"""
+    """Details of the recommended disciplinary action"""
 
     termination: BooleanLike = Field(
-        default="", description="Check if termination is the recommended form of discipline"
+        default="", description="Check or indicate if termination is the recommended discipline"
     )
 
     suspension_more_than_10_days: BooleanLike = Field(
         default="",
-        description="Check if suspension of more than 10 days is the recommended form of discipline",
+        description=(
+            "Check or indicate if suspension of more than 10 days is the recommended discipline"
+        ),
     )
 
     number_of_days: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Number of days for the recommended suspension, if applicable"
+        default="", description="Number of days of suspension recommended, if applicable"
     )
 
 
 class PreviousDisciplinaryActions(BaseModel):
-    """Record of prior discipline for this employee"""
+    """Record of prior disciplinary actions"""
 
     previous_disciplinary_actions_table: List[PreviousDisciplinaryActionsTableRow] = Field(
         default="",
-        description="Table listing each prior disciplinary action, including form, date, and reason",
+        description=(
+            "Table to list each prior disciplinary action, including the form, date, and reason(s)"
+        ),
     )  # List of table rows
 
-    date_of_discipline: str = Field(
+    form_of_discipline: str = Field(
         default="",
         description=(
-            "Date of each prior disciplinary action (captured as a column in the table of "
-            'previous disciplinary actions) .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Type or form of each prior disciplinary action (e.g., written warning, "
+            'suspension) .If you cannot fill this, write "N/A". If this field should not '
+            "be filled by you (for example, it belongs to another person or office), leave "
+            'it blank (empty string "").'
         ),
     )
+
+    date_of_discipline: str = Field(
+        default="", description="Date on which each prior disciplinary action was issued"
+    )  # YYYY-MM-DD format
 
     reasons_for_discipline: str = Field(
         default="",
         description=(
-            "Reason or reasons for each prior disciplinary action (captured as a column in "
-            "the table of previous disciplinary actions) .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Brief description of the reason or reasons for each prior disciplinary action "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
 
-class BasisforRecommendedDisciplinaryAction(BaseModel):
-    """Narrative explanation and supporting detail"""
+class BasisforRecommendedAction(BaseModel):
+    """Narrative explanation and supporting details for the recommended discipline"""
 
-    describe_in_detail_the_basis_or_bases_for_the_recommended_disciplinary_action: str = Field(
+    basis_for_recommended_disciplinary_action: str = Field(
         ...,
         description=(
-            "Detailed narrative explanation of the facts and reasons supporting the "
-            'recommended disciplinary action .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Detailed narrative explaining the facts and reasons supporting the recommended "
+            'discipline .If you cannot fill this, write "N/A". If this field should not '
+            "be filled by you (for example, it belongs to another person or office), leave "
+            'it blank (empty string "").'
         ),
     )
 
@@ -150,6 +158,6 @@ class CookCountyHRDisciplineNoticeApprovalForm(BaseModel):
     previous_disciplinary_actions: PreviousDisciplinaryActions = Field(
         ..., description="Previous Disciplinary Actions"
     )
-    basis_for_recommended_disciplinary_action: BasisforRecommendedDisciplinaryAction = Field(
-        ..., description="Basis for Recommended Disciplinary Action"
+    basis_for_recommended_action: BasisforRecommendedAction = Field(
+        ..., description="Basis for Recommended Action"
     )

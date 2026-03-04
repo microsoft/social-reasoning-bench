@@ -13,19 +13,18 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class OfficialUseOnly(BaseModel):
-    """For office processing and tracking only"""
+    """For internal processing and tracking of the form"""
 
     received: str = Field(
-        default="", description="Date the form was received (for official use only)"
+        default="", description="Date this form was received (for official use only)"
     )  # YYYY-MM-DD format
 
     new: BooleanLike = Field(
-        default="", description="Indicate if this is a new record (for official use only)"
+        default="", description="Indicate if this is a new agritourism profile"
     )
 
     update: BooleanLike = Field(
-        default="",
-        description="Indicate if this is an update to an existing record (for official use only)",
+        default="", description="Indicate if this is an update to an existing agritourism profile"
     )
 
     new_file_yes: BooleanLike = Field(
@@ -37,19 +36,19 @@ class OfficialUseOnly(BaseModel):
     )
 
     completed: str = Field(
-        default="", description="Date processing of this form was completed (for official use only)"
+        default="", description="Date the form was completed/processed (for official use only)"
     )  # YYYY-MM-DD format
 
 
 class ContactInfo(BaseModel):
-    """Primary business and contact information"""
+    """Primary contact and location information for the farm/business"""
 
     business_farm_name: str = Field(
         ...,
         description=(
-            "Legal or commonly used name of the business or farm .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            'Official name of the business or farm .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -65,18 +64,19 @@ class ContactInfo(BaseModel):
     physical_address: str = Field(
         ...,
         description=(
-            "Street/physical location of the business or farm .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Physical location address of the business/farm .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     county_where_business_is_located: str = Field(
         ...,
         description=(
-            "County in which the business or farm is physically located .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Name of the South Carolina county where the business is located .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -101,56 +101,66 @@ class ContactInfo(BaseModel):
     email: str = Field(
         ...,
         description=(
-            "Primary email address for the business or contact person .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Email address for the business or contact person .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     website: str = Field(
         default="",
         description=(
-            'Business or farm website URL .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Website URL for the business or farm .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     facebook: str = Field(
         default="",
         description=(
-            "Facebook page or profile URL or handle for the business .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Facebook page or profile URL/handle for the business .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     twitter: str = Field(
         default="",
         description=(
-            "Twitter handle or profile URL for the business .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Twitter (X) handle or profile URL for the business .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
+
+
+class BusinessDescription(BaseModel):
+    """Public-facing description of the business and/or products"""
 
     brief_description_of_your_business_and_or_products: str = Field(
         ...,
         description=(
-            "Short description of the business and products for listing on SCFarmFun.org "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
+            "Short description of the business, products, and information relevant to "
+            "potential buyers or visitors; will be listed on SCFarmFun.org .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
 
-class ContactInfo(BaseModel):
+class FarmFunScAgritourismSouthCarolinaAgritourismFarmProfile(BaseModel):
     """
-    CONTACT INFO
+        FARM FUN
+    SC Agritourism
 
-    Please provide a brief description of your business and/or products. Please include information relevant to potential buyers/visitors. The information provided will be listed on SCFarmFun.org as a way to help promote your farm/business.
+    SOUTH CAROLINA AGRITOURISM
+    FARM PROFILE
+
+        The SC Agritourism Program is an exciting effort established to assist consumers in locating farm experiences as well as helping farm producers plan, develop, and promote tourist attractions on their farm. From pick your own berry operations, to major consumer events, Agritourism takes on many shapes and forms throughout South Carolina. Please take a few minutes to fill out this form to update your information and return it today!
     """
 
     official_use_only: OfficialUseOnly = Field(..., description="Official Use Only")
     contact_info: ContactInfo = Field(..., description="Contact Info")
+    business_description: BusinessDescription = Field(..., description="Business Description")

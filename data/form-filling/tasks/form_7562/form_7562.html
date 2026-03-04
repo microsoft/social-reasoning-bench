@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Industry Standard Financial Statement — Section A</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    :root{
+      --bg:#d6d2cd;
+      --page:#ffffff;
+      --ink:#1a1a1a;
+
+      --brand:#f0824a;           /* orange header */
+      --navy:#1e4c7a;            /* dark blue section label */
+      --rowbg:#f7e7e0;           /* light peach form area */
+      --line:#e5a98f;            /* input outline */
+      --outline:#e1d7d1;
+      --muted:#5a5a5a;
+      --focus:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--page);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      border:1px solid rgba(0,0,0,.06);
+    }
+
+    .topbar{
+      background:var(--brand);
+      color:#fff;
+      padding:18px 22px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      position:relative;
+    }
+    .title{
+      font-size:28px;
+      font-weight:500;
+      letter-spacing:.2px;
+      line-height:1.1;
+    }
+    .logo{
+      width:92px;
+      height:92px;
+      border:2px solid rgba(255,255,255,.85);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      color:#fff;
+      background:rgba(255,255,255,.06);
+      padding:10px 8px;
+      flex:0 0 auto;
+    }
+    .logo .mark{
+      width:44px;height:22px;border:2px solid rgba(255,255,255,.85);
+      border-radius:50%;
+      transform:skewX(-12deg);
+      margin-bottom:6px;
+      opacity:.9;
+    }
+    .logo .brand{
+      font-weight:800;
+      font-size:18px;
+      text-transform:lowercase;
+      line-height:1;
+    }
+    .logo .sub{
+      font-size:9px;
+      letter-spacing:1px;
+      opacity:.9;
+      margin-top:3px;
+    }
+
+    .content{
+      border-top:1px solid rgba(255,255,255,.6);
+    }
+
+    .sectionHeader{
+      display:grid;
+      grid-template-columns: 180px 1fr;
+      width:100%;
+    }
+    .sectionTag{
+      background:var(--navy);
+      color:#fff;
+      padding:10px 12px;
+      font-weight:700;
+      font-size:12.5px;
+    }
+    .sectionName{
+      background:var(--brand);
+      color:#fff;
+      padding:10px 12px;
+      font-weight:700;
+      font-size:12.5px;
+      text-transform:none;
+    }
+
+    form{margin:0}
+    .formArea{
+      background:var(--rowbg);
+      padding:12px 12px 18px;
+      border-top:1px solid rgba(255,255,255,.55);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 210px 1fr 1fr;
+      gap:10px 14px;
+      align-items:start;
+    }
+
+    .colHead{
+      font-size:12px;
+      font-weight:700;
+      color:#1f4a76;
+      padding:2px 0 0;
+    }
+    .colHead.center{text-align:left}
+    .colHead.b2{text-align:left}
+    .borrowerInfo{
+      font-size:11px;
+      font-weight:700;
+      color:#1f4a76;
+      padding-top:2px;
+    }
+
+    .labelCell{
+      font-size:11px;
+      color:#2b2b2b;
+      display:flex;
+      gap:8px;
+      line-height:1.25;
+    }
+    .labelCell .code{
+      min-width:32px;
+      font-weight:700;
+      color:#1f4a76;
+    }
+    .labelCell .text{
+      font-weight:600;
+      color:#1f4a76;
+    }
+    .labelCell .subtext{
+      display:block;
+      font-weight:600;
+      color:#1f4a76;
+    }
+
+    .field{
+      width:100%;
+      border:1.6px solid var(--line);
+      background:transparent;
+      border-radius:3px;
+      padding:7px 10px;
+      font-size:13px;
+      outline:none;
+    }
+    .field:focus{background:var(--focus)}
+    .field::placeholder{color:rgba(0,0,0,.35)}
+    textarea.field{
+      min-height:92px;
+      resize:vertical;
+    }
+    .tall{min-height:110px}
+    .mid{min-height:78px}
+
+    .contactRow{
+      position:relative;
+    }
+    .prefHint{
+      position:absolute;
+      right:8px;
+      top:-16px;
+      font-size:10px;
+      color:#2e557a;
+      font-weight:600;
+      white-space:nowrap;
+    }
+    .prefBox{
+      position:absolute;
+      right:6px;
+      top:6px;
+      width:16px;
+      height:16px;
+      accent-color:#2f5a86;
+    }
+    .field.padRight{
+      padding-right:34px;
+    }
+
+    .twoChecks{
+      display:flex;
+      align-items:center;
+      gap:16px;
+      padding:6px 2px 0;
+      color:#1f4a76;
+      font-size:12px;
+      font-weight:600;
+    }
+    .cb{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .cb input{
+      width:15px;height:15px;
+      accent-color:#2f5a86;
+    }
+
+    .smallNote{
+      font-size:10.5px;
+      color:var(--muted);
+      margin-top:10px;
+      line-height:1.35;
+    }
+
+    .actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:12px 14px 16px;
+      background:linear-gradient(to bottom, rgba(255,255,255,.0), rgba(255,255,255,.35));
+      border-top:1px solid rgba(0,0,0,.06);
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid rgba(0,0,0,.28);
+    }
+    .btn.primary{
+      background:#3a3a3a;
+      color:#fff;
+      border-color:#2d2d2d;
+    }
+    .btn.ghost{
+      background:#fff;
+      color:#333;
+    }
+
+    /* keep a subtle paper margin like scan */
+    .paperPad{padding:10px 12px 12px;}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div class="title">Industry Standard Financial Statement</div>
+      <div class="logo" aria-label="Start Mortgages">
+        <div class="mark" aria-hidden="true"></div>
+        <div class="brand">start</div>
+        <div class="sub">MORTGAGES</div>
+      </div>
+    </div>
+
+    <div class="content paperPad">
+      <div class="sectionHeader">
+        <div class="sectionTag">Section A:</div>
+        <div class="sectionName">Account &amp; Borrower Details</div>
+      </div>
+
+      <form id="mainForm" autocomplete="off">
+        <div class="formArea">
+          <div class="grid" role="presentation">
+            <div class="borrowerInfo">Borrower Information:</div>
+            <div class="colHead center">Borrower 1</div>
+            <div class="colHead b2">Borrower 2</div>
+
+            <!-- A1 Name -->
+            <div class="labelCell">
+              <span class="code">A1</span>
+              <span class="text">Name</span>
+            </div>
+            <input class="field" type="text" id="borrower_1_name" name="borrower_1_name" />
+            <input class="field" type="text" id="borrower_2_name" name="borrower_2_name" />
+
+            <!-- A2 Mortgage Account Reference No(s) -->
+            <div class="labelCell">
+              <span class="code">A2</span>
+              <span class="text">Mortgage Account<br/>Reference No(s)</span>
+            </div>
+            <input class="field" type="text" id="borrower_1_mortgage_account_reference_nos" name="borrower_1_mortgage_account_reference_nos" />
+            <input class="field" type="text" id="borrower_2_mortgage_account_reference_nos" name="borrower_2_mortgage_account_reference_nos" />
+
+            <!-- A3 Outstanding Mortgage Balance (€) -->
+            <div class="labelCell">
+              <span class="code">A3</span>
+              <span class="text">Outstanding Mortgage<br/>Balance (&euro;)</span>
+            </div>
+            <input class="field" type="text" inputmode="decimal" id="borrower_1_outstanding_mortgage_balance_eur" name="borrower_1_outstanding_mortgage_balance_eur" />
+            <input class="field" type="text" inputmode="decimal" id="borrower_2_outstanding_mortgage_balance_eur" name="borrower_2_outstanding_mortgage_balance_eur" />
+
+            <!-- A4 Estimated Current Value of Primary Residence (€) -->
+            <div class="labelCell">
+              <span class="code">A4</span>
+              <span class="text">Estimated Current Value<br/>of Primary Residence (&euro;)</span>
+            </div>
+            <input class="field" type="text" inputmode="decimal" id="borrower_1_estimated_current_value_primary_residence_eur" name="borrower_1_estimated_current_value_primary_residence_eur" />
+            <input class="field" type="text" inputmode="decimal" id="borrower_2_estimated_current_value_primary_residence_eur" name="borrower_2_estimated_current_value_primary_residence_eur" />
+
+            <!-- A5 Monthly Mortgage Repayments Due (€) -->
+            <div class="labelCell">
+              <span class="code">A5</span>
+              <span class="text">Monthly Mortgage<br/>Repayments Due (&euro;)</span>
+            </div>
+            <input class="field" type="text" inputmode="decimal" id="borrower_1_monthly_mortgage_repayments_due_eur" name="borrower_1_monthly_mortgage_repayments_due_eur" />
+            <input class="field" type="text" inputmode="decimal" id="borrower_2_monthly_mortgage_repayments_due_eur" name="borrower_2_monthly_mortgage_repayments_due_eur" />
+
+            <!-- A6 Correspondence Address -->
+            <div class="labelCell">
+              <span class="code">A6</span>
+              <span class="text">Correspondence Address</span>
+            </div>
+            <textarea class="field tall" id="borrower_1_correspondence_address" name="borrower_1_correspondence_address"></textarea>
+            <textarea class="field tall" id="borrower_2_correspondence_address" name="borrower_2_correspondence_address"></textarea>
+
+            <!-- A7 Property Address (if different...) -->
+            <div class="labelCell">
+              <span class="code">A7</span>
+              <span class="text">Property Address (if<br/>different to correspondence<br/>Address)</span>
+            </div>
+            <textarea class="field mid" id="borrower_1_property_address_if_different_to_correspondence_address" name="borrower_1_property_address_if_different_to_correspondence_address"></textarea>
+            <textarea class="field mid" id="borrower_2_property_address_if_different_to_correspondence_address" name="borrower_2_property_address_if_different_to_correspondence_address"></textarea>
+
+            <!-- A8 Home Telephone (+ preferred contact method checkbox columns) -->
+            <div class="labelCell">
+              <span class="code">A8</span>
+              <span class="text">Home Telephone</span>
+            </div>
+            <div class="contactRow">
+              <div class="prefHint">Please [✓] preferred contact method</div>
+              <input class="field padRight" type="tel" id="borrower_1_home_telephone" name="borrower_1_home_telephone"/>
+              <input class="prefBox" type="checkbox" id="preferred_contact_method_home_telephone" />
+            </div>
+            <div class="contactRow">
+              <div class="prefHint">Please [✓] preferred contact method</div>
+              <input class="field" type="tel" id="borrower_2_home_telephone" name="borrower_2_home_telephone"/>
+            </div>
+
+            <!-- A9 Mobile Telephone -->
+            <div class="labelCell">
+              <span class="code">A9</span>
+              <span class="text">Mobile Telephone</span>
+            </div>
+            <div class="contactRow">
+              <input class="field padRight" type="tel" id="borrower_1_mobile_telephone" name="borrower_1_mobile_telephone"/>
+              <input class="prefBox" type="checkbox" id="preferred_contact_method_mobile_telephone" />
+            </div>
+            <div class="contactRow">
+              <input class="field" type="tel" id="borrower_2_mobile_telephone" name="borrower_2_mobile_telephone"/>
+            </div>
+
+            <!-- A10 Work Telephone -->
+            <div class="labelCell">
+              <span class="code">A10</span>
+              <span class="text">Work Telephone</span>
+            </div>
+            <div class="contactRow">
+              <input class="field padRight" type="tel" id="borrower_1_work_telephone" name="borrower_1_work_telephone"/>
+              <input class="prefBox" type="checkbox" id="preferred_contact_method_work_telephone" />
+            </div>
+            <div class="contactRow">
+              <input class="field" type="tel" id="borrower_2_work_telephone" name="borrower_2_work_telephone"/>
+            </div>
+
+            <!-- A11 E-mail Address -->
+            <div class="labelCell">
+              <span class="code">A11</span>
+              <span class="text">E-mail Address</span>
+            </div>
+            <div class="contactRow">
+              <input class="field padRight" type="email" id="borrower_1_e_mail_address" name="borrower_1_e_mail_address"/>
+              <input class="prefBox" type="checkbox" id="preferred_contact_method_e_mail_address" />
+            </div>
+            <div class="contactRow">
+              <input class="field" type="email" id="borrower_2_e_mail_address" name="borrower_2_e_mail_address"/>
+            </div>
+
+            <!-- A12 Marital Status -->
+            <div class="labelCell">
+              <span class="code">A12</span>
+              <span class="text">Marital Status</span>
+            </div>
+            <input class="field" type="text" id="borrower_1_marital_status" name="borrower_1_marital_status"/>
+            <input class="field" type="text" id="borrower_2_marital_status" name="borrower_2_marital_status"/>
+
+            <!-- A13 Date of birth (DD/MM/YYYY) -->
+            <div class="labelCell">
+              <span class="code">A13</span>
+              <span class="text">Date of birth (DD/MM/YYYY)</span>
+            </div>
+            <input class="field" type="date" id="borrower_1_date_of_birth_dd_mm_yyyy" name="borrower_1_date_of_birth_dd_mm_yyyy"/>
+            <input class="field" type="date" id="borrower_2_date_of_birth_dd_mm_yyyy" name="borrower_2_date_of_birth_dd_mm_yyyy"/>
+
+            <!-- A14 No. and age of dependent children -->
+            <div class="labelCell">
+              <span class="code">A14</span>
+              <span class="text">No. and age of dependent<br/>children</span>
+            </div>
+            <div>
+              <div style="display:grid; grid-template-columns: 1fr; gap:8px;">
+                <input class="field" type="text" inputmode="decimal" id="borrower_1_no_of_dependent_children" name="borrower_1_no_of_dependent_children" placeholder="No."/>
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
+                  <input class="field" type="text" inputmode="decimal" id="borrower_1_child_1_age_yrs" name="borrower_1_child_1_age_yrs" placeholder="Child 1 age (yrs)"/>
+                  <input class="field" type="text" inputmode="decimal" id="borrower_1_child_2_age_yrs" name="borrower_1_child_2_age_yrs" placeholder="Child 2 age (yrs)"/>
+                  <input class="field" type="text" inputmode="decimal" id="borrower_1_child_3_age_yrs" name="borrower_1_child_3_age_yrs" placeholder="Child 3 age (yrs)"/>
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
+                  <input class="field" type="text" inputmode="decimal" id="borrower_1_child_4_age_yrs" name="borrower_1_child_4_age_yrs" placeholder="Child 4 age (yrs)"/>
+                  <input class="field" type="text" inputmode="decimal" id="borrower_1_child_5_age_yrs" name="borrower_1_child_5_age_yrs" placeholder="Child 5 age (yrs)"/>
+                  <input class="field" type="text" inputmode="decimal" id="borrower_1_child_6_age_yrs" name="borrower_1_child_6_age_yrs" placeholder="Child 6 age (yrs)"/>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div style="display:grid; grid-template-columns: 1fr; gap:8px;">
+                <input class="field" type="text" inputmode="decimal" id="borrower_2_no_of_dependent_children" name="borrower_2_no_of_dependent_children" placeholder="No."/>
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
+                  <input class="field" type="text" inputmode="decimal" id="borrower_2_child_1_age_yrs" name="borrower_2_child_1_age_yrs" placeholder="Child 1 age (yrs)"/>
+                  <input class="field" type="text" inputmode="decimal" id="borrower_2_child_2_age_yrs" name="borrower_2_child_2_age_yrs" placeholder="Child 2 age (yrs)"/>
+                  <input class="field" type="text" inputmode="decimal" id="borrower_2_child_3_age_yrs" name="borrower_2_child_3_age_yrs" placeholder="Child 3 age (yrs)"/>
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
+                  <input class="field" type="text" inputmode="decimal" id="borrower_2_child_4_age_yrs" name="borrower_2_child_4_age_yrs" placeholder="Child 4 age (yrs)"/>
+                  <input class="field" type="text" inputmode="decimal" id="borrower_2_child_5_age_yrs" name="borrower_2_child_5_age_yrs" placeholder="Child 5 age (yrs)"/>
+                  <input class="field" type="text" inputmode="decimal" id="borrower_2_child_6_age_yrs" name="borrower_2_child_6_age_yrs" placeholder="Child 6 age (yrs)"/>
+                </div>
+              </div>
+            </div>
+
+            <!-- A15 Total number in household -->
+            <div class="labelCell">
+              <span class="code">A15</span>
+              <span class="text">Total number in household</span>
+            </div>
+            <input class="field" type="text" inputmode="decimal" id="total_number_in_household" name="total_number_in_household" placeholder="No."/>
+            <div></div>
+
+            <!-- A16 Employed Y/N (If self-employed give details) -->
+            <div class="labelCell">
+              <span class="code">A16</span>
+              <span class="text">Employed Y/N<br/><span class="subtext" style="font-weight:600;">If self-employed give details</span></span>
+            </div>
+            <div>
+              <div class="twoChecks" aria-label="Borrower 1 employed yes/no">
+                <label class="cb"><span>Yes</span><input type="checkbox" id="borrower_1_employed_y_n"/></label>
+              </div>
+              <div style="height:8px"></div>
+              <input class="field" type="text" id="borrower_1_self_employed_details" name="borrower_1_self_employed_details" />
+            </div>
+            <div>
+              <div class="twoChecks" aria-label="Borrower 2 employed yes/no">
+                <label class="cb"><span>Yes</span><input type="checkbox" id="borrower_2_employed_y_n"/></label>
+              </div>
+              <div style="height:8px"></div>
+              <input class="field" type="text" id="borrower_2_self_employed_details" name="borrower_2_self_employed_details" />
+            </div>
+
+            <!-- A17 Occupation -->
+            <div class="labelCell">
+              <span class="code">A17</span>
+              <span class="text">Occupation (if unemployed<br/>give previous occupation)</span>
+            </div>
+            <input class="field" type="text" id="borrower_1_occupation_if_unemployed_give_previous_occupation" name="borrower_1_occupation_if_unemployed_give_previous_occupation"/>
+            <input class="field" type="text" id="borrower_2_occupation_if_unemployed_give_previous_occupation" name="borrower_2_occupation_if_unemployed_give_previous_occupation"/>
+
+            <!-- A18 In Permanent employment -->
+            <div class="labelCell">
+              <span class="code">A18</span>
+              <span class="text">In Permanent employment</span>
+            </div>
+            <div class="twoChecks">
+              <label class="cb"><span>Yes</span><input type="checkbox" id="borrower_1_in_permanent_employment_yes"/></label>
+              <label class="cb"><span>No</span><input type="checkbox" id="borrower_1_in_permanent_employment_no"/></label>
+            </div>
+            <div class="twoChecks">
+              <label class="cb"><span>Yes</span><input type="checkbox" id="borrower_2_in_permanent_employment_yes"/></label>
+              <label class="cb"><span>No</span><input type="checkbox" id="borrower_2_in_permanent_employment_no"/></label>
+            </div>
+
+            <!-- A19 Name of Employer & Length of Service -->
+            <div class="labelCell">
+              <span class="code">A19</span>
+              <span class="text">Name of Employer &amp; Length<br/>of Service</span>
+            </div>
+            <div>
+              <textarea class="field mid" id="borrower_1_name_of_employer" name="borrower_1_name_of_employer" placeholder="Name of employer"></textarea>
+              <div style="height:8px"></div>
+              <input class="field" type="text" id="borrower_1_length_of_service" name="borrower_1_length_of_service" placeholder="Length of service"/>
+            </div>
+            <div>
+              <textarea class="field mid" id="borrower_2_name_of_employer" name="borrower_2_name_of_employer" placeholder="Name of employer"></textarea>
+              <div style="height:8px"></div>
+              <input class="field" type="text" id="borrower_2_length_of_service" name="borrower_2_length_of_service" placeholder="Length of service"/>
+            </div>
+
+            <!-- A20 Reason(s) for Review / Arrears -->
+            <div class="labelCell">
+              <span class="code">A20</span>
+              <span class="text">Reason(s) for Review /<br/>Arrears</span>
+            </div>
+            <textarea class="field" style="grid-column: 2 / 4; min-height:92px;" id="reasons_for_review_arrears" name="reasons_for_review_arrears"></textarea>
+          </div>
+
+          <div class="smallNote">
+            Fields accept text or, where applicable, numbers. For checkbox fields, submission serializes to the strings: "true" or "false".
+            Some fields may accept "N/A" per the original form guidance.
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="reset" class="btn ghost">Clear Form</button>
+          <button type="submit" class="btn primary">Submit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function cb(id){
+        const el = document.getElementById(id);
+        return el && el.checked ? "true" : "false";
+      }
+      function val(id){
+        const el = document.getElementById(id);
+        return el ? (el.value ?? "") : "";
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          account__property_details: {
+            borrower_1_mortgage_account_reference_nos: val('borrower_1_mortgage_account_reference_nos'),
+            borrower_2_mortgage_account_reference_nos: val('borrower_2_mortgage_account_reference_nos'),
+            borrower_1_outstanding_mortgage_balance_eur: val('borrower_1_outstanding_mortgage_balance_eur'),
+            borrower_2_outstanding_mortgage_balance_eur: val('borrower_2_outstanding_mortgage_balance_eur'),
+            borrower_1_estimated_current_value_primary_residence_eur: val('borrower_1_estimated_current_value_primary_residence_eur'),
+            borrower_2_estimated_current_value_primary_residence_eur: val('borrower_2_estimated_current_value_primary_residence_eur'),
+            borrower_1_monthly_mortgage_repayments_due_eur: val('borrower_1_monthly_mortgage_repayments_due_eur'),
+            borrower_2_monthly_mortgage_repayments_due_eur: val('borrower_2_monthly_mortgage_repayments_due_eur'),
+            borrower_1_correspondence_address: val('borrower_1_correspondence_address'),
+            borrower_2_correspondence_address: val('borrower_2_correspondence_address'),
+            borrower_1_property_address_if_different_to_correspondence_address: val('borrower_1_property_address_if_different_to_correspondence_address'),
+            borrower_2_property_address_if_different_to_correspondence_address: val('borrower_2_property_address_if_different_to_correspondence_address')
+          },
+          borrower_personal_details: {
+            borrower_1_name: val('borrower_1_name'),
+            borrower_2_name: val('borrower_2_name'),
+            borrower_1_marital_status: val('borrower_1_marital_status'),
+            borrower_2_marital_status: val('borrower_2_marital_status'),
+            borrower_1_date_of_birth_dd_mm_yyyy: val('borrower_1_date_of_birth_dd_mm_yyyy'),
+            borrower_2_date_of_birth_dd_mm_yyyy: val('borrower_2_date_of_birth_dd_mm_yyyy'),
+            borrower_1_no_of_dependent_children: val('borrower_1_no_of_dependent_children'),
+            borrower_2_no_of_dependent_children: val('borrower_2_no_of_dependent_children'),
+            borrower_1_child_1_age_yrs: val('borrower_1_child_1_age_yrs'),
+            borrower_1_child_2_age_yrs: val('borrower_1_child_2_age_yrs'),
+            borrower_1_child_3_age_yrs: val('borrower_1_child_3_age_yrs'),
+            borrower_1_child_4_age_yrs: val('borrower_1_child_4_age_yrs'),
+            borrower_1_child_5_age_yrs: val('borrower_1_child_5_age_yrs'),
+            borrower_1_child_6_age_yrs: val('borrower_1_child_6_age_yrs'),
+            borrower_2_child_1_age_yrs: val('borrower_2_child_1_age_yrs'),
+            borrower_2_child_2_age_yrs: val('borrower_2_child_2_age_yrs'),
+            borrower_2_child_3_age_yrs: val('borrower_2_child_3_age_yrs'),
+            borrower_2_child_4_age_yrs: val('borrower_2_child_4_age_yrs'),
+            borrower_2_child_5_age_yrs: val('borrower_2_child_5_age_yrs'),
+            borrower_2_child_6_age_yrs: val('borrower_2_child_6_age_yrs'),
+            total_number_in_household: val('total_number_in_household')
+          },
+          contact_information: {
+            preferred_contact_method_home_telephone: cb('preferred_contact_method_home_telephone'),
+            preferred_contact_method_mobile_telephone: cb('preferred_contact_method_mobile_telephone'),
+            preferred_contact_method_work_telephone: cb('preferred_contact_method_work_telephone'),
+            preferred_contact_method_e_mail_address: cb('preferred_contact_method_e_mail_address'),
+            borrower_1_home_telephone: val('borrower_1_home_telephone'),
+            borrower_2_home_telephone: val('borrower_2_home_telephone'),
+            borrower_1_mobile_telephone: val('borrower_1_mobile_telephone'),
+            borrower_2_mobile_telephone: val('borrower_2_mobile_telephone'),
+            borrower_1_work_telephone: val('borrower_1_work_telephone'),
+            borrower_2_work_telephone: val('borrower_2_work_telephone'),
+            borrower_1_e_mail_address: val('borrower_1_e_mail_address'),
+            borrower_2_e_mail_address: val('borrower_2_e_mail_address')
+          },
+          employment_details: {
+            borrower_1_employed_y_n: cb('borrower_1_employed_y_n'),
+            borrower_2_employed_y_n: cb('borrower_2_employed_y_n'),
+            borrower_1_self_employed_details: val('borrower_1_self_employed_details'),
+            borrower_2_self_employed_details: val('borrower_2_self_employed_details'),
+            borrower_1_occupation_if_unemployed_give_previous_occupation: val('borrower_1_occupation_if_unemployed_give_previous_occupation'),
+            borrower_2_occupation_if_unemployed_give_previous_occupation: val('borrower_2_occupation_if_unemployed_give_previous_occupation'),
+            borrower_1_in_permanent_employment_yes: cb('borrower_1_in_permanent_employment_yes'),
+            borrower_1_in_permanent_employment_no: cb('borrower_1_in_permanent_employment_no'),
+            borrower_2_in_permanent_employment_yes: cb('borrower_2_in_permanent_employment_yes'),
+            borrower_2_in_permanent_employment_no: cb('borrower_2_in_permanent_employment_no'),
+            borrower_1_name_of_employer: val('borrower_1_name_of_employer'),
+            borrower_1_length_of_service: val('borrower_1_length_of_service'),
+            borrower_2_name_of_employer: val('borrower_2_name_of_employer'),
+            borrower_2_length_of_service: val('borrower_2_length_of_service')
+          },
+          reason_for_review__arrears: {
+            reasons_for_review_arrears: val('reasons_for_review_arrears')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for the JSON output.');
+      });
+    })();
+  </script>
+</body>
+</html>

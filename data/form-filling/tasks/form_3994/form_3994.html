@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Northern Beaches Council — Subdivision Certificate Application 21/22</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    :root{
+      --ink:#1c1c1c;
+      --muted:#5a5a5a;
+      --line:#6f6f6f;
+      --lightline:#b9b9b9;
+      --paper:#ffffff;
+      --bg:#d6d2cd;
+      --section:#4a4a4a;
+      --focus:#f5f5ee;
+      --teal:#1aa3a3;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 2px 14px rgba(0,0,0,.14);
+      border:1px solid rgba(0,0,0,.08);
+    }
+
+    /* Top banner */
+    .banner{
+      height:110px;
+      background:linear-gradient(135deg, #16a39a 0%, #39b39b 35%, #b6d23b 100%);
+      position:relative;
+      overflow:hidden;
+      border-bottom:1px solid rgba(0,0,0,.15);
+    }
+    .banner:after{
+      content:"";
+      position:absolute;
+      right:-120px; top:-70px;
+      width:420px; height:260px;
+      background:rgba(255,255,255,.12);
+      border-radius:50%;
+      transform:rotate(-15deg);
+      filter:blur(.2px);
+    }
+    .banner-inner{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:18px 22px;
+      height:100%;
+      color:#fff;
+    }
+    .brand{
+      display:flex;
+      gap:14px;
+      align-items:center;
+    }
+    .logo-badge{
+      width:54px; height:54px;
+      border-radius:50%;
+      background:rgba(255,255,255,.18);
+      border:2px solid rgba(255,255,255,.45);
+      display:grid;
+      place-items:center;
+      flex:0 0 auto;
+    }
+    .logo-badge svg{width:36px;height:36px;opacity:.92}
+    .brand-text{
+      line-height:1.05;
+      font-weight:600;
+      font-size:14px;
+      text-transform:lowercase;
+      letter-spacing:.2px;
+      opacity:.95;
+    }
+    .title{
+      text-align:right;
+      font-weight:600;
+      font-size:22px;
+      line-height:1.15;
+      text-shadow:0 1px 0 rgba(0,0,0,.08);
+    }
+
+    .content{ padding:14px 16px 18px; }
+
+    /* Generic table */
+    .grid{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:12px;
+    }
+    .grid td, .grid th{
+      border:1px solid var(--line);
+      padding:6px 8px;
+      vertical-align:top;
+    }
+    .grid th{
+      background:#f3f3f3;
+      text-align:left;
+      font-weight:700;
+    }
+    .grid .subhead{
+      background:#f7f7f7;
+      font-weight:700;
+    }
+    .muted{ color:var(--muted); }
+
+    .top-panels{
+      display:grid;
+      grid-template-columns: 1.55fr 1fr;
+      gap:10px;
+      margin-bottom:10px;
+    }
+
+    /* "Office use only" */
+    .office-header{
+      font-weight:700;
+      background:#f3f3f3;
+    }
+    .small{font-size:11.5px}
+    .tight td{ padding:6px 7px; }
+
+    /* Little boxes for application number visual */
+    .box-row{
+      display:flex;
+      gap:2px;
+      align-items:center;
+      flex-wrap:nowrap;
+      margin-top:4px;
+    }
+    .tiny-box{
+      width:18px;
+      height:18px;
+      border:1px solid var(--line);
+      background:#fff;
+      display:grid;
+      place-items:center;
+      font-size:11px;
+      color:#111;
+    }
+    .slash{
+      font-weight:700;
+      margin:0 2px;
+      color:#333;
+    }
+
+    /* Privacy notice */
+    .notice{
+      margin:8px 0 12px;
+    }
+    .notice-title{
+      font-weight:700;
+      background:#f3f3f3;
+    }
+
+    /* Section heading like the form */
+    .part-title{
+      margin:10px 0 6px;
+      font-size:13px;
+      font-weight:600;
+      color:var(--teal);
+    }
+
+    /* Certificate tick area */
+    .cert-block{
+      margin-top:2px;
+      margin-bottom:6px;
+    }
+    .cert-title{
+      font-size:12px;
+      margin-bottom:6px;
+    }
+    .cert-grid{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:12px;
+    }
+    .cert-grid td{
+      border:1px solid var(--line);
+      padding:0;
+    }
+    .cert-cell{
+      padding:8px 10px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      justify-content:center;
+      min-height:34px;
+      text-align:center;
+    }
+    .cert-cell label{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      cursor:pointer;
+      user-select:none;
+      justify-content:center;
+      width:100%;
+      padding:8px 10px;
+    }
+    input[type="checkbox"]{
+      width:14px;height:14px;
+      accent-color:#3a3a3a;
+      flex:0 0 auto;
+    }
+
+    /* Form inputs inside table cells */
+    .cell-input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:2px 2px;
+      min-height:18px;
+    }
+    .cell-input:focus{
+      background:var(--focus);
+    }
+
+    .textarea{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:6px 2px;
+      min-height:88px;
+      resize:vertical;
+    }
+    .textarea:focus{ background:var(--focus); }
+
+    .footnote{
+      font-size:11px;
+      color:#333;
+      margin:6px 0 4px;
+    }
+
+    /* Bottom bar */
+    .page-footer{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:8px 16px 12px;
+      color:#666;
+      font-size:11.5px;
+    }
+
+    /* Action buttons */
+    .actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:10px 16px 16px;
+    }
+    .btn{
+      font:600 13px Inter, Arial, sans-serif;
+      padding:8px 16px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #7a7a7a;
+      background:#fff;
+      color:#2a2a2a;
+    }
+    .btn.primary{
+      background:#4b4b4b;
+      border-color:#2f2f2f;
+      color:#fff;
+    }
+
+    /* Helper */
+    .sr-only{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="banner">
+      <div class="banner-inner">
+        <div class="brand">
+          <div class="logo-badge" aria-hidden="true">
+            <!-- simple wave icon (not official, decorative) -->
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10 40c9-12 19-12 28 0s19 12 16-6" stroke="white" stroke-width="4" stroke-linecap="round"/>
+              <path d="M12 30c8-10 17-10 25 0s17 10 15-5" stroke="white" stroke-width="4" stroke-linecap="round" opacity=".9"/>
+              <path d="M14 20c7-8 15-8 22 0s15 8 13-4" stroke="white" stroke-width="4" stroke-linecap="round" opacity=".8"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <div>northern</div>
+            <div>beaches</div>
+            <div>council</div>
+          </div>
+        </div>
+        <div class="title">
+          <div>Subdivision Certificate</div>
+          <div>Application 21/22</div>
+        </div>
+      </div>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="content">
+
+        <div class="top-panels">
+          <!-- Left contact box -->
+          <table class="grid tight" aria-label="Contact information">
+            <colgroup>
+              <col style="width:26%">
+              <col style="width:74%">
+            </colgroup>
+            <tr>
+              <td colspan="2" class="small">If you need help lodging your form, contact us</td>
+            </tr>
+            <tr>
+              <td><strong>Email</strong></td>
+              <td>council@northernbeaches.nsw.gov.au</td>
+            </tr>
+            <tr>
+              <td><strong>Phone</strong></td>
+              <td>1300 434 434</td>
+            </tr>
+            <tr>
+              <td><strong>Customer<br/>Service Centres</strong></td>
+              <td>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                  <div>
+                    <div><strong>Manly</strong></div>
+                    <div class="muted">Townhall, 1 Belgrave Street</div>
+                    <div class="muted">Manly NSW 2095</div>
+                  </div>
+                  <div>
+                    <div><strong>Dee Why</strong></div>
+                    <div class="muted">Civic Centre, 725 Pittwater Road</div>
+                    <div class="muted">Dee Why NSW 2099</div>
+                  </div>
+                  <div>
+                    <div><strong>Mona Vale</strong></div>
+                    <div class="muted">1 Park Street</div>
+                    <div class="muted">Mona Vale NSW 2103</div>
+                  </div>
+                  <div>
+                    <div><strong>Avalon</strong></div>
+                    <div class="muted">59A Old Barrenjoey Road</div>
+                    <div class="muted">Avalon Beach NSW 2107</div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Right office use only box -->
+          <table class="grid tight" aria-label="Office use only">
+            <colgroup>
+              <col style="width:42%">
+              <col style="width:58%">
+            </colgroup>
+            <tr>
+              <td colspan="2" class="office-header">Office use only</td>
+            </tr>
+            <tr>
+              <td><strong>Form ID</strong></td>
+              <td>4020</td>
+            </tr>
+            <tr>
+              <td><strong>TRIM Ref</strong></td>
+              <td>&nbsp;</td>
+            </tr>
+            <tr>
+              <td><strong>Last Updated</strong></td>
+              <td>June 2021</td>
+            </tr>
+            <tr>
+              <td><strong>Business Unit</strong></td>
+              <td>Environment &amp; Climate Change</td>
+            </tr>
+            <tr>
+              <td><strong>Application No.</strong></td>
+              <td>
+                <input class="cell-input" type="text" id="application_no" name="application_no" aria-label="Application number"/>
+                <div class="box-row" aria-hidden="true">
+                  <div class="tiny-box">S</div>
+                  <div class="tiny-box">C</div>
+                  <div class="tiny-box">2</div>
+                  <div class="tiny-box">0</div>
+                  <div class="tiny-box">&nbsp;</div>
+                  <div class="slash">/</div>
+                  <div class="tiny-box">&nbsp;</div>
+                  <div class="tiny-box">&nbsp;</div>
+                  <div class="tiny-box">&nbsp;</div>
+                  <div class="tiny-box">&nbsp;</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Receipt No.</strong></td>
+              <td>
+                <input class="cell-input" type="text" id="receipt_no" name="receipt_no" aria-label="Receipt number"/>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Privacy notice -->
+        <table class="grid notice" aria-label="Privacy Protection Notice">
+          <colgroup>
+            <col style="width:28%">
+            <col style="width:72%">
+          </colgroup>
+          <tr>
+            <td colspan="2" class="notice-title">Privacy Protection Notice</td>
+          </tr>
+          <tr>
+            <td><strong>Purpose of collection:</strong></td>
+            <td>For Council to provide services to the community</td>
+          </tr>
+          <tr>
+            <td><strong>Intended recipients:</strong></td>
+            <td>Northern Beaches Council staff</td>
+          </tr>
+          <tr>
+            <td><strong>Supply:</strong></td>
+            <td>If you choose not to supply your personal information, it may result in Council being unable to provide the services you seek</td>
+          </tr>
+          <tr>
+            <td><strong>Access/Correction:</strong></td>
+            <td>Please contact Customer Service on 1300 434 434 to access or correct your personal information</td>
+          </tr>
+        </table>
+
+        <!-- Certificate selection -->
+        <div class="cert-block">
+          <div class="cert-title">Which Certificate are you applying for? <span class="muted">(Please tick)</span></div>
+          <table class="cert-grid" aria-label="Which certificate are you applying for">
+            <colgroup>
+              <col style="width:20%">
+              <col style="width:20%">
+              <col style="width:20%">
+              <col style="width:20%">
+              <col style="width:20%">
+            </colgroup>
+            <tr>
+              <td>
+                <div class="cert-cell">
+                  <label for="torrens_title">
+                    <input type="checkbox" id="torrens_title" />
+                    <span>Torrens Title</span>
+                  </label>
+                </div>
+              </td>
+              <td>
+                <div class="cert-cell">
+                  <label for="boundary_adjustment">
+                    <input type="checkbox" id="boundary_adjustment" />
+                    <span>Boundary Adjustment</span>
+                  </label>
+                </div>
+              </td>
+              <td>
+                <div class="cert-cell">
+                  <label for="consolidation">
+                    <input type="checkbox" id="consolidation" />
+                    <span>Consolidation</span>
+                  </label>
+                </div>
+              </td>
+              <td colspan="2">
+                <div class="cert-cell">
+                  <label for="road_easement_dedication">
+                    <input type="checkbox" id="road_easement_dedication" />
+                    <span>Road &amp; Easement Dedication</span>
+                  </label>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cert-cell">
+                  <label for="strata">
+                    <input type="checkbox" id="strata" />
+                    <span>Strata*</span>
+                  </label>
+                </div>
+              </td>
+              <td>
+                <div class="cert-cell">
+                  <label for="stratum">
+                    <input type="checkbox" id="stratum" />
+                    <span>Stratum</span>
+                  </label>
+                </div>
+              </td>
+              <td><div class="cert-cell"><span class="muted">&nbsp;</span></div></td>
+              <td><div class="cert-cell"><span class="muted">&nbsp;</span></div></td>
+              <td><div class="cert-cell"><span class="muted">&nbsp;</span></div></td>
+            </tr>
+          </table>
+          <div class="footnote">
+            *Strata Subdivisions relating to completed buildings on private land only - Refer application to Building Approvals Team (Development Compliance Unit).
+          </div>
+        </div>
+
+        <div class="part-title">Part 1: Site Details</div>
+
+        <table class="grid" aria-label="Part 1 Site Details">
+          <colgroup>
+            <col style="width:24%">
+            <col style="width:29%">
+            <col style="width:22%">
+            <col style="width:25%">
+          </colgroup>
+
+          <tr>
+            <td colspan="4" class="subhead">
+              1.1&nbsp;&nbsp;Location Of Property<br/>
+              <span class="muted small">Required to correctly identify the land</span>
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>Unit/House number</strong></td>
+            <td colspan="3">
+              <input class="cell-input" type="text" id="unit_house_number" name="unit_house_number" />
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Street</strong></td>
+            <td colspan="3">
+              <input class="cell-input" type="text" id="street" name="street" />
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Suburb</strong></td>
+            <td>
+              <input class="cell-input" type="text" id="suburb" name="suburb" />
+            </td>
+            <td><strong>Postcode</strong></td>
+            <td>
+              <input class="cell-input" type="text" inputmode="numeric" id="postcode" name="postcode" />
+            </td>
+          </tr>
+
+          <tr>
+            <td colspan="4" class="subhead">Legal Property Description <span class="muted">(this information MUST be supplied)</span></td>
+          </tr>
+
+          <tr>
+            <td><strong>Lot Number</strong></td>
+            <td>
+              <input class="cell-input" type="text" id="lot_number" name="lot_number" />
+            </td>
+            <td><strong>Section</strong></td>
+            <td>
+              <input class="cell-input" type="text" id="section" name="section" />
+            </td>
+          </tr>
+          <tr>
+            <td><strong>DP/SP</strong></td>
+            <td colspan="3">
+              <input class="cell-input" type="text" id="dp_sp" name="dp_sp" />
+            </td>
+          </tr>
+
+          <tr>
+            <td colspan="4" class="subhead">1.2&nbsp;&nbsp;Description of Subdivision Certificate</td>
+          </tr>
+          <tr>
+            <td colspan="4" class="small">
+              <strong>Please describe briefly</strong> everything that you want approved by the Council including signs, hours of operation, use, subdivision, demolition etc
+            </td>
+          </tr>
+          <tr>
+            <td colspan="4">
+              <textarea class="textarea" id="description_of_subdivision_certificate" name="description_of_subdivision_certificate"></textarea>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="4" class="small"><strong>Lots to be created (if applicable)</strong></td>
+          </tr>
+          <tr>
+            <td colspan="4">
+              <input class="cell-input" type="text" id="lots_to_be_created_if_applicable" name="lots_to_be_created_if_applicable" />
+            </td>
+          </tr>
+        </table>
+
+      </div>
+
+      <div class="actions">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn primary">Submit</button>
+      </div>
+
+      <div class="page-footer">
+        <div>PAGE 1</div>
+        <div>northernbeaches.nsw.gov.au</div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function cbToString(id){
+        const el = document.getElementById(id);
+        return el && el.checked ? "true" : "false";
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+
+        const data = {
+          application_details: {
+            application_no: (fd.get('application_no') ?? '').toString(),
+            receipt_no: (fd.get('receipt_no') ?? '').toString(),
+            torrens_title: cbToString('torrens_title'),
+            boundary_adjustment: cbToString('boundary_adjustment'),
+            consolidation: cbToString('consolidation'),
+            road_easement_dedication: cbToString('road_easement_dedication'),
+            strata: cbToString('strata'),
+            stratum: cbToString('stratum')
+          },
+          part_1_site_details: {
+            unit_house_number: (fd.get('unit_house_number') ?? '').toString(),
+            street: (fd.get('street') ?? '').toString(),
+            suburb: (fd.get('suburb') ?? '').toString(),
+            postcode: (fd.get('postcode') ?? '').toString(),
+            lot_number: (fd.get('lot_number') ?? '').toString(),
+            section: (fd.get('section') ?? '').toString(),
+            dp_sp: (fd.get('dp_sp') ?? '').toString(),
+            description_of_subdivision_certificate: (fd.get('description_of_subdivision_certificate') ?? '').toString(),
+            lots_to_be_created_if_applicable: (fd.get('lots_to_be_created_if_applicable') ?? '').toString()
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

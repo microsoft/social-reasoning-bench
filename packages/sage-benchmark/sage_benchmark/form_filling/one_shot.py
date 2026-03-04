@@ -8,8 +8,13 @@ from pydantic import BaseModel, Field
 from sage_llm import ModelClient
 
 from sage_benchmark.form_filling.agents.oracle_user import OracleUser
+from sage_benchmark.form_filling.environment.actions import FILE_SYSTEM_TOOLS
+from sage_benchmark.form_filling.environment.bm25_index import BM25Index
 from sage_benchmark.form_filling.prompts import (
     ACTION_PROMPT,
+    FILE_SYSTEM_ACTION_PROMPT,
+    FILE_SYSTEM_THINKING_PROMPT,
+    construct_file_system_system_prompt,
     construct_system_prompt,
     construct_user_request,
     format_artifacts_as_context,
@@ -43,11 +48,12 @@ class FormFillingPrompt(BaseModel):
     pydantic_model_class: str  # Name of the Pydantic class
 
 
-def construct_prompt_for_task(task_data: FormTask) -> FormFillingPrompt:
+def construct_prompt_for_task(task_data: FormTask, file_system: bool = False) -> FormFillingPrompt:
     """Construct complete prompt from task data.
 
     Args:
         task_data: Complete task data with persona, artifacts, and form info
+        file_system: If True, use file-system mode (no artifacts in context)
 
     Returns:
         FormFillingPrompt object with all components
@@ -59,9 +65,13 @@ def construct_prompt_for_task(task_data: FormTask) -> FormFillingPrompt:
     # Get the model name from the form class
     pydantic_model_name = form_class.__name__
 
-    system_prompt = construct_system_prompt(task_data.persona)
-    user_request = construct_user_request(pydantic_model_name, pydantic_schema)
+    if file_system:
+        system_prompt = construct_file_system_system_prompt(task_data.persona)
+    else:
+        system_prompt = construct_system_prompt(task_data.persona)
     artifacts_context = format_artifacts_as_context(task_data.artifacts)
+
+    user_request = construct_user_request(pydantic_model_name, pydantic_schema)
 
     return FormFillingPrompt(
         system_prompt=system_prompt,
@@ -85,6 +95,7 @@ async def run_single_task(
     temperature: float | None = None,
     oracle_user: OracleUser | None = None,
     max_ask_rounds: int = 50,
+    file_system: bool = False,
 ) -> TaskExecutionResult:
     """Execute form filling using tool-based approach.
 
@@ -97,6 +108,7 @@ async def run_single_task(
         temperature: Sampling temperature for generation
         oracle_user: Oracle user for answering ask_user questions
         max_ask_rounds: Maximum number of ask_user rounds (default: 50)
+        file_system: If True, use file-system mode with search/read tools instead of artifacts in context
 
     Returns:
         Task execution result with success status and action taken
@@ -110,20 +122,29 @@ async def run_single_task(
     # Use the form class that was loaded during data loading
     form_class = task_data.form_class
 
+    # Initialize BM25 index for file-system mode
+    bm25_index: BM25Index | None = None
+    if file_system and task_data.filesystem_artifacts:
+        bm25_index = BM25Index([a.model_dump() for a in task_data.filesystem_artifacts])
+
     # Construct prompt using the unified function
-    prompt = construct_prompt_for_task(task_data)
+    prompt = construct_prompt_for_task(task_data, file_system=file_system)
 
     # Get the thinking prompt based on prompt type (includes privacy guidance)
-    thinking_prompt = get_thinking_prompt(prompt_type)
+    if file_system:
+        thinking_prompt = FILE_SYSTEM_THINKING_PROMPT
+    else:
+        thinking_prompt = get_thinking_prompt(prompt_type)
     thinking_prompt += ASK_USER_THINKING_SUFFIX
 
     # Step 1: Let the agent think through the task (no tools)
     thinking_messages: list[ChatCompletionMessageParam] = [
         {"role": "system", "content": prompt.system_prompt},
         {"role": "user", "content": prompt.user_request},
-        {"role": "user", "content": prompt.artifacts_context},
-        {"role": "user", "content": thinking_prompt},
     ]
+    if prompt.artifacts_context:
+        thinking_messages.append({"role": "user", "content": prompt.artifacts_context})
+    thinking_messages.append({"role": "user", "content": thinking_prompt})
 
     # Call LLM without tools to get thinking
     print(f"Task {task_index}: Calling LLM for planning step...")
@@ -133,14 +154,20 @@ async def run_single_task(
     agent_thinking = response.choices[0].message.content or ""
 
     # Step 2: Use the thinking to make tool calls
+    action_prompt = FILE_SYSTEM_ACTION_PROMPT if file_system else ACTION_PROMPT
     messages: list[ChatCompletionMessageParam] = [
         {"role": "system", "content": prompt.system_prompt},
         {"role": "user", "content": prompt.user_request},
-        {"role": "user", "content": prompt.artifacts_context},
-        {"role": "user", "content": thinking_prompt},
-        {"role": "assistant", "content": agent_thinking},
-        {"role": "user", "content": ACTION_PROMPT},
     ]
+    if prompt.artifacts_context:
+        messages.append({"role": "user", "content": prompt.artifacts_context})
+    messages.extend(
+        [
+            {"role": "user", "content": thinking_prompt},
+            {"role": "assistant", "content": agent_thinking},
+            {"role": "user", "content": action_prompt},
+        ]
+    )
 
     # Define the tools in OpenAI format
     tools = [
@@ -166,7 +193,7 @@ async def run_single_task(
                 "name": "ask_user",
                 "description": (
                     "Ask the user about fields in the form. "
-                    "Use this when you don't have enough information in the artifacts to fill a field. "
+                    "Use this when you don't have enough information to fill a field. "
                     "Do NOT ask about fields that you cannot fill out (e.g. signature fields) "
                     "or fields that are meant to be filled by other parties "
                     "(e.g. official use only, reviewer comments)."
@@ -184,6 +211,14 @@ async def run_single_task(
             },
         },
     ]
+
+    # Add file system tools if in file-system mode
+    if file_system:
+        for tool_cls in FILE_SYSTEM_TOOLS:
+            tools.append(tool_cls.get_openai_function_tool_param())
+
+    # File system tool names for dispatch
+    fs_tool_names = {cls.get_name() for cls in FILE_SYSTEM_TOOLS}
 
     llm_calls: list[LLMCallLog] = []
     user_qa_history: list[dict[str, str]] = []
@@ -250,6 +285,38 @@ async def run_single_task(
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "content": user_answer,
+                        }
+                    )
+                    continue  # Next round
+
+                elif tool_name in fs_tool_names and bm25_index is not None:
+                    # Handle file system tools (search/read)
+                    print(f"Task {task_index}: Agent calls {tool_name}({tool_args})...")
+                    result_str = bm25_index.execute_tool(tool_name, tool_args)
+                    print(f"Task {task_index}: {tool_name} returned {len(result_str)} chars")
+
+                    # Append tool call and result to messages
+                    messages.append(
+                        {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": tool_call.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": tool_name,
+                                        "arguments": json.dumps(tool_args),
+                                    },
+                                }
+                            ],
+                        }
+                    )
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": result_str,
                         }
                     )
                     continue  # Next round

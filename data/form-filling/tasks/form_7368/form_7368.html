@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shire of East Pilbara — Additional Information for Development Approval for Advertisements / Signs</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    :root{
+      --bg:#d6d2cd;
+      --page:#ffffff;
+      --ink:#1a1a1a;
+      --muted:#444;
+      --line:#2f2f2f;
+      --bar:#b6551e; /* brown/orange from scan */
+      --bar2:#9a4716;
+      --focus:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--page);
+      box-shadow:0 1px 14px rgba(0,0,0,.15);
+      border:1px solid rgba(0,0,0,.25);
+    }
+
+    .pad{padding:18px 22px 10px 22px;}
+
+    .top{
+      display:grid;
+      grid-template-columns:140px 1fr 140px;
+      gap:10px;
+      align-items:center;
+      padding:16px 18px 8px 18px;
+    }
+
+    .crest{
+      width:120px;height:70px;
+      border:1px solid rgba(0,0,0,.25);
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;color:#666;
+      background:linear-gradient(135deg,#f7f7f7,#fff);
+    }
+
+    .title{
+      text-align:center;
+      line-height:1.2;
+    }
+    .title .shire{
+      font-weight:800;
+      color:var(--bar2);
+      letter-spacing:.7px;
+      font-size:15px;
+      text-transform:uppercase;
+    }
+    .title .main{
+      margin-top:6px;
+      font-weight:800;
+      color:var(--bar);
+      font-size:18px;
+      text-transform:uppercase;
+      letter-spacing:.6px;
+    }
+    .title .sub{
+      margin-top:2px;
+      font-weight:800;
+      color:var(--bar);
+      font-size:18px;
+      text-transform:uppercase;
+      letter-spacing:.6px;
+    }
+
+    .rule{height:1px;background:#222;margin:8px 18px 10px 18px;}
+
+    .note{
+      padding:6px 18px 10px 18px;
+      font-size:12.8px;
+      text-align:center;
+      font-weight:700;
+      letter-spacing:.1px;
+    }
+    .note u{font-weight:800}
+
+    form{margin:0}
+
+    /* Table-like form */
+    .grid{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:12.6px;
+    }
+    .grid td, .grid th{
+      border:1px solid var(--line);
+      vertical-align:top;
+      padding:8px 8px;
+    }
+
+    .secno{
+      width:46px;
+      text-align:center;
+      font-weight:800;
+      background:var(--bar);
+      color:#fff;
+      padding:10px 6px !important;
+    }
+    .secbar{
+      background:var(--bar);
+      color:#fff;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+      padding:10px 10px !important;
+      font-size:12.6px;
+    }
+
+    .subno{
+      width:46px;
+      text-align:center;
+      font-weight:700;
+      color:#333;
+      padding:10px 6px !important;
+      background:#fff;
+    }
+
+    .label{
+      color:#222;
+      font-weight:600;
+    }
+
+    .fill{
+      position:relative;
+      min-height:34px;
+    }
+
+    input[type="text"], input[type="number"], input[type="date"], textarea{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      color:var(--ink);
+      padding:2px 4px;
+    }
+    textarea{resize:none; min-height:78px; line-height:1.35}
+    input:focus, textarea:focus{background:var(--focus)}
+
+    .twoCol{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:0;
+      height:100%;
+    }
+
+    .triple{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:0;
+      height:100%;
+    }
+
+    .cellSplit{
+      display:grid;
+      grid-template-columns:140px 1fr;
+      gap:0;
+      height:100%;
+      min-height:36px;
+    }
+    .cellSplit > div{
+      padding:6px 8px;
+    }
+    .cellSplit > div + div{
+      border-left:1px solid var(--line);
+    }
+
+    .inlineRow{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      flex-wrap:wrap;
+      padding-top:2px;
+    }
+
+    .cb{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      margin-right:12px;
+      white-space:nowrap;
+      font-weight:600;
+      color:#222;
+    }
+    .cb input[type="checkbox"]{
+      width:14px;height:14px;
+      accent-color:#333;
+      transform:translateY(1px);
+    }
+
+    .illumGrid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:0;
+      border:1px solid var(--line);
+      border-left:none;border-right:none;
+      margin:0;
+    }
+    .illumGrid .irow{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 8px;
+      min-height:28px;
+      border-bottom:1px solid var(--line);
+    }
+    .illumGrid .irow:nth-last-child(-n+2){border-bottom:none;}
+    .illumGrid .icol{
+      border-left:1px solid var(--line);
+    }
+
+    .footnote{
+      font-size:12px;
+      padding:8px 10px;
+    }
+
+    .sigRow{
+      display:grid;
+      grid-template-columns:1fr 230px;
+      gap:0;
+      height:100%;
+    }
+    .sigRow > div{padding:8px}
+    .sigRow > div + div{border-left:1px solid var(--line)}
+
+    .sigLabel{
+      font-weight:600;
+      color:#222;
+    }
+    .sigLabel .small{font-weight:500;color:#333;font-size:12px}
+    .sigBox{
+      display:grid;
+      grid-template-columns:1fr 120px 1fr;
+      gap:0;
+      border-top:1px solid var(--line);
+    }
+    .sigBox > div{padding:8px}
+    .sigBox > div + div{border-left:1px solid var(--line)}
+    .dateCell{
+      display:grid;
+      grid-template-columns:60px 1fr;
+      align-items:end;
+      gap:8px;
+    }
+
+    .actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:12px 18px 18px 18px;
+    }
+    .btn{
+      font:inherit;
+      font-weight:700;
+      font-size:13px;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #333;
+    }
+    .btn-clear{background:#fff;color:#333;border-color:#777}
+    .btn-submit{background:#444;color:#fff}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <div class="crest" aria-hidden="true">COAT OF ARMS</div>
+      <div class="title">
+        <div class="shire">Shire of East Pilbara</div>
+        <div class="main">Additional Information for Development</div>
+        <div class="sub">Approval for Advertisements / Signs</div>
+      </div>
+      <div></div>
+    </div>
+    <div class="rule"></div>
+    <div class="note">
+      NOTE: THIS FORM IS TO BE COMPLETED <u>IN ADDITION</u> TO THE APPLICATION FOR<br/>
+      DEVELOPMENT APPROVAL FORM WHERE AN ADVERTISEMENT / SIGN IS PROPOSED
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <table class="grid" aria-label="Additional Information for Development Approval for Advertisements/Signs">
+        <!-- 1 -->
+        <tr>
+          <td class="secno">1.</td>
+          <td class="secbar" colspan="5">DESCRIPTION OF PROPERTY ON WHICH ADVERTISEMENT IS TO BE DISPLAYED INCLUDING FULL DETAILS OF ITS PROPOSED POSITION WITHIN THE PROPERTY:</td>
+        </tr>
+        <tr>
+          <td class="subno"></td>
+          <td colspan="5" class="fill">
+            <textarea id="description_of_property_on_which_advertisement_is_to_be_displayed_including_full_details_of_its_proposed_position_within_the_property"
+              name="description_of_property_on_which_advertisement_is_to_be_displayed_including_full_details_of_its_proposed_position_within_the_property"
+              rows="5"></textarea>
+          </td>
+        </tr>
+
+        <!-- 2 -->
+        <tr>
+          <td class="secno">2.</td>
+          <td class="secbar" colspan="5">DETAILS OF PROPOSED SIGN:</td>
+        </tr>
+
+        <!-- 2(a) -->
+        <tr>
+          <td class="subno">(a)</td>
+          <td colspan="5" class="fill">
+            <div class="label">Type of structure on which advertisement is to be erected (i.e. freestanding, wall mounted, other)</div>
+            <input type="text" id="type_of_structure_on_which_advertisement_is_to_be_erected_ie_freestanding_wall_mounted_other"
+                   name="type_of_structure_on_which_advertisement_is_to_be_erected_ie_freestanding_wall_mounted_other" />
+          </td>
+        </tr>
+
+        <!-- 2(b) -->
+        <tr>
+          <td class="subno">(b)</td>
+          <td colspan="5" style="padding:0">
+            <div class="triple">
+              <div class="cellSplit">
+                <div class="label">Height:</div>
+                <div class="fill"><input type="text" inputmode="decimal" id="height" name="height" /></div>
+              </div>
+              <div class="cellSplit" style="border-left:1px solid var(--line)">
+                <div class="label">Width:</div>
+                <div class="fill"><input type="text" inputmode="decimal" id="width" name="width" /></div>
+              </div>
+              <div class="cellSplit" style="border-left:1px solid var(--line)">
+                <div class="label">Depth:</div>
+                <div class="fill"><input type="text" inputmode="decimal" id="depth" name="depth" /></div>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- 2(c) -->
+        <tr>
+          <td class="subno">(c)</td>
+          <td colspan="5" class="fill">
+            <div class="label">Colours to be used:</div>
+            <input type="text" id="colours_to_be_used" name="colours_to_be_used" />
+          </td>
+        </tr>
+
+        <!-- 2(d) -->
+        <tr>
+          <td class="subno">(d)</td>
+          <td colspan="5" style="padding:0">
+            <div class="twoCol">
+              <div class="fill" style="border-right:1px solid var(--line); padding:8px;">
+                <div class="label">Height above ground level -</div>
+              </div>
+              <div style="padding:0">
+                <div class="cellSplit" style="border-bottom:1px solid var(--line); border-left:none;">
+                  <div class="label">To top of advertisement:</div>
+                  <div class="fill">
+                    <input type="text" inputmode="decimal" id="height_above_ground_level_to_top_of_advertisement" name="height_above_ground_level_to_top_of_advertisement" />
+                  </div>
+                </div>
+                <div class="cellSplit" style="border-left:none;">
+                  <div class="label">To underside:</div>
+                  <div class="fill">
+                    <input type="text" inputmode="decimal" id="height_above_ground_level_to_underside" name="height_above_ground_level_to_underside" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- 2(e) -->
+        <tr>
+          <td class="subno">(e)</td>
+          <td colspan="5" class="fill">
+            <div class="label">Materials to be used:</div>
+            <input type="text" id="materials_to_be_used" name="materials_to_be_used" />
+          </td>
+        </tr>
+
+        <!-- 2(f) -->
+        <tr>
+          <td class="subno">(f)</td>
+          <td colspan="5" style="padding:0">
+            <div class="twoCol">
+              <div class="fill" style="padding:8px; border-right:1px solid var(--line);">
+                <div class="label">Illuminated?</div>
+              </div>
+              <div class="fill" style="padding:8px;">
+                <div class="inlineRow">
+                  <label class="cb">
+                    <input type="checkbox" id="illuminated_yes" name="illuminated_yes">
+                    <span>Yes</span>
+                  </label>
+                  <label class="cb">
+                    <input type="checkbox" id="illuminated_no" name="illuminated_no">
+                    <span>No</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- illumination types -->
+        <tr>
+          <td class="subno"></td>
+          <td colspan="5" style="padding:0">
+            <div class="twoCol">
+              <div class="fill" style="padding:8px; border-right:1px solid var(--line);">
+                <div class="label" style="font-weight:600;">
+                  If the advertisement is illuminated, indicate whether the illumination is:
+                </div>
+              </div>
+              <div class="fill" style="padding:0">
+                <div class="illumGrid">
+                  <div>
+                    <div class="irow">
+                      <label class="cb"><input type="checkbox" id="illumination_type_steady" name="illumination_type_steady"><span>Steady</span></label>
+                    </div>
+                    <div class="irow">
+                      <label class="cb"><input type="checkbox" id="illumination_type_flashing" name="illumination_type_flashing"><span>Flashing</span></label>
+                    </div>
+                    <div class="irow">
+                      <label class="cb"><input type="checkbox" id="illumination_type_digital" name="illumination_type_digital"><span>Digital</span></label>
+                    </div>
+                    <div class="irow">
+                      <label class="cb"><input type="checkbox" id="illumination_type_scintillating" name="illumination_type_scintillating"><span>Scintillating</span></label>
+                    </div>
+                  </div>
+                  <div class="icol">
+                    <div class="irow">
+                      <label class="cb"><input type="checkbox" id="illumination_type_moving" name="illumination_type_moving"><span>Moving</span></label>
+                    </div>
+                    <div class="irow">
+                      <label class="cb"><input type="checkbox" id="illumination_type_alternating" name="illumination_type_alternating"><span>Alternating</span></label>
+                    </div>
+                    <div class="irow">
+                      <label class="cb"><input type="checkbox" id="illumination_type_animated" name="illumination_type_animated"><span>Animated</span></label>
+                    </div>
+                    <div class="irow" style="border-bottom:none;">
+                      <!-- spacer to match scan (empty slot) -->
+                      <div style="height:14px;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- intensity -->
+        <tr>
+          <td class="subno"></td>
+          <td colspan="5" class="fill">
+            <div class="label">State the intensity of the light source:</div>
+            <input type="text" id="state_the_intensity_of_the_light_source" name="state_the_intensity_of_the_light_source" />
+          </td>
+        </tr>
+
+        <!-- 3 -->
+        <tr>
+          <td class="secno">3.</td>
+          <td class="secbar" colspan="5">PERIOD OF TIME FOR WHICH ADVERTISEMENT IS REQUIRED:</td>
+        </tr>
+        <tr>
+          <td class="subno"></td>
+          <td colspan="5" class="fill">
+            <textarea id="period_of_time_for_which_advertisement_is_required"
+              name="period_of_time_for_which_advertisement_is_required"
+              rows="4"></textarea>
+          </td>
+        </tr>
+
+        <!-- 4 -->
+        <tr>
+          <td class="secno">4.</td>
+          <td class="secbar" colspan="5">DETAILS OF SIGNS (IF ANY) TO BE REMOVED IN THIS APPLICATION IS APPROVED:</td>
+        </tr>
+        <tr>
+          <td class="subno"></td>
+          <td colspan="5" class="fill">
+            <textarea id="details_of_signs_if_any_to_be_removed_in_this_application_is_approved"
+              name="details_of_signs_if_any_to_be_removed_in_this_application_is_approved"
+              rows="4"></textarea>
+          </td>
+        </tr>
+
+        <!-- Note line -->
+        <tr>
+          <td class="subno" style="text-align:left; font-weight:700; padding-left:10px;">Note:</td>
+          <td colspan="5" class="footnote">
+            This application should be supported by a photograph or photographs of the premises showing superimposed thereon the proposed position for the advertisement and those advertisements to be removed as detailed in 4 above.
+          </td>
+        </tr>
+
+        <!-- Signature / Date -->
+        <tr>
+          <td colspan="6" style="padding:0">
+            <div class="sigBox">
+              <div>
+                <div class="sigLabel">Signature of advertiser(s):<br><span class="small">(If different from land owner)</span></div>
+                <div class="fill" style="border-top:1px solid var(--line); margin-top:6px;">
+                  <input type="text" id="signature_of_advertisers" name="signature_of_advertisers" />
+                </div>
+              </div>
+              <div>
+                <div class="sigLabel">Date:</div>
+              </div>
+              <div>
+                <div class="fill" style="border-top:1px solid var(--line); margin-top:24px;">
+                  <input type="date" id="date" name="date" />
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <div class="actions">
+        <button type="reset" class="btn btn-clear">Clear Form</button>
+        <button type="submit" class="btn btn-submit">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      const cb = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return "";
+        return el.checked ? "true" : "false";
+      };
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const fd = new FormData(form);
+        const val = (id) => (fd.get(id) ?? "").toString();
+
+        const data = {
+          property_details: {
+            description_of_property_on_which_advertisement_is_to_be_displayed_including_full_details_of_its_proposed_position_within_the_property:
+              val('description_of_property_on_which_advertisement_is_to_be_displayed_including_full_details_of_its_proposed_position_within_the_property')
+          },
+          proposed_sign_details: {
+            type_of_structure_on_which_advertisement_is_to_be_erected_ie_freestanding_wall_mounted_other:
+              val('type_of_structure_on_which_advertisement_is_to_be_erected_ie_freestanding_wall_mounted_other'),
+            height: val('height'),
+            width: val('width'),
+            depth: val('depth'),
+            colours_to_be_used: val('colours_to_be_used'),
+            height_above_ground_level_to_top_of_advertisement: val('height_above_ground_level_to_top_of_advertisement'),
+            height_above_ground_level_to_underside: val('height_above_ground_level_to_underside'),
+            materials_to_be_used: val('materials_to_be_used'),
+            illuminated_yes: cb('illuminated_yes'),
+            illuminated_no: cb('illuminated_no'),
+            illumination_type_steady: cb('illumination_type_steady'),
+            illumination_type_moving: cb('illumination_type_moving'),
+            illumination_type_flashing: cb('illumination_type_flashing'),
+            illumination_type_alternating: cb('illumination_type_alternating'),
+            illumination_type_digital: cb('illumination_type_digital'),
+            illumination_type_animated: cb('illumination_type_animated'),
+            illumination_type_scintillating: cb('illumination_type_scintillating'),
+            state_the_intensity_of_the_light_source: val('state_the_intensity_of_the_light_source')
+          },
+          advertisement_duration: {
+            period_of_time_for_which_advertisement_is_required: val('period_of_time_for_which_advertisement_is_required')
+          },
+          existing_signs_to_be_removed: {
+            details_of_signs_if_any_to_be_removed_in_this_application_is_approved:
+              val('details_of_signs_if_any_to_be_removed_in_this_application_is_approved')
+          },
+          declaration: {
+            signature_of_advertisers: val('signature_of_advertisers'),
+            date: val('date')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+
+      // Optional: make Yes/No mutually exclusive to mimic typical form behavior (still serialized as "true"/"false")
+      const yes = document.getElementById('illuminated_yes');
+      const no = document.getElementById('illuminated_no');
+      if (yes && no){
+        yes.addEventListener('change', () => { if (yes.checked) no.checked = false; });
+        no.addEventListener('change', () => { if (no.checked) yes.checked = false; });
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Selux — Olivio Grande RGBW Universal Mount (Order Form)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    :root{
+      --ink:#1f1f1f;
+      --muted:#555;
+      --paper:#ffffff;
+      --bg:#d6d2cd;
+      --bar:#3f3f3f;
+      --line:#2b2b2b;
+      --soft:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:22px 30px 16px;
+      position:relative;
+    }
+
+    /* Header */
+    .top-row{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:18px;
+      align-items:start;
+    }
+
+    .brand{
+      font-weight:800;
+      letter-spacing:.8px;
+      font-size:30px;
+      color:#2c2c2c;
+      text-transform:lowercase;
+      margin-top:2px;
+    }
+
+    .project-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px 18px;
+      align-items:end;
+      padding-top:2px;
+    }
+
+    .line-field{
+      display:flex;
+      align-items:flex-end;
+      gap:8px;
+      min-height:22px;
+      border-bottom:1.6px solid #777;
+      padding:2px 0 2px;
+    }
+    .line-field .lbl{
+      font-size:12px;
+      color:#202020;
+      white-space:nowrap;
+      font-weight:600;
+    }
+    .line-field input{
+      flex:1;
+      border:0;
+      outline:none;
+      padding:0 2px 1px;
+      font-size:12.5px;
+      background:transparent;
+      min-width:0;
+    }
+    .line-field input:focus{background:var(--soft)}
+    .line-field.short input{max-width:160px}
+    .line-field.date input{max-width:150px}
+
+    .title-area{
+      margin-top:16px;
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      align-items:start;
+      gap:20px;
+    }
+
+    .product-title{
+      margin-top:6px;
+      font-size:22px;
+      font-weight:400;
+      line-height:1.15;
+    }
+    .product-title strong{font-weight:700}
+    .product-sub{font-size:18px; margin-top:2px; color:#2a2a2a}
+
+    .fixture-image{
+      justify-self:center;
+      width:250px;
+      height:160px;
+      position:relative;
+      margin-top:0px;
+    }
+    /* simple decorative “fixture” */
+    .fixture-image:before{
+      content:"";
+      position:absolute;
+      inset:18px 26px 14px 56px;
+      background:radial-gradient(90px 70px at 55% 30%, #d7e0e7 0%, #b8c3cc 45%, #7f8b95 78%, #6c7882 100%);
+      border-radius: 62% 38% 44% 56% / 55% 51% 49% 45%;
+      transform: rotate(16deg);
+      box-shadow: 0 10px 16px rgba(0,0,0,.16);
+    }
+    .fixture-image:after{
+      content:"";
+      position:absolute;
+      width:122px;
+      height:58px;
+      left:92px;
+      top:96px;
+      transform: rotate(16deg);
+      background:linear-gradient(#88959f, #3f4a53);
+      border-radius: 0 0 70px 70px;
+      clip-path: ellipse(52% 52% at 50% 55%);
+      opacity:.9;
+    }
+
+    /* Section bar */
+    .section-bar{
+      margin:18px -30px 0;
+      padding:7px 30px;
+      background:var(--bar);
+      color:#fff;
+      text-transform:uppercase;
+      letter-spacing:2px;
+      font-weight:800;
+      font-size:12px;
+    }
+
+    /* Order code rows */
+    .codes{
+      margin-top:10px;
+      display:grid;
+      grid-template-columns: 160px 1fr;
+      gap:10px 12px;
+      align-items:center;
+    }
+    .codes .code-label{
+      font-size:12.5px;
+      font-weight:700;
+      color:#222;
+      line-height:1.1;
+    }
+    .codes .code-label small{
+      font-weight:700;
+      display:block;
+      color:#222;
+      margin-top:2px;
+    }
+    .code-line{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .prefix{
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.4px;
+    }
+    .code-line input{
+      width:100%;
+      border:0;
+      outline:none;
+      background:transparent;
+      font-size:12.5px;
+      padding:0 2px 2px;
+      border-bottom:1.6px solid #777;
+    }
+    .code-line input:focus{background:var(--soft)}
+    .pole-guide{
+      margin-top:2px;
+      display:flex;
+      gap:28px;
+      color:#444;
+      font-size:11px;
+      padding-left:2px;
+    }
+
+    /* Configuration table */
+    .config-wrap{
+      margin-top:12px;
+      border-top:1.8px solid #999;
+      padding-top:10px;
+    }
+
+    .config-grid{
+      display:grid;
+      grid-template-columns: 120px 1fr;
+      gap:0;
+      border-bottom:1.8px solid #999;
+    }
+
+    .config-grid .left{
+      padding:12px 10px 12px 0;
+      border-right:0;
+      color:#333;
+      font-weight:700;
+      font-size:12px;
+    }
+
+    .config-grid .right{
+      padding:10px 0 10px 0;
+      border-left:0;
+    }
+
+    .rowline{
+      border-top:1.4px solid #999;
+    }
+
+    .option-row{
+      display:flex;
+      align-items:flex-start;
+      gap:24px;
+      padding:2px 0;
+      flex-wrap:wrap;
+    }
+
+    .opt{
+      display:grid;
+      grid-template-columns: 16px auto;
+      gap:6px;
+      align-items:start;
+      min-width:130px;
+    }
+    .opt input[type="checkbox"]{
+      width:15px;height:15px;
+      margin-top:2px;
+      accent-color:#222;
+    }
+    .opt .code{
+      font-weight:800;
+      font-size:12px;
+      line-height:1.05;
+    }
+    .opt .desc{
+      font-size:10.5px;
+      color:#444;
+      margin-top:1px;
+      line-height:1.15;
+    }
+
+    .meta-note{
+      font-size:10px;
+      color:#444;
+      margin-left:auto;
+      align-self:center;
+      white-space:nowrap;
+      padding-right:2px;
+    }
+
+    /* Bottom area */
+    .bottom-area{
+      display:grid;
+      grid-template-columns: 1.25fr .65fr;
+      gap:22px;
+      margin-top:16px;
+      align-items:end;
+    }
+    .box-title{
+      font-size:12px;
+      font-weight:800;
+      margin-bottom:4px;
+    }
+    .box-hint{
+      font-size:10px;
+      color:#555;
+      margin-bottom:6px;
+    }
+    textarea, .approval-box input[type="text"]{
+      width:100%;
+      border:1.6px solid #777;
+      outline:none;
+      background:transparent;
+      font-family:inherit;
+      font-size:12.5px;
+    }
+    textarea:focus, .approval-box input:focus{background:var(--soft)}
+    textarea{
+      height:96px;
+      resize:none;
+      padding:8px 8px;
+      line-height:1.25;
+    }
+
+    .approval-box{
+      display:grid;
+      grid-template-rows: auto auto;
+      gap:8px;
+      align-content:start;
+    }
+
+    .approval-sign{
+      border:1.6px solid #777;
+      padding:8px;
+      height:96px;
+      display:flex;
+      align-items:flex-start;
+    }
+    .approval-sign input{
+      border:0;
+      outline:none;
+      background:transparent;
+      padding:0;
+      width:100%;
+      height:100%;
+      font-size:12.5px;
+    }
+
+    .date-line{
+      display:flex;
+      align-items:flex-end;
+      gap:8px;
+      border-bottom:1.6px solid #777;
+      padding-bottom:2px;
+      justify-content:flex-start;
+    }
+    .date-line .lbl{font-size:12px;font-weight:700}
+    .date-line input{
+      border:0; outline:none;
+      background:transparent;
+      font-size:12.5px;
+      padding:0 2px 1px;
+      width:180px;
+    }
+    .date-line input:focus{background:var(--soft)}
+
+    /* Footer */
+    .footer{
+      margin-top:12px;
+      font-size:9.5px;
+      color:#444;
+      border-top:1px solid #ddd;
+      padding-top:8px;
+      line-height:1.25;
+      position:relative;
+    }
+    .footer .right{
+      position:absolute;
+      right:0;
+      bottom:0;
+      text-align:right;
+      color:#555;
+    }
+
+    /* Buttons */
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:14px 0 2px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #666;
+      background:#fff;
+      color:#222;
+    }
+    .btn-primary{
+      background:#3b3b3b;
+      border-color:#2a2a2a;
+      color:#fff;
+    }
+
+    /* Make checkboxes and text look like form */
+    .muted{color:#666}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <form id="mainForm" autocomplete="off">
+      <div class="top-row">
+        <div class="project-grid" aria-label="Project Information">
+          <div class="line-field date">
+            <span class="lbl">Date:</span>
+            <input type="date" id="date" name="date" />
+          </div>
+
+          <div class="line-field">
+            <span class="lbl">Customer:</span>
+            <input type="text" id="customer" name="customer" />
+          </div>
+
+          <div class="line-field" style="grid-column:1 / span 2;">
+            <span class="lbl">Project:</span>
+            <input type="text" id="project" name="project" />
+          </div>
+
+          <div class="line-field">
+            <span class="lbl">Type:</span>
+            <input type="text" id="type" name="type" />
+          </div>
+
+          <div class="line-field short">
+            <span class="lbl">Qty:</span>
+            <input type="number" step="any" id="qty" name="qty" />
+          </div>
+        </div>
+
+        <div class="brand" aria-label="Selux">selux</div>
+      </div>
+
+      <div class="title-area">
+        <div>
+          <div class="product-title"><strong>Olivio Grande RGBW</strong></div>
+          <div class="product-sub">Universal Mount</div>
+        </div>
+        <div class="fixture-image" aria-hidden="true"></div>
+      </div>
+
+      <div class="codes" aria-label="Order Codes">
+        <div class="code-label">
+          Fixture<br/>Order Code:
+        </div>
+        <div class="code-line">
+          <span class="prefix">OLGR -</span>
+          <input type="text" id="fixture_order_code_olgr" name="fixture_order_code_olgr" aria-label="Fixture Order Code OLGR"/>
+        </div>
+
+        <div class="code-label">
+          Pole<br/>Order Code:
+        </div>
+        <div>
+          <div class="code-line">
+            <input type="text" id="pole_order_code" name="pole_order_code" aria-label="Pole Order Code"/>
+          </div>
+          <div class="pole-guide" aria-hidden="true">
+            <span>Series</span><span>Height</span><span>Finish</span><span>Options</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="config-wrap" aria-label="Fixture Configuration">
+        <div class="config-grid">
+          <div class="left">Optics</div>
+          <div class="right">
+            <div class="option-row">
+              <label class="opt" for="optics_n13_narrow_13_beam">
+                <input type="checkbox" id="optics_n13_narrow_13_beam" />
+                <div>
+                  <div class="code">N13</div>
+                  <div class="desc">Narrow<br/>13&deg; Beam</div>
+                </div>
+              </label>
+
+              <label class="opt" for="optics_m50_medium_50_beam">
+                <input type="checkbox" id="optics_m50_medium_50_beam" />
+                <div>
+                  <div class="code">M50</div>
+                  <div class="desc">Medium<br/>50&deg; Beam</div>
+                </div>
+              </label>
+
+              <label class="opt" for="optics_w80_wide_80_beam">
+                <input type="checkbox" id="optics_w80_wide_80_beam" />
+                <div>
+                  <div class="code">W80</div>
+                  <div class="desc">Wide<br/>80&deg; Beam</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="left rowline">Mounting</div>
+          <div class="right rowline">
+            <div class="option-row">
+              <label class="opt" for="mounting_u_universal_surface_mount">
+                <input type="checkbox" id="mounting_u_universal_surface_mount" />
+                <div>
+                  <div class="code">U</div>
+                  <div class="desc">Universal<br/>(surface mount)</div>
+                </div>
+              </label>
+
+              <label class="opt" for="mounting_t1_single_pole_top">
+                <input type="checkbox" id="mounting_t1_single_pole_top" />
+                <div>
+                  <div class="code">T1</div>
+                  <div class="desc">Single Pole<br/>Top</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="left rowline">Light Engine</div>
+          <div class="right rowline">
+            <div class="option-row">
+              <label class="opt" for="light_engine_l50_50w_max">
+                <input type="checkbox" id="light_engine_l50_50w_max" />
+                <div>
+                  <div class="code">L50</div>
+                  <div class="desc">50W max</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="left rowline">CCT</div>
+          <div class="right rowline">
+            <div class="option-row" style="width:100%">
+              <label class="opt" for="cct_rgbw_red_green_blue_white" style="min-width:180px;">
+                <input type="checkbox" id="cct_rgbw_red_green_blue_white" />
+                <div>
+                  <div class="code">RGBW</div>
+                  <div class="desc">Red, Green,<br/>Blue, White</div>
+                </div>
+              </label>
+              <div class="meta-note muted">*Refer to page 8 for photometric information</div>
+            </div>
+          </div>
+
+          <div class="left rowline">Finish</div>
+          <div class="right rowline">
+            <div class="option-row">
+              <label class="opt" for="finish_wh_white">
+                <input type="checkbox" id="finish_wh_white" />
+                <div>
+                  <div class="code">WH</div>
+                  <div class="desc">White</div>
+                </div>
+              </label>
+
+              <label class="opt" for="finish_bk_black">
+                <input type="checkbox" id="finish_bk_black" />
+                <div>
+                  <div class="code">BK</div>
+                  <div class="desc">Black</div>
+                </div>
+              </label>
+
+              <label class="opt" for="finish_bl_semi_matte_black">
+                <input type="checkbox" id="finish_bl_semi_matte_black" />
+                <div>
+                  <div class="code">BL</div>
+                  <div class="desc">Semi-Matte<br/>Black</div>
+                </div>
+              </label>
+
+              <label class="opt" for="finish_bz_bronze">
+                <input type="checkbox" id="finish_bz_bronze" />
+                <div>
+                  <div class="code">BZ</div>
+                  <div class="desc">Bronze</div>
+                </div>
+              </label>
+
+              <label class="opt" for="finish_sv_silver">
+                <input type="checkbox" id="finish_sv_silver" />
+                <div>
+                  <div class="code">SV</div>
+                  <div class="desc">Silver</div>
+                </div>
+              </label>
+
+              <label class="opt" for="finish_sp_specify_premium_color" style="min-width:190px;">
+                <input type="checkbox" id="finish_sp_specify_premium_color" />
+                <div>
+                  <div class="code">SP</div>
+                  <div class="desc">Specify<br/>Premium Color</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="left rowline">Voltage</div>
+          <div class="right rowline">
+            <div class="option-row">
+              <label class="opt" for="voltage_unv_120v_277v" style="min-width:170px;">
+                <input type="checkbox" id="voltage_unv_120v_277v" />
+                <div>
+                  <div class="code">UNV</div>
+                  <div class="desc">120V-277V</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-area">
+        <div>
+          <div class="box-title">Product Modifications</div>
+          <div class="box-hint">Please list modification requirements for review by factory:</div>
+          <textarea id="product_modifications_line_1" name="product_modifications_line_1" placeholder=""></textarea>
+          <div style="height:6px"></div>
+          <textarea id="product_modifications_line_2" name="product_modifications_line_2" placeholder=""></textarea>
+          <div style="height:6px"></div>
+          <textarea id="product_modifications_line_3" name="product_modifications_line_3" placeholder=""></textarea>
+        </div>
+
+        <div class="approval-box">
+          <div class="box-title">Approvals</div>
+          <div class="approval-sign">
+            <input type="text" id="approvals" name="approvals" aria-label="Approvals"/>
+          </div>
+          <div class="date-line">
+            <span class="lbl">Date:</span>
+            <input type="date" id="date_approvals_section" name="date_approvals_section" />
+          </div>
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+
+      <div class="footer">
+        Selux Corporation © 2021, T 845-834-1400, 800-735-8927, F 845-834-1401, www.selux.us<br/>
+        In a continuing effort to offer the best product possible, we reserve the right to change, without notice, specifications or materials that in our opinion will not alter the function of the product. Specification sheets found at www.selux.us are the most recent versions and supersede all other printed or electronic versions.
+        <div class="right">
+          Page 1 of 8<br/>
+          (Rev. 05/2021)<br/>
+          OLGR_U-SS_v1.5
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      const cb = (id) => {
+        const el = document.getElementById(id);
+        return el && el.checked ? "true" : "false";
+      };
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+
+        const data = {
+          project_information: {
+            date: (fd.get('date') || ''),
+            customer: (fd.get('customer') || ''),
+            project: (fd.get('project') || ''),
+            type: (fd.get('type') || ''),
+            qty: (fd.get('qty') || '')
+          },
+          order_codes: {
+            fixture_order_code_olgr: (fd.get('fixture_order_code_olgr') || ''),
+            pole_order_code: (fd.get('pole_order_code') || '')
+          },
+          fixture_configuration: {
+            optics_n13_narrow_13_beam: cb('optics_n13_narrow_13_beam'),
+            optics_m50_medium_50_beam: cb('optics_m50_medium_50_beam'),
+            optics_w80_wide_80_beam: cb('optics_w80_wide_80_beam'),
+            mounting_u_universal_surface_mount: cb('mounting_u_universal_surface_mount'),
+            mounting_t1_single_pole_top: cb('mounting_t1_single_pole_top'),
+            light_engine_l50_50w_max: cb('light_engine_l50_50w_max'),
+            cct_rgbw_red_green_blue_white: cb('cct_rgbw_red_green_blue_white'),
+            finish_wh_white: cb('finish_wh_white'),
+            finish_bk_black: cb('finish_bk_black'),
+            finish_bl_semi_matte_black: cb('finish_bl_semi_matte_black'),
+            finish_bz_bronze: cb('finish_bz_bronze'),
+            finish_sv_silver: cb('finish_sv_silver'),
+            finish_sp_specify_premium_color: cb('finish_sp_specify_premium_color'),
+            voltage_unv_120v_277v: cb('voltage_unv_120v_277v')
+          },
+          product_modifications: {
+            product_modifications_line_1: (fd.get('product_modifications_line_1') || ''),
+            product_modifications_line_2: (fd.get('product_modifications_line_2') || ''),
+            product_modifications_line_3: (fd.get('product_modifications_line_3') || '')
+          },
+          approvals: {
+            approvals: (fd.get('approvals') || ''),
+            date_approvals_section: (fd.get('date_approvals_section') || '')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for JSON output.');
+      });
+    })();
+  </script>
+</body>
+</html>

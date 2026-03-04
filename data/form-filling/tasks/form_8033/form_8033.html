@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wellness Policy Assessment Tool and Report Template</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    :root{
+      --bg:#d6d2cd;
+      --page:#ffffff;
+      --ink:#111;
+      --muted:#444;
+      --bar:#6b6b6b;
+      --line:#2b2b2b;
+      --alt:#f0f0f0;
+      --focus:#f5f5ee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--page);
+      box-shadow:0 2px 14px rgba(0,0,0,.14);
+      padding:22px 28px 18px;
+    }
+
+    .title{
+      text-align:center;
+      font-weight:800;
+      font-size:16px;
+      margin:4px 0 10px;
+    }
+
+    .grid-header{
+      display:grid;
+      grid-template-columns: 1fr 168px 240px;
+      align-items:end;
+      gap:10px;
+      margin:10px 0 6px;
+      font-size:11.5px;
+      color:#111;
+      font-weight:700;
+    }
+    .grid-header .subcols{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:0;
+      text-align:left;
+    }
+    .grid-header .subcols2{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:0;
+      text-align:left;
+    }
+    .grid-header .mini{
+      font-weight:700;
+      font-size:11px;
+      margin-top:4px;
+    }
+    .grid-header .mini span{
+      display:inline-block;
+      min-width:70px;
+    }
+    .grid-header .mini2 span{
+      display:inline-block;
+      min-width:72px;
+    }
+
+    .matrix{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      border:0;
+    }
+    .matrix colgroup col:nth-child(1){width:auto}
+    .matrix colgroup col:nth-child(2){width:84px}
+    .matrix colgroup col:nth-child(3){width:84px}
+    .matrix colgroup col:nth-child(4){width:80px}
+    .matrix colgroup col:nth-child(5){width:80px}
+    .matrix colgroup col:nth-child(6){width:80px}
+
+    .matrix tbody tr:nth-child(even){background:var(--alt)}
+    .matrix td{
+      vertical-align:top;
+      padding:7px 8px;
+      border:0;
+    }
+    .statement{
+      font-size:12.3px;
+      line-height:1.25;
+      padding-right:10px;
+    }
+    .cbcell{
+      text-align:center;
+      padding-top:8px;
+    }
+    input[type="checkbox"]{
+      width:14px;height:14px;
+      accent-color:#222;
+      cursor:pointer;
+    }
+
+    .note-area{
+      margin:12px 0 16px;
+      background:var(--alt);
+      padding:10px 10px 8px;
+    }
+    .note-label{
+      font-size:12px;
+      font-weight:600;
+      margin-bottom:6px;
+    }
+    textarea{
+      width:100%;
+      min-height:58px;
+      resize:vertical;
+      border:none;
+      outline:none;
+      background:transparent;
+      font-family:inherit;
+      font-size:12.5px;
+      line-height:1.3;
+      padding:6px 8px;
+      border-top:1px solid rgba(0,0,0,.25);
+    }
+    textarea:focus{background:var(--focus)}
+    .other-row{
+      background:var(--alt);
+    }
+    .other-wrap{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+    }
+    .other-wrap .other-label{
+      font-weight:600;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .other-wrap input[type="text"]{
+      flex:1;
+      border:none;
+      outline:none;
+      background:transparent;
+      border-bottom:1px solid rgba(0,0,0,.45);
+      padding:4px 6px 2px;
+      font-family:inherit;
+      font-size:12.5px;
+    }
+    .other-wrap input[type="text"]:focus{background:var(--focus)}
+
+    .section-title{
+      text-align:center;
+      font-weight:800;
+      font-size:18px;
+      margin:6px 0 6px;
+    }
+
+    .footer{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      margin-top:16px;
+      font-size:11px;
+      color:#222;
+    }
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:16px;
+      padding-top:10px;
+      border-top:1px solid rgba(0,0,0,.15);
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #777;
+      background:#fff;
+      color:#222;
+    }
+    .btn.primary{
+      background:#3f3f3f;
+      color:#fff;
+      border-color:#2b2b2b;
+    }
+
+    /* Accessibility + form-like appearance */
+    .sr-only{
+      position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="title">Wellness Policy Assessment Tool and Report Template</div>
+
+    <form id="mainForm" autocomplete="off">
+      <!-- Column headers -->
+      <div class="grid-header" aria-hidden="true">
+        <div></div>
+        <div>
+          Included in the<br/>written policy?
+          <div class="mini">
+            <span>Yes</span><span>No</span>
+          </div>
+        </div>
+        <div style="text-align:left;">
+          Implemented in the<br/>school building(s)?
+          <div class="mini mini2">
+            <span>Fully in<br/>Place</span><span>Partially<br/>in Place</span><span>Not in<br/>Place</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Matrix: Physical Activity (Beyond PE) -->
+      <table class="matrix" role="table" aria-label="Physical Activity Beyond PE matrix">
+        <colgroup>
+          <col><col><col><col><col><col>
+        </colgroup>
+        <tbody>
+          <tr>
+            <td class="statement">
+              In addition to planned physical education, we offer activities such as indoor and outdoor recess, before and after school programs, intramurals, interscholastic athletics, and clubs to meet the needs and interests of our students.
+            </td>
+            <td class="cbcell">
+              <input type="checkbox" id="in_addition_to_planned_physical_education_we_offer_activities_such_as_indoor_and_outdoor_recess_before_and_after_school_programs_intramurals_interscholastic_athletics_and_clubs_to_meet_the_needs_and_interests_of_our_students" aria-label="Physical Activity Beyond PE item 1">
+            </td>
+            <td class="cbcell"></td>
+            <td class="cbcell"></td>
+            <td class="cbcell"></td>
+            <td class="cbcell"></td>
+          </tr>
+
+          <tr>
+            <td class="statement">We maintain a physical and social environment that encourages safe and enjoyable activity for all students.</td>
+            <td class="cbcell"><input type="checkbox" id="we_maintain_a_physical_and_social_environment_that_encourages_safe_and_enjoyable_activity_for_all_students" aria-label="Maintain environment encourages activity"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+
+          <tr>
+            <td class="statement">We discourage extended periods of inactivity (two hours or more) for students.</td>
+            <td class="cbcell"><input type="checkbox" id="we_discourage_extended_periods_of_inactivity_two_hours_or_more_for_students" aria-label="Discourage extended inactivity"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+
+          <tr>
+            <td class="statement">We provide physical activity breaks in the classroom.</td>
+            <td class="cbcell"><input type="checkbox" id="we_provide_physical_activity_breaks_in_the_classroom" aria-label="Provide classroom activity breaks"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+
+          <tr>
+            <td class="statement">We offer before and/or after-school programs that include physical activity for participating children.</td>
+            <td class="cbcell"><input type="checkbox" id="we_offer_before_and_or_after_school_programs_that_include_physical_activity_for_participating_children" aria-label="Offer before/after school activity programs"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+
+          <tr>
+            <td class="statement">We partner with parents/guardians and community members and organizations (e.g., YMCA, Boys &amp; Girls Clubs, local parks, hospitals, etc.) to offer programs supporting lifelong physical activity.</td>
+            <td class="cbcell"><input type="checkbox" id="we_partner_with_parents_guardians_and_community_members_and_organizations_e_g_ymca_boys_girls_clubs_local_parks_hospitals_etc_to_offer_programs_supporting_lifelong_physical_activity" aria-label="Partner with community for lifelong activity"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+
+          <tr>
+            <td class="statement">We do not use physical activity as a punishment (e.g., running laps).</td>
+            <td class="cbcell"><input type="checkbox" id="we_do_not_use_physical_activity_as_a_punishment_e_g_running_laps" aria-label="Do not use activity as punishment"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+
+          <tr>
+            <td class="statement">We do not withhold physical activity as a punishment (e.g., taking away recess).</td>
+            <td class="cbcell"><input type="checkbox" id="we_do_not_withhold_physical_activity_as_a_punishment_e_g_taking_away_recess" aria-label="Do not withhold activity as punishment"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+
+          <tr>
+            <td class="statement">We encourage walking and biking to school.</td>
+            <td class="cbcell"><input type="checkbox" id="we_encourage_walking_and_biking_to_school" aria-label="Encourage walking/biking"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+
+          <tr>
+            <td class="statement">We encourage students and families to use our physical activity facilities such as playgrounds and ball fields outside of school hours in accordance with school rules.</td>
+            <td class="cbcell"><input type="checkbox" id="we_encourage_students_and_families_to_use_our_physical_activity_facilities_such_as_playgrounds_and_ball_fields_outside_of_school_hours_in_accordance_with_school_rules" aria-label="Encourage use of facilities outside school hours"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+
+          <tr class="other-row">
+            <td class="statement">
+              <div class="other-wrap">
+                <span class="other-label">Other goal (describe):</span>
+                <input type="text" id="other_goal_describe_physical_activity" name="other_goal_describe_physical_activity" />
+              </div>
+            </td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="note-area">
+        <div class="note-label">Notes on goals for physical activity:</div>
+        <textarea id="notes_on_goals_for_physical_activity" name="notes_on_goals_for_physical_activity"></textarea>
+      </div>
+
+      <div class="section-title">Physical Education (PE)</div>
+
+      <!-- Matrix: Physical Education (PE) -->
+      <table class="matrix" role="table" aria-label="Physical Education PE matrix">
+        <colgroup>
+          <col><col><col><col><col><col>
+        </colgroup>
+        <tbody>
+          <tr>
+            <td class="statement">We implement a PE program consistent with state academic standards.</td>
+            <td class="cbcell"><input type="checkbox" id="we_implement_a_pe_program_consistent_with_state_academic_standards" aria-label="Implement PE program consistent with standards"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">All students participate in PE.</td>
+            <td class="cbcell"><input type="checkbox" id="all_students_participate_in_pe" aria-label="All students participate in PE"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">PE instruction promotes skills and knowledge necessary for lifelong physical activity.</td>
+            <td class="cbcell"><input type="checkbox" id="pe_instruction_promotes_skills_and_knowledge_necessary_for_lifelong_physical_activity" aria-label="PE instruction promotes lifelong activity skills"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">PE classes provide the means for students to learn, practice, and be assessed on developmentally appropriate skills.</td>
+            <td class="cbcell"><input type="checkbox" id="pe_classes_provide_the_means_for_students_to_learn_practice_and_be_assessed_on_developmentally_appropriate_skills" aria-label="PE classes provide learn practice assess"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">Our curriculum promotes both team and individual activities.</td>
+            <td class="cbcell"><input type="checkbox" id="our_curriculum_promotes_both_team_and_individual_activities" aria-label="Curriculum promotes team and individual activities"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">We offer a comprehensive PE course of study with planned instruction time for students to meet standards at the proficient level.</td>
+            <td class="cbcell"><input type="checkbox" id="we_offer_a_comprehensive_pe_course_of_study_with_planned_instruction_time_for_students_to_meet_standards_at_the_proficient_level" aria-label="Offer comprehensive PE course of study"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">We use a local assessment system to track student progress on state standards.</td>
+            <td class="cbcell"><input type="checkbox" id="we_use_a_local_assessment_system_to_track_student_progress_on_state_standards" aria-label="Use local assessment system"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">Students are moderately to vigorously active as much time as possible during PE class. Accommodations are made in class for documented medical conditions and disabilities.</td>
+            <td class="cbcell"><input type="checkbox" id="students_are_moderately_to_vigorously_active_as_much_time_as_possible_during_pe_class_accommodations_are_made_in_class_for_documented_medical_conditions_and_disabilities" aria-label="Students active as much as possible and accommodations made"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">We provide safe and adequate equipment, facilities, and resources for PE class.</td>
+            <td class="cbcell"><input type="checkbox" id="we_provide_safe_and_adequate_equipment_facilities_and_resources_for_pe_class" aria-label="Provide safe and adequate equipment facilities resources"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">Certified health and PE teachers teach our classes.</td>
+            <td class="cbcell"><input type="checkbox" id="certified_health_and_pe_teachers_teach_our_classes" aria-label="Certified teachers teach classes"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">We provide professional development for PE staff.</td>
+            <td class="cbcell"><input type="checkbox" id="we_provide_professional_development_for_pe_staff" aria-label="Provide professional development"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">PE classes have a teacher-student ratio similar to other courses for safe and effective instruction.</td>
+            <td class="cbcell"><input type="checkbox" id="pe_classes_have_a_teacher_student_ratio_similar_to_other_courses_for_safe_and_effective_instruction" aria-label="Teacher-student ratio similar to other courses"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr>
+            <td class="statement">We do not use or withhold physical activity as a form of punishment in PE class.</td>
+            <td class="cbcell"><input type="checkbox" id="we_do_not_use_or_withhold_physical_activity_as_a_form_of_punishment_in_pe_class" aria-label="Do not use/withhold activity as punishment in PE"></td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+          <tr class="other-row">
+            <td class="statement">
+              <div class="other-wrap">
+                <span class="other-label">Other goal (describe):</span>
+                <input type="text" id="other_goal_describe_physical_education" name="other_goal_describe_physical_education" />
+              </div>
+            </td>
+            <td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td><td class="cbcell"></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="note-area" style="margin-bottom:10px;">
+        <div class="note-label">Notes on goals for physical education:</div>
+        <textarea id="notes_on_goals_for_physical_education" name="notes_on_goals_for_physical_education"></textarea>
+      </div>
+
+      <!-- Hidden inputs for PolicyImplementationIndicators (required by Pydantic model) -->
+      <div class="sr-only" aria-hidden="false">
+        <label for="included_in_the_written_policy_yes">included_in_the_written_policy_yes</label>
+        <input type="checkbox" id="included_in_the_written_policy_yes" />
+
+        <label for="included_in_the_written_policy_no">included_in_the_written_policy_no</label>
+        <input type="checkbox" id="included_in_the_written_policy_no" />
+
+        <label for="implemented_in_the_school_buildings_fully_in_place">implemented_in_the_school_buildings_fully_in_place</label>
+        <input type="checkbox" id="implemented_in_the_school_buildings_fully_in_place" />
+
+        <label for="implemented_in_the_school_buildings_partially_in_place">implemented_in_the_school_buildings_partially_in_place</label>
+        <input type="checkbox" id="implemented_in_the_school_buildings_partially_in_place" />
+
+        <label for="implemented_in_the_school_buildings_not_in_place">implemented_in_the_school_buildings_not_in_place</label>
+        <input type="checkbox" id="implemented_in_the_school_buildings_not_in_place" />
+      </div>
+
+      <div class="submit-row">
+        <button class="btn" type="reset">Clear Form</button>
+        <button class="btn primary" type="submit">Submit</button>
+      </div>
+
+      <div class="footer" aria-hidden="true">
+        <div>July 2018</div>
+        <div>This institution is an equal opportunity provider</div>
+        <div>3</div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      const cb = (id) => {
+        const el = document.getElementById(id);
+        return el && el.checked ? "true" : "false";
+      };
+
+      const val = (id) => {
+        const el = document.getElementById(id);
+        return el ? (el.value || "") : "";
+      };
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          policy__implementation_indicators: {
+            included_in_the_written_policy_yes: cb('included_in_the_written_policy_yes'),
+            included_in_the_written_policy_no: cb('included_in_the_written_policy_no'),
+            implemented_in_the_school_buildings_fully_in_place: cb('implemented_in_the_school_buildings_fully_in_place'),
+            implemented_in_the_school_buildings_partially_in_place: cb('implemented_in_the_school_buildings_partially_in_place'),
+            implemented_in_the_school_buildings_not_in_place: cb('implemented_in_the_school_buildings_not_in_place')
+          },
+          physical_activity_beyond_pe: {
+            in_addition_to_planned_physical_education_we_offer_activities_such_as_indoor_and_outdoor_recess_before_and_after_school_programs_intramurals_interscholastic_athletics_and_clubs_to_meet_the_needs_and_interests_of_our_students:
+              cb('in_addition_to_planned_physical_education_we_offer_activities_such_as_indoor_and_outdoor_recess_before_and_after_school_programs_intramurals_interscholastic_athletics_and_clubs_to_meet_the_needs_and_interests_of_our_students'),
+            we_maintain_a_physical_and_social_environment_that_encourages_safe_and_enjoyable_activity_for_all_students:
+              cb('we_maintain_a_physical_and_social_environment_that_encourages_safe_and_enjoyable_activity_for_all_students'),
+            we_discourage_extended_periods_of_inactivity_two_hours_or_more_for_students:
+              cb('we_discourage_extended_periods_of_inactivity_two_hours_or_more_for_students'),
+            we_provide_physical_activity_breaks_in_the_classroom:
+              cb('we_provide_physical_activity_breaks_in_the_classroom'),
+            we_offer_before_and_or_after_school_programs_that_include_physical_activity_for_participating_children:
+              cb('we_offer_before_and_or_after_school_programs_that_include_physical_activity_for_participating_children'),
+            we_partner_with_parents_guardians_and_community_members_and_organizations_e_g_ymca_boys_girls_clubs_local_parks_hospitals_etc_to_offer_programs_supporting_lifelong_physical_activity:
+              cb('we_partner_with_parents_guardians_and_community_members_and_organizations_e_g_ymca_boys_girls_clubs_local_parks_hospitals_etc_to_offer_programs_supporting_lifelong_physical_activity'),
+            we_do_not_use_physical_activity_as_a_punishment_e_g_running_laps:
+              cb('we_do_not_use_physical_activity_as_a_punishment_e_g_running_laps'),
+            we_do_not_withhold_physical_activity_as_a_punishment_e_g_taking_away_recess:
+              cb('we_do_not_withhold_physical_activity_as_a_punishment_e_g_taking_away_recess'),
+            we_encourage_walking_and_biking_to_school:
+              cb('we_encourage_walking_and_biking_to_school'),
+            we_encourage_students_and_families_to_use_our_physical_activity_facilities_such_as_playgrounds_and_ball_fields_outside_of_school_hours_in_accordance_with_school_rules:
+              cb('we_encourage_students_and_families_to_use_our_physical_activity_facilities_such_as_playgrounds_and_ball_fields_outside_of_school_hours_in_accordance_with_school_rules'),
+            other_goal_describe_physical_activity: val('other_goal_describe_physical_activity'),
+            notes_on_goals_for_physical_activity: val('notes_on_goals_for_physical_activity')
+          },
+          physical_education_pe: {
+            we_implement_a_pe_program_consistent_with_state_academic_standards:
+              cb('we_implement_a_pe_program_consistent_with_state_academic_standards'),
+            all_students_participate_in_pe:
+              cb('all_students_participate_in_pe'),
+            pe_instruction_promotes_skills_and_knowledge_necessary_for_lifelong_physical_activity:
+              cb('pe_instruction_promotes_skills_and_knowledge_necessary_for_lifelong_physical_activity'),
+            pe_classes_provide_the_means_for_students_to_learn_practice_and_be_assessed_on_developmentally_appropriate_skills:
+              cb('pe_classes_provide_the_means_for_students_to_learn_practice_and_be_assessed_on_developmentally_appropriate_skills'),
+            our_curriculum_promotes_both_team_and_individual_activities:
+              cb('our_curriculum_promotes_both_team_and_individual_activities'),
+            we_offer_a_comprehensive_pe_course_of_study_with_planned_instruction_time_for_students_to_meet_standards_at_the_proficient_level:
+              cb('we_offer_a_comprehensive_pe_course_of_study_with_planned_instruction_time_for_students_to_meet_standards_at_the_proficient_level'),
+            we_use_a_local_assessment_system_to_track_student_progress_on_state_standards:
+              cb('we_use_a_local_assessment_system_to_track_student_progress_on_state_standards'),
+            students_are_moderately_to_vigorously_active_as_much_time_as_possible_during_pe_class_accommodations_are_made_in_class_for_documented_medical_conditions_and_disabilities:
+              cb('students_are_moderately_to_vigorously_active_as_much_time_as_possible_during_pe_class_accommodations_are_made_in_class_for_documented_medical_conditions_and_disabilities'),
+            we_provide_safe_and_adequate_equipment_facilities_and_resources_for_pe_class:
+              cb('we_provide_safe_and_adequate_equipment_facilities_and_resources_for_pe_class'),
+            certified_health_and_pe_teachers_teach_our_classes:
+              cb('certified_health_and_pe_teachers_teach_our_classes'),
+            we_provide_professional_development_for_pe_staff:
+              cb('we_provide_professional_development_for_pe_staff'),
+            pe_classes_have_a_teacher_student_ratio_similar_to_other_courses_for_safe_and_effective_instruction:
+              cb('pe_classes_have_a_teacher_student_ratio_similar_to_other_courses_for_safe_and_effective_instruction'),
+            we_do_not_use_or_withhold_physical_activity_as_a_form_of_punishment_in_pe_class:
+              cb('we_do_not_use_or_withhold_physical_activity_as_a_form_of_punishment_in_pe_class'),
+            other_goal_describe_physical_education: val('other_goal_describe_physical_education'),
+            notes_on_goals_for_physical_education: val('notes_on_goals_for_physical_education')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

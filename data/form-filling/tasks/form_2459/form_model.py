@@ -12,8 +12,8 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class ClientInformation(BaseModel):
-    """Basic contact and background details for the coaching session"""
+class ContactInformation(BaseModel):
+    """Basic personal and contact details"""
 
     your_full_name: str = Field(
         ...,
@@ -40,7 +40,7 @@ class ClientInformation(BaseModel):
     email: str = Field(
         ...,
         description=(
-            'Your email address .If you cannot fill this, write "N/A". If this field '
+            'Primary email address .If you cannot fill this, write "N/A". If this field '
             "should not be filled by you (for example, it belongs to another person or "
             'office), leave it blank (empty string "").'
         ),
@@ -58,9 +58,9 @@ class ClientInformation(BaseModel):
     city_state_zip: str = Field(
         ...,
         description=(
-            'City, state, and ZIP/postal code .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            'City, state, and ZIP code .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
@@ -75,7 +75,7 @@ class ClientInformation(BaseModel):
 
 
 class CoachingBackground(BaseModel):
-    """How you found the coach and your reasons for a Success Strategy Session"""
+    """How you found the coaching services and your reasons for a session"""
 
     how_you_heard_and_why_success_strategy_session: str = Field(
         default="",
@@ -92,30 +92,36 @@ class SelfRatings(BaseModel):
     """Self-assessment ratings in key life and productivity areas"""
 
     focus_rating_1_10: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Rate your level of focus from 1 (lowest) to 10 (highest)"
+        ...,
+        description="Rate your ability to focus on important tasks from 1 (lowest) to 10 (highest)",
     )
 
     consistency_rating_1_10: Union[float, Literal["N/A", ""]] = Field(
         ...,
         description=(
-            "Rate your consistency of mental and physical energy from 1 (lowest) to 10 (highest)"
+            "Rate your consistency of mental and physical energy and motivation from 1 "
+            "(lowest) to 10 (highest)"
         ),
     )
 
     time_management_rating_1_10: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Rate your time management from 1 (lowest) to 10 (highest)"
+        ...,
+        description=(
+            "Rate how well you manage your time and accomplish what you want each day from "
+            "1 (lowest) to 10 (highest)"
+        ),
     )
 
     being_in_control_rating_1_10: Union[float, Literal["N/A", ""]] = Field(
         ...,
         description=(
-            "Rate how in control you feel of your environments and clutter from 1 (lowest) "
-            "to 10 (highest)"
+            "Rate how in control you feel of your environments and ability to de-clutter "
+            "and organize from 1 (lowest) to 10 (highest)"
         ),
     )
 
 
-class ClutterCoachStrategySessionQuestionnaire(BaseModel):
+class ClutterCoachStrategySessionQuestionnaireWithSueCrum(BaseModel):
     """
         CLEAR YOUR CLUTTER
     Coach
@@ -128,6 +134,6 @@ class ClutterCoachStrategySessionQuestionnaire(BaseModel):
         Instructions: Please answer the questions below and on the following page to the best of your ability and email to me before our call.
     """
 
-    client_information: ClientInformation = Field(..., description="Client Information")
+    contact_information: ContactInformation = Field(..., description="Contact Information")
     coaching_background: CoachingBackground = Field(..., description="Coaching Background")
     self_ratings: SelfRatings = Field(..., description="Self-Ratings")

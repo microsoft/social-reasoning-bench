@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>City of Winter Park — Petition for Neighborhood Traffic Study</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:#d6d2cd;
+      color:#111;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+      font-size:13.5px;
+      line-height:1.35;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:#fff;
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:18px 34px 18px;
+      position:relative;
+    }
+    .topbar{
+      display:grid;
+      grid-template-columns:88px 1fr 230px;
+      gap:14px;
+      align-items:center;
+      border-bottom:2px solid #e7e7e7;
+      padding-bottom:10px;
+      margin-bottom:14px;
+    }
+    .seal{
+      width:78px;height:78px;border-radius:50%;
+      border:2px solid #1a4b8a;
+      display:flex;align-items:center;justify-content:center;
+      overflow:hidden;
+      background: radial-gradient(circle at 30% 30%, #fff 0, #fff 40%, #e9f1ff 70%, #d7e7ff 100%);
+      position:relative;
+    }
+    .seal::before{
+      content:"CITY OF WINTER PARK";
+      position:absolute;top:6px;left:0;right:0;
+      text-align:center;
+      font-weight:800;
+      font-size:8px;
+      letter-spacing:.9px;
+      color:#1a4b8a;
+    }
+    .seal::after{
+      content:"FLORIDA";
+      position:absolute;bottom:7px;left:0;right:0;
+      text-align:center;
+      font-weight:800;
+      font-size:8px;
+      letter-spacing:1.1px;
+      color:#1a4b8a;
+    }
+    .seal svg{width:52px;height:52px;opacity:.9}
+    .addr{
+      font-size:12.5px;
+      color:#333;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .addr .line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .dot{width:4px;height:4px;border-radius:50%;background:#4a4a4a;display:inline-block}
+    .dept{
+      justify-self:end;
+      font-weight:800;
+      color:#1c4f8f;
+      font-size:20px;
+      text-align:right;
+      line-height:1.05;
+      padding-left:14px;
+      border-left:2px solid #1c4f8f;
+      min-height:48px;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+    }
+    .title{
+      text-align:center;
+      font-size:18px;
+      font-weight:900;
+      letter-spacing:.5px;
+      margin-top:10px;
+      margin-bottom:8px;
+      text-transform:uppercase;
+    }
+    .desc{
+      font-size:12.8px;
+      color:#111;
+      margin-bottom:12px;
+      max-width:720px;
+    }
+
+    .section-bar{
+      background:#2f2f2f;
+      color:#fff;
+      font-weight:800;
+      letter-spacing:1.8px;
+      font-size:12px;
+      padding:6px 12px;
+      text-transform:uppercase;
+      margin:14px -34px 10px;
+    }
+
+    .form-body{padding:0 0 2px}
+    .field-row{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      padding:8px 0 4px;
+      border-bottom:1px solid #404040;
+      min-height:34px;
+    }
+    .field-label{
+      font-weight:600;
+      white-space:nowrap;
+      flex:0 0 auto;
+    }
+    .field-grow{
+      flex:1 1 auto;
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+    }
+    input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"]{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      padding:2px 6px 1px;
+      font:inherit;
+      color:#111;
+    }
+    input:focus{
+      background:#f5f5ee;
+      border-radius:2px;
+    }
+    .hint{
+      margin-top:8px;
+      font-size:12.2px;
+      color:#111;
+    }
+
+    .sig-head{
+      font-weight:800;
+      text-align:center;
+      margin:12px 0 8px;
+      letter-spacing:.4px;
+    }
+
+    .sig-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+      margin-top:2px;
+    }
+    .sig-table th{
+      text-align:left;
+      font-weight:800;
+      padding:6px 6px;
+      border-bottom:2px solid #2b2b2b;
+      text-transform:uppercase;
+      font-size:12.2px;
+      letter-spacing:.6px;
+    }
+    .sig-table td{
+      padding:6px 6px 5px;
+      border-bottom:1px solid #2f2f2f;
+      vertical-align:bottom;
+    }
+    .sig-table .num{
+      width:30px;
+      color:#111;
+      font-weight:600;
+    }
+    .sig-table input{
+      padding:2px 6px 1px;
+    }
+    .sig-table .cell{
+      border-bottom:0;
+      padding:0;
+    }
+    .sig-table .cell .in{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      padding:2px 6px 1px;
+      font:inherit;
+    }
+    .sig-table .cell .in:focus{background:#f5f5ee;border-radius:2px}
+
+    .foot{
+      margin-top:14px;
+      text-align:center;
+      font-size:12.5px;
+      color:#111;
+    }
+    .foot a{color:#0b5bd3;text-decoration:underline;font-weight:700}
+    .foot .mail{
+      margin-top:6px;
+      color:#111;
+    }
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:14px 0 0;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #777;
+      background:#fff;
+      color:#333;
+    }
+    .btn:hover{filter:brightness(.98)}
+    .btn-primary{
+      background:#2f2f2f;
+      border-color:#2f2f2f;
+      color:#fff;
+    }
+
+    .page-no{
+      position:absolute;
+      right:18px;
+      bottom:10px;
+      font-weight:700;
+      color:#111;
+      font-size:12.5px;
+    }
+
+    @media print{
+      body{background:#fff;padding:0}
+      .page{box-shadow:none;max-width:none}
+      .submit-row{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div class="seal" aria-label="City Seal (stylized)">
+        <svg viewBox="0 0 64 64" role="img" aria-hidden="true">
+          <defs>
+            <linearGradient id="g1" x1="0" x2="1">
+              <stop offset="0" stop-color="#2aa24f"/>
+              <stop offset="1" stop-color="#f0b429"/>
+            </linearGradient>
+          </defs>
+          <circle cx="32" cy="32" r="22" fill="url(#g1)" opacity=".85"/>
+          <path d="M22 42c8-1 12-8 12-20 0-3 4-4 6-1 2 3 2 6 0 9 3 2 6 6 6 10-8 0-16 3-24 2z" fill="#1a4b8a" opacity=".85"/>
+          <path d="M16 44c12 6 24 6 36 0" stroke="#fff" stroke-width="3" fill="none" opacity=".85"/>
+        </svg>
+      </div>
+      <div class="addr">
+        <div class="line">
+          <span>401 South Park Avenue</span>
+          <span class="dot"></span>
+          <span>Winter Park, Florida 32789</span>
+        </div>
+        <div class="line">
+          <span>transportation@cityofwinterpark.org</span>
+        </div>
+        <div class="line">
+          <span>cityofwinterpark.org</span>
+        </div>
+      </div>
+      <div class="dept">Planning &amp;<br/>Transportation</div>
+    </div>
+
+    <div class="title">Petition for Neighborhood Traffic Study</div>
+    <div class="desc">
+      The purpose of this form is to provide a means by which residents may petition the City of Winter Park (CWP) to perform field and/or office
+      evaluations for a traffic speed study in the neighborhood. Including the Primary Contact, this petition must reflect a minimum of four (4)
+      signatures (one (1) signature maximum per dwelling unit adjacent to subject roadway) for CWP to initiate a traffic speed study.
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="section-bar">Petition &amp; Location Information</div>
+      <div class="form-body">
+        <div class="field-row">
+          <label class="field-label" for="street_name">Street Name:</label>
+          <div class="field-grow">
+            <input type="text" id="street_name" name="street_name" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="from_cross_street_or_address">From (Cross Street or Address):</label>
+          <div class="field-grow">
+            <input type="text" id="from_cross_street_or_address" name="from_cross_street_or_address" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="to_cross_street_or_address">To (Cross Street or Address):</label>
+          <div class="field-grow">
+            <input type="text" id="to_cross_street_or_address" name="to_cross_street_or_address" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="total_number_of_affected_properties_lots">Total Number of Affected Properties (Lots):</label>
+          <div class="field-grow">
+            <input type="text" id="total_number_of_affected_properties_lots" name="total_number_of_affected_properties_lots" inputmode="decimal" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="primary_contact_name">Primary Contact Name:</label>
+          <div class="field-grow">
+            <input type="text" id="primary_contact_name" name="primary_contact_name" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="primary_contact_phone_number">Primary Contact Phone Number:</label>
+          <div class="field-grow">
+            <input type="tel" id="primary_contact_phone_number" name="primary_contact_phone_number" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="date_of_submittal_of_petition_to_cwp">Date of Submittal of Petition to CWP:</label>
+          <div class="field-grow">
+            <input type="date" id="date_of_submittal_of_petition_to_cwp" name="date_of_submittal_of_petition_to_cwp" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="description_of_concern">Description of Concern:</label>
+          <div class="field-grow">
+            <input type="text" id="description_of_concern" name="description_of_concern" />
+          </div>
+        </div>
+
+        <div class="hint">
+          I understand, by my signature below, that the purpose of this petition is to demonstrate my support for a traffic speed study to be performed in my neighborhood.
+        </div>
+
+        <div class="sig-head">NAME &nbsp; | &nbsp; ADDRESS &nbsp; | &nbsp; EMAIL &nbsp; | &nbsp; SIGNATURE (REQUIRED)</div>
+
+        <table class="sig-table" aria-label="Petition Signatures">
+          <thead>
+            <tr>
+              <th class="num"></th>
+              <th>NAME</th>
+              <th>ADDRESS</th>
+              <th>EMAIL</th>
+              <th>SIGNATURE (REQUIRED)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="num">1</td>
+              <td class="cell"><input class="in" type="text" id="one_name" name="one_name" /></td>
+              <td class="cell"><input class="in" type="text" id="one_address" name="one_address" /></td>
+              <td class="cell"><input class="in" type="email" id="one_email" name="one_email" /></td>
+              <td class="cell"><input class="in" type="text" id="one_signature_required" name="one_signature_required" /></td>
+            </tr>
+            <tr>
+              <td class="num">2</td>
+              <td class="cell"><input class="in" type="text" id="two_name" name="two_name" /></td>
+              <td class="cell"><input class="in" type="text" id="two_address" name="two_address" /></td>
+              <td class="cell"><input class="in" type="email" id="two_email" name="two_email" /></td>
+              <td class="cell"><input class="in" type="text" id="two_signature_required" name="two_signature_required" /></td>
+            </tr>
+            <tr>
+              <td class="num">3</td>
+              <td class="cell"><input class="in" type="text" id="three_name" name="three_name" /></td>
+              <td class="cell"><input class="in" type="text" id="three_address" name="three_address" /></td>
+              <td class="cell"><input class="in" type="email" id="three_email" name="three_email" /></td>
+              <td class="cell"><input class="in" type="text" id="three_signature_required" name="three_signature_required" /></td>
+            </tr>
+            <tr>
+              <td class="num">4</td>
+              <td class="cell"><input class="in" type="text" id="four_name" name="four_name" /></td>
+              <td class="cell"><input class="in" type="text" id="four_address" name="four_address" /></td>
+              <td class="cell"><input class="in" type="email" id="four_email" name="four_email" /></td>
+              <td class="cell"><input class="in" type="text" id="four_signature_required" name="four_signature_required" /></td>
+            </tr>
+            <tr>
+              <td class="num">5</td>
+              <td class="cell"><input class="in" type="text" id="five_name" name="five_name" /></td>
+              <td class="cell"><input class="in" type="text" id="five_address" name="five_address" /></td>
+              <td class="cell"><input class="in" type="email" id="five_email" name="five_email" /></td>
+              <td class="cell"><input class="in" type="text" id="five_signature_required" name="five_signature_required" /></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Hidden fields required by Pydantic model (kept in DOM with exact ids) -->
+        <div style="position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden;" aria-hidden="true">
+          <input type="text" id="name" name="name" />
+          <input type="text" id="address" name="address" />
+          <input type="email" id="email" name="email" />
+          <input type="text" id="signature_required" name="signature_required" />
+        </div>
+
+        <div class="foot">
+          Please send completed petition with minimum of four (4) signatures to<br/>
+          <a href="mailto:transportation@cityofwinterpark.org">transportation@cityofwinterpark.org</a>
+          <div class="mail">
+            If submitting by mail, please send to:<br/>
+            City of Winter Park &bull; Planning &amp; Transportation<br/>
+            401 S. Park Ave., Winter Park, FL&nbsp;&nbsp;32789
+          </div>
+        </div>
+
+        <div class="submit-row">
+          <button type="reset" class="btn">Clear Form</button>
+          <button type="submit" class="btn btn-primary">Submit</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="page-no">18</div>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function v(id){
+        const el = document.getElementById(id);
+        return (el && typeof el.value === 'string') ? el.value : '';
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          petition__location_information: {
+            street_name: v('street_name'),
+            from_cross_street_or_address: v('from_cross_street_or_address'),
+            to_cross_street_or_address: v('to_cross_street_or_address'),
+            total_number_of_affected_properties_lots: v('total_number_of_affected_properties_lots'),
+            primary_contact_name: v('primary_contact_name'),
+            primary_contact_phone_number: v('primary_contact_phone_number'),
+            date_of_submittal_of_petition_to_cwp: v('date_of_submittal_of_petition_to_cwp'),
+            description_of_concern: v('description_of_concern')
+          },
+          petition_signatures: {
+            name: v('name'),
+            address: v('address'),
+            email: v('email'),
+            signature_required: v('signature_required'),
+
+            one_name: v('one_name'),
+            one_address: v('one_address'),
+            one_email: v('one_email'),
+            one_signature_required: v('one_signature_required'),
+
+            two_name: v('two_name'),
+            two_address: v('two_address'),
+            two_email: v('two_email'),
+            two_signature_required: v('two_signature_required'),
+
+            three_name: v('three_name'),
+            three_address: v('three_address'),
+            three_email: v('three_email'),
+            three_signature_required: v('three_signature_required'),
+
+            four_name: v('four_name'),
+            four_address: v('four_address'),
+            four_email: v('four_email'),
+            four_signature_required: v('four_signature_required'),
+
+            five_name: v('five_name'),
+            five_address: v('five_address'),
+            five_email: v('five_email'),
+            five_signature_required: v('five_signature_required')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -59,19 +59,15 @@ def _judge_standalone(
     Returns:
         List of field_ids that are NOT standalone (should be removed).
     """
-    # Build context: all fields with answer previews
+    # Build context: all fields with full answers
     all_fields = []
     for fid, info in groundtruth.items():
-        answer = info["answer"]
-        preview = (answer[:80] + "...") if len(answer) > 80 else answer
-        all_fields.append({"field_id": fid, "answer_preview": preview})
+        all_fields.append({"field_id": fid, "answer": info["answer"]})
 
     # Build candidate list
     candidate_fields = []
     for fid, info in candidates:
-        answer = info["answer"]
-        preview = (answer[:80] + "...") if len(answer) > 80 else answer
-        candidate_fields.append({"field_id": fid, "answer_preview": preview})
+        candidate_fields.append({"field_id": fid, "answer": info["answer"]})
 
     result = client.chat.completions.parse(
         model=config.validation_model,

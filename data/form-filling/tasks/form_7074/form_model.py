@@ -12,11 +12,11 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class MeetingAgendaDetails(BaseModel):
-    """Basic information about the meeting date, item, and agenda placement"""
+class AgendaItemBasics(BaseModel):
+    """Basic information about the requested agenda item"""
 
     requested_meeting_date: str = Field(
-        ..., description="Date of the City Council meeting being requested"
+        ..., description="Date of the City Council meeting for which this agenda item is requested"
     )  # YYYY-MM-DD format
 
     title_of_item: str = Field(
@@ -27,6 +27,10 @@ class MeetingAgendaDetails(BaseModel):
             'another person or office), leave it blank (empty string "").'
         ),
     )
+
+
+class AgendaPlacement(BaseModel):
+    """Where this item should appear on the council agenda"""
 
     information_only: BooleanLike = Field(
         default="", description="Check if this agenda item is for information only"
@@ -45,36 +49,37 @@ class MeetingAgendaDetails(BaseModel):
     )
 
     main_agenda: BooleanLike = Field(
-        default="", description="Check if this item should appear on the main council agenda"
+        default="", description="Check if this item should appear on the main agenda"
     )
 
 
 class RequestedCouncilAction(BaseModel):
-    """Type of action or decision requested from the council"""
+    """Type of action or handling requested from the council"""
 
     approve_deny_motion: BooleanLike = Field(
-        default="", description="Check if council action requested is to approve or deny a motion"
+        default="", description="Check if the requested action is to approve or deny via motion"
     )
 
     adopt_resolution_attach_draft: BooleanLike = Field(
         default="",
         description=(
-            "Check if council action requested is to adopt a resolution; attach draft resolution"
+            "Check if the requested action is to adopt a resolution and attach the draft resolution"
         ),
     )
 
     direction_requested: BooleanLike = Field(
-        default="", description="Check if staff is requesting direction from the council"
+        default="", description="Check if staff is requesting direction from the Council"
     )
 
     discussion_item: BooleanLike = Field(
-        default="", description="Check if this is for discussion only with no formal action"
+        default="", description="Check if this is intended as a discussion item only"
     )
 
     hold_public_hearing: BooleanLike = Field(
         default="",
         description=(
-            "Check if a public hearing is to be held; provide copy of published hearing notice"
+            "Check if a public hearing is to be held for this item (attach copy of "
+            "published hearing notice)"
         ),
     )
 
@@ -83,8 +88,8 @@ class RequestedCouncilAction(BaseModel):
     )
 
 
-class SubmissionPresentationDetails(BaseModel):
-    """Information about the submitter and presenter"""
+class SubmissionDetails(BaseModel):
+    """Who is submitting and presenting the item"""
 
     submitted_by: str = Field(
         ...,
@@ -123,16 +128,15 @@ class SubmissionPresentationDetails(BaseModel):
     )
 
 
-class IssueDescriptionRecommendation(BaseModel):
-    """Narrative description of the issue, options, and recommended action"""
+class IssueDescription(BaseModel):
+    """Narrative description and analysis of the issue"""
 
     summary_of_issue: str = Field(
         ...,
         description=(
-            "Brief summary or description of the issue for council consideration .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Brief summary describing the issue or request .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -149,32 +153,33 @@ class IssueDescriptionRecommendation(BaseModel):
     recommended_action_motion: str = Field(
         ...,
         description=(
-            "Specific recommended council action or motion wording .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Staff’s recommended action or motion language for the Council .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
 
 class FinancialImpact(BaseModel):
-    """Cost and budget information related to the request"""
+    """Cost and budget information related to this request"""
 
     is_there_a_cost_associated_with_this_request: BooleanLike = Field(
         ..., description="Indicate whether there is any cost associated with this request"
     )
 
     what_is_the_total_cost_with_tax_and_shipping: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total dollar amount of the cost, including tax and shipping"
+        default="", description="Total cost of the request including tax and shipping"
     )
 
     is_this_budgeted: BooleanLike = Field(
-        ..., description="Indicate whether this cost is already included in the approved budget"
+        ..., description="Indicate whether this cost is already included in the current budget"
     )
 
     please_explain: str = Field(
         default="",
         description=(
-            "Explanation of funding source, budget status, or financial details .If you "
+            "Provide explanation regarding cost and budget status, if applicable .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
@@ -190,16 +195,11 @@ class BrainerdCityCouncilAgendaRequest(BaseModel):
         ''
     """
 
-    meeting__agenda_details: MeetingAgendaDetails = Field(
-        ..., description="Meeting & Agenda Details"
-    )
+    agenda_item_basics: AgendaItemBasics = Field(..., description="Agenda Item Basics")
+    agenda_placement: AgendaPlacement = Field(..., description="Agenda Placement")
     requested_council_action: RequestedCouncilAction = Field(
         ..., description="Requested Council Action"
     )
-    submission__presentation_details: SubmissionPresentationDetails = Field(
-        ..., description="Submission & Presentation Details"
-    )
-    issue_description__recommendation: IssueDescriptionRecommendation = Field(
-        ..., description="Issue Description & Recommendation"
-    )
+    submission_details: SubmissionDetails = Field(..., description="Submission Details")
+    issue_description: IssueDescription = Field(..., description="Issue Description")
     financial_impact: FinancialImpact = Field(..., description="Financial Impact")

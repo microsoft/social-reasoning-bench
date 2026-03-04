@@ -12,18 +12,8 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class UsersNumberTotalRow(BaseModel):
-    """Single row in Users Number Total"""
-
-    mode: str = Field(default="", description="Mode")
-    users: str = Field(default="", description="Users")
-    per_group: str = Field(default="", description="Per_Group")
-    number_of_groups: str = Field(default="", description="Number_Of_Groups")
-    total_participants: str = Field(default="", description="Total_Participants")
-
-
-class ApplicantInformation(BaseModel):
-    """Company and primary contact details for the permit applicant"""
+class OrganizationInformation(BaseModel):
+    """Basic information about the company or organization applying for the permit"""
 
     company_or_organization_name: str = Field(
         ...,
@@ -90,22 +80,22 @@ class ApplicantInformation(BaseModel):
     )
 
 
-class ActivityorEventDescription(BaseModel):
+class ActivityorEventDetails(BaseModel):
     """Description of the proposed activity or event and its location"""
 
     describe_the_activity_or_event_and_the_location_you_wish_to_have_permitted: str = Field(
         ...,
         description=(
-            "Description of the planned activity or event and the specific locations within "
-            'the forest to be used .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Description of the planned activity or event and the specific location(s) "
+            'requested .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
 
 class AccessAreastobeUsed(BaseModel):
-    """Forest access areas requested for this activity or event"""
+    """Forest access areas that will be used for the activity or event"""
 
     corn_mill_shoals: BooleanLike = Field(
         default="", description="Check if the Corn Mill Shoals access area will be used"
@@ -133,14 +123,15 @@ class AccessAreastobeUsed(BaseModel):
 
 
 class Timeframe(BaseModel):
-    """Requested dates and times for the activity or event, including continuing activities"""
+    """Dates and times for the activity or event, including continuing activities"""
 
     requested_dates: str = Field(
         ...,
         description=(
-            "Requested date or range of dates for the activity or event .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Specific date or range of dates requested for the activity or event .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
@@ -171,120 +162,79 @@ class Timeframe(BaseModel):
     )  # YYYY-MM-DD format
 
 
-class ParticipantsandGroupBreakdown(BaseModel):
-    """Estimated number of participants by mode of travel and group structure"""
+class Participants(BaseModel):
+    """Estimated number of participants by mode of travel"""
 
-    users_number_total: List[UsersNumberTotalRow] = Field(
-        ...,
-        description=(
-            "Table summarizing estimated number of users, group sizes, number of groups, "
-            "and total participants by mode of travel"
-        ),
-    )  # List of table rows
-
-    per_group: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Typical number of users per group for the specified mode of travel"
+    users_per_group_on_foot: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of on-foot users in each group"
     )
 
-    number_of_groups: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Estimated number of groups for the specified mode of travel"
+    number_of_groups_on_foot: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of on-foot groups"
     )
 
-    total_participants: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total number of participants for the specified mode of travel"
+    total_participants_on_foot: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Total number of on-foot participants (all groups combined)"
     )
 
-    on_foot_users: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Estimated number of users on foot"
+    users_per_group_on_bikes: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of bike users in each group"
     )
 
-    on_foot_per_group: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Typical group size for users on foot"
+    number_of_groups_on_bikes: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of bike groups"
     )
 
-    on_foot_number_of_groups: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Estimated number of groups on foot"
+    total_participants_on_bikes: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Total number of bike participants (all groups combined)"
     )
 
-    on_foot_total_participants: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total number of participants on foot"
+    users_per_group_on_horseback: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of horseback users in each group"
     )
 
-    on_bikes_users: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Estimated number of users on bikes"
+    number_of_groups_on_horseback: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of horseback groups"
     )
 
-    on_bikes_per_group: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Typical group size for users on bikes"
+    total_participants_on_horseback: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Total number of horseback participants (all groups combined)"
     )
 
-    on_bikes_number_of_groups: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Estimated number of groups on bikes"
+    users_per_group_in_vehicles: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of vehicle users in each group"
     )
 
-    on_bikes_total_participants: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total number of participants on bikes"
+    number_of_groups_in_vehicles: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of vehicle groups"
     )
 
-    on_horseback_users: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Estimated number of users on horseback"
+    total_participants_in_vehicles: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Total number of vehicle participants (all groups combined)"
     )
 
-    on_horseback_per_group: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Typical group size for users on horseback"
+    users_per_group_other: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of users per group for other modes not listed"
     )
 
-    on_horseback_number_of_groups: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Estimated number of groups on horseback"
+    number_of_groups_other: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of groups for other modes not listed"
     )
 
-    on_horseback_total_participants: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total number of participants on horseback"
-    )
-
-    in_vehicles_users: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Estimated number of users in vehicles"
-    )
-
-    in_vehicles_per_group: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Typical group size for users in vehicles"
-    )
-
-    in_vehicles_number_of_groups: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Estimated number of groups in vehicles"
-    )
-
-    in_vehicles_total_participants: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total number of participants in vehicles"
-    )
-
-    other_users: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Estimated number of users in other modes not listed"
-    )
-
-    other_per_group: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Typical group size for users in other modes not listed"
-    )
-
-    other_number_of_groups: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Estimated number of groups in other modes not listed"
-    )
-
-    other_total_participants: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total number of participants in other modes not listed"
+    total_participants_other: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Total number of participants for other modes not listed"
     )
 
 
-class InsuranceInformation(BaseModel):
-    """Liability insurance details for the event"""
+class Insurance(BaseModel):
+    """Liability insurance information for the activity or event"""
 
     liability_insurance_company_name: str = Field(
         ...,
         description=(
-            "Name of the liability insurance company providing coverage for the event .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Name of the liability insurance company providing coverage .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -292,13 +242,13 @@ class InsuranceInformation(BaseModel):
 class DupontStateRecreationalForestCommercialUsePermitApplication(BaseModel):
     """DuPont State Recreational Forest Commercial Use Permit Application"""
 
-    applicant_information: ApplicantInformation = Field(..., description="Applicant Information")
-    activity_or_event_description: ActivityorEventDescription = Field(
-        ..., description="Activity or Event Description"
+    organization_information: OrganizationInformation = Field(
+        ..., description="Organization Information"
+    )
+    activity_or_event_details: ActivityorEventDetails = Field(
+        ..., description="Activity or Event Details"
     )
     access_areas_to_be_used: AccessAreastobeUsed = Field(..., description="Access Areas to be Used")
     timeframe: Timeframe = Field(..., description="Timeframe")
-    participants_and_group_breakdown: ParticipantsandGroupBreakdown = Field(
-        ..., description="Participants and Group Breakdown"
-    )
-    insurance_information: InsuranceInformation = Field(..., description="Insurance Information")
+    participants: Participants = Field(..., description="Participants")
+    insurance: Insurance = Field(..., description="Insurance")

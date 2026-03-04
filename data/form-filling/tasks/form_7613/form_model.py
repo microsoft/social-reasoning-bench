@@ -24,46 +24,46 @@ class PatientInformation(BaseModel):
         ),
     )
 
-    date_top: str = Field(
-        ..., description="Date this prescription form is completed"
+    date: str = Field(
+        ..., description="Date this prescription/form is completed"
     )  # YYYY-MM-DD format
 
     diagnosis: str = Field(
         ...,
         description=(
-            "Primary medical diagnosis related to this therapy referral .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            'Primary medical/therapy diagnosis .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     precautions: str = Field(
         default="",
         description=(
-            "Any special precautions or contraindications for treatment .If you cannot fill "
+            "Any special precautions or contraindications for therapy .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     frequency_times_per_week: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Number of treatment sessions per week"
+        ..., description="Number of therapy sessions per week"
     )
 
     frequency_weeks: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Total number of weeks for the treatment plan"
+        ..., description="Total number of weeks therapy is prescribed"
     )
 
 
-class TreatmentPlan(BaseModel):
-    """Selected therapy services and modalities"""
+class PlanofCareTreatmentOrders(BaseModel):
+    """Therapy orders and selected interventions"""
 
     evaluate_treat: BooleanLike = Field(
         default="", description="Check if the therapist should evaluate and treat the patient"
     )
 
     therapeutic_exercise: BooleanLike = Field(
-        default="", description="Check to order therapeutic exercise interventions"
+        default="", description="Order for therapeutic exercise interventions"
     )
 
     passive_rom: BooleanLike = Field(
@@ -79,15 +79,13 @@ class TreatmentPlan(BaseModel):
     )
 
     progressive_resistive_exercise: BooleanLike = Field(
-        default="", description="Include progressive resistive strengthening exercises"
+        default="", description="Include progressive resistive exercise program"
     )
 
-    strengthening: BooleanLike = Field(
-        default="", description="Include general strengthening exercises"
-    )
+    strengthening: BooleanLike = Field(default="", description="Include strengthening exercises")
 
     stabilization_program: BooleanLike = Field(
-        default="", description="Include a stabilization program as part of treatment"
+        default="", description="Include stabilization program activities"
     )
 
     posture_body_mechanics: BooleanLike = Field(
@@ -99,15 +97,15 @@ class TreatmentPlan(BaseModel):
     )
 
     fall_risk_assessment: BooleanLike = Field(
-        default="", description="Include assessment of fall risk"
+        default="", description="Order for fall risk assessment"
     )
 
     home_exercise_program: BooleanLike = Field(
-        default="", description="Provide a home exercise program for the patient"
+        default="", description="Include development/instruction of a home exercise program"
     )
 
     manual_therapy: BooleanLike = Field(
-        default="", description="Check to order manual therapy interventions"
+        default="", description="Order for manual therapy interventions"
     )
 
     soft_tissue_mobilization: BooleanLike = Field(
@@ -122,8 +120,22 @@ class TreatmentPlan(BaseModel):
         default="", description="Include myofascial mobilization techniques"
     )
 
+    post_operative_rehabilitation_protocol_for: str = Field(
+        default="",
+        description=(
+            "Specify the surgery or body part for the post-operative rehabilitation "
+            'protocol .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
+        ),
+    )
+
+    date_of_surgery: str = Field(
+        default="", description="Date the surgery was performed"
+    )  # YYYY-MM-DD format
+
     neuromuscular_re_education: BooleanLike = Field(
-        default="", description="Check to order neuromuscular re-education interventions"
+        default="", description="Order for neuromuscular re-education interventions"
     )
 
     balance_proprioceptive_training: BooleanLike = Field(
@@ -131,7 +143,7 @@ class TreatmentPlan(BaseModel):
     )
 
     modalities: BooleanLike = Field(
-        default="", description="Check to order use of physical therapy modalities"
+        default="", description="Order for use of physical therapy modalities"
     )
 
     ultrasound: BooleanLike = Field(
@@ -151,33 +163,19 @@ class TreatmentPlan(BaseModel):
     )
 
     blood_flow_restriction_therapy: BooleanLike = Field(
-        default="", description="Include blood flow restriction therapy modality"
+        default="", description="Include blood flow restriction therapy"
     )
-
-    post_operative_rehabilitation_protocol_for: str = Field(
-        default="",
-        description=(
-            "Specify the surgery or condition for the post-operative rehabilitation "
-            'protocol .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
-        ),
-    )
-
-    date_of_surgery: str = Field(
-        default="", description="Date the surgery was performed"
-    )  # YYYY-MM-DD format
 
     sports_specific_training: BooleanLike = Field(
-        default="", description="Check to include sports-specific training"
+        default="", description="Include sports-specific training activities"
     )
 
     other: str = Field(
         default="",
         description=(
-            "Specify any other treatment not listed above .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Specify any other ordered treatments or instructions .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -185,10 +183,19 @@ class TreatmentPlan(BaseModel):
 class SpecialInstructions(BaseModel):
     """Additional instructions from the physician"""
 
-    special_instructions: str = Field(
+    special_instructions_line_1: str = Field(
         default="",
         description=(
-            "Any additional special instructions for therapy .If you cannot fill this, "
+            "First line of any special instructions for therapy .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    special_instructions_line_2: str = Field(
+        default="",
+        description=(
+            "Second line of any special instructions for therapy .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -201,27 +208,30 @@ class PhysicianAuthorization(BaseModel):
     physicians_signature: str = Field(
         ...,
         description=(
-            "Signature of the referring physician certifying medical necessity .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            'Signature of the ordering physician .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    date_bottom: str = Field(
-        ..., description="Date the physician signs this prescription"
+    physician_date: str = Field(
+        ..., description="Date the physician signed the order"
     )  # YYYY-MM-DD format
 
 
-class DoNotEmailPrescription(BaseModel):
+class PhysicalTherapyOfProsperSportsMedicineAndRehabilitationCenter(BaseModel):
     """
-    DO NOT EMAIL PRESCRIPTION
+        PHYSICAL THERAPY
+    OF PROSPER
+    SPORTS MEDICINE AND REHABILITATION CENTER
 
-    The electronic prescription form is provided for your convenience. With respect to responding to this form, please do not send the prescription via email. Please populate, print and sign a hardcopy that may be faxed, mailed or hand delivered to the clinic.
+        The electronic prescription form is provided for your convenience. With respect to responding to this form, please do not send the prescription via email. Please populate, print and sign a hardcopy that may be faxed, mailed or hand delivered to the clinic.
     """
 
     patient_information: PatientInformation = Field(..., description="Patient Information")
-    treatment_plan: TreatmentPlan = Field(..., description="Treatment Plan")
+    plan_of_care__treatment_orders: PlanofCareTreatmentOrders = Field(
+        ..., description="Plan of Care / Treatment Orders"
+    )
     special_instructions: SpecialInstructions = Field(..., description="Special Instructions")
     physician_authorization: PhysicianAuthorization = Field(
         ..., description="Physician Authorization"

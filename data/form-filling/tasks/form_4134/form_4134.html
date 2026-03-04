@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Notice of Exemption — Form D</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    :root{
+      --ink:#151515;
+      --muted:#4b4b4b;
+      --line:#2a2a2a;
+      --bg:#d6d2cd;
+      --page:#ffffff;
+      --bar:#5d5d5d;
+      --focus:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--page);
+      box-shadow:0 2px 18px rgba(0,0,0,.12);
+      padding:26px 36px 18px;
+      position:relative;
+    }
+
+    .top-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      margin-bottom:10px;
+    }
+    .title{
+      font-weight:400;
+      font-size:18px;
+      letter-spacing:.2px;
+    }
+    .formd{
+      font-weight:700;
+      font-size:13px;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:3px;
+    }
+    .formd .line{
+      width:92px;
+      height:1px;
+      background:var(--ink);
+      opacity:.7;
+    }
+
+    form{margin:0}
+    .section-bar{
+      background:var(--bar);
+      color:#fff;
+      font-weight:700;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:1.6px;
+      padding:6px 12px;
+      margin:14px -36px 10px;
+    }
+
+    .grid-2{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px 28px;
+      align-items:start;
+    }
+
+    .block{
+      padding:2px 0 6px;
+    }
+
+    .to-from{
+      display:grid;
+      grid-template-columns:1.08fr .92fr;
+      gap:22px 30px;
+      align-items:start;
+      margin-top:4px;
+    }
+
+    .mini-label{
+      font-weight:600;
+      font-size:12.5px;
+      margin-right:6px;
+    }
+    .muted{color:var(--muted); font-size:12px}
+    .address-note{
+      text-align:center;
+      font-size:11px;
+      color:var(--muted);
+      margin-top:4px;
+      font-style:italic;
+    }
+
+    .rowline{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      padding:7px 0 2px;
+    }
+    .rowline .label{
+      font-weight:600;
+      font-size:13px;
+      white-space:nowrap;
+    }
+    .rowline .input-wrap{
+      flex:1;
+      border-bottom:1px solid var(--line);
+      padding:0 2px 2px;
+      min-height:20px;
+      display:flex;
+      align-items:center;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    input[type="email"],
+    input[type="tel"]{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      font-size:13px;
+      padding:2px 2px 0;
+    }
+    textarea{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      font-size:13px;
+      padding:2px 2px 0;
+      resize:vertical;
+      min-height:58px;
+    }
+    .underline-area{
+      border-bottom:1px solid var(--line);
+      padding:0 2px 2px;
+    }
+    input:focus, textarea:focus{
+      background:var(--focus);
+    }
+
+    .cb-line{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:13px;
+      margin:6px 0;
+    }
+    .cb-line input[type="checkbox"]{
+      width:14px;
+      height:14px;
+      accent-color:#2b2b2b;
+      transform:translateY(1px);
+    }
+    .cb-line .hint{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .indent{
+      margin-left:22px;
+      margin-top:4px;
+    }
+
+    .project-block{
+      margin-top:8px;
+    }
+
+    .two-wide-lines{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:18px 28px;
+      margin-top:6px;
+    }
+
+    .small{
+      font-size:12px;
+    }
+
+    .bullets{
+      margin:6px 0 6px 18px;
+      font-size:12px;
+      color:var(--ink);
+    }
+    .bullets li{margin:2px 0}
+
+    .yesno{
+      display:inline-flex;
+      align-items:center;
+      gap:16px;
+      margin-left:10px;
+    }
+    .yesno label{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:13px;
+      white-space:nowrap;
+    }
+
+    .signature-row{
+      display:grid;
+      grid-template-columns:1.25fr .55fr .95fr;
+      gap:16px 18px;
+      align-items:end;
+      margin-top:10px;
+    }
+
+    .below-signature{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px 28px;
+      margin-top:6px;
+      align-items:start;
+    }
+
+    .foot{
+      display:flex;
+      justify-content:space-between;
+      margin-top:10px;
+      color:var(--muted);
+      font-size:11px;
+      align-items:flex-end;
+    }
+    .pageno{
+      font-weight:600;
+      color:var(--muted);
+      font-size:11px;
+    }
+
+    .actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin:14px -4px 0;
+    }
+    .btn{
+      font:inherit;
+      font-size:13px;
+      font-weight:600;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+    }
+    .btn-submit{
+      background:#444;
+      color:#fff;
+      border:1px solid #333;
+    }
+    .btn-clear{
+      background:#fff;
+      color:#333;
+      border:1px solid #888;
+    }
+
+    .tight{margin-top:2px}
+    .spacer8{height:8px}
+    .spacer12{height:12px}
+
+    /* ensure print-like feel */
+    @media print{
+      body{background:#fff; padding:0}
+      .page{box-shadow:none; max-width:none; padding:18mm}
+      .actions{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-row">
+      <div class="title">Notice of Exemption</div>
+      <div class="formd">
+        <div>Form D</div>
+        <div class="line"></div>
+      </div>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="to-from">
+        <div class="block">
+          <div class="rowline" style="padding-top:0;">
+            <div class="label">To:</div>
+            <div style="flex:1"></div>
+          </div>
+
+          <div class="cb-line">
+            <input type="checkbox" id="office_of_planning_and_research" />
+            <div>
+              <div>Office of Planning and Research</div>
+              <div class="muted">PO Box 3044, 1400 Tenth Street, Room 212</div>
+              <div class="muted">Sacramento, CA 95812-3044</div>
+            </div>
+          </div>
+
+          <div class="cb-line" style="margin-top:10px;">
+            <input type="checkbox" id="county_clerk" />
+            <div style="flex:1;">
+              <div>County Clerk</div>
+              <div class="rowline tight">
+                <div class="label" style="font-weight:600;">County of</div>
+                <div class="input-wrap">
+                  <input type="text" id="county" name="county" />
+                </div>
+              </div>
+              <div class="rowline tight">
+                <div class="label" style="opacity:0;">&nbsp;</div>
+                <div class="input-wrap">
+                  <input type="text" aria-label="extra line 1 (visual only)" />
+                </div>
+              </div>
+              <div class="rowline tight">
+                <div class="label" style="opacity:0;">&nbsp;</div>
+                <div class="input-wrap">
+                  <input type="text" aria-label="extra line 2 (visual only)" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="rowline" style="padding-top:0;">
+            <div class="label">From:</div>
+            <div class="label" style="font-weight:600;">(Public Agency)</div>
+            <div style="flex:1"></div>
+          </div>
+
+          <div class="rowline">
+            <div class="input-wrap">
+              <input type="text" id="from_public_agency" name="from_public_agency" />
+            </div>
+          </div>
+
+          <div class="spacer12"></div>
+
+          <div class="rowline">
+            <div class="input-wrap">
+              <input type="text" id="address" name="address" />
+            </div>
+          </div>
+          <div class="address-note">(Address)</div>
+        </div>
+      </div>
+
+      <div class="spacer8"></div>
+
+      <div class="project-block">
+        <div class="rowline">
+          <div class="label">Project Title:</div>
+          <div class="input-wrap">
+            <input type="text" id="project_title" name="project_title" />
+          </div>
+        </div>
+
+        <div class="rowline">
+          <div class="label">Project Location - Specific:</div>
+          <div class="input-wrap">
+            <input type="text" id="project_location_specific" name="project_location_specific" />
+          </div>
+        </div>
+
+        <div class="two-wide-lines">
+          <div class="rowline">
+            <div class="label">Project Location – City:</div>
+            <div class="input-wrap">
+              <input type="text" id="project_location_city" name="project_location_city" />
+            </div>
+          </div>
+          <div class="rowline">
+            <div class="label">Project Location – County:</div>
+            <div class="input-wrap">
+              <input type="text" id="project_location_county" name="project_location_county" />
+            </div>
+          </div>
+        </div>
+
+        <div class="rowline" style="align-items:flex-start;">
+          <div class="label" style="padding-top:2px;">Description of Project:</div>
+          <div class="input-wrap" style="border-bottom:none; padding:0; min-height:auto;">
+            <div class="underline-area" style="width:100%;">
+              <textarea id="description_of_project" name="description_of_project"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spacer8"></div>
+
+      <div class="rowline">
+        <div class="label">Name of Public Agency Approving Project:</div>
+        <div class="input-wrap">
+          <input type="text" id="name_of_public_agency_approving_project" name="name_of_public_agency_approving_project" />
+        </div>
+      </div>
+
+      <div class="rowline">
+        <div class="label">Name of Person or Agency Carrying Out Project:</div>
+        <div class="input-wrap">
+          <input type="text" id="name_of_person_or_agency_carrying_out_project" name="name_of_person_or_agency_carrying_out_project" />
+        </div>
+      </div>
+
+      <div class="spacer8"></div>
+
+      <div class="rowline" style="padding-bottom:0;">
+        <div class="label">Exempt Status:</div>
+        <div class="muted small">(check one)</div>
+      </div>
+
+      <div class="indent">
+        <div class="cb-line">
+          <input type="checkbox" id="ministerial_sec_21080_b_1_15268" />
+          <div>Ministerial (Sec. 21080(b)(1); 15268;)</div>
+        </div>
+        <div class="cb-line">
+          <input type="checkbox" id="declared_emergency_sec_21080_b_3_15269_a" />
+          <div>Declared Emergency (Sec. 21080(b)(3); 15269(a);)</div>
+        </div>
+        <div class="cb-line">
+          <input type="checkbox" id="emergency_project_sec_21080_b_4_15269_b_c" />
+          <div>Emergency Project (Sec. 21080(b)(4); 15269(b)(c);)</div>
+        </div>
+
+        <div class="rowline">
+          <label class="cb-line" style="margin:0;">
+            <input type="checkbox" aria-label="visual checkbox for categorical exemption line (not part of model)" />
+            <span>Categorical Exemption. State type and section number:</span>
+          </label>
+          <div class="input-wrap">
+            <input type="text" id="categorical_exemption_state_type_and_section_number" name="categorical_exemption_state_type_and_section_number" />
+          </div>
+        </div>
+
+        <div class="rowline">
+          <label class="cb-line" style="margin:0;">
+            <input type="checkbox" aria-label="visual checkbox for statutory exemptions line (not part of model)" />
+            <span>Statutory Exemptions. State code number:</span>
+          </label>
+          <div class="input-wrap">
+            <input type="text" id="statutory_exemptions_state_code_number" name="statutory_exemptions_state_code_number" />
+          </div>
+        </div>
+      </div>
+
+      <div class="spacer8"></div>
+
+      <div class="rowline" style="align-items:flex-start;">
+        <div class="label" style="padding-top:2px;">Reasons why project is exempt:</div>
+        <div class="input-wrap" style="border-bottom:none; padding:0; min-height:auto;">
+          <div class="underline-area" style="width:100%;">
+            <textarea id="reasons_why_project_is_exempt" name="reasons_why_project_is_exempt" style="min-height:80px;"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="spacer8"></div>
+
+      <div class="two-wide-lines">
+        <div class="rowline">
+          <div class="label">Lead Agency</div>
+          <div class="input-wrap">
+            <input type="text" id="lead_agency" name="lead_agency" />
+          </div>
+        </div>
+        <div class="rowline">
+          <div class="label">Contact Person:</div>
+          <div class="input-wrap">
+            <input type="text" id="contact_person" name="contact_person" />
+          </div>
+        </div>
+      </div>
+
+      <div class="rowline">
+        <div class="label">Area Code/Telephone/Extension:</div>
+        <div class="input-wrap">
+          <input type="tel" id="area_code_telephone_extension" name="area_code_telephone_extension" />
+        </div>
+      </div>
+
+      <div class="spacer12"></div>
+
+      <div class="rowline" style="padding-bottom:0;">
+        <div class="label">If filed by applicant:</div>
+      </div>
+      <ol class="bullets">
+        <li>Attach certified document of exemption finding.</li>
+        <li>
+          Has a Notice of Exemption been filed by the public agency approving the project?
+          <span class="yesno">
+            <label><input type="checkbox" id="notice_of_exemption_filed_yes" /> Yes</label>
+            <label><input type="checkbox" id="notice_of_exemption_filed_no" /> No</label>
+          </span>
+        </li>
+      </ol>
+
+      <div class="signature-row">
+        <div class="rowline" style="padding:0;">
+          <div class="label">Signature:</div>
+          <div class="input-wrap">
+            <input type="text" id="signature" name="signature" />
+          </div>
+        </div>
+
+        <div class="rowline" style="padding:0;">
+          <div class="label">Date:</div>
+          <div class="input-wrap">
+            <input type="date" id="date" name="date" />
+          </div>
+        </div>
+
+        <div class="rowline" style="padding:0;">
+          <div class="label">Title:</div>
+          <div class="input-wrap">
+            <input type="text" id="title" name="title" />
+          </div>
+        </div>
+      </div>
+
+      <div class="below-signature">
+        <div class="block">
+          <div class="cb-line"><input type="checkbox" id="signed_by_lead_agency" /> <div>Signed by Lead Agency</div></div>
+          <div class="cb-line"><input type="checkbox" id="signed_by_applicant" /> <div>Signed by Applicant</div></div>
+        </div>
+
+        <div class="block">
+          <div class="rowline">
+            <div class="label">Date received for filing at OPR:</div>
+            <div class="input-wrap">
+              <input type="date" id="date_received_for_filing_at_opr" name="date_received_for_filing_at_opr" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="reset" class="btn btn-clear">Clear Form</button>
+        <button type="submit" class="btn btn-submit">Submit</button>
+      </div>
+
+      <div class="foot">
+        <div>January 2004</div>
+        <div class="pageno">27</div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      const cb = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return "";
+        return el.checked ? "true" : "false";
+      };
+
+      const val = (id) => {
+        const el = document.getElementById(id);
+        return (el && typeof el.value === 'string') ? el.value : "";
+      };
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          filing_recipient: {
+            office_of_planning_and_research: cb('office_of_planning_and_research'),
+            county_clerk: cb('county_clerk'),
+            county: val('county')
+          },
+          submitting_agency_information: {
+            from_public_agency: val('from_public_agency'),
+            address: val('address')
+          },
+          project_information: {
+            project_title: val('project_title'),
+            project_location_specific: val('project_location_specific'),
+            project_location_city: val('project_location_city'),
+            project_location_county: val('project_location_county'),
+            description_of_project: val('description_of_project')
+          },
+          approving_and_carrying_agencies: {
+            name_of_public_agency_approving_project: val('name_of_public_agency_approving_project'),
+            name_of_person_or_agency_carrying_out_project: val('name_of_person_or_agency_carrying_out_project')
+          },
+          exempt_status: {
+            ministerial_sec_21080_b_1_15268: cb('ministerial_sec_21080_b_1_15268'),
+            declared_emergency_sec_21080_b_3_15269_a: cb('declared_emergency_sec_21080_b_3_15269_a'),
+            emergency_project_sec_21080_b_4_15269_b_c: cb('emergency_project_sec_21080_b_4_15269_b_c'),
+            categorical_exemption_state_type_and_section_number: val('categorical_exemption_state_type_and_section_number'),
+            statutory_exemptions_state_code_number: val('statutory_exemptions_state_code_number')
+          },
+          exemption_justification: {
+            reasons_why_project_is_exempt: val('reasons_why_project_is_exempt')
+          },
+          lead_agency_contact: {
+            lead_agency: val('lead_agency'),
+            contact_person: val('contact_person'),
+            area_code_telephone_extension: val('area_code_telephone_extension')
+          },
+          applicant_certification: {
+            notice_of_exemption_filed_yes: cb('notice_of_exemption_filed_yes'),
+            notice_of_exemption_filed_no: cb('notice_of_exemption_filed_no'),
+            signature: val('signature'),
+            date: val('date'),
+            title: val('title'),
+            signed_by_lead_agency: cb('signed_by_lead_agency'),
+            signed_by_applicant: cb('signed_by_applicant')
+          },
+          opr_filing: {
+            date_received_for_filing_at_opr: val('date_received_for_filing_at_opr')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for JSON output.');
+      });
+    })();
+  </script>
+</body>
+</html>

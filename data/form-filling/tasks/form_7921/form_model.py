@@ -13,90 +13,78 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class ApplicantInformation(BaseModel):
-    """Information about the applicant and their contact details"""
+    """Contact information for the applicant or organization"""
 
-    applicant_information_date: str = Field(
-        ..., description="Date the rebuild letter request application is completed"
-    )  # YYYY-MM-DD format
+    date: str = Field(..., description="Date the application is completed")  # YYYY-MM-DD format
 
     applicant: str = Field(
         ...,
         description=(
-            "Name of the applicant requesting the rebuild letter .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            'Name of the applicant .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
     org_business: str = Field(
         default="",
         description=(
-            "Name of the organization or business associated with the applicant, if "
-            'applicable .If you cannot fill this, write "N/A". If this field should not '
-            "be filled by you (for example, it belongs to another person or office), leave "
-            'it blank (empty string "").'
+            "Name of the organization or business, if applicable .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     phone: str = Field(
         ...,
         description=(
-            "Primary phone number for the applicant .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Primary contact phone number .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
     email: str = Field(
         ...,
         description=(
-            'Email address for the applicant .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            'Primary contact email address .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
-    address_full: str = Field(
+    address: str = Field(
         ...,
         description=(
-            "Mailing street address for the applicant .If you cannot fill this, write "
+            "Mailing street address of the applicant .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    address_street: str = Field(
+    city: str = Field(
         ...,
         description=(
-            "Street portion of the applicant's mailing address .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    address_city: str = Field(
-        ...,
-        description=(
-            "City for the applicant's mailing address .If you cannot fill this, write "
+            "City for the applicant mailing address .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    address_state: str = Field(..., description="State for the applicant's mailing address")
+    state: str = Field(..., description="State for the applicant mailing address")
 
-    address_zip: str = Field(..., description="ZIP code for the applicant's mailing address")
+    zip: str = Field(..., description="ZIP code for the applicant mailing address")
 
 
 class PropertyInformation(BaseModel):
-    """Parcel and address information for the properties covered by this request"""
+    """Parcel and address information for the property(ies) covered by this request"""
 
-    parcel_1_parcel_id: str = Field(
+    parcel_1_id: str = Field(
         ...,
         description=(
-            "Parcel identification number for property 1 .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Parcel ID for property 1 .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
@@ -129,19 +117,19 @@ class PropertyInformation(BaseModel):
         ),
     )
 
-    parcel_2_parcel_id: str = Field(
+    parcel_2_id: str = Field(
         default="",
         description=(
-            "Parcel identification number for property 2, if applicable .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Parcel ID for property 2 (if applicable) .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     parcel_2_address: str = Field(
         default="",
         description=(
-            "Street address for property 2, if applicable .If you cannot fill this, write "
+            "Street address for property 2 (if applicable) .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -150,36 +138,36 @@ class PropertyInformation(BaseModel):
     parcel_2_city: str = Field(
         default="",
         description=(
-            'City for property 2, if applicable .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
+            'City for property 2 (if applicable) .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
-    parcel_2_zip: str = Field(default="", description="ZIP code for property 2, if applicable")
+    parcel_2_zip: str = Field(default="", description="ZIP code for property 2 (if applicable)")
 
     parcel_2_township: str = Field(
         default="",
         description=(
-            "Township for property 2, if applicable .If you cannot fill this, write "
+            "Township for property 2 (if applicable) .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    parcel_3_parcel_id: str = Field(
+    parcel_3_id: str = Field(
         default="",
         description=(
-            "Parcel identification number for property 3, if applicable .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Parcel ID for property 3 (if applicable) .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     parcel_3_address: str = Field(
         default="",
         description=(
-            "Street address for property 3, if applicable .If you cannot fill this, write "
+            "Street address for property 3 (if applicable) .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -188,18 +176,18 @@ class PropertyInformation(BaseModel):
     parcel_3_city: str = Field(
         default="",
         description=(
-            'City for property 3, if applicable .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
+            'City for property 3 (if applicable) .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
-    parcel_3_zip: str = Field(default="", description="ZIP code for property 3, if applicable")
+    parcel_3_zip: str = Field(default="", description="ZIP code for property 3 (if applicable)")
 
     parcel_3_township: str = Field(
         default="",
         description=(
-            "Township for property 3, if applicable .If you cannot fill this, write "
+            "Township for property 3 (if applicable) .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -207,61 +195,59 @@ class PropertyInformation(BaseModel):
 
 
 class CurrentUsesandZoning(BaseModel):
-    """Current zoning, uses, and compliance/nonconforming status of the property"""
+    """Current zoning, use, and legal status of the property"""
 
     current_zoning: str = Field(
         ...,
         description=(
-            "Current zoning designation for the subject property .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Current zoning designation of the property .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    describe_current_uses_of_the_property: str = Field(
+    describe_the_current_uses_of_the_property: str = Field(
         ...,
         description=(
-            "Narrative description of all current uses of the property .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Narrative description of the current use or uses of the property .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    property_meets_all_development_standards_yes: BooleanLike = Field(
+    property_meets_all_development_standard_requirements_yes: BooleanLike = Field(
         ...,
         description=(
-            "Indicate whether the property meets all development standard requirements of "
-            "the current ordinance (select Yes)"
+            "Check if the property meets all development standard requirements of the "
+            "current ordinance"
         ),
     )
 
-    property_meets_all_development_standards_no: BooleanLike = Field(
+    property_meets_all_development_standard_requirements_no: BooleanLike = Field(
         ...,
         description=(
-            "Indicate whether the property meets all development standard requirements of "
-            "the current ordinance (select No)"
+            "Check if the property does not meet all development standard requirements of "
+            "the current ordinance"
         ),
     )
 
     variance_special_use_yes: BooleanLike = Field(
         default="",
-        description=(
-            "Indicate Yes if the property has been granted a variance and/or special use/exception"
-        ),
+        description="Check if the property has been granted a variance and/or special use/exception",
     )
 
     variance_special_use_no: BooleanLike = Field(
         default="",
         description=(
-            "Indicate No if the property has not been granted a variance and/or special "
-            "use/exception"
+            "Check if the property has not been granted a variance and/or special use/exception"
         ),
     )
 
     variance_special_use_description: str = Field(
         default="",
         description=(
-            "Brief description of the variance and/or special use/exception granted .If you "
+            "Description of the variance and/or special use/exception granted .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
@@ -269,39 +255,32 @@ class CurrentUsesandZoning(BaseModel):
     )
 
     variance_special_use_date_approved: str = Field(
-        default="",
-        description="Date on which the variance and/or special use/exception was approved",
+        default="", description="Approval date of the variance and/or special use/exception"
     )  # YYYY-MM-DD format
 
-    certificate_nonconforming_use_yes: BooleanLike = Field(
+    certificate_nonconforming_yes: BooleanLike = Field(
+        default="",
+        description="Check if a Certificate of Legally Established Nonconforming Use has been issued",
+    )
+
+    certificate_nonconforming_no: BooleanLike = Field(
         default="",
         description=(
-            "Indicate Yes if a Certificate of Legally Established Nonconforming Use has "
-            "been issued for this property"
+            "Check if a Certificate of Legally Established Nonconforming Use has not been issued"
         ),
     )
 
-    certificate_nonconforming_use_no: BooleanLike = Field(
+    certificate_nonconforming_in_progress: BooleanLike = Field(
         default="",
         description=(
-            "Indicate No if a Certificate of Legally Established Nonconforming Use has not "
-            "been issued for this property"
+            "Check if a Certificate of Legally Established Nonconforming Use is currently "
+            "in progress"
         ),
     )
 
-    certificate_nonconforming_use_in_progress: BooleanLike = Field(
+    certificate_nonconforming_date_approved: str = Field(
         default="",
-        description=(
-            "Indicate In progress if an application for a Certificate of Legally "
-            "Established Nonconforming Use is currently being processed"
-        ),
-    )
-
-    certificate_nonconforming_use_date_approved: str = Field(
-        default="",
-        description=(
-            "Date on which the Certificate of Legally Established Nonconforming Use was approved"
-        ),
+        description="Approval date of the Certificate of Legally Established Nonconforming Use",
     )  # YYYY-MM-DD format
 
 

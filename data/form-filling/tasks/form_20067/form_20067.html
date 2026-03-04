@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>West Allis — Special Event Permit Application (SPEV-APP)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#d6d2cd;
+      --page:#fff;
+      --ink:#1c1c1c;
+      --muted:#5d5d5d;
+      --bar:#666a6f;
+      --accent:#0aa7b5;
+      --line:#2a2a2a;
+      --softline:#b9b9b9;
+      --focus:#f5f5ee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:805px;
+      background:var(--page);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      position:relative;
+    }
+
+    /* Top banner approximating form */
+    .topband{
+      background:var(--accent);
+      padding:18px 18px 16px 18px;
+      position:relative;
+      min-height:92px;
+    }
+    .topband .title-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      min-width:0;
+    }
+    .logo{
+      width:62px; height:62px;
+      border-radius:50%;
+      background:#fff;
+      display:grid;
+      place-items:center;
+      color:#e39a2b;
+      border:3px solid rgba(255,255,255,.9);
+      position:relative;
+      flex:0 0 auto;
+    }
+    .logo .wa{
+      font-weight:800;
+      font-size:18px;
+      letter-spacing:.4px;
+      line-height:1;
+      text-align:center;
+      transform:rotate(-8deg);
+    }
+    .heading{
+      min-width:0;
+    }
+    .heading .main{
+      font-weight:800;
+      letter-spacing:.8px;
+      color:#134b54;
+      font-size:22px;
+      text-transform:uppercase;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .heading .sub{
+      color:#08343a;
+      font-weight:700;
+      letter-spacing:.3px;
+      font-size:13px;
+      margin-top:2px;
+    }
+    .formcode{
+      background:#efe9c9;
+      border:1px solid rgba(0,0,0,.15);
+      padding:10px 12px;
+      text-align:right;
+      min-width:132px;
+      align-self:stretch;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+    }
+    .formcode .lbl{font-weight:800; color:#5a5a5a; letter-spacing:.3px}
+    .formcode .code{font-weight:800; color:#2f2f2f; margin-top:2px}
+    .formcode .ver{font-weight:700; color:#777; font-size:12px; margin-top:2px}
+
+    .content{
+      padding:14px 22px 18px 22px;
+      font-size:13.2px;
+      line-height:1.38;
+    }
+
+    .section-bar{
+      background:var(--bar);
+      color:#fff;
+      font-weight:800;
+      letter-spacing:.6px;
+      text-transform:uppercase;
+      font-size:12px;
+      padding:7px 12px;
+      margin:12px 0 0 0;
+    }
+
+    .instructions{
+      border:1px solid var(--softline);
+      border-top:none;
+      padding:10px 12px 12px 12px;
+    }
+    .instructions ul{
+      margin:0;
+      padding:0 0 0 18px;
+    }
+    .instructions li{margin:4px 0; color:#333}
+    .instructions a{color:#0b5aa2; text-decoration:underline}
+    .instructions .warn{
+      color:#b60000;
+      font-weight:800;
+      letter-spacing:.2px;
+      margin-left:8px;
+      white-space:nowrap;
+    }
+
+    .block{
+      border:1px solid var(--softline);
+      border-top:none;
+      padding:10px 12px 14px;
+    }
+
+    .field-row{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      border-bottom:1px solid var(--line);
+      padding:8px 0 3px;
+      min-height:34px;
+    }
+    .field-row .label{
+      font-weight:700;
+      color:#444;
+      white-space:nowrap;
+      flex:0 0 auto;
+    }
+    .field-row .input{
+      flex:1 1 auto;
+      min-width:0;
+    }
+    input[type="text"], input[type="number"]{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:2px 6px 2px 6px;
+    }
+    input[type="text"]:focus, input[type="number"]:focus{
+      background:var(--focus);
+      border-radius:2px;
+    }
+
+    .inline-note{
+      color:var(--muted);
+      font-size:12px;
+      margin:6px 0 2px;
+    }
+
+    .checkbox-line{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:12px;
+      margin:8px 0 10px;
+      color:#333;
+    }
+    .checkbox-line .prompt{
+      font-weight:700;
+      color:#444;
+    }
+    .cb{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .cb input[type="checkbox"]{
+      width:14px;
+      height:14px;
+      accent-color:#2f2f2f;
+      transform:translateY(1px);
+    }
+
+    .type-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px 14px;
+      align-items:center;
+      margin-top:6px;
+    }
+    .type-row .prompt{
+      font-weight:700;
+      color:#444;
+      white-space:nowrap;
+    }
+    .other-describe{
+      display:inline-flex;
+      align-items:flex-end;
+      gap:8px;
+      flex:1 1 280px;
+      min-width:260px;
+      border-bottom:1px solid var(--line);
+      padding:2px 0 1px;
+    }
+    .other-describe span{
+      white-space:nowrap;
+      color:#444;
+      font-weight:700;
+      font-size:13px;
+    }
+    .other-describe input{
+      padding:2px 6px 2px 6px;
+    }
+
+    .textbox{
+      border:1px solid var(--line);
+      margin-top:6px;
+      padding:8px 8px 2px;
+    }
+    .textbox .field-row{
+      border-bottom:none;
+      padding:0;
+      min-height:90px;
+      align-items:flex-start;
+    }
+    .textbox input[type="text"]{
+      padding-top:2px;
+    }
+    .tall input[type="text"]{
+      height:78px;
+    }
+    .taller input[type="text"]{
+      height:92px;
+    }
+
+    .yesno-box{
+      border:1px solid var(--line);
+      padding:10px 10px 8px;
+      margin-top:10px;
+    }
+    .yesno-title{
+      font-weight:700;
+      color:#444;
+      margin-bottom:6px;
+    }
+    .qrow{
+      display:grid;
+      grid-template-columns: 22px 1fr;
+      gap:8px;
+      padding:5px 0;
+      border-bottom:1px solid #cfcfcf;
+    }
+    .qrow:last-child{border-bottom:none}
+    .qnum{color:#444; font-weight:700}
+    .qtext{color:#333}
+    .qchoices{
+      display:inline-flex;
+      align-items:center;
+      gap:14px;
+      margin-left:8px;
+    }
+    .qtext a{color:#0b5aa2; text-decoration:underline}
+
+    .capacity{
+      margin-top:10px;
+    }
+    .capacity .label{
+      font-weight:700;
+      color:#444;
+      margin-bottom:4px;
+    }
+    .capacity .line{
+      border-bottom:1px solid var(--line);
+      padding:6px 0 2px;
+    }
+
+    .footer-strip{
+      margin-top:16px;
+      background:#d9d9d9;
+      padding:8px 12px;
+      text-align:center;
+      font-size:11px;
+      color:#222;
+      font-weight:700;
+    }
+    .footer{
+      padding:8px 12px 14px;
+      text-align:center;
+      font-size:11.6px;
+      color:#333;
+      font-weight:700;
+      letter-spacing:.2px;
+    }
+    .footer a{color:#0b5aa2; text-decoration:underline}
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:10px 22px 18px;
+    }
+    .btn{
+      font:inherit;
+      font-weight:800;
+      font-size:13px;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #3b3b3b;
+    }
+    .btn-clear{background:#fff;color:#2b2b2b;border-color:#8b8b8b}
+    .btn-submit{background:#3f3f3f;color:#fff;border-color:#2f2f2f}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topband">
+      <div class="title-row">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">
+            <div class="wa">West<br>Allis</div>
+          </div>
+          <div class="heading">
+            <div class="main">Special Event Permit Application</div>
+            <div class="sub">WEST SPECIAL EVENT PERMIT APPLICATION FORM</div>
+          </div>
+        </div>
+        <div class="formcode">
+          <div class="lbl">FORM</div>
+          <div class="code">SPEV-APP</div>
+          <div class="ver">7/21</div>
+        </div>
+      </div>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="content">
+        <div class="section-bar">Instructions</div>
+        <div class="instructions">
+          <ul>
+            <li>
+              Complete and return the application to the City Clerk with the $50 application initial processing fee. Applications filed within 45 days of the event must pay an expedited processing fee of $250.
+              <span class="warn">CASH OR CHECK ONLY</span>
+            </li>
+            <li>Additional information regarding special events and fees are available <a href="#" onclick="return false;">here</a>.</li>
+            <li>Anyone who organizes a gathering of at least 21 people that impedes the normal use of public property (i.e.—block party, church festival, concert, parade, carnival, or other large gathering on public property) is required to have a special event permit issued for their event.</li>
+            <li>Class 1 Event - means a special event that includes at least one of the following features: alcohol is available for consumption, electronically amplified outdoor sound is utilized, or more than 400 square feet of ground is covered by a tent or other temporary structure that provides shelter from the elements.</li>
+            <li>Class 2 Event - an organized gathering on public property that does not meet the definition of a Class 1 Event.</li>
+            <li>Please note: Service of alcohol will require an alcohol license, use of a tent may require a permit, and food service may require a food license from the Health Department (414-302-8600).</li>
+          </ul>
+        </div>
+
+        <div class="section-bar">Event Information</div>
+        <div class="block">
+          <div class="field-row">
+            <label class="label" for="event_name">Event Name</label>
+            <div class="input">
+              <input type="text" id="event_name" name="event_name" />
+            </div>
+          </div>
+
+          <div class="field-row" style="margin-top:4px;">
+            <label class="label" for="address_or_location_of_event">Address or Location of Event</label>
+            <div class="input">
+              <input type="text" id="address_or_location_of_event" name="address_or_location_of_event" />
+              <div class="inline-note">(a map or diagram is also required. Please refer to the next page)</div>
+            </div>
+          </div>
+
+          <div class="checkbox-line" style="margin-top:10px;">
+            <span class="prompt">The event involves closing the street -</span>
+            <label class="cb" for="event_involves_closing_the_street_yes">
+              <input type="checkbox" id="event_involves_closing_the_street_yes" name="event_involves_closing_the_street_yes" />
+              <span>Yes</span>
+            </label>
+            <label class="cb" for="event_involves_closing_the_street_no">
+              <input type="checkbox" id="event_involves_closing_the_street_no" name="event_involves_closing_the_street_no" />
+              <span>No</span>
+            </label>
+            <span style="color:#555; font-size:12px;">
+              If yes, a street closure consent form signed by occupants of at least 50% of the residential and commercial properties must be submitted with the application. (see page 4 of this document)
+            </span>
+          </div>
+
+          <div class="type-row">
+            <span class="prompt">Type of Event:</span>
+            <label class="cb" for="type_of_event_block_party">
+              <input type="checkbox" id="type_of_event_block_party" name="type_of_event_block_party" />
+              <span>Block Party</span>
+            </label>
+            <label class="cb" for="type_of_event_church_festival">
+              <input type="checkbox" id="type_of_event_church_festival" name="type_of_event_church_festival" />
+              <span>Church Festival</span>
+            </label>
+            <label class="cb" for="type_of_event_concert">
+              <input type="checkbox" id="type_of_event_concert" name="type_of_event_concert" />
+              <span>Concert</span>
+            </label>
+            <label class="cb" for="type_of_event_parade">
+              <input type="checkbox" id="type_of_event_parade" name="type_of_event_parade" />
+              <span>Parade</span>
+            </label>
+            <label class="cb" for="type_of_event_carnival">
+              <input type="checkbox" id="type_of_event_carnival" name="type_of_event_carnival" />
+              <span>Carnival</span>
+            </label>
+
+            <div class="other-describe">
+              <span>Other, describe:</span>
+              <input type="text" id="type_of_event_other_describe" name="type_of_event_other_describe" />
+            </div>
+          </div>
+
+          <div style="margin-top:10px;">
+            <div class="label" style="font-weight:700; color:#444;">Describe the Type of Entertainment that will be provided:</div>
+            <div class="textbox taller">
+              <div class="field-row">
+                <label class="label" for="describe_the_type_of_entertainment_that_will_be_provided" style="display:none;">Describe</label>
+                <div class="input">
+                  <input type="text" id="describe_the_type_of_entertainment_that_will_be_provided" name="describe_the_type_of_entertainment_that_will_be_provided" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="yesno-box">
+            <div class="yesno-title">Check Yes or No as applicable:</div>
+
+            <div class="qrow">
+              <div class="qnum">1.</div>
+              <div class="qtext">
+                Alcohol is available?
+                <span class="qchoices">
+                  <label class="cb" for="alcohol_is_available_yes">
+                    <input type="checkbox" id="alcohol_is_available_yes" name="alcohol_is_available_yes" />
+                    <span>Yes</span>
+                  </label>
+                  <label class="cb" for="alcohol_is_available_no">
+                    <input type="checkbox" id="alcohol_is_available_no" name="alcohol_is_available_no" />
+                    <span>No</span>
+                  </label>
+                  <span style="color:#555; font-size:12px;">(If yes, you may also need an alcohol license, <a href="#" onclick="return false;">click here</a> for details.)</span>
+                </span>
+              </div>
+            </div>
+
+            <div class="qrow">
+              <div class="qnum">2.</div>
+              <div class="qtext">
+                Electronic Amplified Sound will be used outdoors?
+                <span class="qchoices">
+                  <label class="cb" for="electronic_amplified_sound_outdoors_yes">
+                    <input type="checkbox" id="electronic_amplified_sound_outdoors_yes" name="electronic_amplified_sound_outdoors_yes" />
+                    <span>Yes</span>
+                  </label>
+                  <label class="cb" for="electronic_amplified_sound_outdoors_no">
+                    <input type="checkbox" id="electronic_amplified_sound_outdoors_no" name="electronic_amplified_sound_outdoors_no" />
+                    <span>No</span>
+                  </label>
+                </span>
+              </div>
+            </div>
+
+            <div class="qrow">
+              <div class="qnum">3.</div>
+              <div class="qtext">
+                A tent or structure 400 feet or larger is present at the event?
+                <span class="qchoices">
+                  <label class="cb" for="tent_or_structure_400_feet_or_larger_present_yes">
+                    <input type="checkbox" id="tent_or_structure_400_feet_or_larger_present_yes" name="tent_or_structure_400_feet_or_larger_present_yes" />
+                    <span>Yes</span>
+                  </label>
+                  <label class="cb" for="tent_or_structure_400_feet_or_larger_present_no">
+                    <input type="checkbox" id="tent_or_structure_400_feet_or_larger_present_no" name="tent_or_structure_400_feet_or_larger_present_no" />
+                    <span>No</span>
+                  </label>
+                  <span style="color:#555; font-size:12px;">(If yes, <a href="#" onclick="return false;">click here</a> for more information.)</span>
+                </span>
+                <div style="color:#555; font-size:12px; margin-top:6px;">
+                  If you answered yes to one or more of the above, your event is a Class 1 Event and you will need to provide proof of insurance with your application.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="capacity">
+            <div class="label">What is maximum capacity of the premises?</div>
+            <div class="line">
+              <input type="text" id="maximum_capacity_of_the_premises" name="maximum_capacity_of_the_premises" inputmode="decimal" />
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-strip">
+          Clerk’s Office Use ~ Receipt Codes: &nbsp; CL - $50 &nbsp; &nbsp; • &nbsp; &nbsp;
+          DPW FEES: (CR) 100.0000.444.01-13 &nbsp; &nbsp; ~ &nbsp; &nbsp;
+          PD FEES: (CR) 100.0000.444.02-14
+        </div>
+
+        <div class="footer">
+          WEST ALLIS CITY CLERK • 7525 W. GREENFIELD AVE. • (414) 302-8220 • <a href="#" onclick="return false;">clerk@westalliswi.gov</a>
+          <span style="float:right; font-weight:800;">1</span>
+          <div style="clear:both"></div>
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button type="reset" class="btn btn-clear">Clear Form</button>
+        <button type="submit" class="btn btn-submit">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+      const cb = (id) => {
+        const el = document.getElementById(id);
+        return el && el.checked ? "true" : "false";
+      };
+
+      // Help users treat paired yes/no checkboxes like radios (but keep checkbox inputs per model)
+      function pairExclusive(yesId, noId){
+        const yes = document.getElementById(yesId);
+        const no = document.getElementById(noId);
+        if(!yes || !no) return;
+        yes.addEventListener('change', () => { if(yes.checked) no.checked = false; });
+        no.addEventListener('change', () => { if(no.checked) yes.checked = false; });
+      }
+
+      pairExclusive('event_involves_closing_the_street_yes','event_involves_closing_the_street_no');
+      pairExclusive('alcohol_is_available_yes','alcohol_is_available_no');
+      pairExclusive('electronic_amplified_sound_outdoors_yes','electronic_amplified_sound_outdoors_no');
+      pairExclusive('tent_or_structure_400_feet_or_larger_present_yes','tent_or_structure_400_feet_or_larger_present_no');
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+
+        const data = {
+          event_name: (fd.get('event_name') || '').toString(),
+          address_or_location_of_event: (fd.get('address_or_location_of_event') || '').toString(),
+
+          event_involves_closing_the_street_yes: cb('event_involves_closing_the_street_yes'),
+          event_involves_closing_the_street_no: cb('event_involves_closing_the_street_no'),
+
+          type_of_event_block_party: cb('type_of_event_block_party'),
+          type_of_event_church_festival: cb('type_of_event_church_festival'),
+          type_of_event_concert: cb('type_of_event_concert'),
+          type_of_event_parade: cb('type_of_event_parade'),
+          type_of_event_carnival: cb('type_of_event_carnival'),
+
+          type_of_event_other_describe: (fd.get('type_of_event_other_describe') || '').toString(),
+
+          describe_the_type_of_entertainment_that_will_be_provided: (fd.get('describe_the_type_of_entertainment_that_will_be_provided') || '').toString(),
+
+          alcohol_is_available_yes: cb('alcohol_is_available_yes'),
+          alcohol_is_available_no: cb('alcohol_is_available_no'),
+
+          electronic_amplified_sound_outdoors_yes: cb('electronic_amplified_sound_outdoors_yes'),
+          electronic_amplified_sound_outdoors_no: cb('electronic_amplified_sound_outdoors_no'),
+
+          tent_or_structure_400_feet_or_larger_present_yes: cb('tent_or_structure_400_feet_or_larger_present_yes'),
+          tent_or_structure_400_feet_or_larger_present_no: cb('tent_or_structure_400_feet_or_larger_present_no'),
+
+          maximum_capacity_of_the_premises: (fd.get('maximum_capacity_of_the_premises') || '').toString()
+        };
+
+        console.log('WestSpecialEventPermitApplicationForm JSON:', JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for JSON output.');
+      });
+    })();
+  </script>
+</body>
+</html>

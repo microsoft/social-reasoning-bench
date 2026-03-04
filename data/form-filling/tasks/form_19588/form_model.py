@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class CourseTableRow(BaseModel):
-    """Single row in Course Dept / Course Number / Course Name / Credits"""
+    """Single row in Course List Table"""
 
     course_dept: str = Field(default="", description="Course_Dept")
     course_number: str = Field(default="", description="Course_Number")
@@ -22,7 +22,7 @@ class CourseTableRow(BaseModel):
 
 
 class StudentInformation(BaseModel):
-    """Student identification and contact details"""
+    """Basic student details and academic standing"""
 
     name: str = Field(
         ...,
@@ -36,9 +36,9 @@ class StudentInformation(BaseModel):
     banner_id: str = Field(
         ...,
         description=(
-            'Student\'s IUP Banner ID number .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            'Student\'s Banner ID number .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
@@ -69,10 +69,6 @@ class StudentInformation(BaseModel):
         ),
     )
 
-
-class AcademicStanding(BaseModel):
-    """Current academic performance and credit history"""
-
     cgpa: Union[float, Literal["N/A", ""]] = Field(
         ..., description="Current cumulative grade point average (CGPA)"
     )
@@ -95,8 +91,8 @@ class AcademicStanding(BaseModel):
     )
 
 
-class RequestDetails(BaseModel):
-    """Justification and term for which excess credits are requested"""
+class Justification(BaseModel):
+    """Student’s explanation for requesting excess credits"""
 
     justification_for_the_request: str = Field(
         ...,
@@ -108,13 +104,17 @@ class RequestDetails(BaseModel):
         ),
     )
 
+
+class PlannedCourses(BaseModel):
+    """Courses to be taken in the requested semester and total requested credits"""
+
     semester: str = Field(
         ...,
         description=(
-            "Semester for which excess credits are requested (e.g., Fall, Spring, Winter, "
-            'Summer) .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
+            "Semester for which excess credits are requested (e.g., Fall, Spring, Winter) "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
@@ -123,11 +123,7 @@ class RequestDetails(BaseModel):
     )
 
     course_table: List[CourseTableRow] = Field(
-        ...,
-        description=(
-            "List of all planned courses for the specified semester, including department, "
-            "number, name, and credits"
-        ),
+        ..., description="Table listing all planned courses for the specified semester"
     )  # List of table rows
 
     total_number_of_credits_for_which_approval_is_requested: Union[float, Literal["N/A", ""]] = (
@@ -139,7 +135,7 @@ class RequestDetails(BaseModel):
 
 
 class Approvals(BaseModel):
-    """Advisor, chairperson, and assistant dean approvals and processing dates"""
+    """Advisor, chairperson, and assistant dean approvals"""
 
     advisor_signature: str = Field(
         ...,
@@ -152,15 +148,15 @@ class Approvals(BaseModel):
     )
 
     advisor_signature_date: str = Field(
-        ..., description="Date the academic advisor signed the form"
+        ..., description="Date the advisor signed the form"
     )  # YYYY-MM-DD format
 
-    advisor_approved: BooleanLike = Field(
-        default="", description="Indicates that the advisor has approved the excess credit request"
+    advisor_approval_approved: BooleanLike = Field(
+        ..., description="Advisor indicates the excess credit request is approved"
     )
 
-    advisor_denied: BooleanLike = Field(
-        default="", description="Indicates that the advisor has denied the excess credit request"
+    advisor_approval_denied: BooleanLike = Field(
+        ..., description="Advisor indicates the excess credit request is denied"
     )
 
     chairperson_signature: str = Field(
@@ -174,26 +170,24 @@ class Approvals(BaseModel):
     )
 
     chairperson_signature_date: str = Field(
-        ..., description="Date the department chairperson signed the form"
+        ..., description="Date the chairperson signed the form"
     )  # YYYY-MM-DD format
 
-    chairperson_approved: BooleanLike = Field(
-        default="",
-        description="Indicates that the chairperson has approved the excess credit request",
+    chairperson_approval_approved: BooleanLike = Field(
+        ..., description="Chairperson indicates the excess credit request is approved"
     )
 
-    chairperson_denied: BooleanLike = Field(
-        default="",
-        description="Indicates that the chairperson has denied the excess credit request",
+    chairperson_approval_denied: BooleanLike = Field(
+        ..., description="Chairperson indicates the excess credit request is denied"
     )
 
     assistant_dean_signature: str = Field(
         ...,
         description=(
-            "Assistant dean's signature indicating review of the request .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Assistant dean's signature indicating final review of the request .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
@@ -201,35 +195,37 @@ class Approvals(BaseModel):
         ..., description="Date the assistant dean signed the form"
     )  # YYYY-MM-DD format
 
-    assistant_dean_approved: BooleanLike = Field(
-        default="",
-        description="Indicates that the assistant dean has approved the excess credit request",
+    assistant_dean_approval_approved: BooleanLike = Field(
+        ..., description="Assistant dean indicates the excess credit request is approved"
     )
 
-    assistant_dean_denied: BooleanLike = Field(
-        default="",
-        description="Indicates that the assistant dean has denied the excess credit request",
+    assistant_dean_approval_denied: BooleanLike = Field(
+        ..., description="Assistant dean indicates the excess credit request is denied"
     )
 
-    date_entered_in_banner: str = Field(
-        default="",
-        description="Office use only: date the excess credit approval was entered in Banner",
+
+class ProcessingInformation(BaseModel):
+    """Administrative processing dates"""
+
+    entered_in_banner_date: str = Field(
+        default="", description="Date the excess credit approval was entered into the Banner system"
     )  # YYYY-MM-DD format
 
-    date_student_notified: str = Field(
-        default="", description="Office use only: date the student was notified of the decision"
+    student_notified_date: str = Field(
+        default="", description="Date the student was notified of the decision"
     )  # YYYY-MM-DD format
 
 
-class ExcessCreditApplicationEberlyBusinessInfoTech(BaseModel):
+class ExcessCreditApplicationEberlyBusinessAndInformationTechnology(BaseModel):
     """
         APPLICATION FOR EXCESS CREDIT
     Eberly College of Business and Information Technology
 
-        APPLICATION FOR EXCESS CREDIT – Eberly College of Business and Information Technology. This form is used by students to request approval to register for excess academic credits beyond the standard load, subject to minimum cumulative GPA requirements and review/signature approval of the advisor, department chairperson, and assistant dean. Excess credit approval with an unmet CGPA requirement for the fall or spring semesters will be granted only in consideration of immediate degree completion. Any excess credit approval for the winter term will be granted only in consideration of immediate degree completion.
+        ''
     """
 
     student_information: StudentInformation = Field(..., description="Student Information")
-    academic_standing: AcademicStanding = Field(..., description="Academic Standing")
-    request_details: RequestDetails = Field(..., description="Request Details")
+    justification: Justification = Field(..., description="Justification")
+    planned_courses: PlannedCourses = Field(..., description="Planned Courses")
     approvals: Approvals = Field(..., description="Approvals")
+    processing_information: ProcessingInformation = Field(..., description="Processing Information")

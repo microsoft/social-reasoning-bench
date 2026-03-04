@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Providence — Facility Based Behavioral Health Authorization Request</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    :root{
+      --bg:#d6d2cd;
+      --ink:#111;
+      --muted:#444;
+      --line:#222;
+      --softline:#444;
+      --paper:#fff;
+      --bar:#4a4a4a;
+      --focus:#f5f5ee;
+      --accent:#c00000;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 2px 14px rgba(0,0,0,.15);
+      padding:18px 18px 14px;
+    }
+
+    /* Header */
+    .toprow{
+      display:grid;
+      grid-template-columns: 1fr 1.2fr 1fr;
+      gap:10px;
+      align-items:start;
+    }
+
+    .brand{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      min-height:58px;
+    }
+    .logoMark{
+      width:34px;
+      height:34px;
+      position:relative;
+      margin-top:2px;
+      flex:0 0 34px;
+    }
+    .logoMark:before, .logoMark:after{
+      content:"";
+      position:absolute;
+      background:#f07d00;
+      border-radius:2px;
+    }
+    .logoMark:before{ /* vertical */
+      width:10px;height:34px;left:12px;top:0;
+      background:#f07d00;
+    }
+    .logoMark:after{ /* horizontal */
+      width:34px;height:10px;left:0;top:12px;
+      background:#1e6fb8;
+      mix-blend-mode:multiply;
+      opacity:.95;
+    }
+    .brand .brandtext{
+      line-height:1.1;
+    }
+    .brand .brandtext .p1{
+      font-weight:800;
+      letter-spacing:.2px;
+      font-size:18px;
+    }
+    .brand .brandtext .p2{
+      font-weight:600;
+      color:#1e6fb8;
+      font-size:12.5px;
+      margin-top:2px;
+    }
+    .rightbrand{
+      justify-content:flex-end;
+      text-align:right;
+    }
+
+    .titleblock{
+      text-align:center;
+      padding-top:2px;
+    }
+    .titleblock .h1{
+      font-weight:800;
+      font-size:20px;
+      letter-spacing:.2px;
+      margin-bottom:3px;
+    }
+    .titleblock .h2{
+      font-size:12.5px;
+      font-weight:600;
+      color:#1c1c1c;
+      margin-bottom:3px;
+    }
+    .titleblock .h3{
+      font-size:12.5px;
+      font-weight:600;
+      color:#1c1c1c;
+      margin-bottom:6px;
+    }
+    .titleblock .rednote{
+      font-size:12px;
+      font-weight:800;
+      color:var(--accent);
+      margin-bottom:6px;
+    }
+    .titleblock .smallnote{
+      font-size:10.7px;
+      color:#1f1f1f;
+      line-height:1.25;
+    }
+    .rule{
+      border-top:2px solid #000;
+      margin:10px 0 10px;
+    }
+
+    /* Form blocks */
+    form{margin:0}
+    .section-title{
+      text-align:center;
+      font-weight:800;
+      font-size:12.5px;
+      padding:4px 0 3px;
+      border:1.5px solid #000;
+      border-bottom:none;
+      letter-spacing:.2px;
+      background:#fff;
+    }
+
+    .grid{
+      width:100%;
+      border:1.5px solid #000;
+      border-top:none;
+    }
+
+    .row{
+      display:grid;
+      border-top:1px solid #000;
+    }
+    .row:first-child{border-top:none}
+
+    .cell{
+      border-right:1px solid #000;
+      min-height:30px;
+      padding:6px 8px 4px;
+      display:flex;
+      gap:8px;
+      align-items:flex-end;
+    }
+    .cell:last-child{border-right:none}
+
+    .label{
+      font-size:11.5px;
+      font-weight:600;
+      color:#000;
+      white-space:nowrap;
+      flex:0 0 auto;
+      padding-bottom:1px;
+    }
+
+    input[type="text"], input[type="tel"], input[type="date"]{
+      width:100%;
+      border:none;
+      outline:none;
+      font:inherit;
+      font-size:12.5px;
+      background:transparent;
+      padding:2px 2px 3px;
+      border-bottom:0;
+    }
+    input[type="text"]:focus, input[type="tel"]:focus, input[type="date"]:focus, textarea:focus{
+      background:var(--focus);
+      outline:none;
+    }
+
+    .two{grid-template-columns: 1fr 1fr;}
+    .three{grid-template-columns: 1fr 0.55fr 0.55fr;}
+    .splitWide{grid-template-columns: 1.45fr 0.65fr;}
+    .splitAddress{grid-template-columns: 1.45fr 0.65fr;}
+    .splitA{grid-template-columns: 1.25fr 0.75fr;}
+
+    .barline{
+      border-top:2px solid #000;
+      margin:0;
+    }
+
+    .bigcell{
+      min-height:80px;
+      align-items:flex-start;
+      padding-top:8px;
+      padding-bottom:8px;
+    }
+    textarea{
+      width:100%;
+      min-height:62px;
+      resize:vertical;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      font-size:12.5px;
+      line-height:1.25;
+      padding:2px 2px 3px;
+    }
+
+    .checkboxRow{
+      display:flex;
+      gap:18px;
+      padding:10px 10px 8px;
+      align-items:center;
+      border-top:1px solid #000;
+    }
+    .cb{
+      display:inline-flex;
+      gap:6px;
+      align-items:center;
+      font-size:12.5px;
+      font-weight:600;
+    }
+    input[type="checkbox"]{
+      width:14px;height:14px;
+      accent-color:#000;
+      transform:translateY(1px);
+    }
+
+    .instruction{
+      border-top:1px solid #000;
+      padding:8px 10px;
+      font-size:11px;
+      line-height:1.25;
+    }
+    .instruction .red{color:var(--accent); font-weight:800}
+    .instruction .lead{font-weight:700}
+    .instruction .sublead{font-weight:700; display:block; margin-top:6px}
+    .instruction .explainlabel{
+      display:block;
+      margin-top:6px;
+      font-weight:700;
+    }
+
+    .contactRowTitle{
+      border-top:2px solid #000;
+      padding:5px 10px 4px;
+      font-size:12px;
+      font-weight:800;
+      text-align:center;
+    }
+    .contactRowTitle .req{
+      color:var(--accent);
+      font-weight:900;
+      margin-right:6px;
+    }
+
+    .footnote{
+      border-top:1px solid #000;
+      margin-top:8px;
+      padding-top:7px;
+      font-size:9.8px;
+      line-height:1.25;
+      color:#111;
+    }
+    .footerline{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-size:10.5px;
+      color:#111;
+      margin-top:10px;
+      padding-top:6px;
+    }
+
+    /* Buttons */
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:12px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:12.5px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #333;
+      background:#fff;
+      color:#222;
+    }
+    .btn-primary{
+      background:#444;
+      color:#fff;
+      border-color:#222;
+    }
+
+    /* Tiny helpers for spacing */
+    .mt8{margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="toprow">
+      <div class="brand">
+        <div class="logoMark" aria-hidden="true"></div>
+        <div class="brandtext">
+          <div class="p1">PROVIDENCE</div>
+          <div class="p2">Health Plan</div>
+        </div>
+      </div>
+
+      <div class="titleblock">
+        <div class="h1">Facility Based Behavioral Health</div>
+        <div class="h2">Inpatient, Residential, Partial Hospitalization and IOP</div>
+        <div class="h3">Prior Authorization Request</div>
+        <div class="rednote">**Chart Notes Required**</div>
+        <div class="smallnote">
+          Please fax to Behavioral Health: 503-574-8192 | Questions please call: 503-574-6400
+          NOTE: This form cannot be used to request ABA therapy, TMS or outpatient behavioral health services.
+        </div>
+      </div>
+
+      <div class="brand rightbrand">
+        <div class="brandtext">
+          <div class="p1">PROVIDENCE</div>
+          <div class="p2">Medicare Advantage Plans</div>
+          <div style="font-size:9.8px;color:#333;margin-top:4px;font-weight:600;">A division of Providence Health Assurance</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rule"></div>
+
+    <form id="mainForm" autocomplete="off">
+      <!-- Member Information -->
+      <div class="section-title">Member Information</div>
+      <div class="grid">
+        <div class="row two">
+          <div class="cell">
+            <label class="label" for="last_name">Last Name:</label>
+            <input type="text" id="last_name" name="last_name" />
+          </div>
+          <div class="cell">
+            <label class="label" for="first_name">First Name:</label>
+            <input type="text" id="first_name" name="first_name" />
+          </div>
+        </div>
+
+        <div class="row three" style="grid-template-columns: 1fr 0.6fr 0.7fr;">
+          <div class="cell">
+            <label class="label" for="insurance_id_number">Insurance ID #:</label>
+            <input type="text" id="insurance_id_number" name="insurance_id_number" />
+          </div>
+          <div class="cell">
+            <label class="label" for="dob">DOB:</label>
+            <input type="date" id="dob" name="dob" />
+          </div>
+          <div class="cell">
+            <label class="label" for="phone">Phone:</label>
+            <input type="tel" id="phone" name="phone" />
+          </div>
+        </div>
+
+        <div class="row splitAddress">
+          <div class="cell">
+            <label class="label" for="address">Address:</label>
+            <input type="text" id="address" name="address" />
+          </div>
+          <div class="cell" style="flex-direction:column; align-items:stretch; gap:0; padding-top:4px;">
+            <div style="display:flex; align-items:flex-end; gap:8px; padding-bottom:4px;">
+              <label class="label" for="date_of_admit">Date of Admit</label>
+              <input type="date" id="date_of_admit" name="date_of_admit" />
+            </div>
+            <div style="display:flex; align-items:flex-end; gap:8px; border-top:1px solid #000; padding-top:6px;">
+              <label class="label" for="date_span_requested">Date Span<br/>Requested:</label>
+              <input type="text" id="date_span_requested" name="date_span_requested" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Provider and Facility Information -->
+      <div class="grid" style="border-top:none; margin-top:0;">
+        <div class="row" style="grid-template-columns: 1fr;">
+          <div class="cell">
+            <label class="label" for="primary_care_physician_pcp">Primary Care Physician (PCP):</label>
+            <input type="text" id="primary_care_physician_pcp" name="primary_care_physician_pcp" />
+          </div>
+        </div>
+
+        <div class="row splitWide">
+          <div class="cell">
+            <label class="label" for="requesting_provider">Requesting Provider:</label>
+            <input type="text" id="requesting_provider" name="requesting_provider" />
+          </div>
+          <div class="cell">
+            <label class="label" for="tin_requesting_provider">TIN#:</label>
+            <input type="text" id="tin_requesting_provider" name="tin_requesting_provider" />
+          </div>
+        </div>
+
+        <div class="row splitWide">
+          <div class="cell">
+            <label class="label" for="address_requesting_provider">Address:</label>
+            <input type="text" id="address_requesting_provider" name="address_requesting_provider" />
+          </div>
+          <div class="cell">
+            <label class="label" for="npi_requesting_provider">NPI#:</label>
+            <input type="text" id="npi_requesting_provider" name="npi_requesting_provider" />
+          </div>
+        </div>
+
+        <div class="row splitWide">
+          <div class="cell">
+            <label class="label" for="attending_provider">Attending Provider:</label>
+            <input type="text" id="attending_provider" name="attending_provider" />
+          </div>
+          <div class="cell">
+            <label class="label" for="tin_attending_provider">TIN#:</label>
+            <input type="text" id="tin_attending_provider" name="tin_attending_provider" />
+          </div>
+        </div>
+
+        <div class="row splitWide">
+          <div class="cell">
+            <label class="label" for="address_attending_provider">Address:</label>
+            <input type="text" id="address_attending_provider" name="address_attending_provider" />
+          </div>
+          <div class="cell">
+            <label class="label" for="npi_attending_provider">NPI#:</label>
+            <input type="text" id="npi_attending_provider" name="npi_attending_provider" />
+          </div>
+        </div>
+
+        <div class="row splitWide">
+          <div class="cell">
+            <label class="label" for="treating_facility">Treating Facility:</label>
+            <input type="text" id="treating_facility" name="treating_facility" />
+          </div>
+          <div class="cell">
+            <label class="label" for="tin_treating_facility">TIN#:</label>
+            <input type="text" id="tin_treating_facility" name="tin_treating_facility" />
+          </div>
+        </div>
+
+        <div class="row splitWide">
+          <div class="cell">
+            <label class="label" for="address_treating_facility">Address:</label>
+            <input type="text" id="address_treating_facility" name="address_treating_facility" />
+          </div>
+          <div class="cell">
+            <label class="label" for="npi_treating_facility">NPI#:</label>
+            <input type="text" id="npi_treating_facility" name="npi_treating_facility" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Service Request Details -->
+      <div class="grid" style="border-top:none; margin-top:0;">
+        <div class="row" style="grid-template-columns: 1fr;">
+          <div class="cell">
+            <label class="label" for="requested_level_of_care_asam_level">Requested Level of Care/ASAM Level:</label>
+            <input type="text" id="requested_level_of_care_asam_level" name="requested_level_of_care_asam_level" />
+          </div>
+        </div>
+
+        <div class="row two">
+          <div class="cell bigcell" style="flex-direction:column; align-items:stretch; gap:4px;">
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+              <label class="label" for="icd_10_codes">ICD-10 Code(s):</label>
+            </div>
+            <textarea id="icd_10_codes" name="icd_10_codes"></textarea>
+          </div>
+          <div class="cell bigcell" style="flex-direction:column; align-items:stretch; gap:4px;">
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+              <label class="label" for="revenue_cpt_codes">Revenue/CPT Code(s):</label>
+            </div>
+            <textarea id="revenue_cpt_codes" name="revenue_cpt_codes"></textarea>
+          </div>
+        </div>
+
+        <div class="checkboxRow">
+          <label class="cb" for="mental_health">
+            <input type="checkbox" id="mental_health" />
+            Mental Health
+          </label>
+          <label class="cb" for="substance_use">
+            <input type="checkbox" id="substance_use" />
+            Substance use
+          </label>
+        </div>
+
+        <!-- Authorization Justification -->
+        <div class="instruction">
+          <span class="lead">Expedite</span>- defined as member's life, health or ability to regain maximum function is in serious jeopardy if determination is not made in the standard timeframe.
+          <span class="red">Request must include supporting documentation to substantiate an expedited review.</span>
+          <span class="explainlabel">Explanation Required:</span>
+          <textarea id="explanation_required_expedite" name="explanation_required_expedite" style="min-height:72px;"></textarea>
+        </div>
+
+        <div class="instruction">
+          <span class="lead">In-Network Benefits:</span>
+          <span class="red">Request must include supporting documentation to substantiate why services cannot be provided by an in-network provider/facility. Please also submit facility's state license to provide level of care/service requested.</span>
+          <span class="explainlabel">Explanation Required:</span>
+          <textarea id="explanation_required_in_network_benefits" name="explanation_required_in_network_benefits" style="min-height:72px;"></textarea>
+        </div>
+
+        <!-- Utilization Review Contact Information -->
+        <div class="contactRowTitle">
+          <span class="req">**REQUIRED**</span>Utilization Review Contact Information:
+        </div>
+
+        <div class="row" style="grid-template-columns: 1.2fr 0.8fr 0.8fr; border-top:1px solid #000;">
+          <div class="cell">
+            <label class="label" for="name_utilization_review_contact_information">Name:</label>
+            <input type="text" id="name_utilization_review_contact_information" name="name_utilization_review_contact_information" />
+          </div>
+          <div class="cell">
+            <label class="label" for="phone_utilization_review_contact_information">Phone #:</label>
+            <input type="tel" id="phone_utilization_review_contact_information" name="phone_utilization_review_contact_information" />
+          </div>
+          <div class="cell">
+            <label class="label" for="fax_utilization_review_contact_information">Fax#:</label>
+            <input type="text" id="fax_utilization_review_contact_information" name="fax_utilization_review_contact_information" />
+          </div>
+        </div>
+      </div>
+
+      <div class="footnote">
+        IMPORTANT NOTICE: This message is intended for the use of the person or entity to which it is addressed and may contain information that is privileged, confidential and exempt from disclosure under applicable law.
+        If the reader of this message is not the intended recipient, or the employee or agent responsible to deliver it to the intended recipient, you are hereby notified that any dissemination, distribution or copying of this information is STRICTLY PROHIBITED.
+        If you have received this message by error, please notify us immediately and destroy the related message.
+      </div>
+
+      <div class="footerline">
+        <div>Providence Facility Based Behavioral Health Authorization Request 01/01/21</div>
+        <div><strong>Page 1 of 1</strong></div>
+      </div>
+
+      <div class="submit-row">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      const fdGet = (fd, name) => (fd.get(name) ?? '').toString();
+      const cb = (id) => (document.getElementById(id)?.checked ? "true" : "false");
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+
+        const data = {
+          member_information: {
+            last_name: fdGet(fd, 'last_name'),
+            first_name: fdGet(fd, 'first_name'),
+            insurance_id_number: fdGet(fd, 'insurance_id_number'),
+            dob: fdGet(fd, 'dob'),
+            phone: fdGet(fd, 'phone'),
+            address: fdGet(fd, 'address'),
+            date_of_admit: fdGet(fd, 'date_of_admit'),
+            date_span_requested: fdGet(fd, 'date_span_requested')
+          },
+          provider_and_facility_information: {
+            primary_care_physician_pcp: fdGet(fd, 'primary_care_physician_pcp'),
+            requesting_provider: fdGet(fd, 'requesting_provider'),
+            tin_requesting_provider: fdGet(fd, 'tin_requesting_provider'),
+            address_requesting_provider: fdGet(fd, 'address_requesting_provider'),
+            npi_requesting_provider: fdGet(fd, 'npi_requesting_provider'),
+            attending_provider: fdGet(fd, 'attending_provider'),
+            tin_attending_provider: fdGet(fd, 'tin_attending_provider'),
+            address_attending_provider: fdGet(fd, 'address_attending_provider'),
+            npi_attending_provider: fdGet(fd, 'npi_attending_provider'),
+            treating_facility: fdGet(fd, 'treating_facility'),
+            tin_treating_facility: fdGet(fd, 'tin_treating_facility'),
+            address_treating_facility: fdGet(fd, 'address_treating_facility'),
+            npi_treating_facility: fdGet(fd, 'npi_treating_facility')
+          },
+          service_request_details: {
+            requested_level_of_care_asam_level: fdGet(fd, 'requested_level_of_care_asam_level'),
+            icd_10_codes: fdGet(fd, 'icd_10_codes'),
+            revenue_cpt_codes: fdGet(fd, 'revenue_cpt_codes'),
+            mental_health: cb('mental_health'),
+            substance_use: cb('substance_use')
+          },
+          authorization_justification: {
+            explanation_required_expedite: fdGet(fd, 'explanation_required_expedite'),
+            explanation_required_in_network_benefits: fdGet(fd, 'explanation_required_in_network_benefits')
+          },
+          utilization_review_contact_information: {
+            name_utilization_review_contact_information: fdGet(fd, 'name_utilization_review_contact_information'),
+            phone_utilization_review_contact_information: fdGet(fd, 'phone_utilization_review_contact_information'),
+            fax_utilization_review_contact_information: fdGet(fd, 'fax_utilization_review_contact_information')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

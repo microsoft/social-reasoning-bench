@@ -13,14 +13,14 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class GeneralInformation(BaseModel):
-    """Basic club details and readiness for return to pool training"""
+    """Basic club details and readiness checks for return to pool training"""
 
     club_name: str = Field(
         ...,
         description=(
-            'Official name of the swim club .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Official name of the club submitting this application .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -51,84 +51,91 @@ class GeneralInformation(BaseModel):
     proposed_pools: str = Field(
         ...,
         description=(
-            "Name and/or location of the pool or pools to be used .If you cannot fill this, "
+            "Name and location of the pool or pools to be used .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    have_all_covid_19_declarations_been_received_yes: BooleanLike = Field(
-        ..., description="Indicate whether all required COVID-19 declarations have been received"
+    covid_19_declarations_received_yes: BooleanLike = Field(
+        ..., description="Indicate YES if all required COVID-19 declarations have been received"
     )
 
-    have_all_covid_19_declarations_been_received_no: BooleanLike = Field(
-        ..., description="Indicate whether all required COVID-19 declarations have been received"
+    covid_19_declarations_received_no: BooleanLike = Field(
+        ..., description="Indicate NO if all required COVID-19 declarations have not been received"
     )
 
-    are_all_swimmers_and_coaches_fully_registered_with_swim_ns_yes: BooleanLike = Field(
-        ..., description="Confirm that all swimmers and coaches are fully registered with Swim NS"
+    swimmers_coaches_registered_swim_ns_yes: BooleanLike = Field(
+        ...,
+        description="Indicate YES if all swimmers and coaches are fully registered with Swim NS",
     )
 
-    are_all_swimmers_and_coaches_fully_registered_with_swim_ns_no: BooleanLike = Field(
-        ..., description="Confirm that all swimmers and coaches are fully registered with Swim NS"
+    swimmers_coaches_registered_swim_ns_no: BooleanLike = Field(
+        ...,
+        description="Indicate NO if all swimmers and coaches are not fully registered with Swim NS",
     )
 
-    have_you_submitted_all_information_required_to_activate_your_kinduct_account_yes: BooleanLike = Field(
+    kinduct_info_submitted_yes: BooleanLike = Field(
         ...,
         description=(
-            "Indicate whether all information to activate the Kinduct account has been submitted"
+            "Indicate YES if all information to activate the Kinduct account has been submitted"
         ),
     )
 
-    have_you_submitted_all_information_required_to_activate_your_kinduct_account_no: BooleanLike = (
-        Field(
-            ...,
-            description=(
-                "Indicate whether all information to activate the Kinduct account has been "
-                "submitted"
-            ),
-        )
-    )
-
-    are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_yes: BooleanLike = Field(
-        ..., description="Confirm familiarity with the Kinduct online health monitoring platform"
-    )
-
-    are_you_familiar_with_the_use_of_the_kinduct_online_health_monitoring_platform_no: BooleanLike = Field(
-        ..., description="Confirm familiarity with the Kinduct online health monitoring platform"
-    )
-
-    have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_yes: BooleanLike = Field(
+    kinduct_info_submitted_no: BooleanLike = Field(
         ...,
         description=(
-            "Confirm that the Club Plan Form has been reviewed with the Facility Aquatic "
+            "Indicate NO if all information to activate the Kinduct account has not been submitted"
+        ),
+    )
+
+    familiar_with_kinduct_platform_yes: BooleanLike = Field(
+        ...,
+        description=(
+            "Indicate YES if you are familiar with using the Kinduct online health "
+            "monitoring platform"
+        ),
+    )
+
+    familiar_with_kinduct_platform_no: BooleanLike = Field(
+        ...,
+        description=(
+            "Indicate NO if you are not familiar with using the Kinduct online health "
+            "monitoring platform"
+        ),
+    )
+
+    club_plan_reviewed_with_facility_director_yes: BooleanLike = Field(
+        ...,
+        description=(
+            "Indicate YES if the Club Plan Form has been reviewed with the Facility Aquatic "
             "Director or designate"
         ),
     )
 
-    have_you_reviewed_your_club_plan_form_with_your_facility_aquatic_director_or_designate_no: BooleanLike = Field(
+    club_plan_reviewed_with_facility_director_no: BooleanLike = Field(
         ...,
         description=(
-            "Confirm that the Club Plan Form has been reviewed with the Facility Aquatic "
-            "Director or designate"
+            "Indicate NO if the Club Plan Form has not been reviewed with the Facility "
+            "Aquatic Director or designate"
         ),
     )
 
-    have_you_reviewed_facility_re_opening_plan_yes: BooleanLike = Field(
-        ..., description="Confirm that the facility's re-opening plan has been reviewed"
+    facility_reopening_plan_reviewed_yes: BooleanLike = Field(
+        ..., description="Indicate YES if the facility re-opening plan has been reviewed"
     )
 
-    have_you_reviewed_facility_re_opening_plan_no: BooleanLike = Field(
-        ..., description="Confirm that the facility's re-opening plan has been reviewed"
+    facility_reopening_plan_reviewed_no: BooleanLike = Field(
+        ..., description="Indicate NO if the facility re-opening plan has not been reviewed"
     )
 
-    please_enter_any_additional_planning_notes_here: str = Field(
+    additional_planning_notes: str = Field(
         default="",
         description=(
-            "Any extra notes or details related to planning the return to pool training .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Any additional notes or details related to planning the return to pool "
+            'training .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
@@ -136,7 +143,7 @@ class GeneralInformation(BaseModel):
 class Communication(BaseModel):
     """How the return to swimming plan and safety precautions will be communicated"""
 
-    describe_how_the_return_to_swimming_plan_will_be_communicated_to_your_club: str = Field(
+    communication_plan_to_club: str = Field(
         ...,
         description=(
             "Explain the methods and channels you will use to communicate the Return to "
@@ -146,24 +153,21 @@ class Communication(BaseModel):
         ),
     )
 
-    describe_how_swimmers_parents_will_be_informed_of_all_safety_precautions_they_must_follow_that_are_implemented_by_your_club: str = Field(
+    communication_of_safety_precautions: str = Field(
         ...,
         description=(
-            "Describe how swimmers and parents will be informed about all club-implemented "
-            'safety precautions they must follow .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Describe how swimmers and parents will be informed about all required safety "
+            'precautions .If you cannot fill this, write "N/A". If this field should not '
+            "be filled by you (for example, it belongs to another person or office), leave "
+            'it blank (empty string "").'
         ),
     )
 
 
 class ClubApplicationReturnToPoolTrainingPhase3(BaseModel):
-    """
-        CLUB APPLICATION - RETURN TO POOL TRAINING
-    PHASE 3
+    """CLUB APPLICATION - RETURN TO POOL TRAINING
 
-        ''
-    """
+    PHASE 3"""
 
     general_information: GeneralInformation = Field(..., description="General Information")
     communication: Communication = Field(..., description="Communication")

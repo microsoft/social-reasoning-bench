@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MTHS Boosters — Funds Request Form</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
+    background: #d6d2cd;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;align-items:flex-start;
+    padding: 20px 10px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .page {
+    background: #fff;
+    width: 100%;
+    max-width: 760px;
+    box-shadow: 0 1px 12px rgba(0,0,0,0.12);
+    padding: 24px 40px 28px;
+  }
+
+  /* ── Header ── */
+  .hdr {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    margin-bottom: 6px;
+  }
+  .hawk-logo {
+    flex: 0 0 90px;
+    height: 90px;
+    border: 3px solid #8b1a1a;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    text-align: center;
+    color: #8b1a1a;
+    font-weight: 700;
+    line-height: 1.15;
+    background: #faf8f5;
+  }
+  .hdr-text {
+    flex: 1;
+    text-align: center;
+  }
+  .hdr-text h1 { font-size: 18px; font-weight: 700; margin-bottom: 0; }
+  .hdr-text h2 { font-size: 16px; font-weight: 700; text-decoration: underline; margin-bottom: 4px; }
+  .hdr-text .checks-note { font-style: italic; font-size: 12px; margin-bottom: 2px; }
+  .hdr-text .inst { font-size: 12px; line-height: 1.55; }
+  .hdr-text a { color: #1a1a1a; }
+
+  .top-rule { height: 2px; background: linear-gradient(to right, #8b1a1a, #ccc); margin: 10px 0 14px; }
+
+  /* ── Underline field row ── */
+  .uf-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .uf-row .ufl {
+    font-size: 13px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .uf-row .uf {
+    flex: 1;
+    border-bottom: 1px solid #333;
+  }
+  .uf-row .uf input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Inter', Arial, sans-serif; font-size: 13px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .uf-row .uf input:focus { background: #f5f5ee; }
+  .uf-row .uf.sm { flex: 0 0 140px; }
+  .uf-row .uf.md { flex: 0 0 200px; }
+
+  /* Checkbox inline */
+  .cb-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  .cb-inline input[type="checkbox"] {
+    width: 14px; height: 14px;
+    accent-color: #333; margin: 0;
+  }
+
+  /* ── Description lines ── */
+  .desc-lines .dl {
+    border-bottom: 1px solid #333;
+    min-height: 22px;
+    margin-bottom: 2px;
+  }
+  .desc-lines .dl input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Inter', Arial, sans-serif; font-size: 13px;
+    background: transparent; padding: 2px 4px 1px;
+  }
+  .desc-lines .dl input:focus { background: #f5f5ee; }
+
+  /* ── Accounting box ── */
+  .acct-box {
+    border: 1px solid #333;
+    padding: 10px 14px;
+    margin-top: 16px;
+    margin-bottom: 10px;
+  }
+  .acct-box .acct-title {
+    font-style: italic;
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .acct-box .sig-title {
+    font-weight: 700;
+    font-size: 13px;
+    margin-top: 10px;
+    margin-bottom: 6px;
+  }
+  .acct-box .check-one-title {
+    font-weight: 700;
+    font-size: 13px;
+    margin-top: 12px;
+    margin-bottom: 4px;
+  }
+  .acct-box .co-item {
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .acct-box .co-item input[type="checkbox"] {
+    width: 14px; height: 14px;
+    accent-color: #333; margin: 0 0 2px 0;
+    flex-shrink: 0;
+  }
+  .acct-box .co-item .uf {
+    flex: 1;
+    border-bottom: 1px solid #333;
+  }
+  .acct-box .co-item .uf input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Inter', Arial, sans-serif; font-size: 13px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .acct-box .co-item .uf input:focus { background: #f5f5ee; }
+  .acct-box .indent { margin-left: 24px; }
+
+  /* ── Bottom ledger row ── */
+  .ledger-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 13px;
+    border-top: 1px solid #333;
+    padding-top: 8px;
+  }
+  .ledger-row input[type="checkbox"] {
+    width: 14px; height: 14px; accent-color: #333; margin: 0 0 2px 0;
+  }
+  .ledger-row .uf {
+    border-bottom: 1px solid #333; flex: 0 0 200px;
+  }
+  .ledger-row .uf input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Inter', Arial, sans-serif; font-size: 13px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .ledger-row .uf input:focus { background: #f5f5ee; }
+
+  /* ── Submit ── */
+  .submit-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .btn {
+    font-family: 'Inter', Arial, sans-serif;
+    font-size: 12px; font-weight: 600;
+    padding: 6px 20px; border-radius: 2px; cursor: pointer;
+  }
+  .btn-submit { background: #444; color: #fff; border: 1px solid #333; }
+  .btn-submit:hover { background: #333; }
+  .btn-clear { background: #fff; color: #444; border: 1px solid #888; }
+  .btn-clear:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hawk-logo">MOUNTLAKE<br>TERRACE<br>🦅<br>EST. 1961</div>
+    <div class="hdr-text">
+      <h1>MTHS Boosters</h1>
+      <h2>Funds Request Form</h2>
+      <div class="checks-note">Checks are issued 2x a month.</div>
+      <div class="inst">
+        Complete this form and either mail to:<br>
+        MTHS Boosters, 21801 44th Ave W, Mountlake Terrace, WA 98043 or<br>
+        scan documentation and email to <a href="mailto:MTHSBCBoard@Edmonds.Wednet.edu">MTHSBCBoard@Edmonds.Wednet.edu</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="top-rule"></div>
+
+  <form id="mthsForm" autocomplete="off">
+
+  <!-- ════════ Request Details ════════ -->
+  <div class="uf-row">
+    <span class="ufl">Date of Request:</span>
+    <div class="uf sm"><input type="text" id="date_of_request" name="date_of_request"></div>
+    <div class="cb-inline">
+      <span>Reimbursement</span>
+      <input type="checkbox" id="reimbursement" name="reimbursement">
+    </div>
+    <div class="cb-inline" style="margin-left:10px;">
+      <span>Invoice</span>
+      <input type="checkbox" id="invoice" name="invoice">
+    </div>
+  </div>
+
+  <div class="uf-row">
+    <span class="ufl">Group/Sport Funds to be charged:</span>
+    <div class="uf"><input type="text" id="group_sport_funds_to_be_charged" name="group_sport_funds_to_be_charged"></div>
+  </div>
+
+  <div class="uf-row" style="margin-left:28px;">
+    <span class="ufl">Coach Advised:</span>
+    <div class="uf"><input type="text" id="coach_advised" name="coach_advised"></div>
+  </div>
+
+  <div class="uf-row">
+    <span class="ufl">E-mail:</span>
+    <div class="uf"><input type="email" id="e_mail" name="e_mail"></div>
+    <span class="ufl" style="margin-left:10px;">Phone: (</span>
+    <div class="uf md"><input type="tel" id="phone" name="phone"></div>
+    <span class="ufl">)</span>
+  </div>
+
+  <div class="uf-row">
+    <span class="ufl">General Purpose of Request (Attach Receipts/Invoice):</span>
+    <div class="uf"><input type="text" id="general_purpose_of_request_attach_receipts_invoice" name="general_purpose_of_request_attach_receipts_invoice"></div>
+  </div>
+  <div class="desc-lines">
+    <div class="dl"><input type="text" id="purpose_cont_1" name="purpose_cont_1"></div>
+  </div>
+
+  <div class="uf-row" style="margin-top:8px;">
+    <span class="ufl">Total Amount Requested: $</span>
+    <div class="uf sm"><input type="text" id="total_amount_requested" name="total_amount_requested"></div>
+  </div>
+
+  <!-- ════════ Payee & Mailing ════════ -->
+  <div class="uf-row">
+    <span class="ufl">Make Check Payable to:</span>
+    <div class="uf"><input type="text" id="make_check_payable_to" name="make_check_payable_to"></div>
+  </div>
+
+  <div class="uf-row">
+    <span class="ufl">Mail Check to (Address):</span>
+    <div class="uf"><input type="text" id="mail_check_to_address" name="mail_check_to_address"></div>
+  </div>
+  <div class="desc-lines">
+    <div class="dl"><input type="text" id="address_cont" name="address_cont"></div>
+  </div>
+
+  <!-- ════════ Accounting Use Only ════════ -->
+  <div class="acct-box">
+    <div class="acct-title">Accounting Use Only:</div>
+
+    <div class="uf-row">
+      <span class="ufl">Check #:</span>
+      <div class="uf sm"><input type="text" id="check_number" name="check_number"></div>
+      <span class="ufl" style="margin-left:12px;">Date Issued:</span>
+      <div class="uf sm"><input type="text" id="date_issued" name="date_issued"></div>
+    </div>
+
+    <div class="uf-row">
+      <span class="ufl">Account Paid From:</span>
+      <div class="uf"><input type="text" id="account_paid_from" name="account_paid_from"></div>
+    </div>
+
+    <div class="sig-title">Signatures of Authorization to Pay</div>
+
+    <div class="uf-row">
+      <span class="ufl">Approver #1:</span>
+      <div class="uf"><input type="text" id="approver_1" name="approver_1"></div>
+    </div>
+    <div class="uf-row">
+      <span class="ufl">Approver #2:</span>
+      <div class="uf"><input type="text" id="approver_2" name="approver_2"></div>
+    </div>
+
+    <div class="check-one-title">Check One</div>
+
+    <div class="co-item">
+      <input type="checkbox" id="check_given_cb">
+      <span>Check was given to (provide name):</span>
+      <div class="uf"><input type="text" id="check_was_given_to_provide_name" name="check_was_given_to_provide_name"></div>
+    </div>
+
+    <div class="co-item">
+      <input type="checkbox" id="check_was_mailed_to_payee_at_address_above" name="check_was_mailed_to_payee_at_address_above">
+      <span>Check was mailed to Payee at address above</span>
+    </div>
+    <div class="co-item indent">
+      <input type="checkbox" id="different_address_cb">
+      <span>Different address:</span>
+      <div class="uf"><input type="text" id="different_address" name="different_address"></div>
+    </div>
+    <div class="desc-lines indent" style="margin-top:4px;">
+      <div class="dl"><input type="text" id="diff_addr_cont" name="diff_addr_cont"></div>
+    </div>
+  </div>
+
+  <!-- Entered in General Ledger -->
+  <div class="ledger-row">
+    <input type="checkbox" id="entered_in_general_ledger" name="entered_in_general_ledger">
+    <span>Entered in General Ledger</span>
+    <span style="margin-left:20px;">Date:</span>
+    <div class="uf"><input type="text" id="date" name="date"></div>
+  </div>
+
+  <!-- Submit -->
+  <div class="submit-row">
+    <button type="reset" class="btn btn-clear">Clear Form</button>
+    <button type="submit" class="btn btn-submit">Submit</button>
+  </div>
+
+  </form>
+</div>
+
+<script>
+  document.getElementById('mthsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    const cb = id => document.getElementById(id).checked ? 'true' : 'false';
+    const v = id => fd.get(id) || '';
+
+    const data = {
+      request_details: {
+        date_of_request: v('date_of_request'),
+        reimbursement: cb('reimbursement'),
+        invoice: cb('invoice'),
+        group_sport_funds_to_be_charged: v('group_sport_funds_to_be_charged'),
+        coach_advised: v('coach_advised'),
+        e_mail: v('e_mail'),
+        phone: v('phone'),
+        general_purpose_of_request_attach_receipts_invoice: v('general_purpose_of_request_attach_receipts_invoice'),
+        total_amount_requested: v('total_amount_requested'),
+      },
+      payee__mailing_information: {
+        make_check_payable_to: v('make_check_payable_to'),
+        mail_check_to_address: v('mail_check_to_address'),
+        check_was_given_to_provide_name: v('check_was_given_to_provide_name'),
+        check_was_mailed_to_payee_at_address_above: cb('check_was_mailed_to_payee_at_address_above'),
+        different_address: v('different_address'),
+      },
+      accounting_use_only: {
+        check_number: v('check_number'),
+        date_issued: v('date_issued'),
+        account_paid_from: v('account_paid_from'),
+        approver_1: v('approver_1'),
+        approver_2: v('approver_2'),
+        entered_in_general_ledger: cb('entered_in_general_ledger'),
+        date: v('date'),
+      },
+    };
+    console.log('Form Data (Pydantic-compatible JSON):');
+    console.log(JSON.stringify(data, null, 2));
+    alert('Submitted! Check console for JSON.');
+  });
+</script>
+
+</body>
+</html>

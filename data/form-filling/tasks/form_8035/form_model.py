@@ -12,87 +12,88 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class PolicyStatus(BaseModel):
-    """Whether the wellness items are included in written policy and implemented in school buildings"""
+class PolicyItemStatus(BaseModel):
+    """Indicate whether the wellness policy items are included in the written policy and implemented in school buildings"""
 
     included_in_the_written_policy_yes: BooleanLike = Field(
         default="",
-        description="Indicate that this item is included in the written wellness policy.",
+        description="Indicate if this item is included in the written wellness policy (Yes).",
     )
 
     included_in_the_written_policy_no: BooleanLike = Field(
         default="",
-        description="Indicate that this item is not included in the written wellness policy.",
+        description="Indicate if this item is not included in the written wellness policy (No).",
     )
 
     implemented_in_the_school_buildings_fully_in_place: BooleanLike = Field(
         default="",
-        description="Check if the item is fully implemented in all relevant school buildings.",
+        description="Indicate if this item is fully implemented in the school building(s).",
     )
 
     implemented_in_the_school_buildings_partially_in_place: BooleanLike = Field(
         default="",
-        description="Check if the item is only partially implemented in the school buildings.",
+        description="Indicate if this item is partially implemented in the school building(s).",
     )
 
     implemented_in_the_school_buildings_not_in_place: BooleanLike = Field(
-        default="", description="Check if the item is not implemented in the school buildings."
+        default="",
+        description="Indicate if this item is not implemented in the school building(s).",
     )
 
 
 class NutritionGuidelinesforFoodsandBeveragesatSchool(BaseModel):
-    """Specific wellness policy goals and practices related to foods, beverages, and marketing"""
+    """Specific wellness policy goals and practices related to foods and beverages at school"""
 
-    we_limit_the_number_of_food_fundraisers_at_school: BooleanLike = Field(
+    we_limit_the_number_of_food_fundraisers_at_school_and_have_procedures_in_place_for_requesting_a_fundraiser_exemption: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether the school limits food fundraisers and has procedures for "
-            "fundraiser exemptions per PDE limits."
+            "Check if the school limits food fundraisers and has procedures for requesting "
+            "exemptions for items that do not meet Smart Snacks standards."
         ),
     )
 
-    we_have_local_standards_in_our_written_policy_for_foods_and_beverages_offered_for_free: BooleanLike = Field(
+    we_have_local_standards_in_our_written_policy_for_foods_and_beverages_offered_for_free_to_students_at_school: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether local standards exist in the written policy for foods and "
-            "beverages offered for free to students."
+            "Check if the written policy includes local standards for foods and beverages "
+            "offered for free (rewards, parties, celebrations, shared snacks)."
         ),
     )
 
-    we_provide_a_list_of_nonfood_ideas_and_healthy_alternatives: BooleanLike = Field(
+    we_provide_a_list_of_nonfood_ideas_and_healthy_food_beverage_alternatives_to_staff_and_parents_guardians: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether the school provides staff and parents/guardians with nonfood "
-            "ideas and healthy food/beverage alternatives."
+            "Check if the school provides staff and parents/guardians with a list of "
+            "nonfood ideas and healthy food/beverage alternatives."
         ),
     )
 
-    only_foods_and_beverages_meeting_federal_nutrition_standards_are_marketed: BooleanLike = Field(
+    only_foods_and_beverages_that_meet_or_exceed_federal_nutrition_standards_are_permitted_to_be_marketed_or_promoted_to_students_during_the_school_day: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether only foods and beverages meeting USDA Smart Snacks standards "
-            "are marketed or promoted to students during the school day."
+            "Check if only foods and beverages meeting or exceeding USDA Smart Snacks "
+            "standards are marketed or promoted to students during the school day."
         ),
     )
 
     notes_on_nutrition_guidelines_for_foods_and_beverages_at_school: str = Field(
         default="",
         description=(
-            "Provide any additional notes or explanations about the nutrition guidelines "
-            'for foods and beverages at school. .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Additional notes or comments about nutrition guidelines for foods and "
+            'beverages at school. .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
 
 class WellnessPolicyProgressReport(BaseModel):
-    """Reporting on progress toward wellness policy goals"""
+    """Report on progress made in attaining the goals of the wellness policy"""
 
     report_on_the_progress_made_in_attaining_the_goals_of_the_wellness_policy: str = Field(
         ...,
         description=(
-            "Required narrative report describing progress toward meeting the goals of the "
+            "Narrative report describing progress made toward attaining the goals of the "
             'wellness policy. .If you cannot fill this, write "N/A". If this field should '
             "not be filled by you (for example, it belongs to another person or office), "
             'leave it blank (empty string "").'
@@ -104,11 +105,10 @@ class WellnessPolicyAssessmentToolAndReportTemplate(BaseModel):
     """
     Wellness Policy Assessment Tool and Report Template
 
-    Included in the written policy? Yes  No
-    Implemented in the school building(s)? Fully in Place  Partially in Place  Not in Place
+    ''
     """
 
-    policy_status: PolicyStatus = Field(..., description="Policy Status")
+    policy_item_status: PolicyItemStatus = Field(..., description="Policy Item Status")
     nutrition_guidelines_for_foods_and_beverages_at_school: NutritionGuidelinesforFoodsandBeveragesatSchool = Field(
         ..., description="Nutrition Guidelines for Foods and Beverages at School"
     )

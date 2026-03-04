@@ -18,7 +18,7 @@ class ParticipantInformation(BaseModel):
     participant_first_last_name: str = Field(
         ...,
         description=(
-            "Participant's full first and last name .If you cannot fill this, write "
+            "Participant's full legal first and last name .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -54,35 +54,29 @@ class ParticipantInformation(BaseModel):
     participant_email: str = Field(
         ...,
         description=(
-            'Email address for the participant .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            'Participant\'s email address .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
-    transportation_required: BooleanLike = Field(
+    transportation_required_yes: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether the participant needs transportation to and from meetings and "
-            "activities"
+            "Select yes if the participant needs transportation to and from meetings/activities"
         ),
     )
 
-    transportation_not_required: BooleanLike = Field(
+    transportation_required_no: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether the participant does not need transportation to and from "
-            "meetings and activities"
+            "Select no if the participant does not need transportation to and from "
+            "meetings/activities"
         ),
     )
 
-    participant_gender_female_or_male: str = Field(
-        ...,
-        description=(
-            "Gender of the participant (e.g., Female or Male) .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
+    participant_gender_female_or_male: Literal["Female", "Male", "N/A", ""] = Field(
+        ..., description="Participant's gender"
     )
 
     school: str = Field(
@@ -97,9 +91,9 @@ class ParticipantInformation(BaseModel):
     grade: str = Field(
         ...,
         description=(
-            "Current school grade of the participant .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Participant\'s current grade level .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -111,29 +105,29 @@ class ParticipantInformation(BaseModel):
         ..., description="Participant's date of birth in MM/DD/YY format"
     )  # YYYY-MM-DD format
 
-    t_shirt_size_s: Literal["S", "M", "L", "XL", "XXL", "N/A", ""] = Field(
-        ..., description="Select the participant's T-shirt size"
+    t_shirt_size_s: BooleanLike = Field(
+        default="", description="Select if the participant's T-shirt size is Small"
     )
 
-    t_shirt_size_m: Literal["S", "M", "L", "XL", "XXL", "N/A", ""] = Field(
-        ..., description="Select the participant's T-shirt size"
+    t_shirt_size_m: BooleanLike = Field(
+        default="", description="Select if the participant's T-shirt size is Medium"
     )
 
-    t_shirt_size_l: Literal["S", "M", "L", "XL", "XXL", "N/A", ""] = Field(
-        ..., description="Select the participant's T-shirt size"
+    t_shirt_size_l: BooleanLike = Field(
+        default="", description="Select if the participant's T-shirt size is Large"
     )
 
-    t_shirt_size_xl: Literal["S", "M", "L", "XL", "XXL", "N/A", ""] = Field(
-        ..., description="Select the participant's T-shirt size"
+    t_shirt_size_xl: BooleanLike = Field(
+        default="", description="Select if the participant's T-shirt size is Extra Large"
     )
 
-    t_shirt_size_xxl: Literal["S", "M", "L", "XL", "XXL", "N/A", ""] = Field(
-        ..., description="Select the participant's T-shirt size"
+    t_shirt_size_xxl: BooleanLike = Field(
+        default="", description="Select if the participant's T-shirt size is Extra Extra Large"
     )
 
 
 class ParentGuardianInformation(BaseModel):
-    """Primary parent or guardian contact details"""
+    """Contact information for the participant's parent or guardian"""
 
     parent_guardian_first_last_name: str = Field(
         ...,
@@ -147,24 +141,24 @@ class ParentGuardianInformation(BaseModel):
     parent_guardian_email: str = Field(
         ...,
         description=(
-            "Email address for the parent or guardian .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Parent or guardian\'s email address .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     parent_guardian_phone: str = Field(
         ...,
         description=(
-            "Primary phone number for the parent or guardian .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Parent or guardian's primary phone number .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
 
 class EmergencyContact(BaseModel):
-    """Emergency contact person and relationship"""
+    """Emergency contact details for the participant"""
 
     emergency_contact_first_last_name: str = Field(
         ...,
@@ -205,7 +199,7 @@ class EmergencyContact(BaseModel):
 
 
 class MedicalDietaryInformation(BaseModel):
-    """Health conditions and dietary restrictions"""
+    """Health conditions and dietary restrictions relevant to participation"""
 
     medical_information_dietary_restrictions: str = Field(
         default="",
@@ -223,7 +217,7 @@ class SerenityFirstYouthCoalitionRegistrationForm(BaseModel):
         Registration Form for
     Serenity First Prevention and Support Youth Coalition
 
-        Registration Form for Serenity First Prevention and Support Youth Coalition. Please submit completed packet to SFPSCOALITION@GMAIL.COM. If you have any questions or concerns, please call: Jill Fabian at (520) 661-6445 or Diane Morrow at (520) 390-6286. ALL YOUTH ACTIVITIES ARE FREE AND PROVIDED BY OUR GRANT FROM THE ARIZONA PARENTS COMMISSION FOR DRUG EDUCATION AND PREVENTION AND THE GOVERNOR’S OFFICE OF YOUTH, FAITH AND FAMILY. The Youth Coalition accepts youth 13-18 and meets once a month at the location of our monthly activity. (Presently we are meeting on Zoom from 5:30 - 7:00 pm once a month).
+        ALL YOUTH ACTIVITIES ARE FREE AND PROVIDED BY OUR GRANT FROM THE ARIZONA PARENTS COMMISSION ON DRUG EDUCATION AND PREVENTION AND THE GOVERNOR’S OFFICE OF YOUTH, FAITH AND FAMILY. The Youth Coalition accepts youth 13-18 and meets once a month at the location of our monthly activity. (Presently we are meeting on Zoom from 5:30 - 7:00 pm once a month)
     """
 
     participant_information: ParticipantInformation = Field(

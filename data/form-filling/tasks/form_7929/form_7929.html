@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Progress Exam Questionnaire</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Pacifico&display=swap');
+
+    :root{
+      --bg:#d6d2cd;
+      --page:#ffffff;
+      --ink:#1d1d1d;
+      --muted:#666;
+      --line:#2a2a2a;
+      --softline:#bdbdbd;
+      --green:#3f5f2a;
+      --bar:#3f5f2a;
+      --band:#e6e3df;
+      --focus:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--page);
+      box-shadow:0 2px 16px rgba(0,0,0,.15);
+      border:1px solid rgba(0,0,0,.12);
+    }
+
+    /* top title */
+    .topbar{
+      background:var(--green);
+      padding:18px 22px 16px;
+      color:#fff;
+      text-align:center;
+    }
+    .topbar .title{
+      font-family:Pacifico, Inter, sans-serif;
+      font-size:30px;
+      line-height:1.1;
+      margin:0;
+      letter-spacing:.2px;
+    }
+    .subtitle{
+      padding:14px 28px 10px;
+      text-align:center;
+      color:#2a2a2a;
+      font-size:12.5px;
+      line-height:1.45;
+    }
+
+    form{margin:0}
+    .pad{padding:0 22px 18px}
+
+    /* patient info row */
+    .patient-row{
+      display:grid;
+      grid-template-columns: 1fr 200px;
+      gap:18px;
+      align-items:end;
+      padding:6px 6px 14px;
+    }
+    .line-field{
+      display:flex;
+      gap:8px;
+      align-items:flex-end;
+    }
+    .line-field label{
+      font-size:12.5px;
+      color:#222;
+      white-space:nowrap;
+    }
+    .line-input{
+      flex:1;
+      border:none;
+      border-bottom:1px solid #444;
+      outline:none;
+      padding:3px 6px 2px;
+      background:transparent;
+      font-size:13px;
+    }
+    .line-input:focus{background:var(--focus)}
+    .date-box{
+      display:flex;
+      gap:8px;
+      align-items:flex-end;
+      justify-content:flex-end;
+    }
+    .date-box label{font-size:12.5px; white-space:nowrap;}
+    .date-input{
+      width:140px;
+      border:none;
+      border-bottom:1px solid #444;
+      outline:none;
+      padding:3px 6px 2px;
+      background:transparent;
+      font-size:13px;
+    }
+    .date-input:focus{background:var(--focus)}
+
+    /* section framing */
+    .section{
+      border:1px solid #6b6b6b;
+      margin:0 6px 14px;
+    }
+    .section-bar{
+      background:var(--bar);
+      color:#fff;
+      text-transform:uppercase;
+      font-weight:800;
+      letter-spacing:1.6px;
+      font-size:12px;
+      text-align:center;
+      padding:7px 10px;
+    }
+    .section-subbar{
+      background:var(--band);
+      border-top:1px solid #6b6b6b;
+      border-bottom:1px solid #6b6b6b;
+      font-size:12px;
+      text-align:center;
+      padding:5px 10px;
+      color:#2a2a2a;
+    }
+    .section-body{padding:0}
+
+    /* wellness goals table */
+    .goals-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      border-top:0;
+    }
+    .goals-grid > .cell{
+      min-height:156px;
+    }
+    .goals-grid .cell{
+      border-right:1px solid #6b6b6b;
+    }
+    .goals-grid .cell:last-child{border-right:0}
+    .goals-head{
+      background:#f0eeea;
+      border-bottom:1px solid #6b6b6b;
+      padding:6px 10px;
+      font-size:12px;
+      color:#2a2a2a;
+      text-align:center;
+    }
+    .goals-left{
+      padding:10px 10px 8px;
+    }
+    .goal-line{
+      display:grid;
+      grid-template-columns: 18px 1fr;
+      gap:8px;
+      align-items:end;
+      padding:10px 0 0;
+    }
+    .goal-num{
+      font-size:12px;
+      color:#333;
+      padding-bottom:2px;
+    }
+    .goal-input{
+      border:none;
+      border-bottom:1px solid #8e8e8e;
+      outline:none;
+      padding:3px 6px 2px;
+      font-size:13px;
+      background:transparent;
+      width:100%;
+    }
+    .goal-input:focus{background:var(--focus)}
+
+    .goals-right{
+      padding:10px 12px 8px;
+    }
+    .rating-scale{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+      padding-top:4px;
+    }
+    .rating-row{
+      display:grid;
+      grid-template-columns: 20px 1fr;
+      align-items:center;
+      gap:10px;
+    }
+    .rating-row .tiny{
+      font-size:12px;
+      color:#333;
+      padding-left:2px;
+    }
+    .scale{
+      display:grid;
+      grid-template-columns: repeat(5, 1fr) 66px;
+      gap:6px;
+      align-items:center;
+    }
+    .scale .legend{
+      font-size:11px;
+      color:#5d5d5d;
+      text-align:right;
+      padding-right:2px;
+      font-style:italic;
+      white-space:nowrap;
+    }
+    .radio-dot{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    }
+    input[type="radio"]{
+      width:14px;height:14px;
+      accent-color:#2f4d22;
+      margin:0;
+    }
+    .scale-labels{
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap:6px;
+      margin:4px 0 0;
+      padding:0 0 0;
+      color:#5d5d5d;
+      font-size:11px;
+      font-style:italic;
+    }
+    .scale-labels div:nth-child(1){text-align:left}
+    .scale-labels div:nth-child(3){text-align:center}
+    .scale-labels div:nth-child(5){text-align:right}
+
+    /* How are you doing area */
+    .improve-grid{
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap:4px 10px;
+      padding:10px 12px 10px;
+      border-bottom:1px solid #6b6b6b;
+      background:#fff;
+    }
+    .check-item{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+      color:#333;
+      white-space:nowrap;
+    }
+    input[type="checkbox"]{
+      width:14px;height:14px;
+      accent-color:#2f4d22;
+      margin:0;
+    }
+
+    .changes-head{
+      background:var(--band);
+      border-bottom:1px solid #6b6b6b;
+      font-size:12px;
+      text-align:center;
+      padding:6px 10px;
+    }
+    .write-area{
+      position:relative;
+      padding:10px 12px 12px;
+      background:
+        linear-gradient(to bottom, transparent 0, transparent 34px, rgba(0,0,0,0.14) 35px) 0 0/100% 36px;
+      min-height:206px;
+    }
+    .prompt{
+      font-size:11.5px;
+      color:#6a6a6a;
+      padding:6px 0 4px;
+    }
+    .textline{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font-size:13px;
+      padding:4px 6px;
+      border-radius:2px;
+    }
+    .textline:focus{background:var(--focus)}
+    .text-block{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:6px;
+      padding:2px 0 10px;
+    }
+
+    .new-head{
+      background:var(--band);
+      border-top:1px solid #6b6b6b;
+      border-bottom:1px solid #6b6b6b;
+      font-size:12px;
+      text-align:center;
+      padding:6px 10px;
+    }
+    .new-area{
+      min-height:78px;
+      padding:10px 12px 14px;
+      background:
+        linear-gradient(to bottom, transparent 0, transparent 34px, rgba(0,0,0,0.14) 35px) 0 0/100% 36px;
+    }
+
+    /* Your health progress section */
+    .progress-choices{
+      display:flex;
+      justify-content:center;
+      gap:30px;
+      padding:10px 12px;
+      border-bottom:1px solid #6b6b6b;
+      flex-wrap:wrap;
+    }
+    .choice{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      font-size:12px;
+      color:#333;
+      white-space:nowrap;
+    }
+
+    .impact-block{
+      padding:0;
+    }
+    .impact-row{
+      border-top:0;
+    }
+    .impact-sub{
+      background:var(--band);
+      border-bottom:1px solid #6b6b6b;
+      border-top:1px solid #6b6b6b;
+      font-size:12px;
+      text-align:center;
+      padding:6px 10px;
+      color:#2a2a2a;
+    }
+    .impact-scale-wrap{
+      padding:10px 12px 12px;
+    }
+    .impact-scale{
+      display:grid;
+      grid-template-columns: 86px repeat(5, 1fr) 86px;
+      align-items:center;
+      gap:6px;
+    }
+    .impact-scale .end{
+      font-size:11px;
+      color:#6a6a6a;
+      font-style:italic;
+      white-space:nowrap;
+    }
+    .impact-scale .end.left{text-align:left}
+    .impact-scale .end.right{text-align:right}
+
+    /* selects for literals */
+    select.select{
+      width:100%;
+      border:1px solid rgba(0,0,0,.18);
+      border-radius:3px;
+      padding:6px 8px;
+      font-size:13px;
+      background:#fff;
+      outline:none;
+    }
+    select.select:focus{box-shadow:0 0 0 3px rgba(63,95,42,.18); border-color:rgba(63,95,42,.5)}
+    .hidden-select{
+      position:absolute;
+      left:-9999px;
+      top:auto;
+      width:1px;
+      height:1px;
+      overflow:hidden;
+    }
+
+    /* footer bar */
+    .footerbar{
+      background:var(--green);
+      color:#dfe7d8;
+      text-align:center;
+      font-size:11px;
+      padding:10px 10px;
+      font-style:italic;
+      letter-spacing:.4px;
+    }
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:10px 16px 16px;
+    }
+    .btn{
+      font-family:inherit;
+      font-weight:700;
+      font-size:13px;
+      padding:8px 18px;
+      border-radius:3px;
+      cursor:pointer;
+      border:1px solid #2f2f2f;
+    }
+    .btn-clear{background:#fff;color:#2a2a2a;border-color:#7a7a7a}
+    .btn-submit{background:#3f5f2a;color:#fff;border-color:#2f4d22}
+    .btn:active{transform:translateY(1px)}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <h1 class="title">Progress Exam Questionnaire</h1>
+    </div>
+
+    <div class="subtitle">
+      To help ensure that we are on track toward achieving your health goals, please tell us what types of changes you are experiencing as your body begins the natural healing process.
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="pad">
+        <div class="patient-row">
+          <div class="line-field">
+            <label for="patient_name"><strong>Patient Name:</strong></label>
+            <input class="line-input" type="text" id="patient_name" name="patient_name" />
+          </div>
+          <div class="date-box">
+            <label for="date"><strong>Date:</strong></label>
+            <input class="date-input" type="date" id="date" name="date" />
+          </div>
+        </div>
+
+        <!-- YOUR WELLNESS GOALS -->
+        <section class="section">
+          <div class="section-bar">YOUR WELLNESS GOALS</div>
+          <div class="section-body">
+            <div class="goals-grid">
+              <div class="cell">
+                <div class="goals-head">Your initial health goals for care were:</div>
+                <div class="goals-left">
+                  <div class="goal-line">
+                    <div class="goal-num">1.</div>
+                    <input class="goal-input" type="text" id="your_initial_health_goal_1" name="your_initial_health_goal_1" />
+                  </div>
+                  <div class="goal-line">
+                    <div class="goal-num">2.</div>
+                    <input class="goal-input" type="text" id="your_initial_health_goal_2" name="your_initial_health_goal_2" />
+                  </div>
+                  <div class="goal-line">
+                    <div class="goal-num">3.</div>
+                    <input class="goal-input" type="text" id="your_initial_health_goal_3" name="your_initial_health_goal_3" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="cell">
+                <div class="goals-head">How would you rate your <strong>progress</strong> toward those goals so far?</div>
+                <div class="goals-right">
+                  <div class="scale-labels" aria-hidden="true">
+                    <div>Worse</div><div></div><div>No change</div><div></div><div>Improved</div>
+                  </div>
+
+                  <div class="rating-scale" role="group" aria-label="Progress ratings">
+                    <div class="rating-row">
+                      <div class="tiny">1</div>
+                      <div class="scale" aria-label="Goal 1 rating">
+                        <div class="radio-dot"><input type="radio" name="goal1_radio" value="1" aria-label="1"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal1_radio" value="2" aria-label="2"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal1_radio" value="3" aria-label="3"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal1_radio" value="4" aria-label="4"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal1_radio" value="5" aria-label="5"/></div>
+                        <div class="legend"> </div>
+                      </div>
+                    </div>
+
+                    <div class="rating-row">
+                      <div class="tiny">2</div>
+                      <div class="scale" aria-label="Goal 2 rating">
+                        <div class="radio-dot"><input type="radio" name="goal2_radio" value="1" aria-label="1"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal2_radio" value="2" aria-label="2"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal2_radio" value="3" aria-label="3"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal2_radio" value="4" aria-label="4"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal2_radio" value="5" aria-label="5"/></div>
+                        <div class="legend"> </div>
+                      </div>
+                    </div>
+
+                    <div class="rating-row">
+                      <div class="tiny">3</div>
+                      <div class="scale" aria-label="Goal 3 rating">
+                        <div class="radio-dot"><input type="radio" name="goal3_radio" value="1" aria-label="1"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal3_radio" value="2" aria-label="2"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal3_radio" value="3" aria-label="3"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal3_radio" value="4" aria-label="4"/></div>
+                        <div class="radio-dot"><input type="radio" name="goal3_radio" value="5" aria-label="5"/></div>
+                        <div class="legend"> </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- The model needs literal fields; store values here -->
+                  <select class="hidden-select" id="progress_toward_goal_1_rating" name="progress_toward_goal_1_rating">
+                    <option value=""></option>
+                    <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                    <option value="N/A">N/A</option>
+                  </select>
+                  <select class="hidden-select" id="progress_toward_goal_2_rating" name="progress_toward_goal_2_rating">
+                    <option value=""></option>
+                    <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                    <option value="N/A">N/A</option>
+                  </select>
+                  <select class="hidden-select" id="progress_toward_goal_3_rating" name="progress_toward_goal_3_rating">
+                    <option value=""></option>
+                    <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                    <option value="N/A">N/A</option>
+                  </select>
+
+                  <div style="display:flex; gap:10px; justify-content:flex-end; padding-top:10px;">
+                    <label style="font-size:11.5px; color:#555; display:flex; align-items:center; gap:6px;">
+                      <span>N/A (Goal 1)</span>
+                      <input type="checkbox" id="na_goal1" />
+                    </label>
+                    <label style="font-size:11.5px; color:#555; display:flex; align-items:center; gap:6px;">
+                      <span>N/A (Goal 2)</span>
+                      <input type="checkbox" id="na_goal2" />
+                    </label>
+                    <label style="font-size:11.5px; color:#555; display:flex; align-items:center; gap:6px;">
+                      <span>N/A (Goal 3)</span>
+                      <input type="checkbox" id="na_goal3" />
+                    </label>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- HOW ARE YOU DOING -->
+        <section class="section">
+          <div class="section-bar">HOW ARE YOU DOING?</div>
+          <div class="section-subbar">Have you noticed any <strong>improvements</strong> in any of the following?</div>
+
+          <div class="improve-grid">
+            <label class="check-item"><input type="checkbox" id="sleeping" name="sleeping"> Sleeping</label>
+            <label class="check-item"><input type="checkbox" id="walking_running" name="walking_running"> Walking &amp; Running</label>
+            <label class="check-item"><input type="checkbox" id="flexibility_mobility" name="flexibility_mobility"> Flexibility &amp; Mobility</label>
+            <label class="check-item"><input type="checkbox" id="sitting" name="sitting"> Sitting</label>
+            <label class="check-item"><input type="checkbox" id="energy_levels" name="energy_levels"> Energy Levels</label>
+
+            <label class="check-item"><input type="checkbox" id="emotional_stress" name="emotional_stress"> Emotional Stress</label>
+            <label class="check-item"><input type="checkbox" id="changing_habits" name="changing_habits"> Changing Habits</label>
+            <label class="check-item"><input type="checkbox" id="pain_management" name="pain_management"> Pain Management</label>
+            <label class="check-item"><input type="checkbox" id="family_life" name="family_life"> Family Life</label>
+            <label class="check-item"><input type="checkbox" id="work_life" name="work_life"> Work Life</label>
+          </div>
+
+          <div class="changes-head">Tell us about any <strong>changes</strong> that you have noticed since beginning care:</div>
+
+          <div class="write-area">
+            <div class="text-block">
+              <div class="prompt">• Physical Changes <em>(ex. less pain, more mobility, feeling stronger, etc.)</em></div>
+              <input class="textline" type="text" id="physical_changes" name="physical_changes" />
+            </div>
+
+            <div class="text-block">
+              <div class="prompt">• Health Changes <em>(ex. fewer illnesses, less severe symptoms, etc.)</em></div>
+              <input class="textline" type="text" id="health_changes" name="health_changes" />
+            </div>
+
+            <div class="text-block">
+              <div class="prompt">• Emotional Changes <em>(ex. better mood regulation, less anxious, etc.)</em></div>
+              <input class="textline" type="text" id="emotional_changes" name="emotional_changes" />
+            </div>
+
+            <div class="text-block">
+              <div class="prompt">• Energy &amp; Stress Levels <em>(ex. sleeping better, more energy, happier, etc.)</em></div>
+              <input class="textline" type="text" id="energy_stress_levels" name="energy_stress_levels" />
+            </div>
+          </div>
+
+          <div class="new-head">Tell us about any <strong>new</strong> health challenges or stressors in your life:</div>
+          <div class="new-area">
+            <input class="textline" type="text" id="new_health_challenges_or_stressors" name="new_health_challenges_or_stressors" />
+          </div>
+        </section>
+
+        <!-- YOUR HEALTH PROGRESS -->
+        <section class="section">
+          <div class="section-bar">YOUR HEALTH PROGRESS</div>
+          <div class="section-subbar">Your improvements so far is...</div>
+
+          <div class="progress-choices">
+            <label class="choice">
+              <input type="checkbox" id="improvement_taking_longer_than_expected" name="improvement_taking_longer_than_expected">
+              Taking longer than expected
+            </label>
+            <label class="choice">
+              <input type="checkbox" id="improvement_progressing_as_expected" name="improvement_progressing_as_expected">
+              Progressing as expected
+            </label>
+            <label class="choice">
+              <input type="checkbox" id="improvement_occurring_faster_than_expected" name="improvement_occurring_faster_than_expected">
+              Occurring faster than expected
+            </label>
+          </div>
+
+          <div class="impact-sub">Rate the impact of these improvements on your <strong>health</strong>:</div>
+          <div class="impact-scale-wrap">
+            <div class="impact-scale" aria-label="Impact on health scale">
+              <div class="end left">No impact</div>
+              <div class="radio-dot"><input type="radio" name="impact_health_radio" value="1" aria-label="1"></div>
+              <div class="radio-dot"><input type="radio" name="impact_health_radio" value="2" aria-label="2"></div>
+              <div class="radio-dot"><input type="radio" name="impact_health_radio" value="3" aria-label="3"></div>
+              <div class="radio-dot"><input type="radio" name="impact_health_radio" value="4" aria-label="4"></div>
+              <div class="radio-dot"><input type="radio" name="impact_health_radio" value="5" aria-label="5"></div>
+              <div class="end right">Great impact</div>
+            </div>
+
+            <!-- model field -->
+            <select class="hidden-select" id="impact_of_improvements_on_health_rating" name="impact_of_improvements_on_health_rating">
+              <option value=""></option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+              <option value="N/A">N/A</option>
+            </select>
+
+            <div style="display:flex; justify-content:flex-end; padding-top:10px;">
+              <label style="font-size:11.5px; color:#555; display:flex; align-items:center; gap:6px;">
+                <span>N/A</span><input type="checkbox" id="na_impact_health">
+              </label>
+            </div>
+          </div>
+
+          <div class="impact-sub">Rate the impact of these improvements on your <strong>quality of life</strong>:</div>
+          <div class="impact-scale-wrap">
+            <div class="impact-scale" aria-label="Impact on quality of life scale">
+              <div class="end left">No impact</div>
+              <div class="radio-dot"><input type="radio" name="impact_qol_radio" value="1" aria-label="1"></div>
+              <div class="radio-dot"><input type="radio" name="impact_qol_radio" value="2" aria-label="2"></div>
+              <div class="radio-dot"><input type="radio" name="impact_qol_radio" value="3" aria-label="3"></div>
+              <div class="radio-dot"><input type="radio" name="impact_qol_radio" value="4" aria-label="4"></div>
+              <div class="radio-dot"><input type="radio" name="impact_qol_radio" value="5" aria-label="5"></div>
+              <div class="end right">Great impact</div>
+            </div>
+
+            <!-- model field -->
+            <select class="hidden-select" id="impact_of_improvements_on_quality_of_life_rating" name="impact_of_improvements_on_quality_of_life_rating">
+              <option value=""></option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+              <option value="N/A">N/A</option>
+            </select>
+
+            <div style="display:flex; justify-content:flex-end; padding-top:10px;">
+              <label style="font-size:11.5px; color:#555; display:flex; align-items:center; gap:6px;">
+                <span>N/A</span><input type="checkbox" id="na_impact_qol">
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <div class="submit-row">
+          <button type="reset" class="btn btn-clear">Clear Form</button>
+          <button type="submit" class="btn btn-submit">Submit</button>
+        </div>
+      </div>
+
+      <div class="footerbar">Health 1st Chiropractic &amp; Wellness Center</div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function setSelectValue(selectId, val){
+        const el = document.getElementById(selectId);
+        if(!el) return;
+        el.value = val;
+      }
+
+      function wireRadioToSelect(radioName, selectId, naCheckboxId){
+        const radios = Array.from(document.querySelectorAll(`input[type="radio"][name="${radioName}"]`));
+        const naCb = naCheckboxId ? document.getElementById(naCheckboxId) : null;
+
+        function syncFromRadios(){
+          const picked = radios.find(r => r.checked);
+          if(picked){
+            if(naCb) naCb.checked = false;
+            setSelectValue(selectId, picked.value);
+          }else{
+            // keep current select value; no-op
+          }
+        }
+
+        radios.forEach(r => r.addEventListener('change', syncFromRadios));
+
+        if(naCb){
+          naCb.addEventListener('change', () => {
+            if(naCb.checked){
+              radios.forEach(r => r.checked = false);
+              setSelectValue(selectId, 'N/A');
+            }else{
+              // If unchecked and no radio checked, clear
+              const picked = radios.find(r => r.checked);
+              setSelectValue(selectId, picked ? picked.value : '');
+            }
+          });
+        }
+      }
+
+      wireRadioToSelect('goal1_radio', 'progress_toward_goal_1_rating', 'na_goal1');
+      wireRadioToSelect('goal2_radio', 'progress_toward_goal_2_rating', 'na_goal2');
+      wireRadioToSelect('goal3_radio', 'progress_toward_goal_3_rating', 'na_goal3');
+      wireRadioToSelect('impact_health_radio', 'impact_of_improvements_on_health_rating', 'na_impact_health');
+      wireRadioToSelect('impact_qol_radio', 'impact_of_improvements_on_quality_of_life_rating', 'na_impact_qol');
+
+      // Reset should also clear hidden selects + na toggles
+      form.addEventListener('reset', () => {
+        setTimeout(() => {
+          ['progress_toward_goal_1_rating','progress_toward_goal_2_rating','progress_toward_goal_3_rating',
+           'impact_of_improvements_on_health_rating','impact_of_improvements_on_quality_of_life_rating'
+          ].forEach(id => setSelectValue(id, ''));
+
+          ['na_goal1','na_goal2','na_goal3','na_impact_health','na_impact_qol'].forEach(id=>{
+            const el = document.getElementById(id);
+            if(el) el.checked = false;
+          });
+
+          ['goal1_radio','goal2_radio','goal3_radio','impact_health_radio','impact_qol_radio'].forEach(name=>{
+            document.querySelectorAll(`input[type="radio"][name="${name}"]`).forEach(r=>r.checked=false);
+          });
+        }, 0);
+      });
+
+      // Checkbox serialization per prompt (true/false only)
+      const cbTF = (id) => document.getElementById(id)?.checked ? 'true' : 'false';
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+
+        const data = {
+          patient_information: {
+            patient_name: (fd.get('patient_name') ?? '').toString(),
+            date: (fd.get('date') ?? '').toString()
+          },
+          your_wellness_goals: {
+            your_initial_health_goal_1: (fd.get('your_initial_health_goal_1') ?? '').toString(),
+            progress_toward_goal_1_rating: (fd.get('progress_toward_goal_1_rating') ?? '').toString(),
+            your_initial_health_goal_2: (fd.get('your_initial_health_goal_2') ?? '').toString(),
+            progress_toward_goal_2_rating: (fd.get('progress_toward_goal_2_rating') ?? '').toString(),
+            your_initial_health_goal_3: (fd.get('your_initial_health_goal_3') ?? '').toString(),
+            progress_toward_goal_3_rating: (fd.get('progress_toward_goal_3_rating') ?? '').toString()
+          },
+          how_are_you_doing: {
+            sleeping: cbTF('sleeping'),
+            walking_running: cbTF('walking_running'),
+            flexibility_mobility: cbTF('flexibility_mobility'),
+            sitting: cbTF('sitting'),
+            energy_levels: cbTF('energy_levels'),
+            emotional_stress: cbTF('emotional_stress'),
+            changing_habits: cbTF('changing_habits'),
+            pain_management: cbTF('pain_management'),
+            family_life: cbTF('family_life'),
+            work_life: cbTF('work_life'),
+            physical_changes: (fd.get('physical_changes') ?? '').toString(),
+            health_changes: (fd.get('health_changes') ?? '').toString(),
+            emotional_changes: (fd.get('emotional_changes') ?? '').toString(),
+            energy_stress_levels: (fd.get('energy_stress_levels') ?? '').toString(),
+            new_health_challenges_or_stressors: (fd.get('new_health_challenges_or_stressors') ?? '').toString()
+          },
+          your_health_progress: {
+            improvement_taking_longer_than_expected: cbTF('improvement_taking_longer_than_expected'),
+            improvement_progressing_as_expected: cbTF('improvement_progressing_as_expected'),
+            improvement_occurring_faster_than_expected: cbTF('improvement_occurring_faster_than_expected'),
+            impact_of_improvements_on_health_rating: (fd.get('impact_of_improvements_on_health_rating') ?? '').toString(),
+            impact_of_improvements_on_quality_of_life_rating: (fd.get('impact_of_improvements_on_quality_of_life_rating') ?? '').toString()
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

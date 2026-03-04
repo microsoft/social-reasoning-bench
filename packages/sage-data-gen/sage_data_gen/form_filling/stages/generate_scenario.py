@@ -502,7 +502,7 @@ def step3b_generate_negative_info(
 
     items = []
     for field in suitable_fields:
-        current_answer = field.value[:200] + "..." if len(field.value) > 200 else field.value
+        current_answer = field.value
         item = client.chat.completions.parse(
             model=config.generation_model,
             messages=[
@@ -524,6 +524,8 @@ def step3b_generate_negative_info(
             response_format=NegativeInfoItem,
             temperature=0.7,
         )
+        item.field_id = field.field_id
+        item.field_label = field.field_label
         items.append(item)
         print(f"    Generated negative info for: {field.field_label}")
 

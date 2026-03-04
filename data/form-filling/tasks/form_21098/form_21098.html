@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Waterloo Auto Parts — Recycled Parts: Quad Cab Truck</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    :root{
+      --page-w: 810px;
+      --ink:#111;
+      --muted:#444;
+      --bar:#222;
+      --paper:#fff;
+      --bg:#d6d2cd;
+      --line:#1f1f1f;
+      --hair:#333;
+      --focus:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:var(--page-w);
+      background:var(--paper);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      border:1px solid rgba(0,0,0,.08);
+    }
+
+    .pad{padding:18px 28px 10px}
+
+    /* Header */
+    .topline{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:14px;
+      padding:16px 18px 8px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      min-width:260px;
+    }
+    .brand .logoMark{
+      width:54px;height:40px;
+      border:2px solid #0b6fb2;
+      border-radius:4px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#0b6fb2;
+      font-weight:800;
+      font-size:10px;
+      line-height:1.05;
+      text-transform:uppercase;
+      letter-spacing:.6px;
+    }
+    .brand .name{
+      font-weight:800;
+      font-size:24px;
+      line-height:1.05;
+    }
+    .brand .sub{
+      font-size:10px;
+      font-weight:700;
+      color:#0b6fb2;
+      margin-top:2px;
+      text-transform:uppercase;
+      letter-spacing:.6px;
+    }
+
+    .contactline{
+      flex:1;
+      display:flex;
+      justify-content:flex-end;
+      gap:26px;
+      padding-top:6px;
+      color:#222;
+      font-size:13px;
+    }
+    .contactline b{font-weight:700}
+    .contactline span{white-space:nowrap}
+
+    .titlebar{
+      background:var(--bar);
+      color:#fff;
+      text-align:center;
+      font-style:italic;
+      padding:10px 14px;
+      font-size:20px;
+      letter-spacing:.2px;
+    }
+
+    /* Form area */
+    form{margin:0}
+    .formBlock{padding:14px 28px 6px}
+    .row{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:18px 26px;
+      margin-top:10px;
+    }
+
+    .field{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      min-height:28px;
+    }
+    .label{
+      font-size:13px;
+      color:#111;
+      min-width:54px;
+      white-space:nowrap;
+    }
+    .lineInput{
+      flex:1;
+      border:none;
+      outline:none;
+      background:transparent;
+      border-bottom:2px solid var(--line);
+      padding:2px 6px 3px;
+      font-size:13.5px;
+    }
+    .lineInput:focus{
+      background:var(--focus);
+    }
+    .lineInput::placeholder{color:#888}
+
+    .row4{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px 26px;
+      margin-top:8px;
+    }
+
+    .inline3{
+      display:grid;
+      grid-template-columns:auto 90px auto 1fr;
+      gap:10px;
+      align-items:end;
+    }
+
+    .inline3 .label{min-width:auto}
+    .short{max-width:160px}
+    .tiny{max-width:110px}
+
+    .modelRow{
+      display:flex;
+      justify-content:center;
+      margin-top:8px;
+    }
+    .modelRow .field{
+      width:56%;
+      min-width:380px;
+      max-width:520px;
+    }
+    .modelRow .label{min-width:54px}
+
+    .divider{
+      height:14px;
+      background:var(--bar);
+      margin:14px 0 0;
+    }
+
+    /* Diagram + instructions block */
+    .mid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:18px;
+      padding:18px 28px 10px;
+    }
+
+    .leftDiagrams{
+      border:0;
+      padding-top:4px;
+    }
+
+    .diagramCard{
+      margin:10px 0 14px;
+      display:grid;
+      place-items:center;
+      border:0;
+    }
+    .diagramTitle{
+      margin-top:6px;
+      font-weight:700;
+      color:#222;
+      font-size:14px;
+    }
+    svg{max-width:100%; height:auto}
+
+    .rightCol{
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+    }
+
+    .instructions{
+      font-size:12.3px;
+      color:#222;
+      line-height:1.35;
+    }
+    .instructions ol{
+      margin:0;
+      padding-left:18px;
+    }
+    .instructions li{margin:0 0 10px}
+    .toolHint{
+      margin-top:4px;
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+    }
+    .commentBadge{
+      width:58px;
+      border:1px solid #cfcfcf;
+      border-radius:6px;
+      padding:8px 6px;
+      text-align:center;
+      font-size:10px;
+      color:#333;
+      background:#fafafa;
+    }
+    .commentBubble{
+      width:18px;height:18px;border-radius:5px;
+      background:#f6d57a;
+      margin:0 auto 6px;
+      position:relative;
+    }
+    .commentBubble:after{
+      content:"";
+      position:absolute;
+      width:6px;height:6px;
+      background:#f6d57a;
+      left:3px; bottom:-2px;
+      transform:rotate(30deg);
+      border-radius:1px;
+    }
+
+    .cutBox{
+      border:2px solid #222;
+      padding:10px 12px 12px;
+      min-height:290px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .cutBox .cutTitle{
+      font-weight:700;
+      font-size:14px;
+    }
+    textarea{
+      width:100%;
+      flex:1;
+      resize:none;
+      border:none;
+      outline:none;
+      background:transparent;
+      font-family:inherit;
+      font-size:13.3px;
+      line-height:1.35;
+      padding:6px 4px;
+    }
+    textarea:focus{background:var(--focus)}
+
+    .bottomBar{
+      height:14px;
+      background:var(--bar);
+      margin:10px 0 0;
+    }
+    .footer{
+      text-align:center;
+      padding:10px 18px 16px;
+      font-weight:700;
+      letter-spacing:.2px;
+    }
+
+    .submitRow{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:0 28px 16px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #777;
+      background:#fff;
+      color:#222;
+    }
+    .btnPrimary{
+      background:#3a3a3a;
+      border-color:#2a2a2a;
+      color:#fff;
+    }
+
+    /* Keep print-like */
+    @media (max-width:760px){
+      .row, .row4, .mid{grid-template-columns:1fr}
+      .modelRow .field{width:100%; min-width:0}
+      .contactline{flex-direction:column; align-items:flex-end; gap:4px}
+      .brand{min-width:0}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topline">
+      <div class="brand">
+        <div>
+          <div class="name">Waterloo<br/>Auto Parts</div>
+          <div class="sub">Salvage Center</div>
+        </div>
+        <div class="logoMark" aria-hidden="true">WAP<br/>SC</div>
+      </div>
+      <div class="contactline">
+        <span><b>Fax:</b> 319-234-8660</span>
+        <span><b>Email:</b> jeremyb@waterlooautoparts.com</span>
+      </div>
+    </div>
+
+    <div class="titlebar">Recycled Parts : Quad Cab Truck</div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="formBlock">
+        <div class="row">
+          <div class="field">
+            <label class="label" for="date">Date:</label>
+            <input class="lineInput" type="date" id="date" name="date" />
+          </div>
+          <div class="field">
+            <label class="label" for="work_order_number">Work Order Number:</label>
+            <input class="lineInput" type="text" id="work_order_number" name="work_order_number" />
+          </div>
+        </div>
+
+        <div class="row4">
+          <div class="field">
+            <label class="label" for="to">To:</label>
+            <input class="lineInput" type="text" id="to" name="to" />
+          </div>
+          <div class="field">
+            <label class="label" for="from_">From:</label>
+            <input class="lineInput" type="text" id="from_" name="from_" />
+          </div>
+
+          <div class="field">
+            <label class="label" for="phone">Phone:</label>
+            <input class="lineInput" type="tel" id="phone" name="phone" />
+          </div>
+          <div class="field">
+            <label class="label" for="fax">Fax:</label>
+            <input class="lineInput" type="tel" id="fax" name="fax" />
+          </div>
+
+          <div class="field">
+            <label class="label" for="email">Email:</label>
+            <input class="lineInput" type="email" id="email" name="email" />
+          </div>
+
+          <div class="inline3">
+            <label class="label" for="year">Year:</label>
+            <input class="lineInput tiny" type="text" id="year" name="year" inputmode="numeric" />
+            <label class="label" for="make">Make:</label>
+            <input class="lineInput" type="text" id="make" name="make" />
+          </div>
+        </div>
+
+        <div class="modelRow">
+          <div class="field">
+            <label class="label" for="model">Model:</label>
+            <input class="lineInput" type="text" id="model" name="model" />
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="mid">
+        <div class="leftDiagrams" aria-label="Truck diagrams">
+          <!-- Simple line-style SVGs to emulate the form's diagram area -->
+          <div class="diagramCard">
+            <svg viewBox="0 0 520 160" role="img" aria-label="Passenger Side diagram">
+              <rect x="12" y="74" width="330" height="44" rx="4" fill="none" stroke="#222" stroke-width="2"/>
+              <rect x="58" y="44" width="170" height="60" rx="6" fill="none" stroke="#222" stroke-width="2"/>
+              <line x1="143" y1="44" x2="143" y2="104" stroke="#222" stroke-width="2"/>
+              <rect x="228" y="46" width="50" height="56" rx="4" fill="none" stroke="#222" stroke-width="2"/>
+              <rect x="315" y="64" width="40" height="36" rx="3" fill="none" stroke="#222" stroke-width="2"/>
+              <line x1="342" y1="118" x2="505" y2="118" stroke="#222" stroke-width="2"/>
+              <rect x="372" y="108" width="64" height="26" rx="6" fill="none" stroke="#222" stroke-width="2"/>
+              <rect x="452" y="106" width="46" height="30" rx="6" fill="none" stroke="#222" stroke-width="2"/>
+              <circle cx="398" cy="140" r="10" fill="none" stroke="#222" stroke-width="2"/>
+              <circle cx="475" cy="140" r="10" fill="none" stroke="#222" stroke-width="2"/>
+            </svg>
+            <div class="diagramTitle">Passenger Side</div>
+          </div>
+
+          <div class="diagramCard">
+            <svg viewBox="0 0 520 200" role="img" aria-label="Top View diagram">
+              <rect x="70" y="32" width="140" height="90" rx="20" fill="none" stroke="#222" stroke-width="2"/>
+              <rect x="210" y="45" width="170" height="65" rx="10" fill="none" stroke="#222" stroke-width="2"/>
+              <rect x="380" y="40" width="110" height="75" rx="8" fill="none" stroke="#222" stroke-width="2"/>
+              <line x1="210" y1="78" x2="490" y2="78" stroke="#222" stroke-width="2" opacity=".6"/>
+              <line x1="120" y1="32" x2="120" y2="122" stroke="#222" stroke-width="2" opacity=".6"/>
+              <line x1="320" y1="45" x2="320" y2="110" stroke="#222" stroke-width="2" opacity=".6"/>
+              <rect x="395" y="54" width="80" height="48" fill="none" stroke="#222" stroke-width="2" opacity=".8"/>
+              <line x1="395" y1="68" x2="475" y2="68" stroke="#222" stroke-width="2" opacity=".6"/>
+              <line x1="395" y1="86" x2="475" y2="86" stroke="#222" stroke-width="2" opacity=".6"/>
+            </svg>
+            <div class="diagramTitle">Top View</div>
+          </div>
+
+          <div class="diagramCard">
+            <svg viewBox="0 0 520 160" role="img" aria-label="Driver Side diagram">
+              <rect x="12" y="74" width="330" height="44" rx="4" fill="none" stroke="#222" stroke-width="2"/>
+              <rect x="58" y="44" width="170" height="60" rx="6" fill="none" stroke="#222" stroke-width="2"/>
+              <line x1="143" y1="44" x2="143" y2="104" stroke="#222" stroke-width="2"/>
+              <rect x="228" y="46" width="50" height="56" rx="4" fill="none" stroke="#222" stroke-width="2"/>
+              <rect x="315" y="64" width="40" height="36" rx="3" fill="none" stroke="#222" stroke-width="2"/>
+              <line x1="12" y1="118" x2="165" y2="118" stroke="#222" stroke-width="2"/>
+              <rect x="165" y="108" width="64" height="26" rx="6" fill="none" stroke="#222" stroke-width="2"/>
+              <rect x="245" y="106" width="46" height="30" rx="6" fill="none" stroke="#222" stroke-width="2"/>
+              <circle cx="191" cy="140" r="10" fill="none" stroke="#222" stroke-width="2"/>
+              <circle cx="268" cy="140" r="10" fill="none" stroke="#222" stroke-width="2"/>
+            </svg>
+            <div class="diagramTitle">Driver Side</div>
+          </div>
+
+          <div class="diagramCard" style="margin-top:2px">
+            <svg viewBox="0 0 520 120" role="img" aria-label="Frame top view diagram">
+              <text x="20" y="30" font-size="18" font-weight="700" fill="#222">P</text>
+              <text x="20" y="108" font-size="18" font-weight="700" fill="#222">D</text>
+              <rect x="55" y="36" width="440" height="48" rx="6" fill="none" stroke="#222" stroke-width="2"/>
+              <line x1="95" y1="36" x2="95" y2="84" stroke="#222" stroke-width="2"/>
+              <line x1="145" y1="36" x2="145" y2="84" stroke="#222" stroke-width="2"/>
+              <line x1="195" y1="36" x2="195" y2="84" stroke="#222" stroke-width="2"/>
+              <line x1="245" y1="36" x2="245" y2="84" stroke="#222" stroke-width="2"/>
+              <line x1="295" y1="36" x2="295" y2="84" stroke="#222" stroke-width="2"/>
+              <line x1="345" y1="36" x2="345" y2="84" stroke="#222" stroke-width="2"/>
+              <line x1="395" y1="36" x2="395" y2="84" stroke="#222" stroke-width="2"/>
+              <line x1="445" y1="36" x2="445" y2="84" stroke="#222" stroke-width="2"/>
+              <circle cx="80" cy="36" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="120" cy="36" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="160" cy="36" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="200" cy="36" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="240" cy="36" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="280" cy="36" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="320" cy="36" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="360" cy="36" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="400" cy="36" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="440" cy="36" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="80" cy="84" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="120" cy="84" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="160" cy="84" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="200" cy="84" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="240" cy="84" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="280" cy="84" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="320" cy="84" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="360" cy="84" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="400" cy="84" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+              <circle cx="440" cy="84" r="4" fill="#fff" stroke="#222" stroke-width="2"/>
+            </svg>
+            <div class="diagramTitle">Top View</div>
+          </div>
+        </div>
+
+        <div class="rightCol">
+          <div class="instructions">
+            <ol>
+              <li>After downloading this form and filling it out, go to Tools &gt; Comment</li>
+              <li>Then click on the draw free form tool in the tool bar, and draw on an image where the body cut should be.</li>
+            </ol>
+            <div class="toolHint" aria-hidden="true">
+              <div class="commentBadge">
+                <div class="commentBubble"></div>
+                Comment<br/><span style="display:inline-block;margin-top:6px;border:1px solid #bbb;border-radius:4px;padding:2px 6px;background:#fff;font-weight:700">Open</span>
+              </div>
+              <div style="flex:1; color:#333; font-size:11.5px; padding-top:2px">
+                Use the drawing tool to mark the cut area on the diagrams. Provide written details in the box below.
+              </div>
+            </div>
+          </div>
+
+          <div class="cutBox">
+            <div class="cutTitle">Please use this area to explain your cut instructions in detail</div>
+            <textarea id="please_use_this_area_to_explain_your_cut_instructions_in_detail"
+                      name="please_use_this_area_to_explain_your_cut_instructions_in_detail"
+                      aria-label="Cut instructions"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottomBar"></div>
+      <div class="footer">www.waterlooautoparts.com</div>
+
+      <div class="submitRow">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn btnPrimary">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function val(id){
+        const el = document.getElementById(id);
+        return (el && typeof el.value === 'string') ? el.value : '';
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          order__vehicle_information: {
+            date: val('date') || '',
+            work_order_number: val('work_order_number') || '',
+            to: val('to') || '',
+            from_: val('from_') || '',
+            year: (val('year') || ''),
+            make: val('make') || '',
+            model: val('model') || ''
+          },
+          contact_information: {
+            phone: val('phone') || '',
+            fax: val('fax') || '',
+            email: val('email') || ''
+          },
+          cut_instructions: {
+            please_use_this_area_to_explain_your_cut_instructions_in_detail:
+              val('please_use_this_area_to_explain_your_cut_instructions_in_detail') || ''
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

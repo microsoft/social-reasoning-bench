@@ -12,8 +12,8 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class MeetingItemInformation(BaseModel):
-    """Basic information about the meeting and agenda item"""
+class AgendaItemBasics(BaseModel):
+    """Basic identifying information about the agenda item"""
 
     requested_meeting_date: str = Field(
         ..., description="Date of the City Council meeting being requested"
@@ -29,61 +29,71 @@ class MeetingItemInformation(BaseModel):
     )
 
 
-class AgendaClassification(BaseModel):
-    """Type of request and where it appears on the agenda"""
+class AgendaPlacement(BaseModel):
+    """Where this item should appear on the council agenda"""
 
     information_only: BooleanLike = Field(
         default="", description="Check if this agenda item is for information only"
     )
 
+    consent_agenda: BooleanLike = Field(
+        default="", description="Check if this item should be placed on the consent agenda"
+    )
+
+    p_f_committee: BooleanLike = Field(
+        default="", description="Check if this item is for the P&F Committee"
+    )
+
+    spw_committee: BooleanLike = Field(
+        default="", description="Check if this item is for the SPW Committee"
+    )
+
+    main_agenda: BooleanLike = Field(
+        default="", description="Check if this item should appear on the main agenda"
+    )
+
+
+class RequestedCouncilAction(BaseModel):
+    """Type of action or handling requested from the council"""
+
     approve_deny_motion: BooleanLike = Field(
-        default="", description="Check if Council is being asked to approve or deny a motion"
+        default="", description="Check if the requested action is to approve or deny via motion"
+    )
+
+    adopt_resolution_attach_draft: BooleanLike = Field(
+        default="",
+        description=(
+            "Check if the requested action is to adopt a resolution (attach draft resolution)"
+        ),
     )
 
     direction_requested: BooleanLike = Field(
         default="", description="Check if staff is requesting direction from the Council"
     )
 
-    consent_agenda: BooleanLike = Field(
-        default="", description="Check if this item is intended for the consent agenda"
-    )
-
-    adopt_resolution: BooleanLike = Field(
-        default="", description="Check if this item involves adopting a resolution"
-    )
-
     discussion_item: BooleanLike = Field(
-        default="", description="Check if this item is for discussion only"
-    )
-
-    pf_committee: BooleanLike = Field(
-        default="", description="Check if this item is for the P&F Committee agenda"
+        default="", description="Check if this is for discussion only"
     )
 
     hold_public_hearing: BooleanLike = Field(
-        default="", description="Check if this item requires holding a public hearing"
-    )
-
-    spw_committee: BooleanLike = Field(
-        default="", description="Check if this item is for the SPW Committee agenda"
+        default="",
+        description=(
+            "Check if a public hearing is to be held (attach copy of published hearing notice)"
+        ),
     )
 
     ordinance_1st_reading: BooleanLike = Field(
         default="", description="Check if this item is for the first reading of an ordinance"
     )
 
-    main_agenda: BooleanLike = Field(
-        default="", description="Check if this item is for the main Council agenda"
-    )
 
-
-class SubmitterPresenterInformation(BaseModel):
+class SubmissionDetails(BaseModel):
     """Who is submitting and presenting the item"""
 
     submitted_by: str = Field(
         ...,
         description=(
-            "Name of the person submitting this agenda request .If you cannot fill this, "
+            "Name of the person submitting the agenda request .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -117,8 +127,8 @@ class SubmitterPresenterInformation(BaseModel):
     )
 
 
-class IssueDetails(BaseModel):
-    """Description of the issue and proposed action"""
+class IssueDescription(BaseModel):
+    """Narrative description, options, and recommended action"""
 
     summary_of_issue: str = Field(
         ...,
@@ -142,51 +152,32 @@ class IssueDetails(BaseModel):
     recommended_action_motion: str = Field(
         ...,
         description=(
-            "Proposed action or motion language for the Council to consider .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Staff’s recommended action or motion language .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
 
 class FinancialImpact(BaseModel):
-    """Cost and budget information related to the request"""
+    """Cost and budget information related to this request"""
 
-    financial_impact: str = Field(
-        default="",
-        description=(
-            "Narrative description of the financial impact of this request .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-    is_there_a_cost_associated_with_this_request_yes: BooleanLike = Field(
-        default="", description="Select if there is a cost associated with this request"
-    )
-
-    is_there_a_cost_associated_with_this_request_no: BooleanLike = Field(
-        default="", description="Select if there is no cost associated with this request"
+    is_there_a_cost_associated_with_this_request: BooleanLike = Field(
+        default="", description="Indicate whether there is a cost associated with this request"
     )
 
     what_is_the_total_cost_with_tax_and_shipping: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total dollar amount of the cost, including tax and shipping"
+        default="", description="Total dollar amount including tax and shipping"
     )
 
-    is_this_budgeted_yes: BooleanLike = Field(
-        default="", description="Select if this cost is already included in the current budget"
-    )
-
-    is_this_budgeted_no: BooleanLike = Field(
-        default="", description="Select if this cost is not included in the current budget"
+    is_this_budgeted: BooleanLike = Field(
+        default="", description="Indicate whether this cost is included in the current budget"
     )
 
     please_explain: str = Field(
         default="",
         description=(
-            "Explanation of budget status or additional financial details .If you cannot "
+            "Explain budget status or funding source if not clearly budgeted .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
@@ -202,12 +193,11 @@ class BrainerdCityCouncilAgendaRequest(BaseModel):
         ''
     """
 
-    meeting__item_information: MeetingItemInformation = Field(
-        ..., description="Meeting & Item Information"
+    agenda_item_basics: AgendaItemBasics = Field(..., description="Agenda Item Basics")
+    agenda_placement: AgendaPlacement = Field(..., description="Agenda Placement")
+    requested_council_action: RequestedCouncilAction = Field(
+        ..., description="Requested Council Action"
     )
-    agenda_classification: AgendaClassification = Field(..., description="Agenda Classification")
-    submitter__presenter_information: SubmitterPresenterInformation = Field(
-        ..., description="Submitter & Presenter Information"
-    )
-    issue_details: IssueDetails = Field(..., description="Issue Details")
+    submission_details: SubmissionDetails = Field(..., description="Submission Details")
+    issue_description: IssueDescription = Field(..., description="Issue Description")
     financial_impact: FinancialImpact = Field(..., description="Financial Impact")

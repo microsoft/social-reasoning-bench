@@ -29,9 +29,9 @@ class NameandContactInformation(BaseModel):
     town: str = Field(
         ...,
         description=(
-            'Town where the applicant lives .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Town or city where the applicant lives .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -47,15 +47,15 @@ class NameandContactInformation(BaseModel):
     physical_address_line_2: str = Field(
         default="",
         description=(
-            "Second line of the applicant's physical address (apt, unit, etc.), if needed "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
+            "Second line of the applicant's physical (street) address, if needed .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     mailing_address_line_1: str = Field(
-        ...,
+        default="",
         description=(
             "First line of the applicant's mailing address, if different from physical "
             'address .If you cannot fill this, write "N/A". If this field should not be '
@@ -67,28 +67,45 @@ class NameandContactInformation(BaseModel):
     mailing_address_line_2: str = Field(
         default="",
         description=(
-            "Second line of the applicant's mailing address (apt, unit, etc.), if needed "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
-        ),
-    )
-
-    phones: str = Field(
-        ...,
-        description=(
-            "Primary phone number(s) where the applicant can be reached .If you cannot fill "
+            "Second line of the applicant's mailing address, if needed .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    emails: str = Field(
+    phones_line_1: str = Field(
         ...,
         description=(
-            "Email address(es) for contacting the applicant .If you cannot fill this, write "
+            "Primary phone number where the applicant can be reached .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    phones_line_2: str = Field(
+        default="",
+        description=(
+            "Additional phone number for the applicant, if any .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    emails_line_1: str = Field(
+        ...,
+        description=(
+            "Primary email address for the applicant .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    emails_line_2: str = Field(
+        default="",
+        description=(
+            "Additional email address for the applicant, if any .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -118,26 +135,34 @@ class HowDoYouIdentifyYourself(BaseModel):
     other: str = Field(
         default="",
         description=(
-            "Other way the applicant identifies their relationship to developmental "
+            "Describe any other way the applicant identifies in relation to developmental "
             'disability .If you cannot fill this, write "N/A". If this field should not '
             "be filled by you (for example, it belongs to another person or office), leave "
             'it blank (empty string "").'
         ),
     )
 
-    i_describe_my_his_her_disability_as: str = Field(
+    i_describe_my_his_her_disability_as_line_1: str = Field(
         default="",
         description=(
-            "Description of the applicant's or family member's disability in their own "
-            'words .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
+            "First line of description of the disability .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    i_describe_my_his_her_disability_as_line_2: str = Field(
+        default="",
+        description=(
+            "Second line of description of the disability (continued) .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
 
 class BackgroundCheckandMemberApplicationAgreement(BaseModel):
-    """Authorization and certification for background check and application"""
+    """Authorization and certification for background check and application accuracy"""
 
     signature: str = Field(
         ...,
@@ -150,7 +175,7 @@ class BackgroundCheckandMemberApplicationAgreement(BaseModel):
     )
 
     date: str = Field(
-        ..., description="Date the applicant signed the application"
+        ..., description="Date the applicant signs the application"
     )  # YYYY-MM-DD format
 
 
@@ -159,6 +184,7 @@ class VermontDevelopmentalDisabilitiesCouncilCitizenMembersApplication(BaseModel
         VERMONT DEVELOPMENTAL DISABILITIES COUNCIL
     Citizen Members Application
 
+        Need more space to respond? You may use the back of this application or attach extra paper.
         Applications are reviewed by VTDDC members. You may be asked for more information and invited to an interview. Members vote on finalists to recommend to the Governor, who appoints members. Finalists may need to complete an additional form as part of the Governor’s appointment process.
     """
 

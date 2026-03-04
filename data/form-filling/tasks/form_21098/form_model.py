@@ -12,8 +12,8 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class OrderVehicleInformation(BaseModel):
-    """Basic order details and vehicle identification for the recycled parts request"""
+class JobContactInformation(BaseModel):
+    """Basic job details and contact information for the work order"""
 
     date: str = Field(
         ..., description="Date this work order form is completed"
@@ -22,16 +22,16 @@ class OrderVehicleInformation(BaseModel):
     work_order_number: str = Field(
         ...,
         description=(
-            "Internal work order or job reference number .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Internal work order or job number for this request .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     to: str = Field(
         ...,
         description=(
-            "Name or department the form is being sent to .If you cannot fill this, write "
+            "Name or department this form is being sent to .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -40,35 +40,11 @@ class OrderVehicleInformation(BaseModel):
     from_: str = Field(
         ...,
         description=(
-            "Name of the person or company sending the form .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    year: Union[float, Literal["N/A", ""]] = Field(..., description="Model year of the vehicle")
-
-    make: str = Field(
-        ...,
-        description=(
-            "Vehicle manufacturer (e.g., Ford, Chevrolet, Dodge) .If you cannot fill this, "
+            "Name of the person or company sending this form .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
-
-    model: str = Field(
-        ...,
-        description=(
-            "Vehicle model (e.g., F-150, Silverado, Ram 1500) .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-
-class ContactInformation(BaseModel):
-    """Contact details for communication regarding this work order"""
 
     phone: str = Field(
         ...,
@@ -82,16 +58,40 @@ class ContactInformation(BaseModel):
     fax: str = Field(
         default="",
         description=(
-            "Fax number for contact or document return .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Fax number for contact, if applicable .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     email: str = Field(
-        default="",
+        ...,
         description=(
-            "Email address for contact or confirmation .If you cannot fill this, write "
+            'Contact email address .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
+        ),
+    )
+
+
+class VehicleInformation(BaseModel):
+    """Details about the vehicle for the recycled parts request"""
+
+    year: Union[float, Literal["N/A", ""]] = Field(..., description="Model year of the vehicle")
+
+    make: str = Field(
+        ...,
+        description=(
+            "Vehicle manufacturer (e.g., Ford, Chevrolet, Toyota) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    model: str = Field(
+        ...,
+        description=(
+            "Vehicle model (e.g., F-150, Silverado, Camry) .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -99,28 +99,30 @@ class ContactInformation(BaseModel):
 
 
 class CutInstructions(BaseModel):
-    """Detailed instructions for where and how the body cut should be made"""
+    """Detailed instructions for the body cut"""
 
     please_use_this_area_to_explain_your_cut_instructions_in_detail: str = Field(
         ...,
         description=(
-            "Detailed description of where and how the body cut should be made .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Detailed description of the required body cut, including measurements and "
+            'specific instructions .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
 
-class WaterlooAutoPartsRecycledPartsQuadCabTruck(BaseModel):
+class WaterlooAutoPartsSalvageCenter(BaseModel):
     """
-    Waterloo Auto Parts Recycled Parts: Quad Cab Truck
+        Waterloo
+    Auto Parts
+    SALVAGE CENTER
 
-    After downloading this form and filling it out, go to Tools > Comment. Then click on the draw free form tool in the tool bar, and draw on an image where the body cut should be. Please use this area to explain your cut instructions in detail.
+        After downloading this form and filling it out, go to Tools > Comment. Then click on the draw free form tool in the tool bar, and draw on an image where the body cut should be. Please use this area to explain your cut instructions in detail.
     """
 
-    order__vehicle_information: OrderVehicleInformation = Field(
-        ..., description="Order & Vehicle Information"
+    job__contact_information: JobContactInformation = Field(
+        ..., description="Job & Contact Information"
     )
-    contact_information: ContactInformation = Field(..., description="Contact Information")
+    vehicle_information: VehicleInformation = Field(..., description="Vehicle Information")
     cut_instructions: CutInstructions = Field(..., description="Cut Instructions")

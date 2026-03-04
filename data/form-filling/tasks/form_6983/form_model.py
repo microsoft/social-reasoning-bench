@@ -24,18 +24,8 @@ class TeamInformation(BaseModel):
         ),
     )
 
-    level_el: BooleanLike = Field(
-        ..., description="Select if the team is in the Elementary Level (EL)"
-    )
-
-    level_ml: BooleanLike = Field(..., description="Select if the team is in the Middle Level (ML)")
-
-    level_sl: BooleanLike = Field(
-        ..., description="Select if the team is in the Secondary Level (SL)"
-    )
-
-    level_ul: BooleanLike = Field(
-        ..., description="Select if the team is in the University Level (UL)"
+    level: Literal["EL", "ML", "SL", "UL", "N/A", ""] = Field(
+        ..., description="Competition level (Elementary, Middle, Secondary, or University)"
     )
 
     team_name: str = Field(
@@ -50,17 +40,16 @@ class TeamInformation(BaseModel):
     team_number: str = Field(
         ...,
         description=(
-            "Official team number, including all digits before and after the dash .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Official team number, including both parts .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     appraisers: str = Field(
         ...,
         description=(
-            "Names of appraisers submitting the nomination .If you cannot fill this, write "
+            "Names of appraisers submitting this nomination .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -68,7 +57,7 @@ class TeamInformation(BaseModel):
 
 
 class NominationDetails(BaseModel):
-    """Details about what and whom the nomination is for"""
+    """Details about what and who is being nominated"""
 
     nomination_for_team_challenge: BooleanLike = Field(
         ..., description="Select if the nomination is for the Team Challenge"
@@ -89,7 +78,7 @@ class NominationDetails(BaseModel):
     if_individual_name: str = Field(
         default="",
         description=(
-            "Name of the individual being nominated (if not a team) .If you cannot fill "
+            "Name of the individual being nominated (if applicable) .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -99,18 +88,18 @@ class NominationDetails(BaseModel):
 class ReasonforNomination(BaseModel):
     """Explanation and justification for the nomination"""
 
-    reason_for_nomination: str = Field(
+    please_cite_reason_for_nomination: str = Field(
         ...,
         description=(
-            "Detailed explanation citing reasons and examples for the nomination .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Detailed explanation of the reasons for this nomination, including specific "
+            'examples .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
 
-class DITheRenaissanceAwardNominationForm(BaseModel):
+class RenaissanceAwardOutstandingDesignEngineeringOrPerformanceForm(BaseModel):
     """
         Destination Imagination®
 
@@ -118,7 +107,9 @@ class DITheRenaissanceAwardNominationForm(BaseModel):
     For Outstanding Design, Engineering, or Performance
     NOMINATION FORM
 
-        This award is offered for exceptional skill in the areas of engineering, design, or performance. Nominations should give examples of outstanding skills in the areas of engineering, design, or performance demonstrated by the team/individual. This award is offered for skill rather than creativity.
+        ★  This award is offered for exceptional skill in the areas of engineering, design, or performance.
+        ★  Nominations should give examples of outstanding skills in the areas of engineering, design, or performance demonstrated by the team/individual.
+        ★  This award is offered for skill rather than creativity.
     """
 
     team_information: TeamInformation = Field(..., description="Team Information")

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Serenity First Youth Coalition — Registration Form</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#d6d2cd;
+      --page:#ffffff;
+      --ink:#111;
+      --muted:#555;
+      --grid:#2b2b2b;
+      --cream:#fbf2cc;
+      --section:#3f3f3f;
+      --focus:#f5f5ee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--page);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:18px 18px 16px;
+    }
+
+    .top{
+      display:grid;
+      grid-template-columns: 160px 1fr;
+      gap:14px;
+      align-items:start;
+    }
+    .logoBox{
+      width:160px;
+      height:120px;
+      border:2px solid #1f1f1f;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#fff;
+      overflow:hidden;
+    }
+    .logoMark{
+      width:120px;
+      height:120px;
+      border-radius:50%;
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: radial-gradient(circle at 50% 60%, #fff 0 40%, rgba(255,255,255,0) 41%),
+                  conic-gradient(from 200deg, #ffd54a, #ff8b5a, #f35b83, #7b6de7, #50c8a9, #ffd54a);
+      filter:saturate(0.9);
+    }
+    .logoMark:before{
+      content:"";
+      position:absolute;
+      inset:10px;
+      border-radius:50%;
+      background:#fff;
+      border:1px solid rgba(0,0,0,.25);
+    }
+    .logoMark:after{
+      content:"SERENITY FIRST";
+      position:absolute;
+      top:18px;
+      left:50%;
+      transform:translateX(-50%);
+      font-weight:800;
+      font-size:11px;
+      letter-spacing:1.2px;
+      color:#3a3a3a;
+      white-space:nowrap;
+    }
+    .titleArea{
+      padding-top:2px;
+    }
+    .titleArea .smallTitle{
+      text-align:center;
+      font-size:14px;
+      margin:0;
+      color:#222;
+      font-weight:600;
+    }
+    .titleArea .bigTitle{
+      text-align:center;
+      margin:4px 0 8px;
+      font-size:18px;
+      font-weight:700;
+      line-height:1.15;
+    }
+    .titleArea .subline{
+      font-size:11.5px;
+      color:#222;
+      line-height:1.3;
+      margin:0;
+      text-align:left;
+    }
+
+    .notice{
+      margin-top:10px;
+      font-weight:800;
+      font-size:12.5px;
+      line-height:1.25;
+      text-transform:uppercase;
+      letter-spacing:.2px;
+    }
+    .notice span{
+      font-weight:600;
+      text-transform:none;
+      letter-spacing:0;
+    }
+
+    /* section bar style (requested) */
+    .section-bar{
+      background:var(--section);
+      color:#fff;
+      font-weight:800;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:1.8px;
+      padding:6px 10px;
+      margin:12px 0 0;
+    }
+
+    /* Form grid mimicking the paper table */
+    .form-wrap{
+      margin-top:10px;
+    }
+    table.formTable{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      border:2px solid var(--grid);
+      font-size:12px;
+    }
+    .formTable td{
+      border:1.6px solid var(--grid);
+      vertical-align:middle;
+      padding:6px 8px;
+      height:44px;
+    }
+    .cream{ background:var(--cream); }
+    .label{
+      font-weight:600;
+      color:#1b1b1b;
+      font-size:12px;
+    }
+    .label.small{ font-size:11px; font-weight:600; }
+    .cell{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      width:100%;
+    }
+    .cell.stack{
+      flex-direction:column;
+      align-items:stretch;
+      gap:2px;
+    }
+    .fill{
+      flex:1;
+      min-width:0;
+    }
+    input[type="text"], input[type="email"], input[type="tel"], input[type="date"], textarea{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      color:inherit;
+      padding:2px 2px;
+    }
+    input:focus, textarea:focus{
+      background:var(--focus);
+      border-radius:2px;
+    }
+
+    .hint{
+      color:var(--muted);
+      font-size:10.5px;
+      line-height:1.2;
+      margin-top:2px;
+    }
+
+    .inline-options{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      width:100%;
+    }
+    .opt{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      white-space:nowrap;
+      font-weight:600;
+      font-size:12px;
+    }
+    /* Checkbox visual */
+    input[type="checkbox"]{
+      width:14px;
+      height:14px;
+      accent-color:#222;
+      transform: translateY(1px);
+    }
+
+    /* T-shirt row */
+    .tshirtRow{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:18px;
+      width:100%;
+    }
+    .tshirtRow .sizeLabel{
+      font-weight:700;
+      width:140px;
+      text-align:left;
+    }
+    .tshirtRow .sizes{
+      display:flex;
+      gap:18px;
+      align-items:center;
+      justify-content:center;
+      flex:1;
+    }
+    .sizeOpt{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:4px;
+      font-size:11.5px;
+      font-weight:700;
+      width:34px;
+    }
+
+    .footerNote{
+      margin-top:10px;
+      font-size:12px;
+      line-height:1.3;
+    }
+    .footerNote b{
+      font-weight:800;
+    }
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:14px 2px 0;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #888;
+      background:#fff;
+      color:#333;
+    }
+    .btn-primary{
+      background:#444;
+      color:#fff;
+      border-color:#333;
+    }
+
+    /* Keep the table proportions close to the scan */
+    col.c1{width:150px;}
+    col.c2{width:240px;}
+    col.c3{width:120px;}
+    col.c4{width:140px;}
+    col.c5{width:120px;}
+
+    @media (max-width:740px){
+      .top{ grid-template-columns: 1fr; }
+      .logoBox{ width:100%; height:110px; }
+      col.c1, col.c2, col.c3, col.c4, col.c5{ width:auto; }
+      table.formTable{ font-size:12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <div class="logoBox" aria-label="Serenity First logo (stylized)">
+        <div class="logoMark" title="Serenity First"></div>
+      </div>
+      <div class="titleArea">
+        <p class="smallTitle">Registration Form for</p>
+        <p class="bigTitle">Serenity First Prevention and Support Youth Coalition</p>
+        <p class="subline">
+          Please submit completed packet to <b>SFPSCOALITION@GMAIL.COM</b>. If you have any questions or
+          concerns, please call: Jill Fabian at (520) 661-6445 or Diane Morrow at (520) 390-6286.
+        </p>
+      </div>
+    </div>
+
+    <div class="notice">
+      ALL YOUTH ACTIVITIES ARE FREE AND PROVIDED BY OUR GRANT FROM THE ARIZONA PARENTS COMMISSION FOR DRUG EDUCATION AND PREVENTION AND THE GOVERNOR’S OFFICE OF YOUTH, FAITH AND FAMILY.
+      <span>
+        The Youth Coalition accepts youth 13-18 and meets once a month at the location of our monthly activity.
+        (Presently we are meeting on Zoom from 5:30 - 7:00 pm once a month).
+      </span>
+    </div>
+
+    <form id="mainForm" class="form-wrap" autocomplete="off">
+      <div class="section-bar">Participant Information</div>
+
+      <table class="formTable" aria-label="Registration form table">
+        <colgroup>
+          <col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5">
+        </colgroup>
+
+        <!-- Participant Name -->
+        <tr>
+          <td class="label">Participant<br/>First &amp; Last Name:</td>
+          <td colspan="4">
+            <input type="text" id="participant_first_last_name" name="participant_first_last_name" />
+          </td>
+        </tr>
+
+        <!-- Participant Address -->
+        <tr class="cream">
+          <td class="label">Participant<br/>Address:</td>
+          <td colspan="4">
+            <input type="text" id="participant_address" name="participant_address" />
+          </td>
+        </tr>
+
+        <!-- City/State/Zip + Participant phone -->
+        <tr>
+          <td class="label">City/State/Zip:</td>
+          <td colspan="2">
+            <input type="text" id="city_state_zip" name="city_state_zip" />
+          </td>
+          <td class="label" style="text-align:center;">Participant Phone:</td>
+          <td>
+            <input type="tel" id="participant_phone" name="participant_phone" placeholder="(###) ###-####" />
+          </td>
+        </tr>
+
+        <!-- Email + Transportation yes/no -->
+        <tr class="cream">
+          <td class="label">Participant Email:</td>
+          <td colspan="2">
+            <input type="email" id="participant_email" name="participant_email" />
+          </td>
+          <td class="label small">
+            Does participant require transportation to and from meetings/activities?
+          </td>
+          <td>
+            <div class="inline-options">
+              <label class="opt" title="Transportation required">
+                <input type="checkbox" id="transportation_required" />
+                <span>Yes</span>
+              </label>
+              <label class="opt" title="Transportation not required">
+                <input type="checkbox" id="transportation_not_required" />
+                <span>No</span>
+              </label>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Gender + School/Grade + Peanut allergy + DOB -->
+        <tr>
+          <td class="label">Participant Gender<br/>(Female or Male):</td>
+          <td>
+            <input type="text" id="participant_gender_female_or_male" name="participant_gender_female_or_male" />
+          </td>
+          <td colspan="1">
+            <div class="cell stack">
+              <div class="label">School:</div>
+              <input type="text" id="school" name="school" />
+            </div>
+          </td>
+          <td colspan="1">
+            <div class="cell stack">
+              <div class="label">Grade:</div>
+              <input type="text" id="grade" name="grade" />
+            </div>
+          </td>
+          <td>
+            <div class="cell stack">
+              <div class="label">Do you have a peanut allergy? (yes or no):</div>
+              <label class="opt" style="justify-content:flex-start; gap:8px;">
+                <input type="checkbox" id="peanut_allergy" />
+                <span>Peanut allergy</span>
+              </label>
+              <div class="cell" style="margin-top:4px;">
+                <div class="label" style="min-width:150px;">Date of Birth (MM/DD/YY)</div>
+                <input type="date" id="date_of_birth_mm_dd_yy" name="date_of_birth_mm_dd_yy" />
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- T-shirt size + Parent/Guardian name -->
+        <tr class="cream">
+          <td colspan="3">
+            <div class="tshirtRow">
+              <div class="sizeLabel">T-Shirt Size:<br/><span style="font-weight:600; font-size:11px;">(Circle one)</span></div>
+              <div class="sizes" aria-label="T-shirt sizes (checkboxes)">
+                <label class="sizeOpt" title="S">
+                  <div>S</div>
+                  <input type="checkbox" id="t_shirt_size_s" />
+                </label>
+                <label class="sizeOpt" title="M">
+                  <div>M</div>
+                  <input type="checkbox" id="t_shirt_size_m" />
+                </label>
+                <label class="sizeOpt" title="L">
+                  <div>L</div>
+                  <input type="checkbox" id="t_shirt_size_l" />
+                </label>
+                <label class="sizeOpt" title="XL">
+                  <div>XL</div>
+                  <input type="checkbox" id="t_shirt_size_xl" />
+                </label>
+                <label class="sizeOpt" title="XXL">
+                  <div>XXL</div>
+                  <input type="checkbox" id="t_shirt_size_xxl" />
+                </label>
+              </div>
+            </div>
+          </td>
+          <td class="label" style="text-align:center;">Parent/Guardian<br/>First &amp; Last Name</td>
+          <td>
+            <input type="text" id="parent_guardian_first_last_name" name="parent_guardian_first_last_name" />
+          </td>
+        </tr>
+
+        <!-- Parent email + parent phone -->
+        <tr>
+          <td class="label">Parent/Guardian<br/>Email:</td>
+          <td colspan="2">
+            <input type="email" id="parent_guardian_email" name="parent_guardian_email" />
+          </td>
+          <td class="label" style="text-align:center;">Parent/Guardian<br/>Phone:</td>
+          <td>
+            <input type="tel" id="parent_guardian_phone" name="parent_guardian_phone" placeholder="(###) ###-####" />
+          </td>
+        </tr>
+
+        <!-- spacer row like scan -->
+        <tr class="cream">
+          <td>&nbsp;</td>
+          <td colspan="2">&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+        </tr>
+
+        <!-- Emergency Contact name + phone -->
+        <tr>
+          <td class="label">Emergency Contact<br/>First &amp; Last Name:</td>
+          <td colspan="2">
+            <input type="text" id="emergency_contact_first_last_name" name="emergency_contact_first_last_name" />
+          </td>
+          <td class="label" style="text-align:center;">Emergency Contact<br/>Phone:</td>
+          <td>
+            <input type="tel" id="emergency_contact_phone" name="emergency_contact_phone" placeholder="(###) ###-####" />
+          </td>
+        </tr>
+
+        <!-- Emergency Email + Relationship -->
+        <tr class="cream">
+          <td class="label">Emergency Contact<br/>Email:</td>
+          <td colspan="2">
+            <input type="email" id="emergency_contact_email" name="emergency_contact_email" />
+          </td>
+          <td class="label small">Emergency Contact Relationship (e.g. "Mom"):</td>
+          <td>
+            <input type="text" id="emergency_contact_relationship_eg_mom" name="emergency_contact_relationship_eg_mom" />
+          </td>
+        </tr>
+      </table>
+
+      <div class="section-bar">Medical &amp; Dietary Information</div>
+      <div class="footerNote">
+        <b>Medical Information &amp; Dietary Restrictions:</b>
+        <span style="font-size:12px;">
+          (Please describe any health condition we should know about, especially any dietary restrictions or specific activities limited by a physician.)
+        </span>
+      </div>
+      <div style="border:2px solid var(--grid); border-top:none; padding:10px 10px 12px; background:#fff;">
+        <textarea id="medical_information_dietary_restrictions" name="medical_information_dietary_restrictions" rows="4"></textarea>
+      </div>
+
+      <div class="submit-row">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Helpers
+    function cbBoolLike(id){
+      const el = document.getElementById(id);
+      return el && el.checked ? "true" : "false";
+    }
+    function val(id){
+      const el = document.getElementById(id);
+      return el ? (el.value || "") : "";
+    }
+    function shirtLiteralFromCheckbox(id, literal){
+      const el = document.getElementById(id);
+      return (el && el.checked) ? literal : "";
+    }
+
+    // Mutually exclusive checkbox groups (to mimic "circle one")
+    function makeExclusive(ids){
+      ids.forEach(id=>{
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.addEventListener('change', ()=>{
+          if(el.checked){
+            ids.forEach(other=>{
+              if(other!==id){
+                const o = document.getElementById(other);
+                if(o) o.checked = false;
+              }
+            });
+          }
+        });
+      });
+    }
+
+    makeExclusive(["transportation_required","transportation_not_required"]);
+    makeExclusive(["t_shirt_size_s","t_shirt_size_m","t_shirt_size_l","t_shirt_size_xl","t_shirt_size_xxl"]);
+
+    document.getElementById('mainForm').addEventListener('submit', function(e){
+      e.preventDefault();
+
+      // For the T-shirt size fields in the model: each is a Literal; we serialize the chosen one with its literal, others as "".
+      const tshirt = {
+        t_shirt_size_s: shirtLiteralFromCheckbox("t_shirt_size_s","S"),
+        t_shirt_size_m: shirtLiteralFromCheckbox("t_shirt_size_m","M"),
+        t_shirt_size_l: shirtLiteralFromCheckbox("t_shirt_size_l","L"),
+        t_shirt_size_xl: shirtLiteralFromCheckbox("t_shirt_size_xl","XL"),
+        t_shirt_size_xxl: shirtLiteralFromCheckbox("t_shirt_size_xxl","XXL"),
+      };
+
+      const data = {
+        participant_information: {
+          participant_first_last_name: val("participant_first_last_name"),
+          participant_address: val("participant_address"),
+          city_state_zip: val("city_state_zip"),
+          participant_phone: val("participant_phone"),
+          participant_email: val("participant_email"),
+          transportation_required: cbBoolLike("transportation_required"),
+          transportation_not_required: cbBoolLike("transportation_not_required"),
+          participant_gender_female_or_male: val("participant_gender_female_or_male"),
+          school: val("school"),
+          grade: val("grade"),
+          peanut_allergy: cbBoolLike("peanut_allergy"),
+          date_of_birth_mm_dd_yy: val("date_of_birth_mm_dd_yy"),
+          ...tshirt
+        },
+        parentguardian_information: {
+          parent_guardian_first_last_name: val("parent_guardian_first_last_name"),
+          parent_guardian_email: val("parent_guardian_email"),
+          parent_guardian_phone: val("parent_guardian_phone"),
+        },
+        emergency_contact: {
+          emergency_contact_first_last_name: val("emergency_contact_first_last_name"),
+          emergency_contact_phone: val("emergency_contact_phone"),
+          emergency_contact_email: val("emergency_contact_email"),
+          emergency_contact_relationship_eg_mom: val("emergency_contact_relationship_eg_mom"),
+        },
+        medical__dietary_information: {
+          medical_information_dietary_restrictions: val("medical_information_dietary_restrictions"),
+        }
+      };
+
+      console.log("SerenityFirstYouthCoalitionRegistrationForm:", JSON.stringify(data, null, 2));
+      alert("Submitted! Check console for JSON.");
+    });
+  </script>
+</body>
+</html>

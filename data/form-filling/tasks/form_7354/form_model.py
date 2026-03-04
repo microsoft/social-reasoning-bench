@@ -13,32 +13,32 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class ApplicantInformation(BaseModel):
-    """Basic personal and contact information, position, and eligibility"""
+    """Basic personal and contact information, eligibility, and position details"""
 
     last_name: str = Field(
         ...,
         description=(
-            'Applicant\'s last name .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            'Applicant\'s legal last name .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
     first_name: str = Field(
         ...,
         description=(
-            'Applicant\'s first name .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            'Applicant\'s legal first name .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
     middle_initial: str = Field(
         default="",
         description=(
-            'Applicant\'s middle initial .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Middle initial of applicant\'s name .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -47,55 +47,74 @@ class ApplicantInformation(BaseModel):
     street_address: str = Field(
         ...,
         description=(
-            'Applicant\'s street address .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Street address, including apartment or unit number if applicable .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     city_state: str = Field(
         ...,
         description=(
-            'City and state of current address .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
+            'City and state of current residence .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
-    zip_code: str = Field(..., description="Zip code of current address")
+    zip_code: str = Field(..., description="Zip or postal code of current residence")
 
     phone_number: str = Field(
         ...,
         description=(
-            'Primary phone number .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Primary phone number where the applicant can be reached .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     legal_eligibility_to_work_us: BooleanLike = Field(
         ...,
-        description="Indicate if you can provide proof of legal eligibility to work in the U.S.",
+        description=(
+            "Indicate whether you can provide documentation of your legal eligibility to "
+            "work in the United States"
+        ),
     )
 
-    minimum_salary_expected: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Minimum salary you are willing to accept"
+    minimum_salary_expected: str = Field(
+        default="",
+        description=(
+            "Minimum salary or wage you are willing to accept .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
     )
 
     position_apply_for: str = Field(
         ...,
         description=(
-            "Job title or position you are applying for .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Job title or position for which you are applying .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    sexual_harassment_history: BooleanLike = Field(
+    disciplined_for_sexual_harassment: BooleanLike = Field(
         ...,
         description=(
-            "Indicate if you have ever been disciplined, terminated, or resigned due to "
-            "sexual harassment in the workplace"
+            "Indicate whether you have ever been disciplined, terminated, or resigned due "
+            "to sexual harassment in the workplace"
+        ),
+    )
+
+    explain_yes_answers: str = Field(
+        default="",
+        description=(
+            "If you answered Yes, provide detailed explanations on additional sheets, "
+            'including dates and circumstances .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -103,13 +122,13 @@ class ApplicantInformation(BaseModel):
         ..., description="Earliest date you are available to start work"
     )  # YYYY-MM-DD format
 
-    are_you_18_years_of_age_or_older: BooleanLike = Field(
-        ..., description="Indicate if you are at least 18 years old"
+    are_you_18_years_or_older: BooleanLike = Field(
+        ..., description="Indicate whether you are at least 18 years old"
     )
 
 
 class Education(BaseModel):
-    """Educational background and related training"""
+    """High school, college, and other education details"""
 
     name_of_high_school_attended: str = Field(
         default="",
@@ -129,24 +148,24 @@ class Education(BaseModel):
         ),
     )
 
-    graduate_yn_high_school: BooleanLike = Field(
-        default="", description="Indicate if you graduated from high school"
+    graduate_high_school: BooleanLike = Field(
+        default="", description="Indicate whether you graduated from this high school"
     )
 
-    ged_yn_high_school: BooleanLike = Field(
-        default="", description="Indicate if you obtained a GED"
+    ged_high_school: BooleanLike = Field(
+        default="", description="Indicate whether you obtained a GED"
     )
 
     name_of_college_or_technical_school: str = Field(
         default="",
         description=(
-            "Name of the college or technical school attended .If you cannot fill this, "
+            "Name of the college or technical school you attended .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    city_state_college_or_technical_school: str = Field(
+    city_state_college: str = Field(
         default="",
         description=(
             "City and state where the college or technical school is located .If you cannot "
@@ -156,151 +175,191 @@ class Education(BaseModel):
         ),
     )
 
-    graduate_yn_college_or_technical_school: BooleanLike = Field(
-        default="", description="Indicate if you graduated from this college or technical school"
+    graduate_college: BooleanLike = Field(
+        default="",
+        description="Indicate whether you graduated from this college or technical school",
     )
 
-    degree_yn_college_or_technical_school: BooleanLike = Field(
-        default="", description="Indicate if you received a degree from this institution"
+    degree_college: BooleanLike = Field(
+        default="", description="Indicate whether you received a degree from this institution"
     )
 
     major: str = Field(
         default="",
         description=(
-            'Your major field of study .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Your major field of study at the college or technical school .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
-    additional_training_or_education: str = Field(
+    presently_enrolled_in_school: BooleanLike = Field(
+        default="", description="Indicate whether you are currently enrolled in any school program"
+    )
+
+    current_school_details: str = Field(
         default="",
         description=(
-            "Any additional training, certifications, or education .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Provide the name, address of the school, and your expected degree completion "
+            'date .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
-    are_you_presently_enrolled_in_school: BooleanLike = Field(
-        default="", description="Indicate if you are currently enrolled in any school"
-    )
-
-    current_school_name_address_and_expected_degree_date: str = Field(
+    job_related_skills: str = Field(
         default="",
         description=(
-            "Name and address of current school and your expected degree completion date "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
-        ),
-    )
-
-    job_related_skills_or_accomplishments: str = Field(
-        default="",
-        description=(
-            "Job-related skills, accomplishments, and any military service details .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Describe any relevant skills, accomplishments, certifications, or military "
+            'service .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
 
 class WorkAvailability(BaseModel):
-    """Days, times, and scheduling needs for work"""
+    """Days, times, and scheduling needs"""
 
-    monday_work_availability: str = Field(
+    work_availability_monday_from: str = Field(
         default="",
         description=(
-            "Hours you are available to work on Monday .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    tuesday_work_availability: str = Field(
-        default="",
-        description=(
-            "Hours you are available to work on Tuesday .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    wednesday_work_availability: str = Field(
-        default="",
-        description=(
-            "Hours you are available to work on Wednesday .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    thursday_work_availability: str = Field(
-        default="",
-        description=(
-            "Hours you are available to work on Thursday .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    friday_work_availability: str = Field(
-        default="",
-        description=(
-            "Hours you are available to work on Friday .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    saturday_work_availability: str = Field(
-        default="",
-        description=(
-            "Hours you are available to work on Saturday .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    sunday_work_availability: str = Field(
-        default="",
-        description=(
-            "Hours you are available to work on Sunday .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    availability_from_time: str = Field(
-        default="",
-        description=(
-            "Earliest time you are available to work each day .If you cannot fill this, "
+            "Time you are available to start work on Mondays .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    availability_to_time: str = Field(
+    work_availability_monday_to: str = Field(
         default="",
         description=(
-            "Latest time you are available to work each day .If you cannot fill this, write "
+            "Time you are available to end work on Mondays .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_tuesday_from: str = Field(
+        default="",
+        description=(
+            "Time you are available to start work on Tuesdays .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_tuesday_to: str = Field(
+        default="",
+        description=(
+            "Time you are available to end work on Tuesdays .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_wednesday_from: str = Field(
+        default="",
+        description=(
+            "Time you are available to start work on Wednesdays .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_wednesday_to: str = Field(
+        default="",
+        description=(
+            "Time you are available to end work on Wednesdays .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_thursday_from: str = Field(
+        default="",
+        description=(
+            "Time you are available to start work on Thursdays .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_thursday_to: str = Field(
+        default="",
+        description=(
+            "Time you are available to end work on Thursdays .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_friday_from: str = Field(
+        default="",
+        description=(
+            "Time you are available to start work on Fridays .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_friday_to: str = Field(
+        default="",
+        description=(
+            "Time you are available to end work on Fridays .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_saturday_from: str = Field(
+        default="",
+        description=(
+            "Time you are available to start work on Saturdays .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_saturday_to: str = Field(
+        default="",
+        description=(
+            "Time you are available to end work on Saturdays .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_sunday_from: str = Field(
+        default="",
+        description=(
+            "Time you are available to start work on Sundays .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    work_availability_sunday_to: str = Field(
+        default="",
+        description=(
+            "Time you are available to end work on Sundays .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
     total_hours_per_week_available: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total number of hours per week you are available to work"
+        default="",
+        description="Approximate total number of hours you are available to work each week",
     )
 
-    special_requests_or_needs_for_work_schedule: str = Field(
+    special_work_schedule_requests: str = Field(
         default="",
         description=(
-            "Any special scheduling requests or needs .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Describe any special scheduling needs or requests (e.g., restrictions, "
+            'preferred shifts) .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
@@ -312,7 +371,7 @@ class RenderhrLlcPayrollhumanResourceServiceApplicationForEmployment(BaseModel):
 
     Application For Employment
 
-        RenderHR LLC is an Equal Opportunity Employer. Reasonable accommodation under the U.S. Americans with Disabilities Act, as amended, or California Fair Employment and Housing Act will be provided as required by applicable law. Any offer of employment is conditioned upon background, credit and drug test results and are at the sole discretion of RendHR LLC.
+        RenderHR LLC Payroll/Human Resource Service Application For Employment. RenderHR LLC is an Equal Opportunity Employer. Reasonable accommodation under the U.S. Americans with Disabilities Act, as amended, or California Fair Employment and Housing Act will be provided as required by applicable law.
     """
 
     applicant_information: ApplicantInformation = Field(..., description="Applicant Information")

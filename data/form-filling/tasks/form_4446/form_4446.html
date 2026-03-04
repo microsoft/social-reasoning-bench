@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Begin the EPIDIOLEX conversation</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    :root{
+      --bg:#d6d2cd;
+      --page:#ffffff;
+      --ink:#1a1a1a;
+      --muted:#6b6b6b;
+      --line:#2b2b2b;
+      --accent:#8bc53f; /* lime green from header */
+      --bar:#3e3e3e;
+      --focus:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:820px;
+      background:var(--page);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:28px 38px 18px;
+      position:relative;
+    }
+
+    .title{
+      font-size:40px;
+      line-height:1.05;
+      letter-spacing:.2px;
+      font-weight:300;
+      color:var(--accent);
+      margin:0 0 18px 0;
+    }
+
+    .section-bar{
+      background:var(--bar);
+      color:#fff;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:1.6px;
+      font-size:12px;
+      padding:7px 12px;
+      margin:14px 0 10px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:24px 28px;
+      align-items:start;
+    }
+    @media (max-width: 780px){
+      .page{padding:22px 16px}
+      .title{font-size:32px}
+      .grid{grid-template-columns:1fr}
+    }
+
+    .q{
+      margin:0;
+      color:var(--muted);
+      font-size:14.5px;
+      line-height:1.35;
+    }
+    .q .num{
+      color:#1f5fa6; /* bluish number tint like scan */
+      font-weight:700;
+      margin-right:6px;
+    }
+
+    .write-area{
+      border-bottom:2px solid var(--line);
+      min-height:44px;
+      padding:10px 6px 6px 6px;
+      margin-top:10px;
+    }
+    textarea, input[type="text"]{
+      width:100%;
+      font:inherit;
+      font-size:14px;
+      border:none;
+      outline:none;
+      background:transparent;
+      resize:none;
+      color:var(--ink);
+    }
+    textarea{min-height:68px}
+    textarea:focus, input[type="text"]:focus{background:var(--focus)}
+
+    .block{
+      margin-top:4px;
+    }
+
+    .two-col-questions{
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap:22px 28px;
+      margin-top:6px;
+    }
+    @media (max-width: 780px){
+      .two-col-questions{grid-template-columns:1fr}
+    }
+
+    .checkbox-list{
+      margin:10px 0 0;
+      padding:0;
+      list-style:none;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .cb{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.2;
+    }
+    input[type="checkbox"]{
+      margin-top:1px;
+      width:15px;height:15px;
+      accent-color:#2b2b2b;
+      flex:0 0 auto;
+    }
+
+    .wide{
+      margin-top:16px;
+    }
+
+    .footer{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:16px;
+      margin-top:24px;
+      padding-top:14px;
+    }
+    .footnote{
+      font-size:12.5px;
+      color:#6a6a6a;
+      line-height:1.35;
+      max-width:520px;
+    }
+    .footnote a{color:#1f5fa6;text-decoration:underline}
+    .brand{
+      text-align:right;
+      min-width:210px;
+    }
+    .brand .logo{
+      font-size:44px;
+      font-weight:700;
+      color:#204a87;
+      letter-spacing:.2px;
+      line-height:1;
+    }
+    .brand .sub{
+      color:var(--accent);
+      font-size:22px;
+      font-weight:500;
+      margin-top:2px;
+    }
+    .page-no{
+      position:absolute;
+      left:18px;
+      bottom:12px;
+      color:#7a7a7a;
+      font-size:12px;
+    }
+
+    .actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:16px;
+      padding-top:10px;
+      border-top:1px solid #e5e5e5;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:650;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #777;
+      background:#fff;
+      color:#333;
+    }
+    .btn.primary{
+      background:#444;
+      border-color:#333;
+      color:#fff;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <div class="page-no">20</div>
+
+    <h1 class="title">Begin the EPIDIOLEX conversation</h1>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="section-bar">Current seizure treatment</div>
+
+      <div class="block">
+        <p class="q"><span class="num">1.</span>These are the seizure medicines that are currently being taken:</p>
+        <div class="write-area">
+          <textarea id="these_are_the_seizure_medicines_that_are_currently_being_taken" name="these_are_the_seizure_medicines_that_are_currently_being_taken" rows="3"></textarea>
+        </div>
+      </div>
+
+      <div class="block wide">
+        <p class="q"><span class="num">2.</span>These are the types of seizures that are occurring while on these medicines:</p>
+        <div class="write-area">
+          <textarea id="these_are_the_types_of_seizures_that_are_occurring_while_on_these_medicines" name="these_are_the_types_of_seizures_that_are_occurring_while_on_these_medicines" rows="3"></textarea>
+        </div>
+      </div>
+
+      <div class="two-col-questions wide">
+        <div class="block">
+          <p class="q"><span class="num">3.</span>While on these seizure medicines, seizures still happen:</p>
+          <ul class="checkbox-list">
+            <li class="cb">
+              <input type="checkbox" id="rarely_if_ever" name="rarely_if_ever" />
+              <label for="rarely_if_ever">Rarely, if ever</label>
+            </li>
+            <li class="cb">
+              <input type="checkbox" id="at_least_once_a_month" name="at_least_once_a_month" />
+              <label for="at_least_once_a_month">At least once a month</label>
+            </li>
+            <li class="cb">
+              <input type="checkbox" id="once_or_twice_a_week" name="once_or_twice_a_week" />
+              <label for="once_or_twice_a_week">Once or twice a week</label>
+            </li>
+            <li class="cb">
+              <input type="checkbox" id="about_once_a_day" name="about_once_a_day" />
+              <label for="about_once_a_day">About once a day</label>
+            </li>
+            <li class="cb">
+              <input type="checkbox" id="more_than_once_a_day" name="more_than_once_a_day" />
+              <label for="more_than_once_a_day">More than once a day</label>
+            </li>
+          </ul>
+        </div>
+
+        <div class="block">
+          <p class="q"><span class="num">4.</span>This is how satisfied I am with my current seizure medicines:</p>
+          <ul class="checkbox-list">
+            <li class="cb">
+              <input type="checkbox" id="fairly_satisfied" name="fairly_satisfied" />
+              <label for="fairly_satisfied">Fairly satisfied</label>
+            </li>
+            <li class="cb">
+              <input type="checkbox" id="okay_needs_improvement" name="okay_needs_improvement" />
+              <label for="okay_needs_improvement">Okay, needs improvement</label>
+            </li>
+            <li class="cb">
+              <input type="checkbox" id="its_time_to_try_something_different" name="its_time_to_try_something_different" />
+              <label for="its_time_to_try_something_different">It’s time to try something different</label>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section-bar">Treatment goals and EPIDIOLEX</div>
+
+      <div class="block">
+        <p class="q"><span class="num">5.</span>My goals for seizure treatment are:</p>
+        <div class="write-area">
+          <textarea id="my_goals_for_seizure_treatment_are" name="my_goals_for_seizure_treatment_are" rows="3"></textarea>
+        </div>
+      </div>
+
+      <div class="block wide">
+        <p class="q"><span class="num">6.</span>My hopes for EPIDIOLEX are:</p>
+        <div class="write-area">
+          <textarea id="my_hopes_for_epidiolex_are" name="my_hopes_for_epidiolex_are" rows="3"></textarea>
+        </div>
+      </div>
+
+      <div class="block wide">
+        <p class="q"><span class="num">7.</span>Additional notes and questions I have:</p>
+        <div class="write-area">
+          <textarea id="additional_notes_and_questions_i_have" name="additional_notes_and_questions_i_have" rows="3"></textarea>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn primary">Submit</button>
+      </div>
+
+      <div class="footer">
+        <div class="footnote">
+          <strong>Please see full Important Safety Information</strong> on pages 17–18 of this brochure and click here for full
+          <a href="#" onclick="return false;">Prescribing Information</a>.
+        </div>
+        <div class="brand" aria-label="Epidiolex logo">
+          <div class="logo">Epidiolex<span style="font-weight:700;font-size:16px;vertical-align:super;">®</span></div>
+          <div class="sub">(cannabidiol)</div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      const form = document.getElementById('mainForm');
+
+      // For BooleanLike fields: serialize as "true"/"false" (per instructions)
+      const cb = (id) => (document.getElementById(id)?.checked ? "true" : "false");
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const fd = new FormData(form);
+
+        const data = {
+          current_seizure_treatment: {
+            these_are_the_seizure_medicines_that_are_currently_being_taken: (fd.get('these_are_the_seizure_medicines_that_are_currently_being_taken') || '').toString(),
+            these_are_the_types_of_seizures_that_are_occurring_while_on_these_medicines: (fd.get('these_are_the_types_of_seizures_that_are_occurring_while_on_these_medicines') || '').toString(),
+            rarely_if_ever: cb('rarely_if_ever'),
+            at_least_once_a_month: cb('at_least_once_a_month'),
+            once_or_twice_a_week: cb('once_or_twice_a_week'),
+            about_once_a_day: cb('about_once_a_day'),
+            more_than_once_a_day: cb('more_than_once_a_day')
+          },
+          satisfaction_with_current_treatment: {
+            fairly_satisfied: cb('fairly_satisfied'),
+            okay_needs_improvement: cb('okay_needs_improvement'),
+            its_time_to_try_something_different: cb('its_time_to_try_something_different')
+          },
+          treatment_goals_and_epidiolex: {
+            my_goals_for_seizure_treatment_are: (fd.get('my_goals_for_seizure_treatment_are') || '').toString(),
+            my_hopes_for_epidiolex_are: (fd.get('my_hopes_for_epidiolex_are') || '').toString(),
+            additional_notes_and_questions_i_have: (fd.get('additional_notes_and_questions_i_have') || '').toString()
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for the JSON output.');
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -12,13 +12,13 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class ParticipantInformation(BaseModel):
-    """Basic identifying information for the person completing the form"""
+class PatientInformation(BaseModel):
+    """Basic identifying information for the patient"""
 
     name: str = Field(
         ...,
         description=(
-            'Participant\'s full name .If you cannot fill this, write "N/A". If this field '
+            'Patient\'s full name .If you cannot fill this, write "N/A". If this field '
             "should not be filled by you (for example, it belongs to another person or "
             'office), leave it blank (empty string "").'
         ),
@@ -27,267 +27,228 @@ class ParticipantInformation(BaseModel):
     date: str = Field(..., description="Date this form is completed")  # YYYY-MM-DD format
 
 
-class PlanofCareMeetingType(BaseModel):
-    """Type/timing of the Plan of Care (PoC) meeting"""
+class PlanofCareMeetingFeedback(BaseModel):
+    """Patient feedback about the Plan of Care (PoC) meeting"""
 
-    thirty_day_initial_poc_meeting: BooleanLike = Field(
-        default="", description="Check if this is a 30-day (initial) Plan of Care meeting"
+    field_30_day_initial: BooleanLike = Field(
+        default="", description="Check if this is the 30-day (initial) Plan of Care meeting"
     )
 
-    ninety_day_poc_follow_up_meeting: BooleanLike = Field(
-        default="", description="Check if this is a 90-day Plan of Care (follow-up) meeting"
+    field_90_day_poc_follow_up: BooleanLike = Field(
+        default="", description="Check if this is the 90-day Plan of Care (follow-up) meeting"
     )
 
-
-class PoCMeetingFeedback(BaseModel):
-    """Participant feedback on the Plan of Care (PoC) meeting"""
-
-    q1_strongly_agree: BooleanLike = Field(
-        default="",
+    q1_understand_purpose_level_of_agreement: Literal[
+        "Strongly Agree", "Agree", "Neutral", "Disagree", "Strongly Disagree", "N/A", ""
+    ] = Field(
+        ...,
         description=(
-            "Select if you strongly agree that you understand the purpose of your PoC meeting"
+            "Select how strongly you agree that you understand the purpose of your PoC meeting"
         ),
     )
 
-    q1_agree: BooleanLike = Field(
-        default="",
-        description="Select if you agree that you understand the purpose of your PoC meeting",
-    )
-
-    q1_neutral: BooleanLike = Field(
-        default="",
-        description="Select if you feel neutral about understanding the purpose of your PoC meeting",
-    )
-
-    q1_disagree: BooleanLike = Field(
-        default="",
-        description="Select if you disagree that you understand the purpose of your PoC meeting",
-    )
-
-    q1_strongly_disagree: BooleanLike = Field(
+    q1_comments_line_1: str = Field(
         default="",
         description=(
-            "Select if you strongly disagree that you understand the purpose of your PoC meeting"
+            "First line of comments about your understanding of the PoC meeting .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    q1_comments: str = Field(
+    q1_comments_line_2: str = Field(
         default="",
         description=(
-            "Additional comments about your understanding of the purpose of your PoC "
-            'meeting .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
+            "Second line of comments about your understanding of the PoC meeting .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    q2_strongly_agree: BooleanLike = Field(
+    q1_comments_line_3: str = Field(
         default="",
         description=(
-            "Select if you strongly agree that your PoC and PoC meeting are beneficial to your care"
+            "Third line of comments about your understanding of the PoC meeting .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    q2_agree: BooleanLike = Field(
-        default="",
-        description="Select if you agree that your PoC and PoC meeting are beneficial to your care",
-    )
-
-    q2_neutral: BooleanLike = Field(
-        default="",
+    q2_beneficial_to_care_level_of_agreement: Literal[
+        "Strongly Agree", "Agree", "Neutral", "Disagree", "Strongly Disagree", "N/A", ""
+    ] = Field(
+        ...,
         description=(
-            "Select if you feel neutral about whether your PoC and PoC meeting are "
-            "beneficial to your care"
+            "Select how strongly you agree that your PoC and PoC meeting are beneficial to "
+            "your care"
         ),
     )
 
-    q2_disagree: BooleanLike = Field(
+    q2_comments_line_1: str = Field(
         default="",
         description=(
-            "Select if you disagree that your PoC and PoC meeting are beneficial to your care"
-        ),
-    )
-
-    q2_strongly_disagree: BooleanLike = Field(
-        default="",
-        description=(
-            "Select if you strongly disagree that your PoC and PoC meeting are beneficial "
-            "to your care"
-        ),
-    )
-
-    q2_comments: str = Field(
-        default="",
-        description=(
-            "Additional comments about how beneficial your PoC and PoC meeting are to your "
+            "First line of comments about how beneficial the PoC and meeting are to your "
             'care .If you cannot fill this, write "N/A". If this field should not be '
             "filled by you (for example, it belongs to another person or office), leave it "
             'blank (empty string "").'
         ),
     )
 
-    q3_strongly_agree: BooleanLike = Field(
+    q2_comments_line_2: str = Field(
         default="",
         description=(
-            "Select if you strongly agree that you feel included as a valued member of the "
+            "Second line of comments about how beneficial the PoC and meeting are to your "
+            'care .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
+        ),
+    )
+
+    q2_comments_line_3: str = Field(
+        default="",
+        description=(
+            "Third line of comments about how beneficial the PoC and meeting are to your "
+            'care .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
+        ),
+    )
+
+    q3_included_as_valued_member_level_of_agreement: Literal[
+        "Strongly Agree", "Agree", "Neutral", "Disagree", "Strongly Disagree", "N/A", ""
+    ] = Field(
+        ...,
+        description=(
+            "Select how strongly you agree that you feel included as a valued member of the "
             "decision-making team"
         ),
     )
 
-    q3_agree: BooleanLike = Field(
+    q3_comments_line_1: str = Field(
         default="",
         description=(
-            "Select if you agree that you feel included as a valued member of the "
-            "decision-making team"
+            "First line of comments about feeling included as a valued team member .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    q3_neutral: BooleanLike = Field(
+    q3_comments_line_2: str = Field(
         default="",
         description=(
-            "Select if you feel neutral about being included as a valued member of the "
-            "decision-making team"
+            "Second line of comments about feeling included as a valued team member .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    q3_disagree: BooleanLike = Field(
+    q3_comments_line_3: str = Field(
         default="",
         description=(
-            "Select if you disagree that you feel included as a valued member of the "
-            "decision-making team"
+            "Third line of comments about feeling included as a valued team member .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    q3_strongly_disagree: BooleanLike = Field(
-        default="",
+    q4_questions_addressed_level_of_agreement: Literal[
+        "Strongly Agree", "Agree", "Neutral", "Disagree", "Strongly Disagree", "N/A", ""
+    ] = Field(
+        ...,
         description=(
-            "Select if you strongly disagree that you feel included as a valued member of "
-            "the decision-making team"
+            "Select how strongly you agree that your questions and concerns were addressed "
+            "by staff during the PoC process"
         ),
     )
 
-    q3_comments: str = Field(
+    q4_comments_line_1: str = Field(
         default="",
         description=(
-            "Additional comments about feeling included as a valued member of the "
-            'decision-making team .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "First line of comments about how your questions and concerns were addressed "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
-    q4_strongly_agree: BooleanLike = Field(
+    q4_comments_line_2: str = Field(
         default="",
         description=(
-            "Select if you strongly agree that your questions and concerns were addressed "
-            "by staff during your PoC process"
+            "Second line of comments about how your questions and concerns were addressed "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
-    q4_agree: BooleanLike = Field(
+    q4_comments_line_3: str = Field(
         default="",
         description=(
-            "Select if you agree that your questions and concerns were addressed by staff "
-            "during your PoC process"
+            "Third line of comments about how your questions and concerns were addressed "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
-    q4_neutral: BooleanLike = Field(
-        default="",
+    q5_comfortable_bringing_questions_level_of_agreement: Literal[
+        "Strongly Agree", "Agree", "Neutral", "Disagree", "Strongly Disagree", "N/A", ""
+    ] = Field(
+        ...,
         description=(
-            "Select if you feel neutral about whether your questions and concerns were "
-            "addressed by staff during your PoC process"
-        ),
-    )
-
-    q4_disagree: BooleanLike = Field(
-        default="",
-        description=(
-            "Select if you disagree that your questions and concerns were addressed by "
-            "staff during your PoC process"
-        ),
-    )
-
-    q4_strongly_disagree: BooleanLike = Field(
-        default="",
-        description=(
-            "Select if you strongly disagree that your questions and concerns were "
-            "addressed by staff during your PoC process"
-        ),
-    )
-
-    q4_comments: str = Field(
-        default="",
-        description=(
-            "Additional comments about how staff addressed your questions and concerns "
-            'during your PoC process .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
-        ),
-    )
-
-    q5_strongly_agree: BooleanLike = Field(
-        default="",
-        description=(
-            "Select if you strongly agree that you are comfortable bringing questions and "
+            "Select how strongly you agree that you are comfortable bringing questions and "
             "concerns to any staff member during your PoC meeting"
         ),
     )
 
-    q5_agree: BooleanLike = Field(
+    q5_comments_line_1: str = Field(
         default="",
         description=(
-            "Select if you agree that you are comfortable bringing questions and concerns "
-            "to any staff member during your PoC meeting"
+            "First line of comments about your comfort bringing questions and concerns to "
+            'staff .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
-    q5_neutral: BooleanLike = Field(
+    q5_comments_line_2: str = Field(
         default="",
         description=(
-            "Select if you feel neutral about your comfort bringing questions and concerns "
-            "to staff during your PoC meeting"
+            "Second line of comments about your comfort bringing questions and concerns to "
+            'staff .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
-    q5_disagree: BooleanLike = Field(
+    q5_comments_line_3: str = Field(
         default="",
         description=(
-            "Select if you disagree that you are comfortable bringing questions and "
-            "concerns to any staff member during your PoC meeting"
-        ),
-    )
-
-    q5_strongly_disagree: BooleanLike = Field(
-        default="",
-        description=(
-            "Select if you strongly disagree that you are comfortable bringing questions "
-            "and concerns to any staff member during your PoC meeting"
-        ),
-    )
-
-    q5_comments: str = Field(
-        default="",
-        description=(
-            "Additional comments about your comfort bringing questions and concerns to "
-            'staff during your PoC meeting .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Third line of comments about your comfort bringing questions and concerns to "
+            'staff .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
 
-class YourPlanOfCarepocMeeting(BaseModel):
+class HsagEsrdNetwork15PlanOfCareMeeting(BaseModel):
     """
-    Your Plan of Care (PoC) meeting
+        HSAG HEALTH SERVICES ADVISORY GROUP
+    ESRD Network 15
 
-    Your Plan of Care (PoC) meeting brings together the people who determine the kind of care you will receive and how it will be delivered to you; it is a vital part of ensuring you receive the best and most appropriate care possible for you. Since you are the most important member of your care team, we want to know if your PoC meeting is “meeting” your needs and expectations. Please respond to the statements below and return responses to a staff member.
+    Your Plan of Care Meeting
+
+        Your Plan of Care (PoC) meeting brings together the people who determine the kind of care you will receive and how it will be delivered to you; it is a vital part of ensuring you receive the best and most appropriate care possible for you. Since you are the most important member of your care team, we want to know if your PoC meeting is “meeting” your needs and expectations. Please respond to the statements below and return responses to a staff member.
     """
 
-    participant_information: ParticipantInformation = Field(
-        ..., description="Participant Information"
+    patient_information: PatientInformation = Field(..., description="Patient Information")
+    plan_of_care_meeting_feedback: PlanofCareMeetingFeedback = Field(
+        ..., description="Plan of Care Meeting Feedback"
     )
-    plan_of_care_meeting_type: PlanofCareMeetingType = Field(
-        ..., description="Plan of Care Meeting Type"
-    )
-    poc_meeting_feedback: PoCMeetingFeedback = Field(..., description="PoC Meeting Feedback")

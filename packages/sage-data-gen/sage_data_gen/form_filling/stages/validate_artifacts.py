@@ -24,6 +24,7 @@ from sage_data_gen.form_filling.models import (
     GroundTruthAnswers,
     NegativeInfoCoverageResult,
     OpenEndedFieldsAnalysis,
+    SecretCoverageResult,
 )
 from sage_data_gen.form_filling.prompts import (
     VALIDATE_ARTIFACTS_PROMPT,
@@ -69,12 +70,16 @@ def validate_artifacts_with_llm(
         for ans in ground_truth.answers
     ]
 
-    # Flatten secrets for validation
+    # Flatten secrets for validation — one entry per individual secret with unique ID
     secrets_for_validation = []
-    for question_secrets in all_secrets.question_secrets:
-        for secret in question_secrets.secrets:
+    for i, question_secrets in enumerate(all_secrets.question_secrets):
+        for j, secret in enumerate(question_secrets.secrets):
             secrets_for_validation.append(
-                {"question": question_secrets.question_text, "detail": secret.detail_content}
+                {
+                    "id": f"Q{i + 1}_S{j + 1}",
+                    "question": question_secrets.question_text,
+                    "detail": secret.detail_content,
+                }
             )
 
     # Format negative info for validation
@@ -95,11 +100,11 @@ def validate_artifacts_with_llm(
             f"{json.dumps(neg_info_for_validation, indent=2)}"
         )
 
-    # Include persona information as a virtual "persona" artifact
+    # Include persona information as a virtual "persona" artifact (index 0)
     persona_info = translate_persona2text(persona)
-    artifacts_for_validation = [{"type": "persona", "content": persona_info}] + [
-        {"type": artifact.artifact_type, "content": artifact.content}
-        for artifact in artifacts.artifacts
+    artifacts_for_validation = [{"index": 0, "type": "persona", "content": persona_info}] + [
+        {"index": i + 1, "type": artifact.artifact_type, "content": artifact.content}
+        for i, artifact in enumerate(artifacts.artifacts)
     ]
 
     result = client.chat.completions.parse(
@@ -115,6 +120,7 @@ def validate_artifacts_with_llm(
                     artifacts_json=json.dumps(artifacts_for_validation, indent=2),
                     fields_json=json.dumps(fields_for_validation, indent=2),
                     secrets_json=json.dumps(secrets_for_validation, indent=2),
+                    num_secrets=len(secrets_for_validation),
                     negative_info_section=negative_info_section,
                 ),
             },
@@ -122,6 +128,44 @@ def validate_artifacts_with_llm(
         response_format=ArtifactValidationResult,
         temperature=0.3,
     )
+
+    # Ensure secret_coverage has exactly one entry per individual secret
+    expected_secrets = len(secrets_for_validation)
+    actual_secrets = len(result.secret_coverage)
+    if actual_secrets != expected_secrets:
+        print(
+            f"  Warning: expected {expected_secrets} secret_coverage entries, got {actual_secrets}"
+        )
+        if actual_secrets < expected_secrets:
+            # Pad with uncovered entries — safer to assume missing = not embedded
+            for i in range(actual_secrets, expected_secrets):
+                result.secret_coverage.append(
+                    SecretCoverageResult(
+                        secret_type=f"secret_{i + 1}",
+                        is_embedded=False,
+                        reasoning="Missing from validation response",
+                        found_in_artifacts=[],
+                    )
+                )
+        else:
+            result.secret_coverage = result.secret_coverage[:expected_secrets]
+
+    # Rebuild contains_secrets tags from validation results
+    secret_id_list = [s["id"] for s in secrets_for_validation]
+    for artifact in artifacts.artifacts:
+        artifact.contains_secrets = []
+    for sc_idx, sc in enumerate(result.secret_coverage):
+        if sc.is_embedded and sc_idx < len(secret_id_list):
+            secret_id = secret_id_list[sc_idx]
+            for artifact_ref in sc.found_in_artifacts:
+                try:
+                    # artifact_ref is an index string; index 0 = persona, so subtract 1
+                    art_idx = int(artifact_ref) - 1
+                    if 0 <= art_idx < len(artifacts.artifacts):
+                        if secret_id not in artifacts.artifacts[art_idx].contains_secrets:
+                            artifacts.artifacts[art_idx].contains_secrets.append(secret_id)
+                except (ValueError, IndexError):
+                    pass
 
     # Discard hallucinated negative info coverage when no negative info was provided
     if not negative_info or not negative_info.items:

@@ -12,26 +12,15 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class AnalysisRequestedTableRow(BaseModel):
-    """Single row in Specific Description/Location"""
-
-    specific_description_location: str = Field(
-        default="", description="Specific_Description_Location"
-    )
-    date: str = Field(default="", description="Date")
-    time: str = Field(default="", description="Time")
-    volume: str = Field(default="", description="Volume")
-
-
 class CustomerClientInformation(BaseModel):
-    """Customer/client contact and account details"""
+    """Customer/client status and contact details"""
 
     customer_client_status_new: BooleanLike = Field(
-        default="", description="Check if this is a new customer or client."
+        default="", description="Indicate if the customer/client is new."
     )
 
     customer_client_status_existing: BooleanLike = Field(
-        default="", description="Check if this is an existing customer or client."
+        default="", description="Indicate if the customer/client is an existing client."
     )
 
     client_customer_name: str = Field(
@@ -46,19 +35,18 @@ class CustomerClientInformation(BaseModel):
     poc_name: str = Field(
         ...,
         description=(
-            "Point of contact name for this request. .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Point of contact name for this client or project. .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     mailing_physical_address: str = Field(
         ...,
         description=(
-            "Mailing or physical address of the client or sampling location. .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Mailing or physical address of the client/customer. .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -71,12 +59,12 @@ class CustomerClientInformation(BaseModel):
         ),
     )
 
-    bldg_permit_applicable: str = Field(
+    bldg_permit_if_applicable: str = Field(
         default="",
         description=(
-            "Applicable building permit number, if relevant. .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Building permit number, if applicable. .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -100,31 +88,31 @@ class CustomerClientInformation(BaseModel):
     )
 
 
-class SampleTypeTurnAroundTime(BaseModel):
-    """Type of sample and requested analysis turn-around time"""
+class SampleTypeTurnaroundTime(BaseModel):
+    """Sample classification and requested processing time"""
 
     sample_type_drinking_water_treated: BooleanLike = Field(
         default="", description="Check if the sample is treated drinking water."
     )
 
     sample_type_ground_water: BooleanLike = Field(
-        default="", description="Check if the sample is groundwater."
+        default="", description="Check if the sample is ground water."
     )
 
-    sample_type_surface_water: BooleanLike = Field(
+    sample_type_surface_water_marine_river_etc: BooleanLike = Field(
         default="",
         description="Check if the sample is surface water such as marine or river water.",
     )
 
-    sample_type_recreational_water: BooleanLike = Field(
+    sample_type_recreational_water_pools_etc: BooleanLike = Field(
         default="", description="Check if the sample is recreational water such as pools."
     )
 
-    sample_type_wastewater: BooleanLike = Field(
+    sample_type_wastewater_effluent_etc: BooleanLike = Field(
         default="", description="Check if the sample is wastewater or effluent."
     )
 
-    sample_type_other: str = Field(
+    sample_type_other_s: str = Field(
         default="",
         description=(
             "Describe the sample type if it does not fit the listed categories. .If you "
@@ -134,50 +122,48 @@ class SampleTypeTurnAroundTime(BaseModel):
         ),
     )
 
-    tat_regular_7_working_days: BooleanLike = Field(
-        default="", description="Select if regular 7 working days turnaround time is requested."
+    turn_around_time_regular_7_working_days: BooleanLike = Field(
+        default="", description="Select if regular 7 working day turnaround is requested."
     )
 
-    tat_rush_5_working_days: BooleanLike = Field(
+    turn_around_time_rush_working_days: BooleanLike = Field(
         default="",
         description=(
-            "Select if rush 5 working days turnaround time is requested (2x cost, "
-            "pre-payment required)."
+            "Select if rush turnaround is requested (2x total analysis cost, pre-payment required)."
         ),
     )
 
-    tat_urgent_3_working_days: BooleanLike = Field(
+    turn_around_time_urgent_3_working_days: BooleanLike = Field(
         default="",
         description=(
-            "Select if urgent 3 working days turnaround time is requested (3x cost, "
-            "pre-payment required)."
+            "Select if urgent 3 working day turnaround is requested (3x total analysis "
+            "cost, pre-payment required)."
         ),
     )
 
 
 class SampleDelivery(BaseModel):
-    """How the sample is delivered to the lab"""
+    """Method of sample delivery"""
 
     sample_delivery_customer_client: BooleanLike = Field(
-        default="",
-        description="Check if the sample is delivered directly by the customer or client.",
+        default="", description="Check if the sample was delivered by the customer/client."
     )
 
     sample_delivery_courier: BooleanLike = Field(
-        default="", description="Check if the sample is delivered by a courier."
+        default="", description="Check if the sample was delivered by a courier."
     )
 
     sample_delivery_epa_certified_operator: BooleanLike = Field(
-        default="", description="Check if the sample is delivered by an EPA-certified operator."
+        default="", description="Check if the sample was delivered by an EPA-certified operator."
     )
 
     sample_delivery_business_agency: BooleanLike = Field(
-        default="", description="Check if the sample is delivered by a business or agency."
+        default="", description="Check if the sample was delivered by a business or agency."
     )
 
 
 class SampleInformation(BaseModel):
-    """Details about sampling, location, and notes"""
+    """Sampling personnel, location, and notes"""
 
     sampled_by_name_agency: str = Field(
         ...,
@@ -211,162 +197,160 @@ class SampleInformation(BaseModel):
     notes_instructions: str = Field(
         default="",
         description=(
-            "Additional notes or special instructions related to the samples or analyses. "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
+            "Additional notes or special instructions regarding the sample or analysis. .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
 
 class AnalysisRequested(BaseModel):
-    """Requested analyses and sample details"""
-
-    analysis_requested_table: List[AnalysisRequestedTableRow] = Field(
-        ...,
-        description=(
-            "Table to record each sample's specific description/location, date, time, and volume."
-        ),
-    )  # List of table rows
-
-    analysis_requested_date: str = Field(
-        default="",
-        description="Date of sample collection for each entry in the analysis requested table.",
-    )  # YYYY-MM-DD format
-
-    analysis_requested_time: str = Field(
-        default="",
-        description=(
-            "Time of sample collection for each entry in the analysis requested table. .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
-    analysis_requested_volume: str = Field(
-        default="",
-        description=(
-            "Sample volume for each entry in the analysis requested table. .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
+    """Requested analyses and sample identifiers"""
 
     weri_lab_id: str = Field(
         default="",
         description=(
-            "Unique WERI laboratory identification number assigned to the sample batch. .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
-
-class ChainofCustody(BaseModel):
-    """Relinquishing, receiving, and review of samples"""
-
-    relinquished_by: str = Field(
-        ...,
-        description=(
-            "Name and signature of the person relinquishing the sample(s). .If you cannot "
+            "WERI laboratory identification number for the sample (lab use). .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
         ),
     )
 
-    relinquished_by_date: str = Field(
-        ..., description="Date when the sample(s) were relinquished to the laboratory."
-    )  # YYYY-MM-DD format
-
-    relinquished_by_time: str = Field(
+    specific_description_location: str = Field(
         ...,
         description=(
-            "Time when the sample(s) were relinquished to the laboratory. .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-    received_by: str = Field(
-        ...,
-        description=(
-            "Name and signature of the person receiving the sample(s) at the laboratory. "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
-        ),
-    )
-
-    received_by_date: str = Field(
-        ..., description="Date when the sample(s) were received at the laboratory."
-    )  # YYYY-MM-DD format
-
-    received_by_time: str = Field(
-        ...,
-        description=(
-            "Time when the sample(s) were received at the laboratory. .If you cannot fill "
+            "Detailed description and location of the sampling point. .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    reviewed_accepted_by: str = Field(
-        default="",
-        description=(
-            "Name and signature of the WERI lab staff who reviewed and accepted the "
-            'samples. .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
-        ),
-    )
-
-    reviewed_accepted_by_date: str = Field(
-        default="",
-        description="Date when the samples were reviewed and accepted by WERI lab staff.",
+    date: str = Field(
+        ..., description="Sampling date corresponding to the specific description/location."
     )  # YYYY-MM-DD format
 
-    reviewed_accepted_by_time: str = Field(
-        default="",
+    time: str = Field(
+        ...,
         description=(
-            "Time when the samples were reviewed and accepted by WERI lab staff. .If you "
+            "Sampling time corresponding to the specific description/location. .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
     )
 
+    volume: str = Field(
+        ...,
+        description=(
+            "Volume of the sample collected for each entry. .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+
+class ChainofCustody(BaseModel):
+    """Relinquishing, receiving, and lab review details"""
+
+    sample_collector: str = Field(
+        ...,
+        description=(
+            "Printed name and signature of the person relinquishing the sample. .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
+    )
+
+    relinquished_by_date: str = Field(
+        ..., description="Date the sample was relinquished by the collector."
+    )  # YYYY-MM-DD format
+
+    relinquished_by_time: str = Field(
+        ...,
+        description=(
+            "Time the sample was relinquished by the collector. .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    deliverer_receiver: str = Field(
+        ...,
+        description=(
+            "Printed name and signature of the person receiving the sample. .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
+        ),
+    )
+
+    received_by_date: str = Field(
+        ..., description="Date the sample was received by the lab or receiving party."
+    )  # YYYY-MM-DD format
+
+    received_by_time: str = Field(
+        ...,
+        description=(
+            "Time the sample was received by the lab or receiving party. .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
+        ),
+    )
+
+    weri_lab_reviewed_accepted_by: str = Field(
+        default="",
+        description=(
+            "Name of WERI lab staff who reviewed and accepted the sample. .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
+        ),
+    )
+
+    weri_lab_reviewed_accepted_date: str = Field(
+        default="", description="Date the sample was reviewed and accepted by WERI lab."
+    )  # YYYY-MM-DD format
+
+    weri_lab_reviewed_accepted_time: str = Field(
+        default="",
+        description=(
+            "Time the sample was reviewed and accepted by WERI lab. .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
 
 class WERIOfficialUse(BaseModel):
-    """Internal WERI lab order and billing references"""
+    """Internal WERI lab order and reference numbers"""
 
     weri_lab_order_number: str = Field(
         default="",
         description=(
-            "Internal WERI laboratory order number. .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Internal WERI lab order number. .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     pymt_receiving_agent_date: str = Field(
         default="",
         description=(
-            "Name of the payment receiving agent and the date payment was received. .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Name of payment receiving agent and date payment was received. .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
     uog_weri_fr_number: str = Field(
         default="",
         description=(
-            "UOG WERI financial reference (FR) number. .If you cannot fill this, write "
+            "UOG WERI financial record (FR) number. .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -375,7 +359,7 @@ class WERIOfficialUse(BaseModel):
     weri_invoice_number: str = Field(
         default="",
         description=(
-            "Invoice number issued by WERI for this request. .If you cannot fill this, "
+            "WERI invoice number associated with this order. .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -383,7 +367,7 @@ class WERIOfficialUse(BaseModel):
 
 
 class PaymentDetails(BaseModel):
-    """Payment method and authorization information"""
+    """Payment method and transaction details"""
 
     payment_cash_amount: Union[float, Literal["N/A", ""]] = Field(
         default="", description="Amount paid in cash."
@@ -396,27 +380,27 @@ class PaymentDetails(BaseModel):
     payment_check_number: str = Field(
         default="",
         description=(
-            'Check number for the payment. .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Check number used for payment. .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    funds_transfer_acct_number: str = Field(
+    payment_funds_transfer_acct_number_inter_agency_approval_req: str = Field(
         default="",
         description=(
-            "Account number for inter-agency funds transfer (approval required). .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Funds transfer account number for inter-agency payments (approval required). "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
     payment_credit_card_amount: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Amount paid by credit card."
+        default="", description="Amount charged to the credit card."
     )
 
-    auth_code: str = Field(
+    payment_credit_card_auth_code: str = Field(
         default="",
         description=(
             "Authorization code for the credit card transaction. .If you cannot fill this, "
@@ -426,20 +410,20 @@ class PaymentDetails(BaseModel):
     )
 
 
-class PageInformation(BaseModel):
-    """Page numbering for the form"""
+class DocumentControl(BaseModel):
+    """Uncontrolled copy page numbering"""
 
-    page_x_of_y: str = Field(
+    uncontrolled_copy_page_number: str = Field(
         default="",
         description=(
-            "Page numbering field (e.g., page X of Y). .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Page numbering for uncontrolled copy (e.g., 1 of 2). .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
 
-class pythonWaterQualityLabManagementCOCAnalysisRequest(BaseModel):
+class WaterQualityLabChainOfCustodyAnalysisRequest(BaseModel):
     """
         UOG WERI WATER QUALITY LABORATORY
     WERI LAB QUALITY MANAGEMENT PROGRAM
@@ -452,8 +436,8 @@ class pythonWaterQualityLabManagementCOCAnalysisRequest(BaseModel):
     customerclient_information: CustomerClientInformation = Field(
         ..., description="Customer/Client Information"
     )
-    sample_type__turn_around_time: SampleTypeTurnAroundTime = Field(
-        ..., description="Sample Type & Turn-Around-Time"
+    sample_type__turn_around_time: SampleTypeTurnaroundTime = Field(
+        ..., description="Sample Type & Turn-around Time"
     )
     sample_delivery: SampleDelivery = Field(..., description="Sample Delivery")
     sample_information: SampleInformation = Field(..., description="Sample Information")
@@ -461,4 +445,4 @@ class pythonWaterQualityLabManagementCOCAnalysisRequest(BaseModel):
     chain_of_custody: ChainofCustody = Field(..., description="Chain of Custody")
     weri_official_use: WERIOfficialUse = Field(..., description="WERI Official Use")
     payment_details: PaymentDetails = Field(..., description="Payment Details")
-    page_information: PageInformation = Field(..., description="Page Information")
+    document_control: DocumentControl = Field(..., description="Document Control")

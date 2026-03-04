@@ -19,7 +19,7 @@ class EventApplicantInformation(BaseModel):
         ...,
         description=(
             "Name or location of the TIP Challenge event for which this reference is being "
-            'provided .If you cannot fill this, write "N/A". If this field should not be '
+            'submitted .If you cannot fill this, write "N/A". If this field should not be '
             "filled by you (for example, it belongs to another person or office), leave it "
             'blank (empty string "").'
         ),
@@ -28,8 +28,8 @@ class EventApplicantInformation(BaseModel):
     name_of_adopter_competitor_applicant: str = Field(
         ...,
         description=(
-            "Full name of the adopter/competitor applicant this reference is about .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "Full name of the adopter or competitor applicant this reference is about .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
@@ -69,7 +69,7 @@ class ReferenceContactInformation(BaseModel):
     ref_phone_2: str = Field(
         default="",
         description=(
-            "Secondary or alternate phone number for the reference .If you cannot fill "
+            "Secondary phone number for the reference (if applicable) .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -86,7 +86,7 @@ class ReferenceContactInformation(BaseModel):
 
 
 class TrainerEvaluation(BaseModel):
-    """Reference's evaluation of the trainer and additional comments"""
+    """Reference questions and comments regarding the trainer"""
 
     how_long_have_you_known_this_trainer: str = Field(
         ...,
@@ -101,20 +101,20 @@ class TrainerEvaluation(BaseModel):
     how_often_do_you_see_this_trainer_ride_or_work_horses: str = Field(
         ...,
         description=(
-            "Description of how frequently you observe the trainer riding or working with "
-            'horses .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
+            "Frequency with which you observe the trainer riding or working with horses .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     do_you_feel_that_their_facilities_are_suitable_for_working_with_a_wild_horse: str = Field(
         ...,
         description=(
-            "Explanation of whether and why the trainer’s facilities are appropriate for "
-            'working with a wild horse .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Explain whether the trainer’s facilities are appropriate for handling and "
+            'training a wild horse .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
@@ -153,8 +153,7 @@ class TrainerReferenceForm(BaseModel):
     """
     TRAINER REFERENCE FORM
 
-    Two Reference Forms must be submitted with each application.
-    If the individual providing the reference would like for the information to remain confidential, please feel free to mail this form directly to the TIP Challenge Manager: Ann Hanlin.
+    Two Reference Forms must be submitted with each application. If the individual providing the reference would like for the information to remain confidential, please feel free to mail this form directly to the TIP Challenge Manager: Ann Hanlin.
     """
 
     event__applicant_information: EventApplicantInformation = Field(

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Invitation to re-apply - Corporate Travel (QBE)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    :root{
+      --ink:#111;
+      --muted:#333;
+      --page:#fff;
+      --bg:#d6d2cd;
+      --blue:#10a7d8;
+      --line:#2b2b2b;
+      --tableline:#4a4a4a;
+      --bar:#1a1a1a;
+      --soft:#f5f5ee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:805px;
+      background:var(--page);
+      box-shadow:0 2px 14px rgba(0,0,0,.15);
+    }
+
+    /* Header */
+    .hero{
+      background:var(--blue);
+      color:#fff;
+      padding:18px 22px 14px;
+      position:relative;
+      min-height:96px;
+    }
+    .hero .title{
+      font-size:26px;
+      font-weight:800;
+      letter-spacing:.2px;
+      margin:2px 0 10px;
+    }
+    .hero .subrow{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:12px;
+      font-size:11px;
+      opacity:.95;
+      white-space:nowrap;
+    }
+    .hero .qbe-mark{
+      position:absolute;
+      right:18px;
+      top:14px;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:6px;
+      color:#fff;
+      font-weight:800;
+    }
+    .hero .qbe-mark .logoBox{
+      width:102px;
+      height:56px;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.35);
+      border-radius:8px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:6px;
+    }
+    .hero .qbe-mark svg{width:88px;height:42px}
+    .hero .qbe-mark .brand{
+      font-size:30px;
+      letter-spacing:.6px;
+      line-height:1;
+    }
+
+    .content{padding:10px 18px 18px}
+
+    .note-line{
+      font-size:12px;
+      margin:6px 2px 8px;
+      color:#222;
+    }
+    .note-line b{font-weight:800}
+    .note-line a{color:#0b4f63; text-decoration:underline}
+    .section-bar{
+      background:var(--bar);
+      color:#fff;
+      padding:6px 10px;
+      font-weight:800;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:1.4px;
+      margin:8px 0 0;
+    }
+
+    /* Details block */
+    .details-grid{
+      border:1px solid var(--line);
+      border-top:none;
+      padding:10px 10px 12px;
+    }
+    .field-row{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      padding:8px 0 3px;
+      border-bottom:1px solid var(--line);
+      min-height:34px;
+    }
+    .field-row:last-child{border-bottom:none}
+    .field-row .label{
+      width:190px;
+      font-size:12.5px;
+      font-weight:600;
+      color:#111;
+      flex:0 0 auto;
+    }
+    .field-row input[type="text"],
+    .field-row input[type="date"],
+    .field-row input[type="number"]{
+      flex:1 1 auto;
+      border:none;
+      outline:none;
+      padding:2px 6px 2px;
+      background:transparent;
+      font-size:13px;
+      font-family:inherit;
+      min-width:0;
+    }
+    .field-row input:focus{background:var(--soft)}
+    .field-row .split{
+      display:flex;
+      gap:10px;
+      flex:1 1 auto;
+      align-items:flex-end;
+      min-width:0;
+    }
+    .field-row .split .cell{
+      display:flex;
+      align-items:flex-end;
+      gap:8px;
+      border-bottom:0;
+      flex:1;
+      min-width:0;
+    }
+    .mini-label{
+      font-size:12px;
+      font-weight:600;
+      white-space:nowrap;
+      color:#111;
+    }
+
+    .paragraph{
+      font-size:12px;
+      line-height:1.35;
+      color:#111;
+      padding:10px 2px 6px;
+    }
+
+    /* Table */
+    .table-wrap{
+      border:1px solid var(--line);
+      border-top:none;
+      padding:0;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:12px;
+    }
+    td,th{
+      border:1px solid #3b3b3b;
+      padding:6px 7px;
+      vertical-align:top;
+    }
+    th{
+      background:#f0f0f0;
+      font-weight:800;
+      text-align:left;
+    }
+    .subhead{
+      background:#f7f7f7;
+      font-weight:800;
+    }
+    .tight{padding:5px 7px}
+    .cell-input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font-family:inherit;
+      font-size:12.5px;
+      padding:0 2px;
+    }
+    .cell-input:focus{background:var(--soft)}
+    .cell-textarea{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font-family:inherit;
+      font-size:12.5px;
+      padding:0 2px;
+      resize:vertical;
+      min-height:72px;
+    }
+    .cell-textarea:focus{background:var(--soft)}
+    .small-note{
+      font-size:11px;
+      line-height:1.25;
+      color:#1a1a1a;
+      padding:7px 10px 10px;
+      border-top:1px solid #3b3b3b;
+      background:#fff;
+    }
+
+    /* Checkbox row */
+    .cb-line{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+    }
+    input[type="checkbox"]{
+      width:14px;
+      height:14px;
+      accent-color:#111;
+    }
+
+    /* Footer policy notice */
+    .privacy{
+      border:1px solid var(--line);
+      border-top:none;
+      padding:10px 10px 12px;
+      font-size:11px;
+      line-height:1.28;
+      color:#111;
+    }
+    .privacy b{font-weight:800}
+    .privacy a{color:#0b4f63; text-decoration:underline}
+    .footcode{
+      font-size:10px;
+      color:#222;
+      margin-top:8px;
+    }
+
+    /* Buttons */
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:14px 18px 18px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #888;
+      background:#fff;
+      color:#222;
+    }
+    .btn.primary{
+      background:#333;
+      color:#fff;
+      border-color:#111;
+    }
+
+    /* Print-like spacing */
+    .spacer8{height:8px}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <div class="title">Invitation to re-apply - Corporate Travel</div>
+      <div class="subrow">
+        <div><b>QBE Insurance (Australia) Limited</b> &nbsp; ABN 78 003 191 035 &nbsp; AFSL 239 545</div>
+        <div style="opacity:.0">.</div>
+      </div>
+      <div class="qbe-mark" aria-hidden="true">
+        <div class="logoBox" title="QBE">
+          <svg viewBox="0 0 140 70" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="QBE logo mark">
+            <path d="M50 10c-8 0-15 6-15 15 0 6 3 11 8 13l-8 14c-1 2 0 4 2 5 1 1 3 1 4 0l14-8c2 1 4 2 6 2 8 0 15-7 15-15S58 10 50 10Z" stroke="rgba(255,255,255,.95)" stroke-width="5" stroke-linejoin="round"/>
+            <path d="M92 14c-7 0-12 5-12 12 0 6 4 10 9 12l-3 13c0 2 2 4 4 3l10-5c2 1 4 1 5 1 7 0 13-6 13-13S99 14 92 14Z" stroke="rgba(255,255,255,.95)" stroke-width="5" stroke-linejoin="round" opacity=".9"/>
+          </svg>
+        </div>
+        <div class="brand">QBE</div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="note-line"><b>Please send the completed form to</b> <a href="mailto:underwriting@qbe.com">underwriting@qbe.com</a></div>
+
+      <form id="mainForm" autocomplete="off">
+        <div class="section-bar">Details</div>
+        <div class="details-grid">
+          <div class="field-row">
+            <div class="label">Name of insured</div>
+            <input type="text" id="name_of_insured" name="name_of_insured" />
+          </div>
+
+          <div class="field-row">
+            <div class="label">Policy number</div>
+            <div class="split">
+              <div class="cell" style="flex:1.4">
+                <input type="text" id="policy_number" name="policy_number" />
+              </div>
+              <div class="cell" style="flex:.9">
+                <div class="mini-label">Expiry date <span style="font-weight:600; opacity:.7">(dd/mm/yyyy)</span></div>
+                <input type="date" id="expiry_date_dd_mm_yyyy" name="expiry_date_dd_mm_yyyy" />
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="label">Name of intermediary</div>
+            <input type="text" id="name_of_intermediary" name="name_of_intermediary" />
+          </div>
+
+          <div class="paragraph">
+            This Policy will expire at 4.00pm on the date shown above. If you would like to take out another policy with us which starts immediately after this one expires, please complete this application and send it to us more than 21 days prior to the expiry date.
+            <br/>We will send you an offer for a new policy once we have received and assessed your application form.
+          </div>
+        </div>
+
+        <div class="section-bar">General information</div>
+        <div class="table-wrap">
+          <table aria-label="General information table">
+            <colgroup>
+              <col style="width:36%"/>
+              <col style="width:22%"/>
+              <col style="width:22%"/>
+              <col style="width:20%"/>
+            </colgroup>
+
+            <tr>
+              <td class="subhead tight" colspan="1"><b>A.</b> &nbsp; <b>Coverage details</b></td>
+              <td class="tight" colspan="3" style="font-size:11px; line-height:1.25;">
+                <b>Please advise any changes to sum(s), insured, limits, policy coverage, insured person details and time of operation of cover.</b>
+                If no changes, write "<b>no change</b>".
+              </td>
+            </tr>
+            <tr>
+              <td colspan="4" style="padding:7px;">
+                <input class="cell-input" type="text" id="coverage_details_changes" name="coverage_details_changes" />
+              </td>
+            </tr>
+
+            <tr>
+              <td class="subhead tight" colspan="4"><b>B.</b> &nbsp; <b>Estimate travel pattern for the next twelve (12) months</b></td>
+            </tr>
+            <tr>
+              <td colspan="4" style="font-size:11px; line-height:1.25;">
+                <b>Please note</b>&nbsp;&nbsp;
+                (a) 2 people travelling together equals 2 return trips<br/>
+                (b) if more than one person travels on a specific journey, declare each person, i.e. three people travelling on one journey = 3 in the number column.
+              </td>
+            </tr>
+
+            <tr>
+              <th>Overseas travel</th>
+              <th>Business trips</th>
+              <th>Leisure trips</th>
+              <th>Average duration</th>
+            </tr>
+            <tr>
+              <td>Estimated overseas travel (next 12 months)</td>
+              <td><input class="cell-input" type="number" step="any" id="overseas_travel_business_trips" name="overseas_travel_business_trips" /></td>
+              <td><input class="cell-input" type="number" step="any" id="overseas_travel_leisure_trips" name="overseas_travel_leisure_trips" /></td>
+              <td><input class="cell-input" type="text" id="overseas_travel_average_duration" name="overseas_travel_average_duration" /></td>
+            </tr>
+            <tr>
+              <td>Number of overseas trips from Australia (excluding the USA)</td>
+              <td colspan="3"><input class="cell-input" type="number" step="any" id="number_of_overseas_trips_from_australia_excl_usa" name="number_of_overseas_trips_from_australia_excl_usa" /></td>
+            </tr>
+            <tr>
+              <td>Number of overseas to overseas trips</td>
+              <td colspan="3"><input class="cell-input" type="number" step="any" id="number_of_overseas_to_overseas_trips" name="number_of_overseas_to_overseas_trips" /></td>
+            </tr>
+            <tr>
+              <td>The number of overseas trips to USA (if known)</td>
+              <td colspan="3"><input class="cell-input" type="number" step="any" id="number_of_overseas_trips_to_usa" name="number_of_overseas_trips_to_usa" /></td>
+            </tr>
+            <tr>
+              <td>The number of domestic overseas trips</td>
+              <td colspan="3"><input class="cell-input" type="number" step="any" id="number_of_domestic_overseas_trips" name="number_of_domestic_overseas_trips" /></td>
+            </tr>
+            <tr>
+              <td>Maximum duration of any overseas trip</td>
+              <td colspan="3"><input class="cell-input" type="text" id="maximum_duration_of_any_overseas_trip" name="maximum_duration_of_any_overseas_trip" /></td>
+            </tr>
+
+            <tr>
+              <th>Local travel (within Australia)</th>
+              <th>Business trips</th>
+              <th>Leisure trips</th>
+              <th>Average duration</th>
+            </tr>
+            <tr>
+              <td>Estimated local travel (next 12 months)</td>
+              <td><input class="cell-input" type="number" step="any" id="local_travel_business_trips" name="local_travel_business_trips" /></td>
+              <td><input class="cell-input" type="number" step="any" id="local_travel_leisure_trips" name="local_travel_leisure_trips" /></td>
+              <td><input class="cell-input" type="text" id="local_travel_average_duration" name="local_travel_average_duration" /></td>
+            </tr>
+            <tr>
+              <td>Number of interstate trips</td>
+              <td colspan="3"><input class="cell-input" type="number" step="any" id="number_of_interstate_trips" name="number_of_interstate_trips" /></td>
+            </tr>
+            <tr>
+              <td>Number of intrastate trips (beyond 50km's)</td>
+              <td colspan="3"><input class="cell-input" type="number" step="any" id="number_of_intrastate_trips_beyond_50kms" name="number_of_intrastate_trips_beyond_50kms" /></td>
+            </tr>
+
+            <tr>
+              <th colspan="4">Non schedule aircraft</th>
+            </tr>
+            <tr>
+              <td colspan="4">
+                <div class="cb-line">
+                  <span>Will any insured person be undertaking charter/non-schedule flights? If 'Yes', please provide details:</span>
+                  <input type="checkbox" id="non_schedule_flights_undertaken" name="non_schedule_flights_undertaken"/>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="subhead">Number of flights</td>
+              <td class="subhead">Overseas</td>
+              <td class="subhead">Interstate</td>
+              <td class="subhead">Intrastate</td>
+            </tr>
+            <tr>
+              <td>Charter/Non-schedule flights</td>
+              <td><input class="cell-input" type="number" step="any" id="number_of_flights_overseas" name="number_of_flights_overseas" /></td>
+              <td><input class="cell-input" type="number" step="any" id="number_of_flights_interstate" name="number_of_flights_interstate" /></td>
+              <td><input class="cell-input" type="number" step="any" id="number_of_flights_intrastate" name="number_of_flights_intrastate" /></td>
+            </tr>
+            <tr>
+              <td>Provide details of any charter or non-scheduled flights (operators, routes, frequency)</td>
+              <td colspan="3"><input class="cell-input" type="text" id="charter_non_schedule_flights_details" name="charter_non_schedule_flights_details" /></td>
+            </tr>
+            <tr>
+              <td>Helicopter flights (purpose, operators, frequency)</td>
+              <td colspan="3"><input class="cell-input" type="text" id="helicopter_flights_details" name="helicopter_flights_details" /></td>
+            </tr>
+            <tr>
+              <td>Maximum number of people travelling together</td>
+              <td colspan="3"><input class="cell-input" type="number" step="any" id="maximum_number_of_people_travelling_together" name="maximum_number_of_people_travelling_together" /></td>
+            </tr>
+
+            <tr>
+              <td class="subhead" colspan="4">Any additional comments</td>
+            </tr>
+            <tr>
+              <td colspan="4" style="padding:7px;">
+                <textarea class="cell-textarea" id="any_additional_comments" name="any_additional_comments"></textarea>
+              </td>
+            </tr>
+          </table>
+
+          <div class="small-note">
+            If you are not completing this form 'electronically' and you have insufficient space to complete your answers, please attach detailed information on a separate sheet.
+          </div>
+        </div>
+
+        <div class="section-bar">Privacy consent notice</div>
+        <div class="privacy">
+          <b>QBE's Privacy Policy</b> describes how we collect, disclose, store and use your information and how you can access it, correct it or contact us to make a complaint.
+          QBE may share your information with other QBE Group companies or with our authorised representatives and service providers, each of which may be based outside of Australia.
+          You can view our Privacy Policy at <a href="https://www.qbe.com.au/privacy" target="_blank" rel="noreferrer">www.qbe.com.au/privacy</a>, or to obtain a copy of it you can phone us on 133 723 or request it from one of our authorised representatives or service providers.
+          <br/><br/>
+          By providing the information we've requested, you consent to QBE collecting, using and storing your information to issue, administer and manage the products and services you have or may wish to take with us in accordance with our Privacy Policy.
+          If you've provided information about any other person, by submitting this form you confirm that you've let them know that you're providing their information and that you've obtained their consent to do so.
+          <br/><br/>
+          If you don't provide all of the information we've requested, we may be unable to issue you with a product or service or we may be unable to administer or manage it.
+          <br/><br/>
+          <b>Sensitive information</b><br/>
+          We've also asked you to provide us with sensitive information about yourself or others insured under this policy, which could include health information.
+          This information is required because it is relevant to our decision as to whether or not to issue the product you wish to take out with us and the terms we may issue it to you.
+          <div class="footcode">QM1367-0517</div>
+        </div>
+
+        <div class="submit-row">
+          <button class="btn" type="reset">Clear Form</button>
+          <button class="btn primary" type="submit">Submit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function getVal(id){
+        const el = document.getElementById(id);
+        if(!el) return "";
+        return (el.value ?? "").toString();
+      }
+      function getNumOrStr(id){
+        // keep as string if empty or "N/A", else parseFloat if numeric
+        const v = getVal(id).trim();
+        if(v === "" || v.toUpperCase() === "N/A") return (v === "" ? "" : "N/A");
+        const n = Number(v);
+        return Number.isFinite(n) ? n : v; // fallback if user types non-numeric
+      }
+      function cb(id){
+        const el = document.getElementById(id);
+        return el && el.checked ? "true" : "false";
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          details: {
+            name_of_insured: getVal('name_of_insured'),
+            policy_number: getVal('policy_number'),
+            expiry_date_dd_mm_yyyy: getVal('expiry_date_dd_mm_yyyy'),
+            name_of_intermediary: getVal('name_of_intermediary')
+          },
+          coverage_details: {
+            coverage_details_changes: getVal('coverage_details_changes')
+          },
+          overseas_travel_next_12_months: {
+            overseas_travel_business_trips: getNumOrStr('overseas_travel_business_trips'),
+            overseas_travel_leisure_trips: getNumOrStr('overseas_travel_leisure_trips'),
+            overseas_travel_average_duration: getVal('overseas_travel_average_duration'),
+            number_of_overseas_trips_from_australia_excl_usa: getNumOrStr('number_of_overseas_trips_from_australia_excl_usa'),
+            number_of_overseas_to_overseas_trips: getNumOrStr('number_of_overseas_to_overseas_trips'),
+            number_of_overseas_trips_to_usa: getNumOrStr('number_of_overseas_trips_to_usa'),
+            number_of_domestic_overseas_trips: getNumOrStr('number_of_domestic_overseas_trips'),
+            maximum_duration_of_any_overseas_trip: getVal('maximum_duration_of_any_overseas_trip')
+          },
+          local_travel_within_australia_next_12_months: {
+            local_travel_business_trips: getNumOrStr('local_travel_business_trips'),
+            local_travel_leisure_trips: getNumOrStr('local_travel_leisure_trips'),
+            local_travel_average_duration: getVal('local_travel_average_duration'),
+            number_of_interstate_trips: getNumOrStr('number_of_interstate_trips'),
+            number_of_intrastate_trips_beyond_50kms: getNumOrStr('number_of_intrastate_trips_beyond_50kms')
+          },
+          non_schedule_and_charter_flights: {
+            non_schedule_flights_undertaken: cb('non_schedule_flights_undertaken'),
+            number_of_flights_overseas: getNumOrStr('number_of_flights_overseas'),
+            number_of_flights_interstate: getNumOrStr('number_of_flights_interstate'),
+            number_of_flights_intrastate: getNumOrStr('number_of_flights_intrastate'),
+            charter_non_schedule_flights_details: getVal('charter_non_schedule_flights_details'),
+            helicopter_flights_details: getVal('helicopter_flights_details'),
+            maximum_number_of_people_travelling_together: getNumOrStr('maximum_number_of_people_travelling_together'),
+            any_additional_comments: getVal('any_additional_comments')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -13,364 +13,249 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class AssetsandLiabilities(BaseModel):
-    """Assets owned and corresponding liabilities for borrower and co-signer"""
+    """Assets owned and liabilities owed for borrower and co-signer"""
+
+    borrower: str = Field(
+        ...,
+        description=(
+            'Name of the primary borrower .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
+        ),
+    )
+
+    co_signer: str = Field(
+        default="",
+        description=(
+            'Name of the co-signer, if any .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
+        ),
+    )
 
     home_present_value: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Present market value of the home you own"
+        default="", description="Current market value of the home owned"
     )
 
-    rent_or_mortgage_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Regular rent or mortgage payment amount"
+    home_payments_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Current outstanding loan balance on the home"
     )
 
-    rent_or_mortgage_present_balance_borrower: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Current mortgage balance owed by the borrower"
+    home_payments_present_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Current monthly payment amount for the home loan"
     )
 
-    rent_or_mortgage_present_balance_co_signer: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Current mortgage balance owed by the co-signer"
+    rent_or_mortgage_payments_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Outstanding balance on rent or mortgage obligations, if applicable"
     )
 
-    home_insurance_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Regular home insurance payment amount"
+    rent_or_mortgage_payments_present_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Current monthly rent or mortgage payment amount"
     )
 
-    home_insurance_present_balance_borrower: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Current home insurance balance owed by the borrower, if applicable"
-    )
-
-    home_insurance_present_balance_co_signer: Union[float, Literal["N/A", ""]] = Field(
-        default="",
-        description="Current home insurance balance owed by the co-signer, if applicable",
-    )
-
-    auto_year_make_model_present_value: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Present value of the listed vehicle (year, make, and model)"
-    )
-
-    auto_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Regular auto loan payment amount for this vehicle"
-    )
-
-    auto_present_balance_borrower: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Current auto loan balance owed by the borrower for this vehicle"
-    )
-
-    auto_present_balance_co_signer: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Current auto loan balance owed by the co-signer for this vehicle"
-    )
-
-    auto_2_year_make_model_present_value: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Present value of the second listed vehicle (year, make, and model)"
-    )
-
-    auto_2_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Regular auto loan payment amount for the second vehicle"
-    )
-
-    auto_2_present_balance_borrower: Union[float, Literal["N/A", ""]] = Field(
-        default="",
-        description="Current auto loan balance owed by the borrower for the second vehicle",
-    )
-
-    auto_2_present_balance_co_signer: Union[float, Literal["N/A", ""]] = Field(
-        default="",
-        description="Current auto loan balance owed by the co-signer for the second vehicle",
-    )
-
-    auto_insurance_term: Literal["1", "3", "6", "12", "N/A", ""] = Field(
-        default="", description="Selected auto insurance payment term in months"
-    )
-
-    auto_insurance_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Regular auto insurance payment amount"
-    )
-
-    auto_insurance_present_balance_borrower: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Current auto insurance balance owed by the borrower, if applicable"
-    )
-
-    auto_insurance_present_balance_co_signer: Union[float, Literal["N/A", ""]] = Field(
-        default="",
-        description="Current auto insurance balance owed by the co-signer, if applicable",
-    )
-
-    other_real_estate_present_value: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Present value of other real estate owned"
-    )
-
-    other_real_estate_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Regular payment amount on other real estate debt"
-    )
-
-    other_real_estate_present_balance_borrower: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Current balance owed by the borrower on other real estate"
-    )
-
-    other_real_estate_present_balance_co_signer: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Current balance owed by the co-signer on other real estate"
-    )
-
-    other_real_estate_description: str = Field(
+    rent_or_mortgage_to_whom: str = Field(
         default="",
         description=(
-            "Description or address of other real estate .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    spokane_tribal_credit_long_term_loan_present_value: Union[float, Literal["N/A", ""]] = Field(
-        default="",
-        description="Present value or amount of the Spokane Tribal Credit long term loan",
-    )
-
-    spokane_tribal_credit_long_term_loan_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Regular payment amount on the Spokane Tribal Credit long term loan"
-    )
-
-    spokane_tribal_credit_long_term_loan_present_balance_borrower: Union[
-        float, Literal["N/A", ""]
-    ] = Field(default="", description="Current balance owed by the borrower on the long term loan")
-
-    spokane_tribal_credit_long_term_loan_present_balance_co_signer: Union[
-        float, Literal["N/A", ""]
-    ] = Field(default="", description="Current balance owed by the co-signer on the long term loan")
-
-    spokane_tribal_credit_short_term_loan_present_value: Union[float, Literal["N/A", ""]] = Field(
-        default="",
-        description="Present value or amount of the Spokane Tribal Credit short term loan",
-    )
-
-    spokane_tribal_credit_short_term_loan_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="",
-        description="Regular payment amount on the Spokane Tribal Credit short term loan",
-    )
-
-    spokane_tribal_credit_short_term_loan_present_balance_borrower: Union[
-        float, Literal["N/A", ""]
-    ] = Field(default="", description="Current balance owed by the borrower on the short term loan")
-
-    spokane_tribal_credit_short_term_loan_present_balance_co_signer: Union[
-        float, Literal["N/A", ""]
-    ] = Field(
-        default="", description="Current balance owed by the co-signer on the short term loan"
-    )
-
-    spokane_tribal_credit_auto_repair_loan_present_value: Union[float, Literal["N/A", ""]] = Field(
-        default="",
-        description="Present value or amount of the Spokane Tribal Credit auto repair loan",
-    )
-
-    spokane_tribal_credit_auto_repair_loan_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Regular payment amount on the auto repair loan"
-    )
-
-    spokane_tribal_credit_auto_repair_loan_present_balance_borrower: Union[
-        float, Literal["N/A", ""]
-    ] = Field(
-        default="", description="Current balance owed by the borrower on the auto repair loan"
-    )
-
-    spokane_tribal_credit_auto_repair_loan_present_balance_co_signer: Union[
-        float, Literal["N/A", ""]
-    ] = Field(
-        default="", description="Current balance owed by the co-signer on the auto repair loan"
-    )
-
-    spokane_tribal_credit_education_loan_present_value: Union[float, Literal["N/A", ""]] = Field(
-        default="",
-        description="Present value or amount of the Spokane Tribal Credit education loan",
-    )
-
-    spokane_tribal_credit_education_loan_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Regular payment amount on the education loan"
-    )
-
-    spokane_tribal_credit_education_loan_present_balance_borrower: Union[
-        float, Literal["N/A", ""]
-    ] = Field(default="", description="Current balance owed by the borrower on the education loan")
-
-    spokane_tribal_credit_education_loan_present_balance_co_signer: Union[
-        float, Literal["N/A", ""]
-    ] = Field(default="", description="Current balance owed by the co-signer on the education loan")
-
-    education_loan_description: str = Field(
-        default="",
-        description=(
-            "Description or details of the education loan .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    credit_cards_other_debt_present_value: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total present amount or credit limit for credit cards/other debt"
-    )
-
-    credit_cards_other_debt_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total regular payment amount for credit cards/other debt"
-    )
-
-    credit_cards_other_debt_present_balance_borrower: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Current balance owed by the borrower on credit cards/other debt"
-    )
-
-    credit_cards_other_debt_present_balance_co_signer: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Current balance owed by the co-signer on credit cards/other debt"
-    )
-
-    credit_cards_other_debt_description_line_1: str = Field(
-        default="",
-        description=(
-            "First line of description for credit cards or other debts .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    credit_cards_other_debt_description_line_2: str = Field(
-        default="",
-        description=(
-            "Second line of description for credit cards or other debts .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    credit_cards_other_debt_description_line_3: str = Field(
-        default="",
-        description=(
-            "Third line of description for credit cards or other debts .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    alimony_child_support_present_value: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Present amount or obligation related to alimony/child support"
-    )
-
-    alimony_child_support_payments: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Regular payment amount for alimony/child support"
-    )
-
-    alimony_child_support_present_balance_borrower: Union[float, Literal["N/A", ""]] = Field(
-        default="",
-        description="Current balance or arrears owed by the borrower for alimony/child support",
-    )
-
-    alimony_child_support_present_balance_co_signer: Union[float, Literal["N/A", ""]] = Field(
-        default="",
-        description="Current balance or arrears owed by the co-signer for alimony/child support",
-    )
-
-    alimony_child_support_description: str = Field(
-        default="",
-        description=(
-            "Description or details of alimony/child support obligations .If you cannot "
+            "Name of landlord or mortgage company to whom payments are made .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
         ),
     )
 
-    total_assets: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total value of all listed assets"
+    home_insurance_payments_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Outstanding balance due on home insurance, if any"
     )
 
-    total_liabilities: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total amount of all listed liabilities"
+    home_insurance_payments_present_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Current periodic payment amount for home insurance"
     )
 
-    additional_total_comments_line: str = Field(
+    auto_year_make_and_model_present_value: Union[float, Literal["N/A", ""]] = Field(
+        default="",
+        description="Current market value of the first vehicle listed (year, make, and model)",
+    )
+
+    auto_payments_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Outstanding loan balance on the first vehicle"
+    )
+
+    auto_payments_present_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Current monthly payment amount for the first vehicle loan"
+    )
+
+    auto_second_year_make_and_model_present_value: Union[float, Literal["N/A", ""]] = Field(
+        default="",
+        description="Current market value of the second vehicle listed (year, make, and model)",
+    )
+
+    auto_second_payments_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Outstanding loan balance on the second vehicle"
+    )
+
+    auto_second_payments_present_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Current monthly payment amount for the second vehicle loan"
+    )
+
+    auto_insurance_payments_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Outstanding balance due on auto insurance, if any"
+    )
+
+    auto_insurance_payments_present_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Current periodic payment amount for auto insurance"
+    )
+
+    auto_insurance_pick_one_1_month: BooleanLike = Field(
+        default="", description="Select if auto insurance is paid every 1 month"
+    )
+
+    auto_insurance_pick_one_3_months: BooleanLike = Field(
+        default="", description="Select if auto insurance is paid every 3 months"
+    )
+
+    auto_insurance_pick_one_6_months: BooleanLike = Field(
+        default="", description="Select if auto insurance is paid every 6 months"
+    )
+
+    auto_insurance_pick_one_12_months: BooleanLike = Field(
+        default="", description="Select if auto insurance is paid every 12 months"
+    )
+
+    other_real_estate_present_value: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Current market value of other real estate owned"
+    )
+
+    other_real_estate_payments_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Outstanding loan balance on other real estate"
+    )
+
+    other_real_estate_payments_present_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Current monthly payment amount for other real estate loans"
+    )
+
+    spokane_tribal_credit_long_term_loan_payments_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Outstanding balance on Spokane Tribal Credit long term loan"
+    )
+
+    spokane_tribal_credit_long_term_loan_payments_present_balance: Union[
+        float, Literal["N/A", ""]
+    ] = Field(
+        default="",
+        description="Current periodic payment amount for Spokane Tribal Credit long term loan",
+    )
+
+    spokane_tribal_credit_short_term_loan_payments_balance: Union[float, Literal["N/A", ""]] = (
+        Field(
+            default="", description="Outstanding balance on Spokane Tribal Credit short term loan"
+        )
+    )
+
+    spokane_tribal_credit_short_term_loan_payments_present_balance: Union[
+        float, Literal["N/A", ""]
+    ] = Field(
+        default="",
+        description="Current periodic payment amount for Spokane Tribal Credit short term loan",
+    )
+
+    spokane_tribal_credit_auto_repair_loan_payments_balance: Union[float, Literal["N/A", ""]] = (
+        Field(
+            default="", description="Outstanding balance on Spokane Tribal Credit auto repair loan"
+        )
+    )
+
+    spokane_tribal_credit_auto_repair_loan_payments_present_balance: Union[
+        float, Literal["N/A", ""]
+    ] = Field(
+        default="",
+        description="Current periodic payment amount for Spokane Tribal Credit auto repair loan",
+    )
+
+    spokane_tribal_credit_education_loan_payments_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Outstanding balance on Spokane Tribal Credit education loan"
+    )
+
+    spokane_tribal_credit_education_loan_payments_present_balance: Union[
+        float, Literal["N/A", ""]
+    ] = Field(
+        default="",
+        description="Current periodic payment amount for Spokane Tribal Credit education loan",
+    )
+
+    credit_cards_other_debt_payments_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Total outstanding balance on credit cards and other debts"
+    )
+
+    credit_cards_other_debt_payments_present_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="",
+        description="Current total monthly payment amount for credit cards and other debts",
+    )
+
+    alimony_child_support_payments_balance: Union[float, Literal["N/A", ""]] = Field(
         default="",
         description=(
-            "Additional notes or clarification related to totals .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Outstanding balance or obligation amount for alimony/child support, if applicable"
         ),
+    )
+
+    alimony_child_support_payments_present_balance: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Current periodic payment amount for alimony/child support"
+    )
+
+    total_assets_owns_borrower: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Total value of all assets owned by the borrower"
+    )
+
+    total_liabilities_borrower: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Total amount of all liabilities owed by the borrower"
+    )
+
+    total_assets_owns_co_signer: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Total value of all assets owned by the co-signer"
+    )
+
+    total_liabilities_co_signer: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Total amount of all liabilities owed by the co-signer"
     )
 
 
 class CustomerComments(BaseModel):
-    """Additional comments from the customer"""
+    """Additional information or explanations from the customer"""
 
-    customer_comments_line_1: str = Field(
+    customer_comments: str = Field(
         default="",
         description=(
-            'First line for customer comments .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    customer_comments_line_2: str = Field(
-        default="",
-        description=(
-            'Second line for customer comments .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    customer_comments_line_3: str = Field(
-        default="",
-        description=(
-            'Third line for customer comments .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    customer_comments_line_4: str = Field(
-        default="",
-        description=(
-            'Fourth line for customer comments .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    customer_comments_line_5: str = Field(
-        default="",
-        description=(
-            'Fifth line for customer comments .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Additional comments or explanations from the customer .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
 
-class AuthorizationandSignatures(BaseModel):
-    """Applicant and co-applicant signatures and dates"""
+class SignaturesandAuthorization(BaseModel):
+    """Applicant and co-applicant signatures and dates authorizing credit information release"""
 
     applicant_signature: str = Field(
         ...,
         description=(
-            "Signature of the applicant authorizing release of information .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            'Signature of the applicant .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
+
+    applicant_date: str = Field(..., description="Date the applicant signed")  # YYYY-MM-DD format
 
     co_applicant_signature: str = Field(
         default="",
         description=(
-            "Signature of the co-applicant authorizing release of information .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            'Signature of the co-applicant, if any .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    applicant_date: str = Field(
-        ..., description="Date the applicant signed this statement"
-    )  # YYYY-MM-DD format
-
     co_applicant_date: str = Field(
-        default="", description="Date the co-applicant signed this statement"
+        default="", description="Date the co-applicant signed"
     )  # YYYY-MM-DD format
 
 
@@ -383,6 +268,6 @@ class PersonalFinancialStatement(BaseModel):
 
     assets_and_liabilities: AssetsandLiabilities = Field(..., description="Assets and Liabilities")
     customer_comments: CustomerComments = Field(..., description="Customer Comments")
-    authorization_and_signatures: AuthorizationandSignatures = Field(
-        ..., description="Authorization and Signatures"
+    signatures_and_authorization: SignaturesandAuthorization = Field(
+        ..., description="Signatures and Authorization"
     )

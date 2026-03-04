@@ -47,104 +47,106 @@ class PersonalInformation(BaseModel):
     street_address: str = Field(
         ...,
         description=(
-            'Applicant\'s street address .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Street address including apartment or unit number .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     telephone_number: str = Field(
         ...,
         description=(
-            "Primary telephone number for the applicant .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Primary telephone number .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
     city_state_and_zip_code: str = Field(
         ...,
         description=(
-            "City, state, and ZIP code for the applicant's address .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "City, state, and ZIP code for the address .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     email_address: str = Field(
         ...,
         description=(
-            'Applicant\'s email address .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Primary email address .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
     emergency_contact_name_and_relationship: str = Field(
         ...,
         description=(
-            "Name of emergency contact and their relationship to the applicant .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Name of emergency contact and their relationship to you .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     emergency_telephone_number: str = Field(
         ...,
         description=(
-            "Telephone number for the emergency contact .If you cannot fill this, write "
+            "Telephone number for your emergency contact .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
 
-class VolunteerBackgroundAvailability(BaseModel):
-    """Previous volunteering with The Waters, relationships, availability, and commitment"""
+class VolunteerBackgroundandAvailability(BaseModel):
+    """Previous involvement with The Waters, family connections, availability, and commitment details"""
 
     have_you_previously_volunteered_with_the_waters: BooleanLike = Field(
-        ..., description="Indicate whether you have previously volunteered with The Waters"
+        ..., description="Indicate whether you have volunteered with The Waters before"
     )
 
-    yes_dates: str = Field(
+    yes_previous_volunteer: BooleanLike = Field(
+        default="", description="Check if you have previously volunteered with The Waters"
+    )
+
+    dates_previous_volunteer: str = Field(
         default="",
         description=(
-            "If yes, list the date or dates you previously volunteered .If you cannot fill "
+            'Dates when you previously volunteered .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    location_previous_volunteer: str = Field(
+        default="",
+        description=(
+            "Location where you previously volunteered with The Waters .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
-    )
-
-    location_previously_volunteered: str = Field(
-        default="",
-        description=(
-            "If yes, specify the location where you previously volunteered .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-    no_previously_volunteered: BooleanLike = Field(
-        default="", description="Check if you have not previously volunteered with The Waters"
     )
 
     date_available_to_start_volunteering: str = Field(
         ..., description="Date you are available to begin volunteering"
     )  # YYYY-MM-DD format
 
-    do_you_have_a_family_member_at_or_working_at_the_waters: BooleanLike = Field(
+    no_previous_volunteer: BooleanLike = Field(
+        default="", description="Check if you have not previously volunteered with The Waters"
+    )
+
+    do_you_have_a_family_member_at_the_waters: BooleanLike = Field(
         ...,
         description="Indicate whether you have a family member who lives or works at The Waters",
     )
 
-    yes_family_member_at_working_at_the_waters: BooleanLike = Field(
+    yes_family_member_at_the_waters: BooleanLike = Field(
         default="",
         description="Check if you do have a family member who lives or works at The Waters",
     )
 
-    location_family_member_at_working_at_the_waters: str = Field(
+    location_family_member_at_the_waters: str = Field(
         default="",
         description=(
             "Location of the family member who lives or works at The Waters .If you cannot "
@@ -154,119 +156,100 @@ class VolunteerBackgroundAvailability(BaseModel):
         ),
     )
 
-    no_family_member_at_working_at_the_waters: BooleanLike = Field(
+    if_yes_who: str = Field(
+        default="",
+        description=(
+            "Name and relationship of the family member at The Waters .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    no_family_member_at_the_waters: BooleanLike = Field(
         default="",
         description="Check if you do not have a family member who lives or works at The Waters",
     )
 
-    if_yes_who: str = Field(
-        default="",
-        description=(
-            "If you have a family member at The Waters, specify who they are .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
+    monday: BooleanLike = Field(default="", description="Available to volunteer on Mondays")
+
+    tuesday: BooleanLike = Field(default="", description="Available to volunteer on Tuesdays")
+
+    wednesday: BooleanLike = Field(default="", description="Available to volunteer on Wednesdays")
+
+    thursday: BooleanLike = Field(default="", description="Available to volunteer on Thursdays")
+
+    friday: BooleanLike = Field(default="", description="Available to volunteer on Fridays")
+
+    saturday: BooleanLike = Field(default="", description="Available to volunteer on Saturdays")
+
+    sunday: BooleanLike = Field(default="", description="Available to volunteer on Sundays")
+
+    mornings: BooleanLike = Field(default="", description="Available to volunteer in the mornings")
+
+    afternoons: BooleanLike = Field(
+        default="", description="Available to volunteer in the afternoons"
     )
 
-    monday_availability: BooleanLike = Field(
-        default="", description="Check if you are available on Mondays"
-    )
-
-    tuesday_availability: BooleanLike = Field(
-        default="", description="Check if you are available on Tuesdays"
-    )
-
-    wednesday_availability: BooleanLike = Field(
-        default="", description="Check if you are available on Wednesdays"
-    )
-
-    thursday_availability: BooleanLike = Field(
-        default="", description="Check if you are available on Thursdays"
-    )
-
-    friday_availability: BooleanLike = Field(
-        default="", description="Check if you are available on Fridays"
-    )
-
-    saturday_availability: BooleanLike = Field(
-        default="", description="Check if you are available on Saturdays"
-    )
-
-    sunday_availability: BooleanLike = Field(
-        default="", description="Check if you are available on Sundays"
-    )
-
-    mornings_availability: BooleanLike = Field(
-        default="", description="Check if you are available in the mornings"
-    )
-
-    afternoons_availability: BooleanLike = Field(
-        default="", description="Check if you are available in the afternoons"
-    )
-
-    evenings_availability: BooleanLike = Field(
-        default="", description="Check if you are available in the evenings"
-    )
+    evenings: BooleanLike = Field(default="", description="Available to volunteer in the evenings")
 
     other_availability: str = Field(
         default="",
         description=(
-            "Describe any other availability not listed .If you cannot fill this, write "
+            "Other availability details not covered above .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    commitment_level_hours: Union[float, Literal["N/A", ""]] = Field(
+    commitment_level_hours_per: Union[float, Literal["N/A", ""]] = Field(
         default="", description="Number of hours you can commit per selected time period"
     )
 
-    commitment_level_per_day: BooleanLike = Field(
-        default="", description="Check if the commitment hours are per day"
+    day_commitment_frequency: BooleanLike = Field(
+        default="", description="Indicate if the commitment is per day"
     )
 
-    commitment_level_per_week: BooleanLike = Field(
-        default="", description="Check if the commitment hours are per week"
+    week_commitment_frequency: BooleanLike = Field(
+        default="", description="Indicate if the commitment is per week"
     )
 
-    commitment_level_per_month: BooleanLike = Field(
-        default="", description="Check if the commitment hours are per month"
+    month_commitment_frequency: BooleanLike = Field(
+        default="", description="Indicate if the commitment is per month"
     )
 
-    commitment_level_per_other: str = Field(
+    other_commitment_frequency: str = Field(
         default="",
         description=(
-            "If other, specify the time period for the commitment hours .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Describe another commitment frequency if not day, week, or month .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     length_of_commitment: str = Field(
         default="",
         description=(
-            "Numeric or descriptive length of time you plan to volunteer .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            'Length of time you plan to volunteer .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    length_of_commitment_in_months: BooleanLike = Field(
-        default="", description="Check if the length of commitment is measured in months"
+    months_length_of_commitment: BooleanLike = Field(
+        default="", description="Indicate if the length of commitment is measured in months"
     )
 
-    length_of_commitment_indefinitely: BooleanLike = Field(
-        default="", description="Check if you intend to volunteer indefinitely"
+    indefinitely_length_of_commitment: BooleanLike = Field(
+        default="", description="Indicate if you plan to volunteer indefinitely"
     )
 
-    length_of_commitment_other: str = Field(
+    other_length_of_commitment: str = Field(
         default="",
         description=(
-            "If other, describe the length of commitment .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Describe another length of commitment .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -296,16 +279,13 @@ class InterestSkillsandExperience(BaseModel):
 
 
 class TheWatersVolunteerApplication(BaseModel):
-    """
-        THE WATERS
-    VOLUNTEER APPLICATION
+    """THE WATERS
 
-        ''
-    """
+    VOLUNTEER APPLICATION"""
 
     personal_information: PersonalInformation = Field(..., description="Personal Information")
-    volunteer_background__availability: VolunteerBackgroundAvailability = Field(
-        ..., description="Volunteer Background & Availability"
+    volunteer_background_and_availability: VolunteerBackgroundandAvailability = Field(
+        ..., description="Volunteer Background and Availability"
     )
     interest_skills_and_experience: InterestSkillsandExperience = Field(
         ..., description="Interest, Skills, and Experience"

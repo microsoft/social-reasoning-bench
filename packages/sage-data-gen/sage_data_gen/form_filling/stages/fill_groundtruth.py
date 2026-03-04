@@ -99,7 +99,7 @@ def _classify_form_fields(filled_data: dict, client: ModelClient, model: str) ->
             {
                 "id": field_path,
                 "label": label,
-                "example_value": value[:100] + "..." if len(value) > 100 else value,
+                "example_value": value,
             }
         )
 

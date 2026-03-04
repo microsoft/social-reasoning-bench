@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class MessageHeader(BaseModel):
-    """Sender, recipient, and subject details for the message"""
+    """Routing and subject information for the message"""
 
     to: str = Field(
         ...,
@@ -61,32 +61,32 @@ class MessageHeader(BaseModel):
     )
 
     date_subject_line: str = Field(
-        ..., description="Date the message is created or sent"
+        ..., description="Date the message is created"
     )  # YYYY-MM-DD format
 
     time_subject_line: str = Field(
         ...,
         description=(
-            'Time the message is created or sent .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-
-class MessageBody(BaseModel):
-    """Main message content and sender signature"""
-
-    message: str = Field(
-        ...,
-        description=(
-            'Full content of the message .If you cannot fill this, write "N/A". If this '
+            'Time the message is created .If you cannot fill this, write "N/A". If this '
             "field should not be filled by you (for example, it belongs to another person "
             'or office), leave it blank (empty string "").'
         ),
     )
 
-    signature: str = Field(
+
+class Message(BaseModel):
+    """Main message content and sender signature"""
+
+    message: str = Field(
+        ...,
+        description=(
+            "Full text of the message being communicated .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    signature_message: str = Field(
         ...,
         description=(
             "Signature of the person sending the message .If you cannot fill this, write "
@@ -117,11 +117,11 @@ class Reply(BaseModel):
         ),
     )
 
-    date_reply_section: str = Field(
+    date_reply_line: str = Field(
         default="", description="Date the reply is completed"
     )  # YYYY-MM-DD format
 
-    time_reply_section: str = Field(
+    time_reply_line: str = Field(
         default="",
         description=(
             'Time the reply is completed .If you cannot fill this, write "N/A". If this '
@@ -130,7 +130,7 @@ class Reply(BaseModel):
         ),
     )
 
-    signature_position_reply_section: str = Field(
+    signature_position_reply: str = Field(
         default="",
         description=(
             "Signature and position of the person providing the reply .If you cannot fill "
@@ -148,5 +148,5 @@ class GeneralMessage(BaseModel):
     """
 
     message_header: MessageHeader = Field(..., description="Message Header")
-    message_body: MessageBody = Field(..., description="Message Body")
+    message: Message = Field(..., description="Message")
     reply: Reply = Field(..., description="Reply")

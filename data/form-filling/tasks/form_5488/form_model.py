@@ -26,10 +26,10 @@ class AssociateApplicationForm(BaseModel):
     in_which_jurisdictions_are_you_qualified: str = Field(
         ...,
         description=(
-            "List all jurisdictions where you are qualified, including SRA number and "
-            "practising certificate status if qualified in the UK. .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "List all jurisdictions in which you are qualified to practice law. .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
@@ -46,7 +46,25 @@ class AssociateApplicationForm(BaseModel):
     are_you_licensed_to_practice_law_in_one_or_more_jurisdictions: BooleanLike = Field(
         ...,
         description=(
-            "Indicate whether you currently hold a licence to practise law in any jurisdiction."
+            "Indicate whether you currently hold a licence to practice law in any jurisdiction."
+        ),
+    )
+
+    if_qualified_in_the_uk_please_provide_your_sra_number: str = Field(
+        default="",
+        description=(
+            "If you are UK-qualified, enter your Solicitors Regulation Authority (SRA) "
+            'number. .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
+        ),
+    )
+
+    if_qualified_in_the_uk_indicate_whether_you_hold_a_current_practising_certificate: BooleanLike = Field(
+        default="",
+        description=(
+            "If you are UK-qualified, indicate whether you currently hold a valid "
+            "practising certificate."
         ),
     )
 
@@ -62,18 +80,17 @@ class AssociateApplicationForm(BaseModel):
     what_is_your_current_salary: str = Field(
         ...,
         description=(
-            "Provide your current annual salary, including currency and any fixed bonuses "
-            'if relevant. .If you cannot fill this, write "N/A". If this field should not '
-            "be filled by you (for example, it belongs to another person or office), leave "
-            'it blank (empty string "").'
+            "Provide your current annual salary and currency. .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     what_is_your_salary_expectation: str = Field(
         ...,
         description=(
-            "Indicate your expected annual salary for this role, including currency. .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "Indicate your expected annual salary and currency for this role. .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
@@ -82,38 +99,32 @@ class AssociateApplicationForm(BaseModel):
     what_is_your_current_or_most_recent_job_title: str = Field(
         ...,
         description=(
-            "Provide your current or most recent professional job title. .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Provide your current or most recent job title. .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     please_give_details_of_your_notice_period_availability: str = Field(
         ...,
         description=(
-            "Explain your current notice period and when you would be available to start. "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
+            "Explain your notice period and when you would be available to start. .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta: BooleanLike = (
-        Field(
-            ...,
-            description=(
-                "Indicate whether you have ever applied to or been employed by Volterra Fietta "
-                "before."
-            ),
-        )
+    have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta: BooleanLike = Field(
+        ...,
+        description="Indicate whether you have ever applied to or been employed by Volterra Fietta.",
     )
 
-    if_you_answered_yes_to_q10_above_please_give_details: str = Field(
+    if_yes_to_q10_please_give_details: str = Field(
         default="",
         description=(
             "If you have previously applied to or worked for Volterra Fietta, provide "
-            "details including dates, role and outcome. .If you cannot fill this, write "
+            "details including dates, role and office. .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -122,9 +133,9 @@ class AssociateApplicationForm(BaseModel):
     do_you_know_anyone_or_have_professional_connections_with_vf: str = Field(
         default="",
         description=(
-            "List any personal or professional connections you have with Volterra Fietta or "
-            'its staff. .If you cannot fill this, write "N/A". If this field should not '
-            "be filled by you (for example, it belongs to another person or office), leave "
-            'it blank (empty string "").'
+            "Describe any personal or professional connections you have with Volterra "
+            'Fietta or its staff. .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )

@@ -16,27 +16,11 @@ class FixedWorkLocationRow(BaseModel):
     """Single row in Fixed Work Location"""
 
     fixed_work_location: str = Field(default="", description="Fixed_Work_Location")
-    no_of_workers: str = Field(default="", description="No_Of_Workers")
+    number_of_workers: str = Field(default="", description="Number_Of_Workers")
     job_tasks_and_descriptions: str = Field(default="", description="Job_Tasks_And_Descriptions")
 
 
-class NoOfWorkersRow(BaseModel):
-    """Single row in No. of Workers"""
-
-    fixed_work_location: str = Field(default="", description="Fixed_Work_Location")
-    no_of_workers: str = Field(default="", description="No_Of_Workers")
-    job_tasks_and_descriptions: str = Field(default="", description="Job_Tasks_And_Descriptions")
-
-
-class JobTasksAndDescriptionsRow(BaseModel):
-    """Single row in Job Tasks and Descriptions"""
-
-    fixed_work_location: str = Field(default="", description="Fixed_Work_Location")
-    no_of_workers: str = Field(default="", description="No_Of_Workers")
-    job_tasks_and_descriptions: str = Field(default="", description="Job_Tasks_And_Descriptions")
-
-
-class FixedWorkLocationTaskInventoryForNonPatientCareEmployees(BaseModel):
+class FixedWorkLocationJobTaskInventoryNonPatientCare(BaseModel):
     """
         Fixed Work Location and Job Task Inventory for Employees Outside of
     Direct Patient Care Areas Who Cannot Maintain Physical Distancing
@@ -49,21 +33,21 @@ class FixedWorkLocationTaskInventoryForNonPatientCareEmployees(BaseModel):
     fixed_work_location: List[FixedWorkLocationRow] = Field(
         ...,
         description=(
-            "Table to list each fixed work location outside of direct patient care areas "
-            "where employees cannot maintain 6 feet of physical distance, along with number "
-            "of workers and job task descriptions."
+            "List each fixed work location outside of direct patient care areas where "
+            "employees cannot maintain 6 feet of physical distance."
         ),
     )  # List of table rows
 
-    no_of_workers: List[NoOfWorkersRow] = Field(
-        ...,
-        description="Number of workers assigned to each fixed work location listed in the table.",
-    )  # List of table rows
+    no_of_workers: Union[float, Literal["N/A", ""]] = Field(
+        ..., description="Number of workers assigned to this fixed work location."
+    )
 
-    job_tasks_and_descriptions: List[JobTasksAndDescriptionsRow] = Field(
+    job_tasks_and_descriptions: str = Field(
         ...,
         description=(
-            "Descriptions of job tasks at each fixed work location where employees cannot "
-            "maintain 6 feet of physical distance from others."
+            "Describe the job tasks at this fixed work location where employees cannot "
+            'maintain 6 feet of physical distance. .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
-    )  # List of table rows
+    )

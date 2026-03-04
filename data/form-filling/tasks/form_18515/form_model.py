@@ -49,26 +49,27 @@ class InterestinCommittee(BaseModel):
 
 
 class RelevantExperienceandAttributes(BaseModel):
-    """Professional, personal, and practical experiences related to PKC/HSSAP"""
+    """Attributes, experiences, and backgrounds relevant to serving on the Advisory Committee"""
 
     pa_prek_counts_program_content_knowledge_and_or_experience: BooleanLike = Field(
         default="",
         description=(
-            "Check if you have content knowledge and/or experience with the PA PreK Counts Program"
+            "Indicate if you have content knowledge and/or experience with the PA PreK "
+            "Counts Program"
         ),
     )
 
     head_start_head_start_supplemental_assistance_program_content_knowledge_and_or_experience: BooleanLike = Field(
         default="",
-        description="Check if you have content knowledge and/or experience with Head Start or HSSAP",
+        description=(
+            "Indicate if you have content knowledge and/or experience with Head Start or "
+            "the Head Start Supplemental Assistance Program"
+        ),
     )
 
     content_knowledge_and_or_experience: BooleanLike = Field(
         default="",
-        description=(
-            "Additional content knowledge and/or experience (context not fully specified in "
-            "snippet)"
-        ),
+        description="Indicate if you have other relevant content knowledge and/or experience",
     )
 
     family_member_experience_with_pa_pkc_program_services_in_pennsylvania_child_currently_or_formerly_enrolled_in_the_program: BooleanLike = Field(
@@ -88,31 +89,34 @@ class RelevantExperienceandAttributes(BaseModel):
     )
 
     practical_experiences_in_center_setting: BooleanLike = Field(
-        default="", description="Check if you have practical experience in a center-based setting"
+        default="",
+        description="Indicate if you have practical experience in a center-based setting",
     )
 
     practical_experiences_in_family_child_care_setting: BooleanLike = Field(
         default="",
-        description="Check if you have practical experience in a family child care setting",
+        description="Indicate if you have practical experience in a family child care setting",
     )
 
     practical_experiences_in_group_home_setting: BooleanLike = Field(
-        default="", description="Check if you have practical experience in a group home setting"
+        default="", description="Indicate if you have practical experience in a group home setting"
     )
 
     practical_experiences_in_school_district_setting: BooleanLike = Field(
         default="",
-        description="Check if you have practical experience in a school district setting",
+        description="Indicate if you have practical experience in a school district setting",
     )
 
     practical_experiences_in_pde_private_academic_school_setting: BooleanLike = Field(
         default="",
-        description="Check if you have practical experience in a PDE Private Academic School setting",
+        description=(
+            "Indicate if you have practical experience in a PDE Private Academic School setting"
+        ),
     )
 
     practical_experiences_in_an_intermediate_unit_setting: BooleanLike = Field(
         default="",
-        description="Check if you have practical experience in an Intermediate Unit setting",
+        description="Indicate if you have practical experience in an Intermediate Unit setting",
     )
 
     practical_experiences_in_other_setting_that_is_not_listed_please_describe: str = Field(
@@ -128,15 +132,15 @@ class RelevantExperienceandAttributes(BaseModel):
     early_childhood_education_academic_and_or_research_experience: BooleanLike = Field(
         default="",
         description=(
-            "Check if you have academic and/or research experience in Early Childhood Education"
+            "Indicate if you have academic and/or research experience in early childhood education"
         ),
     )
 
     mentoring_technical_assistance_or_professional_development_experience: BooleanLike = Field(
         default="",
         description=(
-            "Check if you have mentoring, technical assistance, or professional development "
-            "experience"
+            "Indicate if you have mentoring, technical assistance, or professional "
+            "development experience"
         ),
     )
 
@@ -151,17 +155,18 @@ class RelevantExperienceandAttributes(BaseModel):
     )
 
     political_advocacy_experience: BooleanLike = Field(
-        default="", description="Check if you have political or advocacy experience"
+        default="", description="Indicate if you have political or advocacy experience"
     )
 
     parent_family_leadership_training: BooleanLike = Field(
-        default="", description="Check if you have completed parent or family leadership training"
+        default="",
+        description="Indicate if you have participated in parent or family leadership training",
     )
 
     other_please_describe: str = Field(
         default="",
         description=(
-            "Describe any other relevant attributes or experiences not listed above .If you "
+            "Describe any other relevant experience or attributes not listed above .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
@@ -169,8 +174,16 @@ class RelevantExperienceandAttributes(BaseModel):
     )
 
 
-class PennsylvaniaPkchssapAdvisoryCommitteeApplication(BaseModel):
-    """Pennsylvania PKC/HSSAP Advisory Committee Application"""
+class PaPaOfficeOfChildDevEarlyLearningPkchssapAdvisoryApp(BaseModel):
+    """
+        PA pennsylvania
+    OFFICE OF CHILD DEVELOPMENT
+    AND EARLY LEARNING
+
+    Pennsylvania PKC/HSSAP Advisory Committee Application
+
+        ''
+    """
 
     applicant_information: ApplicantInformation = Field(..., description="Applicant Information")
     interest_in_committee: InterestinCommittee = Field(..., description="Interest in Committee")

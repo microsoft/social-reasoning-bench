@@ -18,91 +18,15 @@ class ProjectInformation(BaseModel):
     project_title: str = Field(
         ...,
         description=(
-            'Full title of the proposed project .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Title of the proposed innovative teaching project .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     amount_of_grant: Union[float, Literal["N/A", ""]] = Field(
         ..., description="Total dollar amount of grant funds requested"
     )
-
-    description_of_the_project: str = Field(
-        ...,
-        description=(
-            "Brief description of the project (no more than 100 words or 4–5 sentences) .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
-    implementation_start_date: str = Field(
-        ..., description="Planned date when project implementation will begin"
-    )  # YYYY-MM-DD format
-
-
-class ApplicantInformation(BaseModel):
-    """Information about the applicant(s)"""
-
-    printed_name_of_applicants_1: str = Field(
-        ...,
-        description=(
-            'Printed name of the first applicant .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    signature_of_applicants_1: str = Field(
-        ...,
-        description=(
-            'Signature of the first applicant .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    printed_name_of_applicants_2: str = Field(
-        default="",
-        description=(
-            "Printed name of the second applicant (if applicable) .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    signature_of_applicants_2: str = Field(
-        default="",
-        description=(
-            "Signature of the second applicant (if applicable) .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    printed_name_of_applicants_3: str = Field(
-        default="",
-        description=(
-            "Printed name of the third applicant (if applicable) .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    signature_of_applicants_3: str = Field(
-        default="",
-        description=(
-            "Signature of the third applicant (if applicable) .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-
-class SchoolandParticipants(BaseModel):
-    """School details and target population for the project"""
 
     school: str = Field(
         ...,
@@ -116,10 +40,9 @@ class SchoolandParticipants(BaseModel):
     grades: str = Field(
         ...,
         description=(
-            "Grade level or range of grades participating in the project .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Grade level or range of grades of participating students .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -136,8 +59,8 @@ class SchoolandParticipants(BaseModel):
         ..., description="Total number of students who will participate in the project"
     )
 
-    students_target_group: BooleanLike = Field(
-        default="", description="Indicates that the primary target population is students"
+    students_target_group: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of students in the primary target group to be served"
     )
 
     students_target_group_description: str = Field(
@@ -151,16 +74,106 @@ class SchoolandParticipants(BaseModel):
     )
 
     parents: BooleanLike = Field(
-        default="", description="Indicates that parents are part of the primary target population"
+        default="", description="Check if parents are part of the primary target population"
     )
 
     teachers: BooleanLike = Field(
-        default="", description="Indicates that teachers are part of the primary target population"
+        default="", description="Check if teachers are part of the primary target population"
+    )
+
+    implementation_start_date: str = Field(
+        ..., description="Planned start date for implementing the project"
+    )  # YYYY-MM-DD format
+
+    description_of_the_project: str = Field(
+        ...,
+        description=(
+            "Brief description of the project (no more than 100 words or 4–5 sentences) .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
     )
 
 
-class Approvals(BaseModel):
-    """Required signatures and approvals"""
+class ApplicantInformation(BaseModel):
+    """Names and signatures of project applicants"""
+
+    printed_name_of_applicants_applicant_1_printed_name: str = Field(
+        ...,
+        description=(
+            'Printed name of the first applicant .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    signature_of_applicants_applicant_1_signature: str = Field(
+        ...,
+        description=(
+            'Signature of the first applicant .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    printed_name_of_applicants_applicant_2_printed_name: str = Field(
+        default="",
+        description=(
+            "Printed name of the second applicant (if applicable) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    signature_of_applicants_applicant_2_signature: str = Field(
+        default="",
+        description=(
+            "Signature of the second applicant (if applicable) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    printed_name_of_applicants_applicant_3_printed_name: str = Field(
+        default="",
+        description=(
+            "Printed name of the third applicant (if applicable) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    signature_of_applicants_applicant_3_signature: str = Field(
+        default="",
+        description=(
+            "Signature of the third applicant (if applicable) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    printed_name_of_applicants_applicant_4_printed_name: str = Field(
+        default="",
+        description=(
+            "Printed name of the fourth applicant (if applicable) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    signature_of_applicants_applicant_4_signature: str = Field(
+        default="",
+        description=(
+            "Signature of the fourth applicant (if applicable) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+
+class Authorizations(BaseModel):
+    """Required administrative approvals and signatures"""
 
     signature_of_principal: str = Field(
         ...,
@@ -168,15 +181,6 @@ class Approvals(BaseModel):
             "Principal’s signature approving the project .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    principal_name: str = Field(
-        ...,
-        description=(
-            'Printed name of the principal .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
         ),
     )
 
@@ -206,12 +210,13 @@ class Approvals(BaseModel):
 
 
 class InnovativeTeachingGrantApplicationCoverPage(BaseModel):
-    """Innovative Teaching Grant Application
-    Cover Page"""
+    """
+        Innovative Teaching Grant Application
+    Cover Page
+
+        ''
+    """
 
     project_information: ProjectInformation = Field(..., description="Project Information")
     applicant_information: ApplicantInformation = Field(..., description="Applicant Information")
-    school_and_participants: SchoolandParticipants = Field(
-        ..., description="School and Participants"
-    )
-    approvals: Approvals = Field(..., description="Approvals")
+    authorizations: Authorizations = Field(..., description="Authorizations")

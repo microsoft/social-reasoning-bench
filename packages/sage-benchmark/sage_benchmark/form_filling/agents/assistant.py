@@ -6,6 +6,8 @@ from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, Field
 from sage_llm import ModelClient
 
+from sage_benchmark.form_filling.environment.actions import FILE_SYSTEM_TOOLS
+from sage_benchmark.form_filling.environment.bm25_index import BM25Index
 from sage_benchmark.form_filling.prompts import (
     INTERACTIVE_INSTRUCTION,
     construct_interactive_system_prompt,
@@ -74,6 +76,9 @@ TOOLS = [
     },
 ]
 
+# File system tool names for dispatch
+_FS_TOOL_NAMES = {cls.get_name() for cls in FILE_SYSTEM_TOOLS}
+
 
 class AssistantAgent:
     """Agent that answers questions on behalf of a person."""
@@ -86,6 +91,8 @@ class AssistantAgent:
         artifacts: list,
         prompt_type: str = "base",
         temperature: float | None = None,
+        file_system: bool = False,
+        bm25_index: BM25Index | None = None,
     ):
         """Initialize the assistant agent.
 
@@ -96,15 +103,25 @@ class AssistantAgent:
             artifacts: List of ArtifactData objects
             prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained")
             temperature: Sampling temperature for generation
+            file_system: If True, add file-system search/read tools
+            bm25_index: BM25 index for file-system tool execution
         """
         self.client = client
         self.model = model
         self.temperature = temperature
+        self.bm25_index = bm25_index
 
         # Build tools list — always include AskUser
         self.tools = list(TOOLS)
 
-        system_prompt = construct_interactive_system_prompt(persona, prompt_type)
+        # Add file system tools if in file-system mode
+        if file_system:
+            for tool_cls in FILE_SYSTEM_TOOLS:
+                self.tools.append(tool_cls.get_openai_function_tool_param())
+
+        system_prompt = construct_interactive_system_prompt(
+            persona, prompt_type, file_system=file_system
+        )
         artifacts_context = format_artifacts_as_context(artifacts)
 
         instruction = INTERACTIVE_INSTRUCTION
@@ -116,7 +133,13 @@ class AssistantAgent:
         ]
 
     async def generate_action(self) -> tuple[str, dict]:
-        """Generate the next action. Returns (tool_name, arguments)."""
+        """Generate the next action. Returns (tool_name, arguments).
+
+        File-system tool calls (SearchEmail, ReadEmail, SearchCalendar, ReadCalendar)
+        are handled internally: the tool is executed, the result is appended to the
+        message history, and another LLM call is made. Only "terminal" actions
+        (SendMessage, EndConversation, AskUser) are returned to the caller.
+        """
         gen_kwargs: dict = {}
         if self.temperature is not None:
             gen_kwargs["temperature"] = self.temperature
@@ -136,6 +159,38 @@ class AssistantAgent:
         arguments = tool_call.function.arguments
         if isinstance(arguments, str):
             arguments = json.loads(arguments)
+
+        # Handle file-system tools internally
+        if tool_call.function.name in _FS_TOOL_NAMES and self.bm25_index is not None:
+            result_str = self.bm25_index.execute_tool(tool_call.function.name, arguments)
+
+            # Append tool call and result to messages
+            self.messages.append(
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": json.dumps(arguments),
+                            },
+                        }
+                    ],
+                }
+            )
+            self.messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": result_str,
+                }
+            )
+
+            # Recurse to get the next action
+            return await self.generate_action()
 
         # Record the assistant's message in history
         if tool_call.function.name == "SendMessage":

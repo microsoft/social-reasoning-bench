@@ -133,6 +133,13 @@ def parse_args() -> argparse.Namespace:
         help="Sampling temperature for assistant/form-filler generation",
     )
 
+    # File system mode (orthogonal to execution mode)
+    parser.add_argument(
+        "--file-system",
+        action="store_true",
+        help="Enable file-system mode: agent uses search/read tools instead of receiving artifacts in context",
+    )
+
     # GUI mode specific arguments
     parser.add_argument(
         "--http-port",
@@ -205,6 +212,7 @@ def main():
             max_steps=args.max_gui_steps,
             restructure_model=args.restructure_model,
             temperature=args.assistant_temperature,
+            file_system=args.file_system,
         )
     )
 

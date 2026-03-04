@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Southsure — Public Liability Claim Form</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    :root{
+      --bg:#d6d2cd;
+      --ink:#1b1b1b;
+      --grid:#3b3b3b;
+      --soft:#666;
+      --bar:#4a4a4a;
+      --page:#ffffff;
+      --focus:#f5f5ee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--page);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:18px 18px 16px;
+      position:relative;
+    }
+    .top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:center;
+      padding:2px 6px 10px;
+      position:relative;
+    }
+    .brand{
+      text-align:center;
+      line-height:1.05;
+      user-select:none;
+    }
+    .brand .name{
+      font-size:40px;
+      font-weight:600;
+      letter-spacing:.5px;
+      color:#2f5d7a;
+    }
+    .brand .tag{
+      font-size:11px;
+      letter-spacing:2.6px;
+      color:#6a6a6a;
+      margin-top:2px;
+      font-weight:600;
+    }
+    .title{
+      margin:8px 0 8px;
+      font-weight:800;
+      font-size:14px;
+      letter-spacing:.2px;
+    }
+
+    form{margin:0}
+    .form-wrap{
+      border:1.5px solid var(--grid);
+      padding:0;
+    }
+
+    /* Grid resembling scanned form */
+    table.form-grid{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:12px;
+    }
+    .form-grid td, .form-grid th{
+      border:1.2px solid var(--grid);
+      padding:6px 8px;
+      vertical-align:top;
+    }
+    .vbar{
+      width:46px;
+      padding:0;
+      background:#f7f7f7;
+      position:relative;
+      text-align:center;
+    }
+    .vbar .vtext{
+      writing-mode:vertical-rl;
+      transform:rotate(180deg);
+      font-weight:700;
+      letter-spacing:.7px;
+      text-transform:uppercase;
+      font-size:11px;
+      display:inline-block;
+      padding:10px 0;
+    }
+    .labelcell{
+      width:210px;
+      font-weight:600;
+    }
+    .bigcell{
+      width:auto;
+    }
+
+    .input-line{
+      width:100%;
+      border:none;
+      outline:none;
+      font:inherit;
+      background:transparent;
+      padding:2px 2px 1px;
+      min-height:18px;
+    }
+    .input-line:focus{background:var(--focus)}
+    textarea.input-line{
+      resize:vertical;
+      min-height:78px;
+      line-height:1.25;
+    }
+    .hint{
+      color:var(--soft);
+      font-size:10.5px;
+      margin-top:4px;
+    }
+    .two-col{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:0;
+      height:100%;
+    }
+    .wbox{
+      min-height:92px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .wrow{
+      display:flex;
+      gap:8px;
+      align-items:flex-end;
+    }
+    .wrow .wlab{
+      min-width:62px;
+      font-weight:600;
+      font-size:11.5px;
+      padding-top:2px;
+    }
+    .wrow input{
+      flex:1;
+      min-width:0;
+      border:none;
+      outline:none;
+      background:transparent;
+      border-bottom:0;
+      padding:2px 2px 1px;
+      font:inherit;
+    }
+    .wrow input:focus{background:var(--focus)}
+    .decl{
+      font-size:11.5px;
+      font-weight:600;
+      padding:8px 8px;
+    }
+    .sigrow{
+      display:flex;
+      gap:12px;
+      align-items:flex-end;
+      padding:6px 8px 2px;
+    }
+    .sigrow .slabel{
+      font-weight:700;
+      font-size:11.5px;
+      white-space:nowrap;
+    }
+    .sigrow .sigline{
+      flex:1;
+      border-bottom:1.2px dotted var(--grid);
+      min-height:22px;
+      display:flex;
+      align-items:flex-end;
+    }
+    .sigrow .sigline input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      padding:2px 2px 1px;
+      font:inherit;
+      min-height:20px;
+    }
+    .sigrow .sigline input:focus{background:var(--focus)}
+    .sigrow .dlabel{
+      font-weight:700;
+      font-size:11.5px;
+      white-space:nowrap;
+      margin-left:6px;
+    }
+    .sigrow .datebox{
+      width:150px;
+      border-bottom:1.2px dotted var(--grid);
+      min-height:22px;
+      display:flex;
+      align-items:flex-end;
+    }
+    .sigrow .datebox input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      padding:2px 2px 1px;
+      font:inherit;
+      min-height:20px;
+    }
+    .sigrow .datebox input:focus{background:var(--focus)}
+    .btnbar{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:12px 2px 0;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #666;
+      background:#fff;
+      color:#333;
+    }
+    .btn.primary{
+      background:#444;
+      border-color:#333;
+      color:#fff;
+    }
+    .foot{
+      text-align:center;
+      color:#555;
+      font-size:11px;
+      padding-top:8px;
+      user-select:none;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <div class="brand" aria-label="Southsure Short-Term Insurance">
+        <div class="name">Southsure</div>
+        <div class="tag">SHORT-TERM INSURANCE</div>
+      </div>
+    </div>
+
+    <div class="title">PUBLIC LIABILITY CLAIM FORM</div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="form-wrap">
+        <table class="form-grid" role="presentation">
+          <!-- INSURED -->
+          <tr>
+            <td class="vbar" rowspan="3"><span class="vtext">Insured</span></td>
+            <td class="labelcell">Name and occupation</td>
+            <td class="bigcell" colspan="2">
+              <input class="input-line" type="text" id="name_and_occupation" name="name_and_occupation" />
+            </td>
+          </tr>
+          <tr>
+            <td class="labelcell">Address</td>
+            <td class="bigcell" colspan="2">
+              <input class="input-line" type="text" id="address" name="address" />
+            </td>
+          </tr>
+          <tr>
+            <td class="labelcell">Tel No</td>
+            <td class="bigcell" colspan="2">
+              <input class="input-line" type="tel" id="tel_no" name="tel_no" />
+            </td>
+          </tr>
+
+          <!-- DESCRIPTION OF LOSS -->
+          <tr>
+            <td class="vbar" rowspan="3"><span class="vtext">Description of Loss</span></td>
+            <td class="labelcell">Date and time of loss / damage</td>
+            <td class="bigcell" colspan="2">
+              <input class="input-line" type="text" id="date_and_time_of_loss_damage" name="date_and_time_of_loss_damage" placeholder="e.g., 2026-02-20 14:30" />
+            </td>
+          </tr>
+          <tr>
+            <td class="labelcell">Place where loss / damage occurred</td>
+            <td class="bigcell" colspan="2">
+              <input class="input-line" type="text" id="place_where_loss_damage_occurred" name="place_where_loss_damage_occurred" />
+            </td>
+          </tr>
+          <tr>
+            <td class="labelcell">State exactly how the loss / damage occurred.</td>
+            <td class="bigcell" colspan="2">
+              <textarea class="input-line" id="state_exactly_how_the_loss_damage_occurred" name="state_exactly_how_the_loss_damage_occurred"></textarea>
+            </td>
+          </tr>
+
+          <!-- WITNESSES -->
+          <tr>
+            <td class="vbar" rowspan="1"><span class="vtext">Witnesses</span></td>
+            <td class="labelcell">Name, address &amp; Tel No of witnesses</td>
+            <td class="bigcell" colspan="2" style="padding:0;">
+              <div class="two-col">
+                <div style="border-right:1.2px solid var(--grid); padding:8px;">
+                  <div class="wbox">
+                    <div class="wrow">
+                      <div class="wlab">Name:</div>
+                      <input type="text" id="name_witness_1" name="name_witness_1" />
+                    </div>
+                    <div class="wrow">
+                      <div class="wlab">Address:</div>
+                      <input type="text" id="address_witness_1" name="address_witness_1" />
+                    </div>
+                    <div class="wrow">
+                      <div class="wlab">Tel No:</div>
+                      <input type="tel" id="tel_no_witness_1" name="tel_no_witness_1" />
+                    </div>
+                  </div>
+                </div>
+                <div style="padding:8px;">
+                  <div class="wbox">
+                    <div class="wrow">
+                      <div class="wlab">Name:</div>
+                      <input type="text" id="name_witness_2" name="name_witness_2" />
+                    </div>
+                    <div class="wrow">
+                      <div class="wlab">Address:</div>
+                      <input type="text" id="address_witness_2" name="address_witness_2" />
+                    </div>
+                    <div class="wrow">
+                      <div class="wlab">Tel No:</div>
+                      <input type="tel" id="tel_no_witness_2" name="tel_no_witness_2" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <!-- hidden but required by model: name_address_tel_no_of_witnesses (combined field on paper) -->
+          <tr style="display:none;">
+            <td></td><td></td>
+            <td colspan="2">
+              <input type="text" id="name_address_tel_no_of_witnesses" name="name_address_tel_no_of_witnesses" />
+            </td>
+          </tr>
+
+          <!-- POLICE -->
+          <tr>
+            <td class="vbar"><span class="vtext">Police</span></td>
+            <td class="labelcell">Name of Police Station and Case Reference Number</td>
+            <td class="bigcell" colspan="2">
+              <input class="input-line" type="text" id="name_of_police_station_and_case_reference_number" name="name_of_police_station_and_case_reference_number" />
+            </td>
+          </tr>
+
+          <!-- PROPERTY DAMAGE -->
+          <tr>
+            <td class="vbar" rowspan="2"><span class="vtext">Property Damage</span></td>
+            <td class="labelcell">Name and address of owner</td>
+            <td class="bigcell" colspan="2">
+              <input class="input-line" type="text" id="name_and_address_of_owner" name="name_and_address_of_owner" />
+            </td>
+          </tr>
+          <tr>
+            <td class="labelcell">Description of damage to property</td>
+            <td class="bigcell" colspan="2">
+              <textarea class="input-line" id="description_of_damage_to_property" name="description_of_damage_to_property"></textarea>
+            </td>
+          </tr>
+
+          <!-- PERSONAL INJURIES -->
+          <tr>
+            <td class="vbar" rowspan="3"><span class="vtext">Personal Injuries</span></td>
+            <td class="labelcell">Name and age of injured person</td>
+            <td class="bigcell" colspan="2">
+              <input class="input-line" type="text" id="name_and_age_of_injured_person" name="name_and_age_of_injured_person" />
+            </td>
+          </tr>
+          <tr>
+            <td class="labelcell">Address of injured person</td>
+            <td class="bigcell" colspan="2">
+              <input class="input-line" type="text" id="address_of_injured_person" name="address_of_injured_person" />
+            </td>
+          </tr>
+          <tr>
+            <td class="labelcell">Details of injuries</td>
+            <td class="bigcell" colspan="2">
+              <textarea class="input-line" id="details_of_injuries" name="details_of_injuries"></textarea>
+            </td>
+          </tr>
+
+          <!-- RELATIONSHIP -->
+          <tr>
+            <td class="vbar"><span class="vtext">Relationship</span></td>
+            <td class="labelcell">
+              If person named above is in your service / your tenant / related to you, please give full details
+            </td>
+            <td class="bigcell" colspan="2">
+              <textarea class="input-line" id="relationship_details" name="relationship_details"></textarea>
+            </td>
+          </tr>
+
+          <!-- CLAIM -->
+          <tr>
+            <td class="vbar"><span class="vtext">Claim</span></td>
+            <td class="labelcell">
+              If a claim has been made against you, please give details and attach any correspondence received
+            </td>
+            <td class="bigcell" colspan="2">
+              <textarea class="input-line" id="claim_details_against_you" name="claim_details_against_you"></textarea>
+            </td>
+          </tr>
+
+          <!-- DECLARATION -->
+          <tr>
+            <td class="vbar" rowspan="2"><span class="vtext">Declaration</span></td>
+            <td class="decl" colspan="3">
+              I / We declare that to the best of my / our knowledge the above statements are truly made.
+            </td>
+          </tr>
+          <tr>
+            <td colspan="3" style="padding:0;">
+              <div class="sigrow">
+                <div class="slabel">Insured’s Signature</div>
+                <div class="sigline" title="Type signature name">
+                  <input type="text" id="insureds_signature" name="insureds_signature" />
+                </div>
+                <div class="dlabel">Date</div>
+                <div class="datebox">
+                  <input type="date" id="date" name="date" />
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="btnbar">
+        <button class="btn" type="reset">Clear Form</button>
+        <button class="btn primary" type="submit">Submit</button>
+      </div>
+      <div class="foot">1</div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      // Keep combined witnesses field in sync (model has a combined field too)
+      function syncCombinedWitnesses(){
+        const n1 = (document.getElementById('name_witness_1').value || '').trim();
+        const a1 = (document.getElementById('address_witness_1').value || '').trim();
+        const t1 = (document.getElementById('tel_no_witness_1').value || '').trim();
+        const n2 = (document.getElementById('name_witness_2').value || '').trim();
+        const a2 = (document.getElementById('address_witness_2').value || '').trim();
+        const t2 = (document.getElementById('tel_no_witness_2').value || '').trim();
+
+        const parts = [];
+        if (n1 || a1 || t1) parts.push(`Witness 1: ${[n1, a1, t1].filter(Boolean).join(' | ')}`);
+        if (n2 || a2 || t2) parts.push(`Witness 2: ${[n2, a2, t2].filter(Boolean).join(' | ')}`);
+        document.getElementById('name_address_tel_no_of_witnesses').value = parts.join(' ; ');
+      }
+      ['name_witness_1','address_witness_1','tel_no_witness_1','name_witness_2','address_witness_2','tel_no_witness_2']
+        .forEach(id => document.getElementById(id).addEventListener('input', syncCombinedWitnesses));
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        syncCombinedWitnesses();
+
+        const fd = new FormData(form);
+        const v = (name) => (fd.get(name) ?? '').toString();
+
+        const data = {
+          insured: {
+            name_and_occupation: v('name_and_occupation'),
+            address: v('address'),
+            tel_no: v('tel_no')
+          },
+          description_of_loss: {
+            date_and_time_of_loss_damage: v('date_and_time_of_loss_damage'),
+            place_where_loss_damage_occurred: v('place_where_loss_damage_occurred'),
+            state_exactly_how_the_loss_damage_occurred: v('state_exactly_how_the_loss_damage_occurred')
+          },
+          witnesses: {
+            name_address_tel_no_of_witnesses: v('name_address_tel_no_of_witnesses'),
+            name_witness_1: v('name_witness_1'),
+            address_witness_1: v('address_witness_1'),
+            tel_no_witness_1: v('tel_no_witness_1'),
+            name_witness_2: v('name_witness_2'),
+            address_witness_2: v('address_witness_2'),
+            tel_no_witness_2: v('tel_no_witness_2')
+          },
+          police: {
+            name_of_police_station_and_case_reference_number: v('name_of_police_station_and_case_reference_number')
+          },
+          property_damage: {
+            name_and_address_of_owner: v('name_and_address_of_owner'),
+            description_of_damage_to_property: v('description_of_damage_to_property')
+          },
+          personal_injuries: {
+            name_and_age_of_injured_person: v('name_and_age_of_injured_person'),
+            address_of_injured_person: v('address_of_injured_person'),
+            details_of_injuries: v('details_of_injuries')
+          },
+          relationship: {
+            relationship_details: v('relationship_details')
+          },
+          claim: {
+            claim_details_against_you: v('claim_details_against_you')
+          },
+          declaration: {
+            insureds_signature: v('insureds_signature'),
+            date: v('date')
+          }
+        };
+
+        console.log('PublicLiabilityClaimForm:', JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for the generated JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

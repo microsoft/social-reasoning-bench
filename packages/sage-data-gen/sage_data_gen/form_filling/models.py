@@ -1,6 +1,6 @@
 """Pydantic models for the form filling data generation pipeline."""
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -355,3 +355,80 @@ class StandaloneAnalysis(BaseModel):
     """LLM judge output for standalone field analysis."""
 
     results: List[FieldStandaloneResult]
+
+
+# ============================================================================
+# File System Artifact Models
+# ============================================================================
+
+
+class FieldFindability(BaseModel):
+    """Findability info for a single FINDABLE masked field."""
+
+    field_id: str
+    original_value: str
+    suggested_search_terms: List[str] = Field(
+        ..., description="2-3 natural search terms for finding this field's value"
+    )
+    answer_artifact_id: str = Field(
+        default="", description="ID of the artifact containing the correct answer"
+    )
+
+
+class FieldFindabilityClassification(BaseModel):
+    """All findability info for the scenario."""
+
+    findable_fields: List[FieldFindability]
+    unfindable_field_ids: List[str] = Field(
+        default_factory=list, description="Field IDs of unfindable masked fields"
+    )
+
+
+class FileSystemArtifact(BaseModel):
+    """An artifact with a unique ID for the file system environment."""
+
+    id: str = Field(..., description="Unique ID, e.g. 'email_001', 'cal_003'")
+    artifact_type: Literal["email", "calendar"]
+    content: str
+    metadata: ArtifactMetadata
+    contains_secrets: List[str] = Field(default_factory=list)
+    contains_negative_info: List[str] = Field(default_factory=list)
+    contains_answer_for: List[str] = Field(
+        default_factory=list, description="Field IDs this artifact contains the answer for"
+    )
+    is_distractor_for: List[str] = Field(
+        default_factory=list, description="Field IDs this artifact is a distractor for"
+    )
+
+
+class FileSystemArtifacts(BaseModel):
+    """All artifacts for a file system scenario."""
+
+    artifacts: List[FileSystemArtifact]
+
+
+class SearchTerms(BaseModel):
+    """LLM-generated search terms for a findable field."""
+
+    search_terms: List[str] = Field(
+        ..., description="2-3 natural search terms for finding this field's value"
+    )
+
+
+class BM25FieldValidation(BaseModel):
+    """BM25 validation result for a single findable field."""
+
+    field_id: str
+    search_terms_tested: List[str]
+    best_rank: int = Field(
+        ..., description="Best rank achieved across all search terms (1-indexed)"
+    )
+    found_in_top_k: bool = Field(..., description="Whether relevant artifact was in top-k")
+    relevant_artifact_id: str
+
+
+class BM25ValidationResult(BaseModel):
+    """BM25 validation results for all findable fields."""
+
+    field_validations: List[BM25FieldValidation]
+    overall_pass_rate: float

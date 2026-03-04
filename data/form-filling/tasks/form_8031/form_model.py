@@ -12,7 +12,7 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class ReportHeader(BaseModel):
+class ReportInformation(BaseModel):
     """Basic information about the LEA/district, school, reviewers, and grades covered"""
 
     lea_district_name: str = Field(
@@ -37,9 +37,9 @@ class ReportHeader(BaseModel):
     names_of_reviewers: str = Field(
         ...,
         description=(
-            "Names of the person or people completing the assessment .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Names of individuals who completed this assessment .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -53,67 +53,67 @@ class ReportHeader(BaseModel):
     )
 
     grade_pk: BooleanLike = Field(
-        default="", description="Check if pre-kindergarten (PK) grade level is included"
+        default="", description="Check if pre-kindergarten (PK) grade is included"
     )
 
     grade_k: BooleanLike = Field(
-        default="", description="Check if kindergarten (K) grade level is included"
+        default="", description="Check if kindergarten (K) grade is included"
     )
 
-    grade_1: BooleanLike = Field(default="", description="Check if 1st grade is included")
+    grade_1: BooleanLike = Field(default="", description="Check if grade 1 is included")
 
-    grade_2: BooleanLike = Field(default="", description="Check if 2nd grade is included")
+    grade_2: BooleanLike = Field(default="", description="Check if grade 2 is included")
 
-    grade_3: BooleanLike = Field(default="", description="Check if 3rd grade is included")
+    grade_3: BooleanLike = Field(default="", description="Check if grade 3 is included")
 
-    grade_4: BooleanLike = Field(default="", description="Check if 4th grade is included")
+    grade_4: BooleanLike = Field(default="", description="Check if grade 4 is included")
 
-    grade_5: BooleanLike = Field(default="", description="Check if 5th grade is included")
+    grade_5: BooleanLike = Field(default="", description="Check if grade 5 is included")
 
-    grade_6: BooleanLike = Field(default="", description="Check if 6th grade is included")
+    grade_6: BooleanLike = Field(default="", description="Check if grade 6 is included")
 
-    grade_7: BooleanLike = Field(default="", description="Check if 7th grade is included")
+    grade_7: BooleanLike = Field(default="", description="Check if grade 7 is included")
 
-    grade_8: BooleanLike = Field(default="", description="Check if 8th grade is included")
+    grade_8: BooleanLike = Field(default="", description="Check if grade 8 is included")
 
-    grade_9: BooleanLike = Field(default="", description="Check if 9th grade is included")
+    grade_9: BooleanLike = Field(default="", description="Check if grade 9 is included")
 
-    grade_10: BooleanLike = Field(default="", description="Check if 10th grade is included")
+    grade_10: BooleanLike = Field(default="", description="Check if grade 10 is included")
 
-    grade_11: BooleanLike = Field(default="", description="Check if 11th grade is included")
+    grade_11: BooleanLike = Field(default="", description="Check if grade 11 is included")
 
-    grade_12: BooleanLike = Field(default="", description="Check if 12th grade is included")
+    grade_12: BooleanLike = Field(default="", description="Check if grade 12 is included")
 
 
 class PolicyInclusionandImplementationStatus(BaseModel):
-    """Status of inclusion in written policy and implementation in school buildings"""
+    """Status of whether items are included in written policy and implemented in school buildings"""
 
-    included_in_written_policy_yes: BooleanLike = Field(
+    included_in_the_written_policy_yes: BooleanLike = Field(
         default="",
-        description="Indicate YES if this item is included in the written wellness policy",
+        description='Indicate "Yes" if the item is included in the written wellness policy',
     )
 
-    included_in_written_policy_no: BooleanLike = Field(
+    included_in_the_written_policy_no: BooleanLike = Field(
         default="",
-        description="Indicate NO if this item is not included in the written wellness policy",
+        description='Indicate "No" if the item is not included in the written wellness policy',
     )
 
-    implemented_in_school_buildings_fully_in_place: BooleanLike = Field(
+    implemented_in_the_school_buildings_fully_in_place: BooleanLike = Field(
         default="", description="Check if the item is fully implemented in the school building(s)"
     )
 
-    implemented_in_school_buildings_partially_in_place: BooleanLike = Field(
+    implemented_in_the_school_buildings_partially_in_place: BooleanLike = Field(
         default="",
         description="Check if the item is partially implemented in the school building(s)",
     )
 
-    implemented_in_school_buildings_not_in_place: BooleanLike = Field(
+    implemented_in_the_school_buildings_not_in_place: BooleanLike = Field(
         default="", description="Check if the item is not implemented in the school building(s)"
     )
 
 
 class PublicInvolvementNotificationandAssessment(BaseModel):
-    """Stakeholder involvement, public notification, record retention, and related notes"""
+    """Details on wellness policy oversight, public access, records, stakeholders, and notes"""
 
     names_titles: str = Field(
         default="",
@@ -125,17 +125,19 @@ class PublicInvolvementNotificationandAssessment(BaseModel):
         ),
     )
 
-    website_address_or_access_description_triennial_results: str = Field(
-        default="",
-        description=(
-            "Website URL and/or description of how the public can access the triennial "
-            'assessment results .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
-        ),
+    website_address_and_or_description_of_how_to_access_copy_triennial_assessment_results: str = (
+        Field(
+            default="",
+            description=(
+                "Website URL and/or description of how the public can access the triennial "
+                'assessment results .If you cannot fill this, write "N/A". If this field '
+                "should not be filled by you (for example, it belongs to another person or "
+                'office), leave it blank (empty string "").'
+            ),
+        )
     )
 
-    website_address_for_policy_or_access_description: str = Field(
+    website_address_for_policy_and_or_description_of_how_to_access_copy: str = Field(
         default="",
         description=(
             "Website URL and/or description of how the public can access the written "
@@ -145,79 +147,97 @@ class PublicInvolvementNotificationandAssessment(BaseModel):
         ),
     )
 
-    retain_written_school_wellness_policy: BooleanLike = Field(
+    the_written_school_wellness_policy: BooleanLike = Field(
         default="",
-        description="Check if records of the written school wellness policy are retained as required",
+        description="Indicate that records of the written school wellness policy are retained",
     )
 
-    retain_documentation_publicly_available: BooleanLike = Field(
+    documentation_of_making_the_wellness_policy_publicly_available: BooleanLike = Field(
         default="",
         description=(
-            "Check if documentation of making the wellness policy publicly available is retained"
+            "Indicate that documentation of making the wellness policy publicly available "
+            "is retained"
         ),
     )
 
-    retain_documentation_outreach_efforts: BooleanLike = Field(
+    documentation_of_outreach_efforts_inviting_stakeholders_to_participate_in_the_wellness_committee_wellness_policy_process: BooleanLike = Field(
         default="",
         description=(
-            "Check if documentation of outreach efforts to invite stakeholders to the "
-            "wellness committee/policy process is retained"
+            "Indicate that documentation of outreach efforts inviting stakeholders to "
+            "participate is retained"
         ),
     )
 
-    retain_copy_triennial_assessment: BooleanLike = Field(
+    copy_of_triennial_assessment_and_documentation_of_reporting_results_to_public: BooleanLike = (
+        Field(
+            default="",
+            description=(
+                "Indicate that a copy of the triennial assessment and documentation of "
+                "reporting results to the public is retained"
+            ),
+        )
+    )
+
+    administrators: BooleanLike = Field(
+        default="",
+        description="Check if administrators are included as stakeholders on the wellness committee",
+    )
+
+    food_service_staff: BooleanLike = Field(
         default="",
         description=(
-            "Check if a copy of the triennial assessment and documentation of reporting "
-            "results to the public is retained"
+            "Check if food service staff are included as stakeholders on the wellness committee"
         ),
     )
 
-    stakeholder_administrators: BooleanLike = Field(
-        default="", description="Check if administrators are included on the wellness committee"
-    )
-
-    stakeholder_food_service_staff: BooleanLike = Field(
-        default="", description="Check if food service staff are included on the wellness committee"
-    )
-
-    stakeholder_school_health_professionals: BooleanLike = Field(
-        default="",
-        description="Check if school health professionals are included on the wellness committee",
-    )
-
-    stakeholder_parents: BooleanLike = Field(
-        default="", description="Check if parents are included on the wellness committee"
-    )
-
-    stakeholder_school_board_members: BooleanLike = Field(
-        default="",
-        description="Check if school board members are included on the wellness committee",
-    )
-
-    stakeholder_pe_teachers: BooleanLike = Field(
+    school_health_professionals: BooleanLike = Field(
         default="",
         description=(
-            "Check if physical education (PE) teachers are included on the wellness committee"
+            "Check if school health professionals are included as stakeholders on the "
+            "wellness committee"
         ),
     )
 
-    stakeholder_students: BooleanLike = Field(
-        default="", description="Check if students are included on the wellness committee"
+    parents: BooleanLike = Field(
+        default="",
+        description="Check if parents are included as stakeholders on the wellness committee",
     )
 
-    stakeholder_public: BooleanLike = Field(
+    school_board_members: BooleanLike = Field(
         default="",
-        description="Check if members of the general public are included on the wellness committee",
+        description=(
+            "Check if school board members are included as stakeholders on the wellness committee"
+        ),
+    )
+
+    pe_teachers: BooleanLike = Field(
+        default="",
+        description=(
+            "Check if physical education (PE) teachers are included as stakeholders on the "
+            "wellness committee"
+        ),
+    )
+
+    students: BooleanLike = Field(
+        default="",
+        description="Check if students are included as stakeholders on the wellness committee",
+    )
+
+    public: BooleanLike = Field(
+        default="",
+        description=(
+            "Check if members of the general public are included as stakeholders on the "
+            "wellness committee"
+        ),
     )
 
     other_stakeholders_describe: str = Field(
         default="",
         description=(
-            "Describe any additional stakeholder groups included on the wellness committee "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
+            "Describe any additional stakeholders involved in the wellness committee .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
@@ -225,9 +245,9 @@ class PublicInvolvementNotificationandAssessment(BaseModel):
         default="",
         description=(
             "Additional notes or comments on public involvement, notification, and "
-            'assessment practices .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            'assessment .If you cannot fill this, write "N/A". If this field should not '
+            "be filled by you (for example, it belongs to another person or office), leave "
+            'it blank (empty string "").'
         ),
     )
 
@@ -239,7 +259,7 @@ class WellnessPolicyAssessmentToolAndReportTemplate(BaseModel):
     ''
     """
 
-    report_header: ReportHeader = Field(..., description="Report Header")
+    report_information: ReportInformation = Field(..., description="Report Information")
     policy_inclusion_and_implementation_status: PolicyInclusionandImplementationStatus = Field(
         ..., description="Policy Inclusion and Implementation Status"
     )

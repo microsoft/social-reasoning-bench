@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notice of Exemption — Appendix E</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans', Arial, Helvetica, sans-serif;
+    background: #d6d2cd;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;align-items:flex-start;
+    padding: 20px 10px;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  .page {
+    background: #fff;
+    width: 100%;
+    max-width: 800px;
+    box-shadow: 0 1px 12px rgba(0,0,0,0.12);
+    padding: 28px 40px 24px;
+  }
+
+  /* ── Title row ── */
+  .title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 2px solid #1a1a1a;
+    padding-bottom: 4px;
+    margin-bottom: 14px;
+  }
+  .title-row h1 { font-size: 20px; font-weight: 700; }
+  .title-row .appendix { font-size: 14px; font-weight: 700; }
+
+  /* ── Address block row ── */
+  .addr-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 8px;
+  }
+  .addr-left { flex: 1; }
+  .addr-right { flex: 1; }
+  .addr-left .to-label { font-weight: 700; font-size: 12px; }
+  .addr-left .fixed-addr { font-size: 12px; margin-left: 28px; line-height: 1.55; }
+
+  .addr-right .from-line {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .addr-right .from-line .fl { font-weight: 700; font-size: 12px; white-space: nowrap; }
+  .addr-right .from-line .uf { flex: 1; border-bottom: 1px solid #333; }
+  .addr-right .from-line .uf input,
+  .addr-right .addr-input-line input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif; font-size: 12px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .addr-right .from-line .uf input:focus,
+  .addr-right .addr-input-line input:focus { background: #f5f5ee; }
+  .addr-right .addr-input-line {
+    border-bottom: 1px solid #333;
+    margin-bottom: 4px;
+    min-height: 20px;
+  }
+  .addr-right .addr-hint {
+    font-size: 11px;
+    text-align: center;
+    color: #555;
+    margin-bottom: 4px;
+  }
+
+  /* County Clerk section */
+  .county-section {
+    margin-left: 28px;
+    margin-bottom: 14px;
+    font-size: 12px;
+  }
+  .county-section .cs-line {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .county-section .cs-line .csl { white-space: nowrap; }
+  .county-section .cs-line .uf { flex: 0 0 180px; border-bottom: 1px solid #333; }
+  .county-section .cs-line .uf input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif; font-size: 12px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .county-section .cs-line .uf input:focus { background: #f5f5ee; }
+  .county-section .addr-line {
+    border-bottom: 1px solid #333;
+    margin-bottom: 4px;
+    width: 240px;
+  }
+  .county-section .addr-line input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif; font-size: 12px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .county-section .addr-line input:focus { background: #f5f5ee; }
+
+  /* ── Generic underline field row ── */
+  .uf-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .uf-row .ufl {
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .uf-row .uf {
+    flex: 1;
+    border-bottom: 1px solid #333;
+  }
+  .uf-row .uf input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif; font-size: 12px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .uf-row .uf input:focus { background: #f5f5ee; }
+
+  /* Two-col row */
+  .two-col { display: flex; gap: 20px; }
+  .two-col .uf-row { flex: 1; }
+
+  /* Description multiline */
+  .desc-label {
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+  .desc-area {
+    min-height: 70px;
+    margin-bottom: 8px;
+  }
+  .desc-area textarea {
+    width: 100%; border: none; outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif; font-size: 12px;
+    background: transparent; resize: vertical; min-height: 60px;
+    padding: 2px 4px;
+  }
+  .desc-area textarea:focus { background: #f5f5ee; }
+
+  /* ── Exempt Status ── */
+  .exempt-title {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .exempt-title strong { font-weight: 700; }
+  .cb-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 3px;
+    margin-left: 16px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .cb-row input[type="checkbox"] {
+    width: 13px; height: 13px;
+    accent-color: #333;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .cb-row .uf-inline {
+    border-bottom: 1px solid #333;
+    flex: 1;
+    min-width: 200px;
+  }
+  .cb-row .uf-inline input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif; font-size: 12px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .cb-row .uf-inline input:focus { background: #f5f5ee; }
+
+  /* Reasons area */
+  .reasons-label {
+    font-size: 12px;
+    margin-top: 6px;
+    margin-bottom: 2px;
+  }
+
+  /* ── Lead Agency ── */
+  .lead-label {
+    font-size: 12px;
+    margin-top: 14px;
+    margin-bottom: 0;
+  }
+
+  /* ── If filed by applicant ── */
+  .applicant-section {
+    margin-top: 12px;
+    font-size: 12px;
+  }
+  .applicant-section .as-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .applicant-section .as-item {
+    margin-left: 16px;
+    margin-bottom: 3px;
+  }
+  .applicant-section .yn-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 16px;
+    margin-bottom: 6px;
+  }
+  .applicant-section .yn-line input[type="checkbox"] {
+    width: 13px; height: 13px; accent-color: #333; margin: 0;
+  }
+
+  /* Signature row */
+  .sig-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .sig-row .ufl { font-size: 12px; white-space: nowrap; }
+  .sig-row .uf { flex: 1; border-bottom: 1px solid #333; }
+  .sig-row .uf input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif; font-size: 12px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .sig-row .uf input:focus { background: #f5f5ee; }
+
+  /* Signed by line */
+  .signed-by-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+  .signed-by-line input[type="checkbox"] {
+    width: 13px; height: 13px; accent-color: #333; margin: 0;
+  }
+
+  /* ── Footer ── */
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 10px;
+    font-size: 10.5px;
+    color: #444;
+    border-top: 1px solid #ccc;
+    padding-top: 6px;
+  }
+  .footer-row .opr-line {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .footer-row .opr-line .uf {
+    border-bottom: 1px solid #333;
+    width: 130px;
+  }
+  .footer-row .opr-line .uf input {
+    width: 100%; border: none; outline: none;
+    font-family: 'Noto Sans', Arial, sans-serif; font-size: 11px;
+    background: transparent; padding: 0 4px 1px;
+  }
+  .footer-row .opr-line .uf input:focus { background: #f5f5ee; }
+
+  /* ── Submit ── */
+  .submit-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .btn {
+    font-family: 'Noto Sans', Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 20px;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .btn-submit { background: #444; color: #fff; border: 1px solid #333; }
+  .btn-submit:hover { background: #333; }
+  .btn-clear { background: #fff; color: #444; border: 1px solid #888; }
+  .btn-clear:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- Title -->
+  <div class="title-row">
+    <h1>Notice of Exemption</h1>
+    <span class="appendix">Appendix E</span>
+  </div>
+
+  <form id="noeForm" autocomplete="off">
+
+  <!-- ════════ To / From address blocks ════════ -->
+  <div class="addr-row">
+    <div class="addr-left">
+      <div><span class="to-label">To:</span> <span style="font-size:12px;">Office of Planning and Research</span></div>
+      <div class="fixed-addr">
+        P.O. Box 3044, Room 113<br>
+        Sacramento, CA 95812-3044
+      </div>
+      <div class="county-section" style="margin-top:10px;">
+        <div>County Clerk</div>
+        <div class="cs-line">
+          <span class="csl">County of:</span>
+          <div class="uf"><input type="text" id="county_of" name="county_of"></div>
+        </div>
+        <div class="addr-line"><input type="text" id="county_address_line_1" name="county_address_line_1"></div>
+        <div class="addr-line"><input type="text" id="county_address_line_2" name="county_address_line_2"></div>
+      </div>
+    </div>
+    <div class="addr-right">
+      <div class="from-line">
+        <span class="fl">From:</span> <span style="font-size:12px;">(Public Agency):</span>
+        <div class="uf"><input type="text" id="from_public_agency" name="from_public_agency"></div>
+      </div>
+      <div class="addr-input-line"><input type="text" id="from_public_agency_address_line_1" name="from_public_agency_address_line_1"></div>
+      <div class="addr-input-line"><input type="text" id="from_public_agency_address_line_2" name="from_public_agency_address_line_2"></div>
+      <div class="addr-hint">(Address)</div>
+    </div>
+  </div>
+
+  <!-- ════════ Project Information ════════ -->
+  <div class="uf-row">
+    <span class="ufl">Project Title:</span>
+    <div class="uf"><input type="text" id="project_title" name="project_title"></div>
+  </div>
+
+  <div class="uf-row">
+    <span class="ufl">Project Applicant:</span>
+    <div class="uf"><input type="text" id="project_applicant" name="project_applicant"></div>
+  </div>
+
+  <div class="desc-label">Project Location - Specific:</div>
+  <div class="desc-area">
+    <textarea id="project_location_specific" name="project_location_specific" rows="2"></textarea>
+  </div>
+
+  <div class="two-col">
+    <div class="uf-row">
+      <span class="ufl">Project Location - City:</span>
+      <div class="uf"><input type="text" id="project_location_city" name="project_location_city"></div>
+    </div>
+    <div class="uf-row">
+      <span class="ufl">Project Location - County:</span>
+      <div class="uf"><input type="text" id="project_location_county" name="project_location_county"></div>
+    </div>
+  </div>
+
+  <div class="desc-label">Description of Nature, Purpose and Beneficiaries of Project:</div>
+  <div class="desc-area">
+    <textarea id="description_of_nature_purpose_and_beneficiaries_of_project" name="description_of_nature_purpose_and_beneficiaries_of_project" rows="3"></textarea>
+  </div>
+
+  <div class="uf-row">
+    <span class="ufl">Name of Public Agency Approving Project:</span>
+    <div class="uf"><input type="text" id="name_of_public_agency_approving_project" name="name_of_public_agency_approving_project"></div>
+  </div>
+
+  <div class="uf-row">
+    <span class="ufl">Name of Person or Agency Carrying Out Project:</span>
+    <div class="uf"><input type="text" id="name_of_person_or_agency_carrying_out_project" name="name_of_person_or_agency_carrying_out_project"></div>
+  </div>
+
+  <!-- ════════ Exempt Status ════════ -->
+  <div class="exempt-title">Exempt Status: <strong>(check one):</strong></div>
+  <div class="cb-row">
+    <input type="checkbox" id="ministerial_sec_21080_b_1_15268" name="ministerial_sec_21080_b_1_15268">
+    <span>Ministerial (Sec. 21080(b)(1); 15268);</span>
+  </div>
+  <div class="cb-row">
+    <input type="checkbox" id="declared_emergency_sec_21080_b_3_15269_a" name="declared_emergency_sec_21080_b_3_15269_a">
+    <span>Declared Emergency (Sec. 21080(b)(3); 15269(a));</span>
+  </div>
+  <div class="cb-row">
+    <input type="checkbox" id="emergency_project_sec_21080_b_4_15269_b_c" name="emergency_project_sec_21080_b_4_15269_b_c">
+    <span>Emergency Project (Sec. 21080(b)(4); 15269(b)(c));</span>
+  </div>
+  <div class="cb-row">
+    <input type="checkbox" id="categorical_exemption_cb" name="categorical_exemption_cb">
+    <span>Categorical Exemption. State type and section number:</span>
+    <div class="uf-inline"><input type="text" id="categorical_exemption_state_type_and_section_number" name="categorical_exemption_state_type_and_section_number"></div>
+  </div>
+  <div class="cb-row">
+    <input type="checkbox" id="statutory_exemptions_cb" name="statutory_exemptions_cb">
+    <span>Statutory Exemptions. State code number:</span>
+    <div class="uf-inline"><input type="text" id="statutory_exemptions_state_code_number" name="statutory_exemptions_state_code_number"></div>
+  </div>
+
+  <div class="reasons-label">Reasons why project is exempt:</div>
+  <div class="desc-area">
+    <textarea id="reasons_why_project_is_exempt" name="reasons_why_project_is_exempt" rows="3"></textarea>
+  </div>
+
+  <!-- ════════ Lead Agency ════════ -->
+  <div class="lead-label">Lead Agency</div>
+  <div class="two-col">
+    <div class="uf-row">
+      <span class="ufl">Contact Person:</span>
+      <div class="uf"><input type="text" id="contact_person" name="contact_person"></div>
+    </div>
+    <div class="uf-row">
+      <span class="ufl">Area Code/Telephone/Extension:</span>
+      <div class="uf"><input type="text" id="area_code_telephone_extension" name="area_code_telephone_extension"></div>
+    </div>
+  </div>
+
+  <!-- ════════ If filed by applicant ════════ -->
+  <div class="applicant-section">
+    <div class="as-title">If filed by applicant:</div>
+    <div class="as-item">1. Attach certified document of exemption finding.</div>
+    <div class="as-item">2. Has a Notice of Exemption been filed by the public agency approving the project?</div>
+    <div class="yn-line">
+      <input type="checkbox" id="notice_of_exemption_filed_yes" name="notice_of_exemption_filed_yes"> <span>Yes</span>
+      <input type="checkbox" id="notice_of_exemption_filed_no" name="notice_of_exemption_filed_no"> <span>No</span>
+    </div>
+
+    <div class="sig-row">
+      <span class="ufl">Signature:</span>
+      <div class="uf"><input type="text" id="signature" name="signature"></div>
+      <span class="ufl">Date:</span>
+      <div class="uf" style="flex:0 0 120px;"><input type="date" id="date" name="date"></div>
+      <span class="ufl">Title:</span>
+      <div class="uf"><input type="text" id="title" name="title"></div>
+    </div>
+
+    <div class="signed-by-line">
+      <input type="checkbox" id="signed_by_lead_agency" name="signed_by_lead_agency"> <span>Signed by Lead Agency</span>
+      <input type="checkbox" id="signed_by_applicant" name="signed_by_applicant"> <span>Signed by Applicant</span>
+    </div>
+  </div>
+
+  <!-- ════════ Footer ════════ -->
+  <div class="footer-row">
+    <div>
+      Authority cited: Sections 21083 and 21110, Public Resources Code.<br>
+      Reference: Sections 21108, 21152, and 21152.1, Public Resources Code.
+    </div>
+    <div class="opr-line">
+      <span>Date Received for filing at OPR:</span>
+      <div class="uf"><input type="text" id="date_received_for_filing_at_opr" name="date_received_for_filing_at_opr"></div>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <div class="submit-row">
+    <button type="reset" class="btn btn-clear">Clear Form</button>
+    <button type="submit" class="btn btn-submit">Submit</button>
+  </div>
+
+  </form>
+</div>
+
+<script>
+  document.getElementById('noeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    const cb = id => document.getElementById(id).checked ? 'true' : 'false';
+    const v = id => fd.get(id) || '';
+
+    const data = {
+      submitting_agencies_and_addresses: {
+        from_public_agency: v('from_public_agency'),
+        from_public_agency_address_line_1: v('from_public_agency_address_line_1'),
+        from_public_agency_address_line_2: v('from_public_agency_address_line_2'),
+        county_of: v('county_of'),
+        county_address_line_1: v('county_address_line_1'),
+        county_address_line_2: v('county_address_line_2'),
+      },
+      project_information: {
+        project_title: v('project_title'),
+        project_applicant: v('project_applicant'),
+        project_location_specific: v('project_location_specific'),
+        project_location_city: v('project_location_city'),
+        project_location_county: v('project_location_county'),
+        description_of_nature_purpose_and_beneficiaries_of_project: v('description_of_nature_purpose_and_beneficiaries_of_project'),
+        name_of_public_agency_approving_project: v('name_of_public_agency_approving_project'),
+        name_of_person_or_agency_carrying_out_project: v('name_of_person_or_agency_carrying_out_project'),
+      },
+      exemption_status: {
+        ministerial_sec_21080_b_1_15268: cb('ministerial_sec_21080_b_1_15268'),
+        declared_emergency_sec_21080_b_3_15269_a: cb('declared_emergency_sec_21080_b_3_15269_a'),
+        emergency_project_sec_21080_b_4_15269_b_c: cb('emergency_project_sec_21080_b_4_15269_b_c'),
+        categorical_exemption_state_type_and_section_number: v('categorical_exemption_state_type_and_section_number'),
+        statutory_exemptions_state_code_number: v('statutory_exemptions_state_code_number'),
+        reasons_why_project_is_exempt: v('reasons_why_project_is_exempt'),
+      },
+      lead_agency_contact: {
+        contact_person: v('contact_person'),
+        area_code_telephone_extension: v('area_code_telephone_extension'),
+      },
+      applicant_filing_and_certification: {
+        notice_of_exemption_filed_yes: cb('notice_of_exemption_filed_yes'),
+        notice_of_exemption_filed_no: cb('notice_of_exemption_filed_no'),
+        signature: v('signature'),
+        date: v('date'),
+        title: v('title'),
+        signed_by_lead_agency: cb('signed_by_lead_agency'),
+        signed_by_applicant: cb('signed_by_applicant'),
+      },
+      opr_filing: {
+        date_received_for_filing_at_opr: v('date_received_for_filing_at_opr'),
+      },
+    };
+    console.log('Form Data (Pydantic-compatible JSON):');
+    console.log(JSON.stringify(data, null, 2));
+    alert('Submitted! Check console for JSON.');
+  });
+</script>
+
+</body>
+</html>

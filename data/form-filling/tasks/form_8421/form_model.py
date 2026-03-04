@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class ApplicantInformation(BaseModel):
-    """Basic information about the member requesting a loan"""
+    """Basic information about the MTI member applying for a Solidarity Fund loan"""
 
     name: str = Field(
         ...,
@@ -25,7 +25,7 @@ class ApplicantInformation(BaseModel):
     )
 
     date_of_request: str = Field(
-        ..., description="Date the solidarity fund application is submitted"
+        ..., description="Date this application is being submitted"
     )  # YYYY-MM-DD format
 
     address: str = Field(
@@ -40,25 +40,25 @@ class ApplicantInformation(BaseModel):
     home_phone: str = Field(
         ...,
         description=(
-            "Applicant's home or primary contact phone number .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    school_dept: str = Field(
-        ...,
-        description=(
-            "School or department where the applicant works .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Applicant\'s home phone number .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
     school_phone: str = Field(
         default="",
         description=(
-            "Phone number for the applicant's school or department .If you cannot fill "
+            "Applicant's school or work phone number .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    school_dept: str = Field(
+        ...,
+        description=(
+            "Name of the school or department where the applicant works .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -81,56 +81,37 @@ class ApplicantInformation(BaseModel):
 class ReasonforRequest(BaseModel):
     """Details about the financial need and extenuating circumstances"""
 
-    coronavirus_pandemic_extenuating_circumstances_description_line_1: str = Field(
+    coronavirus_pandemic_description_of_specific_extenuating_circumstances: str = Field(
         ...,
         description=(
-            "First line describing specific extenuating circumstances related to the "
-            "coronavirus pandemic causing financial need .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Detailed description of how the coronavirus pandemic has specifically caused "
+            'the current financial need .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
-    coronavirus_pandemic_extenuating_circumstances_description_line_2: str = Field(
+    other_reason_for_request_description_of_specific_extenuating_circumstances: str = Field(
         default="",
         description=(
-            "Second line for additional details about coronavirus-related extenuating "
-            'circumstances .If you cannot fill this, write "N/A". If this field should '
-            "not be filled by you (for example, it belongs to another person or office), "
-            'leave it blank (empty string "").'
-        ),
-    )
-
-    other_reason_for_request_extenuating_circumstances_description_line_1: str = Field(
-        default="",
-        description=(
-            "First line describing other (non-coronavirus) extenuating circumstances "
-            'causing financial need .If you cannot fill this, write "N/A". If this field '
+            "Detailed description of any other specific extenuating circumstances causing "
+            'the financial need .If you cannot fill this, write "N/A". If this field '
             "should not be filled by you (for example, it belongs to another person or "
             'office), leave it blank (empty string "").'
         ),
     )
 
-    other_reason_for_request_extenuating_circumstances_description_line_2: str = Field(
-        default="",
-        description=(
-            "Second line for additional details about other extenuating circumstances .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
 
 class ApplicantAuthorization(BaseModel):
-    """Applicant signature and date confirming the request"""
+    """Applicant signature and date confirming the loan application and repayment agreement"""
 
     signature: str = Field(
         ...,
         description=(
-            "Applicant's signature agreeing to the loan terms .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Applicant's signature acknowledging the information and repayment terms .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
@@ -141,11 +122,11 @@ class CommitteeUseOnly(BaseModel):
     """For Solidarity Fund Committee review and decision"""
 
     request_approved: BooleanLike = Field(
-        default="", description="Indicates whether the committee approved the request"
+        default="", description="Indicates that the committee has approved the request"
     )
 
     request_denied: BooleanLike = Field(
-        default="", description="Indicates whether the committee denied the request"
+        default="", description="Indicates that the committee has denied the request"
     )
 
     mti_member: BooleanLike = Field(
@@ -153,8 +134,7 @@ class CommitteeUseOnly(BaseModel):
     )
 
     outstanding_balance: BooleanLike = Field(
-        default="",
-        description="Indicates whether the applicant has an outstanding solidarity fund loan balance",
+        default="", description="Indicates whether the applicant has an outstanding loan balance"
     )
 
     request_approved_for: Union[float, Literal["N/A", ""]] = Field(

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Community Futures Capital Region — Coaching Agreement and Onboarding (Form)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#d6d2cd;
+      --ink:#1a1a1a;
+      --muted:#4a4a4a;
+      --line:#5a5a5a;
+      --line2:#8a8a8a;
+      --bar:#5c9bd5;
+      --paper:#ffffff;
+      --focus:#f5f5ee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:18px 18px 14px;
+      position:relative;
+    }
+
+    /* Top blue title bar */
+    .topbar{
+      background:var(--bar);
+      color:#fff;
+      font-weight:700;
+      text-align:center;
+      letter-spacing:.3px;
+      padding:10px 14px;
+      text-transform:uppercase;
+      font-size:13px;
+      border-radius:2px;
+      margin-bottom:14px;
+    }
+
+    /* Sub headings mimic */
+    .h1{
+      color:#2f7dbf;
+      font-size:22px;
+      font-weight:500;
+      margin:0 0 4px 0;
+    }
+    .h2{
+      color:#2f7dbf;
+      font-size:14px;
+      font-weight:500;
+      margin:0 0 8px 0;
+    }
+
+    form{margin:0}
+
+    /* Main grid table */
+    .grid{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      border:1px solid var(--line);
+      margin-top:6px;
+      font-size:12.5px;
+    }
+    .grid td, .grid th{
+      border:1px solid var(--line2);
+      vertical-align:top;
+      padding:0;
+    }
+
+    .cell{
+      padding:8px 10px;
+      min-height:34px;
+    }
+    .rowTall .cell{min-height:64px}
+    .rowXLTall .cell{min-height:104px}
+
+    .label{
+      font-weight:700;
+      color:#111;
+    }
+    .label.nowrap{white-space:nowrap}
+    .labelBlock{
+      font-weight:700;
+      color:#111;
+      margin-bottom:6px;
+    }
+    .inlineHint{
+      font-weight:400;
+      color:#111;
+    }
+
+    /* Inputs styled like paper fill lines */
+    .field{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:2px 4px;
+      border-bottom:1px solid rgba(0,0,0,0.0); /* keep clean like paper */
+    }
+    .field:focus{
+      background:var(--focus);
+      border-radius:2px;
+    }
+    textarea.field{
+      resize:none;
+      min-height:74px;
+      line-height:1.35;
+      padding:6px 6px;
+      border:1px solid rgba(0,0,0,0.0);
+    }
+    textarea.field:focus{
+      border:1px solid rgba(0,0,0,.15);
+    }
+
+    /* Checkbox groups in cells */
+    .checkGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap:26px;
+      row-gap:8px;
+      padding-top:2px;
+    }
+    .checkLine{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      white-space:nowrap;
+    }
+    input[type="checkbox"]{
+      width:14px;height:14px;
+      accent-color:#2c2c2c;
+      transform:translateY(-.5px);
+    }
+    .checkLabel{
+      font-weight:600;
+      color:#111;
+      font-size:12.5px;
+    }
+
+    /* "How do you sell..." row */
+    .sellWrap{
+      padding:8px 10px 10px;
+    }
+    .sellTitle{
+      font-weight:700;
+      margin-bottom:6px;
+    }
+    .sellTitle .inlineHint{
+      font-weight:400;
+    }
+    .sellCols{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap:16px;
+      align-items:start;
+      margin-top:6px;
+    }
+    .sellCol{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .sellItem{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      white-space:nowrap;
+    }
+
+    /* Turnover row */
+    .turnoverWrap{
+      padding:8px 10px 10px;
+    }
+    .turnoverTitle{
+      font-weight:700;
+      margin-bottom:8px;
+    }
+    .turnoverGrid{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:10px 14px;
+      align-items:start;
+    }
+    .turnItem{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      white-space:nowrap;
+    }
+
+    /* Bottom questions outside table */
+    .question{
+      margin:14px 2px 8px;
+      font-size:13px;
+    }
+    .question em{font-style:italic}
+    .answerBox{
+      border-top:0;
+      margin:6px 0 10px;
+    }
+    .answerInput{
+      width:100%;
+      border:none;
+      outline:none;
+      font:inherit;
+      background:transparent;
+      padding:10px 8px;
+      min-height:54px;
+      border-bottom:1px solid rgba(0,0,0,0.0);
+    }
+    .answerInput:focus{background:var(--focus); border-radius:2px}
+
+    /* Buttons */
+    .actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding-top:10px;
+      margin-top:4px;
+    }
+    .btn{
+      font:inherit;
+      font-weight:700;
+      font-size:13px;
+      padding:8px 16px;
+      border-radius:2px;
+      cursor:pointer;
+    }
+    .btn-clear{
+      background:#fff;
+      color:#333;
+      border:1px solid #888;
+    }
+    .btn-submit{
+      background:#444;
+      color:#fff;
+      border:1px solid #333;
+    }
+
+    /* Footer page note */
+    .footerNote{
+      position:relative;
+      margin-top:14px;
+      height:18px;
+      font-size:12px;
+      color:#222;
+    }
+    .footerNote .pageNum{
+      position:absolute;
+      right:6px;
+      bottom:0;
+      font-weight:600;
+    }
+
+    /* Small screens */
+    @media (max-width:640px){
+      .page{padding:14px}
+      .h1{font-size:20px}
+      .turnoverGrid{grid-template-columns: repeat(2, 1fr)}
+      .sellCols{grid-template-columns:1fr}
+      .checkGrid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">Community Futures Capital Region Coaching Agreement and Onboarding</div>
+
+    <div class="h1">Onboarding Information</div>
+    <div class="h2">Business Information</div>
+
+    <form id="mainForm" autocomplete="off">
+      <table class="grid" aria-label="Onboarding and Business Information Form">
+        <colgroup>
+          <col style="width:26%">
+          <col style="width:37%">
+          <col style="width:9%">
+          <col style="width:28%">
+        </colgroup>
+
+        <!-- Your Name -->
+        <tr>
+          <td colspan="4">
+            <div class="cell">
+              <span class="label nowrap">Your Name:</span>
+              <input class="field" type="text" id="your_name" name="your_name" />
+            </div>
+          </td>
+        </tr>
+
+        <!-- Telephone + Email -->
+        <tr>
+          <td colspan="2">
+            <div class="cell">
+              <span class="label nowrap">Telephone Number:</span>
+              <input class="field" type="tel" id="telephone_number" name="telephone_number" />
+            </div>
+          </td>
+          <td colspan="2">
+            <div class="cell">
+              <span class="label nowrap">Email:</span>
+              <input class="field" type="email" id="email" name="email" />
+            </div>
+          </td>
+        </tr>
+
+        <!-- Your Role -->
+        <tr>
+          <td colspan="4">
+            <div class="cell">
+              <span class="label nowrap">Your Role in the Business:</span>
+              <input class="field" type="text" id="your_role_in_the_business" name="your_role_in_the_business" />
+            </div>
+          </td>
+        </tr>
+
+        <!-- Business Name -->
+        <tr>
+          <td colspan="4">
+            <div class="cell">
+              <span class="label nowrap">Name of the Business:</span>
+              <input class="field" type="text" id="name_of_the_business" name="name_of_the_business" />
+            </div>
+          </td>
+        </tr>
+
+        <!-- Business Address -->
+        <tr class="rowTall">
+          <td style="width:26%">
+            <div class="cell">
+              <div class="label">Business Address:</div>
+            </div>
+          </td>
+          <td colspan="3">
+            <div class="cell" style="height:100%">
+              <textarea class="field" id="business_address" name="business_address" rows="3"></textarea>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Business Website -->
+        <tr>
+          <td style="width:26%">
+            <div class="cell">
+              <div class="label">Business Website:</div>
+            </div>
+          </td>
+          <td colspan="3">
+            <div class="cell">
+              <input class="field" type="text" id="business_website" name="business_website" placeholder="" />
+            </div>
+          </td>
+        </tr>
+
+        <!-- Business Social Media -->
+        <tr class="rowTall">
+          <td style="width:26%">
+            <div class="cell">
+              <div class="label">Business Social Media<br/>Accounts:</div>
+            </div>
+          </td>
+          <td colspan="3">
+            <div class="cell">
+              <textarea class="field" id="business_social_media_accounts" name="business_social_media_accounts" rows="2"></textarea>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Business Status -->
+        <tr class="rowTall">
+          <td style="width:26%">
+            <div class="cell">
+              <div class="label">Business Status:</div>
+            </div>
+          </td>
+          <td colspan="3">
+            <div class="cell">
+              <div class="checkGrid" role="group" aria-label="Business Status">
+                <label class="checkLine">
+                  <input type="checkbox" id="business_status_sole_proprietorship" name="business_status_sole_proprietorship" />
+                  <span class="checkLabel">Sole Proprietorship</span>
+                </label>
+                <label class="checkLine">
+                  <input type="checkbox" id="business_status_non_profit_charity" name="business_status_non_profit_charity" />
+                  <span class="checkLabel">Non-Profit/Charity</span>
+                </label>
+                <label class="checkLine">
+                  <input type="checkbox" id="business_status_corporation" name="business_status_corporation" />
+                  <span class="checkLabel">Corporation</span>
+                </label>
+                <label class="checkLine">
+                  <input type="checkbox" id="business_status_franchise" name="business_status_franchise" />
+                  <span class="checkLabel">Franchise</span>
+                </label>
+                <label class="checkLine">
+                  <input type="checkbox" id="business_status_partnership" name="business_status_partnership" />
+                  <span class="checkLabel">Partnership</span>
+                </label>
+                <div></div>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Years in Operation -->
+        <tr>
+          <td style="width:26%">
+            <div class="cell">
+              <div class="label">Years in Operation:</div>
+            </div>
+          </td>
+          <td colspan="3">
+            <div class="cell">
+              <input class="field" type="number" step="0.01" id="years_in_operation" name="years_in_operation" />
+            </div>
+          </td>
+        </tr>
+
+        <!-- Based at home Yes/No -->
+        <tr>
+          <td style="width:26%">
+            <div class="cell">
+              <div class="label">Is your business based<br/>at your home?</div>
+            </div>
+          </td>
+          <td colspan="3">
+            <div class="cell">
+              <div style="display:flex; gap:40px; align-items:center; padding-top:2px;">
+                <label class="checkLine">
+                  <span class="label nowrap" style="font-weight:700; margin-right:6px;">Yes:</span>
+                  <input type="checkbox" id="is_your_business_based_at_your_home_yes" name="is_your_business_based_at_your_home_yes" />
+                </label>
+                <label class="checkLine">
+                  <span class="label nowrap" style="font-weight:700; margin-right:6px;">No:</span>
+                  <input type="checkbox" id="is_your_business_based_at_your_home_no" name="is_your_business_based_at_your_home_no" />
+                </label>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- How do you sell -->
+        <tr>
+          <td colspan="4">
+            <div class="sellWrap">
+              <div class="sellTitle">
+                How do you sell your products or services?
+                <span class="inlineHint">(Online means you sell products or services directly from your website or other online platform. Offline means you only sell from a physical location):</span>
+              </div>
+              <div class="sellCols" role="group" aria-label="How do you sell your products or services">
+                <div class="sellCol">
+                  <label class="sellItem">
+                    <input type="checkbox" id="how_do_you_sell_your_products_or_services_online_only" name="how_do_you_sell_your_products_or_services_online_only" />
+                    <span class="checkLabel">Online Only:</span>
+                  </label>
+                </div>
+                <div class="sellCol">
+                  <label class="sellItem">
+                    <input type="checkbox" id="how_do_you_sell_your_products_or_services_offline_only" name="how_do_you_sell_your_products_or_services_offline_only" />
+                    <span class="checkLabel">Offline Only:</span>
+                  </label>
+                </div>
+                <div class="sellCol">
+                  <label class="sellItem">
+                    <input type="checkbox" id="how_do_you_sell_your_products_or_services_both_online_and_offline" name="how_do_you_sell_your_products_or_services_both_online_and_offline" />
+                    <span class="checkLabel">Both Online and Offline:</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Gross yearly turnover -->
+        <tr>
+          <td colspan="4">
+            <div class="turnoverWrap">
+              <div class="turnoverTitle">
+                Gross yearly turnover? <span class="inlineHint">(If your business is new, what is your projected income for Year 1):</span>
+              </div>
+              <div class="turnoverGrid" role="group" aria-label="Gross yearly turnover">
+                <label class="turnItem">
+                  <input type="checkbox" id="gross_yearly_turnover_less_than_20k" name="gross_yearly_turnover_less_than_20k" />
+                  <span class="checkLabel">Less than 20k</span>
+                </label>
+                <label class="turnItem">
+                  <input type="checkbox" id="gross_yearly_turnover_20k_50k" name="gross_yearly_turnover_20k_50k" />
+                  <span class="checkLabel">20k – 50k</span>
+                </label>
+                <label class="turnItem">
+                  <input type="checkbox" id="gross_yearly_turnover_50k_100k" name="gross_yearly_turnover_50k_100k" />
+                  <span class="checkLabel">50k – 100k</span>
+                </label>
+                <label class="turnItem">
+                  <input type="checkbox" id="gross_yearly_turnover_100k_500k" name="gross_yearly_turnover_100k_500k" />
+                  <span class="checkLabel">100k – 500k</span>
+                </label>
+                <label class="turnItem">
+                  <input type="checkbox" id="gross_yearly_turnover_500k_1m" name="gross_yearly_turnover_500k_1m" />
+                  <span class="checkLabel">500k – 1m</span>
+                </label>
+                <label class="turnItem">
+                  <input type="checkbox" id="gross_yearly_turnover_more_than_1m" name="gross_yearly_turnover_more_than_1m" />
+                  <span class="checkLabel">More than 1m</span>
+                </label>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Employees -->
+        <tr>
+          <td colspan="2">
+            <div class="cell">
+              <span class="label nowrap">Number of full-time employees:</span>
+              <input class="field" type="number" step="0.01" id="number_of_full_time_employees" name="number_of_full_time_employees" />
+            </div>
+          </td>
+          <td colspan="2">
+            <div class="cell">
+              <span class="label nowrap">Number of part time employees:</span>
+              <input class="field" type="number" step="0.01" id="number_of_part_time_employees" name="number_of_part_time_employees" />
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Outside-table questions -->
+      <div class="question">What products or services do you offer?</div>
+      <div class="answerBox">
+        <textarea class="answerInput" id="what_products_or_services_do_you_offer" name="what_products_or_services_do_you_offer" rows="3"></textarea>
+      </div>
+
+      <div class="question">Who is your <em>typical</em> customer or client ie the type of customer you tend to see most?</div>
+      <div class="answerBox">
+        <textarea class="answerInput" id="who_is_your_typical_customer_or_client" name="who_is_your_typical_customer_or_client" rows="3"></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-clear" type="reset">Clear Form</button>
+        <button class="btn btn-submit" type="submit">Submit</button>
+      </div>
+
+      <div class="footerNote">
+        <div class="pageNum">Page 2 of 3</div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      // Simple mutual exclusivity helpers for common yes/no and single-choice groups.
+      function makeExclusive(ids){
+        const els = ids.map(id => document.getElementById(id)).filter(Boolean);
+        els.forEach(el => {
+          el.addEventListener('change', () => {
+            if(el.checked){
+              els.forEach(other => { if(other !== el) other.checked = false; });
+            }
+          });
+        });
+      }
+
+      // Yes/No
+      makeExclusive(['is_your_business_based_at_your_home_yes','is_your_business_based_at_your_home_no']);
+      // How do you sell (single choice)
+      makeExclusive([
+        'how_do_you_sell_your_products_or_services_online_only',
+        'how_do_you_sell_your_products_or_services_offline_only',
+        'how_do_you_sell_your_products_or_services_both_online_and_offline'
+      ]);
+      // Turnover (single choice)
+      makeExclusive([
+        'gross_yearly_turnover_less_than_20k',
+        'gross_yearly_turnover_20k_50k',
+        'gross_yearly_turnover_50k_100k',
+        'gross_yearly_turnover_100k_500k',
+        'gross_yearly_turnover_500k_1m',
+        'gross_yearly_turnover_more_than_1m'
+      ]);
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+
+        const cbVal = (id) => {
+          const el = document.getElementById(id);
+          return el && el.checked ? "true" : "false";
+        };
+
+        const val = (name) => (fd.get(name) ?? "").toString();
+
+        const data = {
+          onboarding_information: {
+            your_name: val('your_name'),
+            telephone_number: val('telephone_number'),
+            email: val('email'),
+            your_role_in_the_business: val('your_role_in_the_business')
+          },
+          business_information: {
+            name_of_the_business: val('name_of_the_business'),
+            business_address: val('business_address'),
+            business_website: val('business_website'),
+            business_social_media_accounts: val('business_social_media_accounts'),
+
+            business_status_sole_proprietorship: cbVal('business_status_sole_proprietorship'),
+            business_status_non_profit_charity: cbVal('business_status_non_profit_charity'),
+            business_status_corporation: cbVal('business_status_corporation'),
+            business_status_franchise: cbVal('business_status_franchise'),
+            business_status_partnership: cbVal('business_status_partnership'),
+
+            years_in_operation: val('years_in_operation'),
+
+            is_your_business_based_at_your_home_yes: cbVal('is_your_business_based_at_your_home_yes'),
+            is_your_business_based_at_your_home_no: cbVal('is_your_business_based_at_your_home_no'),
+
+            how_do_you_sell_your_products_or_services_online_only: cbVal('how_do_you_sell_your_products_or_services_online_only'),
+            how_do_you_sell_your_products_or_services_offline_only: cbVal('how_do_you_sell_your_products_or_services_offline_only'),
+            how_do_you_sell_your_products_or_services_both_online_and_offline: cbVal('how_do_you_sell_your_products_or_services_both_online_and_offline'),
+
+            gross_yearly_turnover_less_than_20k: cbVal('gross_yearly_turnover_less_than_20k'),
+            gross_yearly_turnover_20k_50k: cbVal('gross_yearly_turnover_20k_50k'),
+            gross_yearly_turnover_50k_100k: cbVal('gross_yearly_turnover_50k_100k'),
+            gross_yearly_turnover_100k_500k: cbVal('gross_yearly_turnover_100k_500k'),
+            gross_yearly_turnover_500k_1m: cbVal('gross_yearly_turnover_500k_1m'),
+            gross_yearly_turnover_more_than_1m: cbVal('gross_yearly_turnover_more_than_1m'),
+
+            number_of_full_time_employees: val('number_of_full_time_employees'),
+            number_of_part_time_employees: val('number_of_part_time_employees'),
+
+            what_products_or_services_do_you_offer: val('what_products_or_services_do_you_offer'),
+            who_is_your_typical_customer_or_client: val('who_is_your_typical_customer_or_client')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

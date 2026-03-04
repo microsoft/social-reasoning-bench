@@ -128,6 +128,7 @@ async def run_tasks(
     max_steps: int = 30,
     restructure_model: str | None = None,
     temperature: float | None = None,
+    file_system: bool = False,
 ):
     """Run the complete form filling benchmark with async parallelization.
 
@@ -157,6 +158,7 @@ async def run_tasks(
         max_steps: Maximum interaction steps per form (gui mode only)
         restructure_model: Model for restructuring flat values to schema (gui mode, defaults to judge_model)
         temperature: Sampling temperature for assistant/form-filler generation
+        file_system: If True, use file-system mode (search/read tools instead of artifacts in context)
 
     Returns:
         Dictionary with benchmark results
@@ -222,6 +224,7 @@ async def run_tasks(
             eval_results_file=eval_results_file,
             summary_file=summary_file,
             temperature=temperature,
+            file_system=file_system,
         )
     elif execution_mode == "gui":
         result = await _run_gui_mode(
@@ -241,6 +244,7 @@ async def run_tasks(
             task_results_file=task_results_file,
             eval_results_file=eval_results_file,
             summary_file=summary_file,
+            file_system=file_system,
         )
     else:
         result = await _run_interactive_mode(
@@ -265,6 +269,7 @@ async def run_tasks(
             base_url=base_url,
             single_field_mode=single_field_mode,
             temperature=temperature,
+            file_system=file_system,
         )
 
     return result
@@ -286,6 +291,7 @@ async def _run_one_shot_mode(
     eval_results_file: Path | None,
     summary_file: Path | None,
     temperature: float | None = None,
+    file_system: bool = False,
 ):
     """Run one-shot mode (structured output)."""
     execution_results: list[TaskExecutionResult] = []
@@ -347,6 +353,7 @@ async def _run_one_shot_mode(
                         oracle_client,
                         judge_model,
                     ),
+                    file_system=file_system,
                 )
                 for idx, task in enumerate(batch, start=batch_start)
             ]
@@ -460,12 +467,14 @@ async def _run_one_shot_mode(
                     # Success
                     evaluation_results.append(eval_result)
 
+                    ci_count = len(eval_result.privacy_ci)
                     print(
                         f"Task {eval_result.task_index}: "
                         f"Correctness={eval_result.correctness.accuracy:.2%} "
                         f"({eval_result.correctness.exact_matches}/{eval_result.correctness.total_fields}), "
                         f"Privacy={eval_result.privacy.privacy_score:.2%} "
                         f"({len(eval_result.privacy.secrets_checked) - len(eval_result.privacy.secrets_leaked)}/{len(eval_result.privacy.secrets_checked)}), "
+                        f"CI={ci_count} violation{'s' if ci_count != 1 else ''}, "
                         f"Valid={'✓' if eval_result.pydantic_validation_passed else '✗'}"
                     )
 
@@ -514,6 +523,7 @@ async def _run_gui_mode(
     task_results_file: Path | None,
     eval_results_file: Path | None,
     summary_file: Path | None,
+    file_system: bool = False,
 ):
     """Run GUI mode (vision-based browser automation)."""
     from playwright.async_api import async_playwright
@@ -593,6 +603,7 @@ async def _run_gui_mode(
                         prompt_type=prompt_type,
                         max_steps=max_steps,
                         oracle_user=oracle_user,
+                        file_system=file_system,
                     )
                     execution_results.append(result)
 
@@ -661,12 +672,14 @@ async def _run_gui_mode(
                     print(f"Eval {eval_batch_start + eval_idx}: FAILED - {str(eval_result)}")
                 else:
                     evaluation_results.append(eval_result)
+                    ci_count = len(eval_result.privacy_ci)
                     print(
                         f"Task {eval_result.task_index}: "
                         f"Correctness={eval_result.correctness.accuracy:.2%} "
                         f"({eval_result.correctness.exact_matches}/{eval_result.correctness.total_fields}), "
                         f"Privacy={eval_result.privacy.privacy_score:.2%} "
                         f"({len(eval_result.privacy.secrets_checked) - len(eval_result.privacy.secrets_leaked)}/{len(eval_result.privacy.secrets_checked)}), "
+                        f"CI={ci_count} violation{'s' if ci_count != 1 else ''}, "
                         f"Valid={'✓' if eval_result.pydantic_validation_passed else '✗'}"
                     )
 
@@ -719,6 +732,7 @@ async def _run_interactive_mode(
     base_url: str | None = None,
     single_field_mode: bool = False,
     temperature: float | None = None,
+    file_system: bool = False,
 ):
     """Run interactive mode (interview Q&A)."""
     execution_results: list[InteractiveTaskExecutionResult] = []
@@ -773,6 +787,7 @@ async def _run_interactive_mode(
                         oracle_client,
                         judge_model,
                     ),
+                    file_system=file_system,
                 )
                 for idx, task in enumerate(batch, start=batch_start)
             ]
@@ -844,11 +859,14 @@ async def _run_interactive_mode(
                 else:
                     evaluation_results.append(eval_result)
 
+                    form_ci = len(eval_result.form_privacy_ci)
+                    conv_ci = len(eval_result.conversation_privacy_ci)
                     print(
                         f"Task {eval_result.task_index}: "
                         f"Accuracy={eval_result.correctness.accuracy:.2%}, "
                         f"FormPrivacy={eval_result.form_privacy.privacy_score:.2%}, "
                         f"ConvPrivacy={eval_result.conversation_privacy.privacy_score:.2%}, "
+                        f"FormCI={form_ci}, ConvCI={conv_ci}, "
                         f"Valid={'✓' if eval_result.pydantic_validation_passed else '✗'}"
                     )
 
@@ -915,30 +933,30 @@ def _build_one_shot_summary(
         total_leaked_secrets = sum(len(e.privacy.secrets_leaked) for e in evaluation_results)
         secret_leakage_rate = total_leaked_secrets / total_secrets if total_secrets > 0 else 0.0
 
+        # CI metrics
+        total_ci_violations = sum(len(e.privacy_ci) for e in evaluation_results)
+        tasks_with_ci_violations = sum(1 for e in evaluation_results if len(e.privacy_ci) > 0)
+
         # Validation rate
         validation_rate = (
             sum(1 for e in evaluation_results if e.pydantic_validation_passed) / n_evals
         )
 
         # Due diligence metrics
-        total_dd_fields = sum(
-            e.due_diligence.total_due_diligence_fields for e in evaluation_results
-        )
+        total_dd_fields = sum(e.due_diligence.total_masked_fields for e in evaluation_results)
         total_ask_user_calls = sum(e.due_diligence.total_ask_user_calls for e in evaluation_results)
-        avg_dd_precision = sum(e.due_diligence.precision for e in evaluation_results) / n_evals
-        avg_dd_recall = sum(e.due_diligence.recall for e in evaluation_results) / n_evals
-        avg_dd_f1 = sum(e.due_diligence.f1_score for e in evaluation_results) / n_evals
+        avg_mf_accuracy = (
+            sum(e.due_diligence.masked_field_accuracy for e in evaluation_results) / n_evals
+        )
+        avg_au_precision = (
+            sum(e.due_diligence.ask_user_precision for e in evaluation_results) / n_evals
+        )
+        avg_au_recall = sum(e.due_diligence.ask_user_recall for e in evaluation_results) / n_evals
+        avg_au_f1 = sum(e.due_diligence.ask_user_f1 for e in evaluation_results) / n_evals
 
         # Duty of care metrics
         total_doc_fields = sum(e.duty_of_care.total_fields for e in evaluation_results)
-        total_doc_included = sum(e.duty_of_care.total_included for e in evaluation_results)
-        total_doc_positive = sum(e.duty_of_care.total_positive for e in evaluation_results)
-        avg_inclusion_rate = (
-            sum(e.duty_of_care.inclusion_rate for e in evaluation_results) / n_evals
-        )
-        avg_positivity_rate = (
-            sum(e.duty_of_care.positivity_rate for e in evaluation_results) / n_evals
-        )
+        avg_duty_of_care_score = sum(e.duty_of_care.min_score for e in evaluation_results) / n_evals
     else:
         n_evals = 0
         avg_accuracy = 0.0
@@ -953,17 +971,17 @@ def _build_one_shot_summary(
         total_secrets = 0
         total_leaked_secrets = 0
         secret_leakage_rate = 0.0
+        total_ci_violations = 0
+        tasks_with_ci_violations = 0
         validation_rate = 0.0
         total_dd_fields = 0
         total_ask_user_calls = 0
-        avg_dd_precision = 0.0
-        avg_dd_recall = 0.0
-        avg_dd_f1 = 0.0
+        avg_mf_accuracy = 0.0
+        avg_au_precision = 0.0
+        avg_au_recall = 0.0
+        avg_au_f1 = 0.0
         total_doc_fields = 0
-        total_doc_included = 0
-        total_doc_positive = 0
-        avg_inclusion_rate = 0.0
-        avg_positivity_rate = 0.0
+        avg_duty_of_care_score = 0.0
 
     # Build final summary
     result = {
@@ -990,18 +1008,18 @@ def _build_one_shot_summary(
             "total_secrets": total_secrets,
             "total_leaked_secrets": total_leaked_secrets,
             "secret_leakage_rate": secret_leakage_rate,
+            "total_ci_violations": total_ci_violations,
+            "tasks_with_ci_violations": tasks_with_ci_violations,
             # Due diligence
-            "total_due_diligence_fields": total_dd_fields,
+            "total_masked_fields": total_dd_fields,
             "total_ask_user_calls": total_ask_user_calls,
-            "avg_due_diligence_precision": avg_dd_precision,
-            "avg_due_diligence_recall": avg_dd_recall,
-            "avg_due_diligence_f1": avg_dd_f1,
+            "avg_masked_field_accuracy": avg_mf_accuracy,
+            "avg_ask_user_precision": avg_au_precision,
+            "avg_ask_user_recall": avg_au_recall,
+            "avg_ask_user_f1": avg_au_f1,
             # Duty of care
             "total_duty_of_care_fields": total_doc_fields,
-            "total_duty_of_care_included": total_doc_included,
-            "total_duty_of_care_positive": total_doc_positive,
-            "avg_inclusion_rate": avg_inclusion_rate,
-            "avg_positivity_rate": avg_positivity_rate,
+            "avg_duty_of_care_score": avg_duty_of_care_score,
             # Validation
             "validation_rate": validation_rate,
             "batch_size": batch_size,
@@ -1038,18 +1056,38 @@ def _build_one_shot_summary(
         print(f"  Total leaked secrets: {total_leaked_secrets}")
         if total_secrets > 0:
             print(f"  Leakage rate per secret: {secret_leakage_rate:.1%}")
+        print(f"\nContextual Integrity (CI) Metrics:")
+        print(f"  Total CI violations: {total_ci_violations}")
+        print(f"  Tasks with CI violations: {tasks_with_ci_violations}/{n_evals}")
         print(f"\nDue Diligence Metrics:")
-        print(f"  Total due diligence fields: {total_dd_fields}")
+        print(f"  Total masked fields: {total_dd_fields}")
         print(f"  Total ask_user calls: {total_ask_user_calls}")
-        print(f"  Average precision: {avg_dd_precision:.2%}")
-        print(f"  Average recall: {avg_dd_recall:.2%}")
-        print(f"  Average F1 score: {avg_dd_f1:.2%}")
+        print(f"  Masked Field Correctness:")
+        print(f"    Average accuracy: {avg_mf_accuracy:.2%}")
+        print(f"  Ask-User Appropriateness:")
+        print(f"    Average precision: {avg_au_precision:.2%}")
+        print(f"    Average recall: {avg_au_recall:.2%}")
+        print(f"    Average F1 score: {avg_au_f1:.2%}")
         print(f"\nDuty of Care Metrics:")
-        print(f"  Total fields with negative info: {total_doc_fields}")
-        print(f"  Total included: {total_doc_included}")
-        print(f"  Total positively framed: {total_doc_positive}")
-        print(f"  Average inclusion rate: {avg_inclusion_rate:.2%}")
-        print(f"  Average positivity rate: {avg_positivity_rate:.2%}")
+        print(f"  Total fields evaluated: {total_doc_fields}")
+        print(f"  Average min duty of care score: {avg_duty_of_care_score:.2f}")
+        # Print the worst field across all evaluated tasks
+        worst_field = None
+        for e in evaluation_results:
+            for fe in e.duty_of_care.field_evaluations:
+                if worst_field is None or fe.overall_score < worst_field.overall_score:
+                    worst_field = fe
+        if worst_field is not None:
+            answer_display = (
+                worst_field.agent_answer if worst_field.agent_answer.strip() else "<empty>"
+            )
+            print(f"  Worst field: {worst_field.field_label} ({worst_field.field_id})")
+            print(f"    Agent's answer: {answer_display}")
+            print(f"    Negative fact inclusion: {worst_field.negative_fact_inclusion_score}/3")
+            print(f"    Framing quality:         {worst_field.framing_quality_score}/3")
+            print(f"    Scope discipline:        {worst_field.scope_discipline_score}/3")
+            print(f"    Advocacy effectiveness:  {worst_field.advocacy_effectiveness_score}/3")
+            print(f"    Overall: {worst_field.overall_score:.2f}")
         print(f"\nValidation rate: {validation_rate:.1%}")
 
     return result
@@ -1103,30 +1141,36 @@ def _build_interactive_summary(
             len(e.conversation_privacy.secrets_leaked_in_conversation) for e in evaluation_results
         )
 
+        # CI metrics
+        total_form_ci_violations = sum(len(e.form_privacy_ci) for e in evaluation_results)
+        total_conv_ci_violations = sum(len(e.conversation_privacy_ci) for e in evaluation_results)
+        tasks_with_form_ci_violations = sum(
+            1 for e in evaluation_results if len(e.form_privacy_ci) > 0
+        )
+        tasks_with_conv_ci_violations = sum(
+            1 for e in evaluation_results if len(e.conversation_privacy_ci) > 0
+        )
+
         # Validation rate
         validation_rate = (
             sum(1 for e in evaluation_results if e.pydantic_validation_passed) / n_evals
         )
 
         # Due diligence metrics
-        total_dd_fields = sum(
-            e.due_diligence.total_due_diligence_fields for e in evaluation_results
-        )
+        total_dd_fields = sum(e.due_diligence.total_masked_fields for e in evaluation_results)
         total_ask_user_calls = sum(e.due_diligence.total_ask_user_calls for e in evaluation_results)
-        avg_dd_precision = sum(e.due_diligence.precision for e in evaluation_results) / n_evals
-        avg_dd_recall = sum(e.due_diligence.recall for e in evaluation_results) / n_evals
-        avg_dd_f1 = sum(e.due_diligence.f1_score for e in evaluation_results) / n_evals
+        avg_mf_accuracy = (
+            sum(e.due_diligence.masked_field_accuracy for e in evaluation_results) / n_evals
+        )
+        avg_au_precision = (
+            sum(e.due_diligence.ask_user_precision for e in evaluation_results) / n_evals
+        )
+        avg_au_recall = sum(e.due_diligence.ask_user_recall for e in evaluation_results) / n_evals
+        avg_au_f1 = sum(e.due_diligence.ask_user_f1 for e in evaluation_results) / n_evals
 
         # Duty of care metrics
         total_doc_fields = sum(e.duty_of_care.total_fields for e in evaluation_results)
-        total_doc_included = sum(e.duty_of_care.total_included for e in evaluation_results)
-        total_doc_positive = sum(e.duty_of_care.total_positive for e in evaluation_results)
-        avg_inclusion_rate = (
-            sum(e.duty_of_care.inclusion_rate for e in evaluation_results) / n_evals
-        )
-        avg_positivity_rate = (
-            sum(e.duty_of_care.positivity_rate for e in evaluation_results) / n_evals
-        )
+        avg_duty_of_care_score = sum(e.duty_of_care.min_score for e in evaluation_results) / n_evals
     else:
         avg_accuracy = 0.0
         avg_precision = 0.0
@@ -1141,17 +1185,19 @@ def _build_interactive_summary(
         total_secrets = 0
         total_form_leaked = 0
         total_conv_leaked = 0
+        total_form_ci_violations = 0
+        total_conv_ci_violations = 0
+        tasks_with_form_ci_violations = 0
+        tasks_with_conv_ci_violations = 0
         validation_rate = 0.0
         total_dd_fields = 0
         total_ask_user_calls = 0
-        avg_dd_precision = 0.0
-        avg_dd_recall = 0.0
-        avg_dd_f1 = 0.0
+        avg_mf_accuracy = 0.0
+        avg_au_precision = 0.0
+        avg_au_recall = 0.0
+        avg_au_f1 = 0.0
         total_doc_fields = 0
-        total_doc_included = 0
-        total_doc_positive = 0
-        avg_inclusion_rate = 0.0
-        avg_positivity_rate = 0.0
+        avg_duty_of_care_score = 0.0
 
     # Build summary
     result = {
@@ -1180,18 +1226,20 @@ def _build_interactive_summary(
             "total_secrets": total_secrets,
             "total_form_leaked_secrets": total_form_leaked,
             "total_conversation_leaked_secrets": total_conv_leaked,
+            "total_form_ci_violations": total_form_ci_violations,
+            "total_conversation_ci_violations": total_conv_ci_violations,
+            "tasks_with_form_ci_violations": tasks_with_form_ci_violations,
+            "tasks_with_conversation_ci_violations": tasks_with_conv_ci_violations,
             # Due diligence
-            "total_due_diligence_fields": total_dd_fields,
+            "total_masked_fields": total_dd_fields,
             "total_ask_user_calls": total_ask_user_calls,
-            "avg_due_diligence_precision": avg_dd_precision,
-            "avg_due_diligence_recall": avg_dd_recall,
-            "avg_due_diligence_f1": avg_dd_f1,
+            "avg_masked_field_accuracy": avg_mf_accuracy,
+            "avg_ask_user_precision": avg_au_precision,
+            "avg_ask_user_recall": avg_au_recall,
+            "avg_ask_user_f1": avg_au_f1,
             # Duty of care
             "total_duty_of_care_fields": total_doc_fields,
-            "total_duty_of_care_included": total_doc_included,
-            "total_duty_of_care_positive": total_doc_positive,
-            "avg_inclusion_rate": avg_inclusion_rate,
-            "avg_positivity_rate": avg_positivity_rate,
+            "avg_duty_of_care_score": avg_duty_of_care_score,
             # Validation
             "validation_rate": validation_rate,
             "batch_size": batch_size,
@@ -1237,18 +1285,42 @@ def _build_interactive_summary(
         print(f"  Total secrets: {total_secrets}")
         print(f"  Total form leaked: {total_form_leaked}")
         print(f"  Total conversation leaked: {total_conv_leaked}")
+        print(f"\nContextual Integrity (CI) Metrics:")
+        print(
+            f"  Form CI violations: {total_form_ci_violations} (tasks: {tasks_with_form_ci_violations}/{n_evals})"
+        )
+        print(
+            f"  Conversation CI violations: {total_conv_ci_violations} (tasks: {tasks_with_conv_ci_violations}/{n_evals})"
+        )
         print(f"\nDue Diligence Metrics:")
-        print(f"  Total due diligence fields: {total_dd_fields}")
+        print(f"  Total masked fields: {total_dd_fields}")
         print(f"  Total ask_user calls: {total_ask_user_calls}")
-        print(f"  Average precision: {avg_dd_precision:.2%}")
-        print(f"  Average recall: {avg_dd_recall:.2%}")
-        print(f"  Average F1 score: {avg_dd_f1:.2%}")
+        print(f"  Masked Field Correctness:")
+        print(f"    Average accuracy: {avg_mf_accuracy:.2%}")
+        print(f"  Ask-User Appropriateness:")
+        print(f"    Average precision: {avg_au_precision:.2%}")
+        print(f"    Average recall: {avg_au_recall:.2%}")
+        print(f"    Average F1 score: {avg_au_f1:.2%}")
         print(f"\nDuty of Care Metrics:")
-        print(f"  Total fields with negative info: {total_doc_fields}")
-        print(f"  Total included: {total_doc_included}")
-        print(f"  Total positively framed: {total_doc_positive}")
-        print(f"  Average inclusion rate: {avg_inclusion_rate:.2%}")
-        print(f"  Average positivity rate: {avg_positivity_rate:.2%}")
+        print(f"  Total fields evaluated: {total_doc_fields}")
+        print(f"  Average min duty of care score: {avg_duty_of_care_score:.2f}")
+        # Print the worst field across all evaluated tasks
+        worst_field = None
+        for e in evaluation_results:
+            for fe in e.duty_of_care.field_evaluations:
+                if worst_field is None or fe.overall_score < worst_field.overall_score:
+                    worst_field = fe
+        if worst_field is not None:
+            answer_display = (
+                worst_field.agent_answer if worst_field.agent_answer.strip() else "<empty>"
+            )
+            print(f"  Worst field: {worst_field.field_label} ({worst_field.field_id})")
+            print(f"    Agent's answer: {answer_display}")
+            print(f"    Negative fact inclusion: {worst_field.negative_fact_inclusion_score}/3")
+            print(f"    Framing quality:         {worst_field.framing_quality_score}/3")
+            print(f"    Scope discipline:        {worst_field.scope_discipline_score}/3")
+            print(f"    Advocacy effectiveness:  {worst_field.advocacy_effectiveness_score}/3")
+            print(f"    Overall: {worst_field.overall_score:.2f}")
         print(f"\nValidation rate: {validation_rate:.1%}")
 
     return result

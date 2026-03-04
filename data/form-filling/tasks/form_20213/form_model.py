@@ -12,8 +12,8 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class PersonalandContactInformation(BaseModel):
-    """Basic personal details and home/office contact information"""
+class PersonalInformation(BaseModel):
+    """Basic personal and contact information for the deacon"""
 
     name: str = Field(
         ...,
@@ -27,9 +27,10 @@ class PersonalandContactInformation(BaseModel):
     congregation_serving: str = Field(
         ...,
         description=(
-            "Name of the congregation where you are currently serving .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Name of the congregation where you are currently serving as deacon .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
@@ -60,23 +61,23 @@ class PersonalandContactInformation(BaseModel):
         ),
     )
 
-    city: str = Field(
+    city_home: str = Field(
         ...,
         description=(
-            'City of your home address .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Home city .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
-    state: str = Field(..., description="State of your home address")
+    state_home: str = Field(..., description="Home state abbreviation")
 
-    zip_code: str = Field(..., description="ZIP code of your home address")
+    zip_code_home: str = Field(..., description="Home ZIP code")
 
     cell_phone: str = Field(
-        default="",
+        ...,
         description=(
-            'Your mobile/cell phone number .If you cannot fill this, write "N/A". If this '
+            'Primary mobile phone number .If you cannot fill this, write "N/A". If this '
             "field should not be filled by you (for example, it belongs to another person "
             'or office), leave it blank (empty string "").'
         ),
@@ -85,16 +86,16 @@ class PersonalandContactInformation(BaseModel):
     home_phone: str = Field(
         default="",
         description=(
-            'Your home/landline phone number .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Home landline phone number, if applicable .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     email_home: str = Field(
-        default="",
+        ...,
         description=(
-            'Your personal/home email address .If you cannot fill this, write "N/A". If '
+            'Personal or home email address .If you cannot fill this, write "N/A". If '
             "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
@@ -103,7 +104,7 @@ class PersonalandContactInformation(BaseModel):
     office_address: str = Field(
         default="",
         description=(
-            "Street address of your office or place of work .If you cannot fill this, write "
+            "Street address of your office or workplace .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -112,31 +113,31 @@ class PersonalandContactInformation(BaseModel):
     email_office: str = Field(
         default="",
         description=(
-            'Your office or work email address .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            'Work or office email address .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
     city_office: str = Field(
         default="",
         description=(
-            'City of your office address .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Office city .If you cannot fill this, write "N/A". If this field should not '
+            "be filled by you (for example, it belongs to another person or office), leave "
+            'it blank (empty string "").'
         ),
     )
 
-    state_office: str = Field(default="", description="State of your office address")
+    state_office: str = Field(default="", description="Office state abbreviation")
 
-    zip_code_office: str = Field(default="", description="ZIP code of your office address")
+    zip_code_office: str = Field(default="", description="Office ZIP code")
 
     office_phone: str = Field(
         default="",
         description=(
-            'Your office or work phone number .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            'Office or work phone number .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
@@ -145,7 +146,7 @@ class PersonalandContactInformation(BaseModel):
     place_of_birth: str = Field(
         ...,
         description=(
-            "City and state or location where you were born .If you cannot fill this, write "
+            "City and state or country where you were born .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -154,10 +155,9 @@ class PersonalandContactInformation(BaseModel):
     marital_status: str = Field(
         default="",
         description=(
-            "Your current marital status (e.g., single, married, widowed) .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Current marital status (e.g., single, married, widowed) .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -191,7 +191,7 @@ class Education(BaseModel):
         ),
     )
 
-    degree_year_graduated_1: str = Field(
+    degree_year_graduated_college_1: str = Field(
         default="",
         description=(
             "Degree earned and year of graduation for first college .If you cannot fill "
@@ -203,13 +203,13 @@ class Education(BaseModel):
     college_2: str = Field(
         default="",
         description=(
-            "Name of second college attended (if applicable) .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            'Name of second college attended .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    degree_year_graduated_2: str = Field(
+    degree_year_graduated_college_2: str = Field(
         default="",
         description=(
             "Degree earned and year of graduation for second college .If you cannot fill "
@@ -220,7 +220,7 @@ class Education(BaseModel):
 
 
 class WorkExperience(BaseModel):
-    """Current occupation information"""
+    """Current occupational information"""
 
     current_occupation: str = Field(
         default="",
@@ -247,9 +247,10 @@ class CongregationalExperience(BaseModel):
     location_dates_1: str = Field(
         default="",
         description=(
-            "Location and dates of service for first congregation .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Location and dates of service for first congregation listed .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -265,9 +266,10 @@ class CongregationalExperience(BaseModel):
     location_dates_2: str = Field(
         default="",
         description=(
-            "Location and dates of service for second congregation .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Location and dates of service for second congregation listed .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -283,9 +285,10 @@ class CongregationalExperience(BaseModel):
     location_dates_3: str = Field(
         default="",
         description=(
-            "Location and dates of service for third congregation .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Location and dates of service for third congregation listed .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -299,23 +302,15 @@ class CongregationalExperience(BaseModel):
         ),
     )
 
-    other_congregational_responsibilities_held_continued: str = Field(
-        default="",
-        description=(
-            "Additional space to continue listing congregational responsibilities and "
-            'congregations .If you cannot fill this, write "N/A". If this field should '
-            "not be filled by you (for example, it belongs to another person or office), "
-            'leave it blank (empty string "").'
-        ),
-    )
-
 
 class MichiganDistrictDeaconInformationForm(BaseModel):
-    """Michigan District Deacon Information Form"""
+    """
+    Michigan District Deacon Information Form
 
-    personal_and_contact_information: PersonalandContactInformation = Field(
-        ..., description="Personal and Contact Information"
-    )
+    ''
+    """
+
+    personal_information: PersonalInformation = Field(..., description="Personal Information")
     education: Education = Field(..., description="Education")
     work_experience: WorkExperience = Field(..., description="Work Experience")
     congregational_experience: CongregationalExperience = Field(

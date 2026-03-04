@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Associate Application Form (Confidential)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    :root{
+      --ink:#111;
+      --muted:#333;
+      --line:#2a2a2a;
+      --paper:#fff;
+      --bg:#d6d2cd;
+      --bar:#1f1f1f;
+      --focus:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 2px 14px rgba(0,0,0,.14);
+      padding:34px 38px 26px;
+    }
+
+    .topline{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:18px;
+    }
+    .title{
+      font-weight:700;
+      letter-spacing:.2px;
+      font-size:16px;
+      text-transform:uppercase;
+    }
+    .confidential{
+      font-weight:700;
+      font-size:13px;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+    }
+
+    .instructions{
+      font-size:12.8px;
+      color:#1a1a1a;
+      margin:6px 0 14px;
+      line-height:1.45;
+    }
+    .instructions a{color:#1a5bd6; text-decoration:underline}
+
+    .section-bar{
+      margin-top:12px;
+      margin-bottom:8px;
+      font-weight:700;
+      font-size:12px;
+      letter-spacing:1.1px;
+      text-transform:uppercase;
+      color:var(--ink);
+    }
+
+    /* Table like the scanned form */
+    .form-table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      border:2px solid var(--line);
+      margin-top:6px;
+    }
+    .form-table col.num{width:54px}
+    .form-table col.q{width:auto}
+
+    .form-table td{
+      border:1.6px solid var(--line);
+      vertical-align:top;
+      padding:10px 10px 12px;
+      font-size:13px;
+      line-height:1.25;
+    }
+    .qcell{
+      padding:9px 10px 10px;
+    }
+    .qtext{
+      margin:0 0 6px;
+      font-weight:600;
+      color:#111;
+    }
+
+    .answer{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:6px 8px 5px;
+      border-top:1px solid rgba(0,0,0,.0);
+      border-bottom:1px solid rgba(0,0,0,.0);
+    }
+    .answer:focus{
+      background:var(--focus);
+      box-shadow:inset 0 0 0 1px rgba(0,0,0,.18);
+      border-radius:2px;
+    }
+
+    .answer.multiline{
+      resize:vertical;
+      min-height:58px;
+      line-height:1.35;
+    }
+
+    .bool-row{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      flex-wrap:wrap;
+      padding:6px 2px 2px;
+    }
+
+    .bool-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      border:1px solid rgba(0,0,0,.45);
+      padding:5px 9px;
+      border-radius:999px;
+      user-select:none;
+      background:#fff;
+    }
+    .bool-pill input[type="radio"]{
+      width:14px;
+      height:14px;
+      margin:0;
+      accent-color:#111;
+    }
+    .bool-hint{
+      font-size:11.8px;
+      color:#222;
+      margin-top:5px;
+    }
+
+    .footnote-rule{
+      margin:18px 0 8px;
+      border:none;
+      border-top:1.6px solid #222;
+      width:220px;
+    }
+    .footnote{
+      font-size:11.2px;
+      color:#222;
+      line-height:1.35;
+    }
+    .footnote sup{font-size:10px}
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:18px;
+      padding-top:10px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #777;
+      background:#fff;
+      color:#222;
+    }
+    .btn:focus{outline:2px solid #0002; outline-offset:2px}
+    .btn-submit{
+      background:#2a2a2a;
+      color:#fff;
+      border-color:#1b1b1b;
+    }
+
+    /* Small screen tweaks */
+    @media (max-width:540px){
+      .page{padding:22px 16px}
+      .form-table col.num{width:44px}
+      .form-table td{padding:10px 8px}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topline">
+      <div class="title">ASSOCIATE APPLICATION FORM</div>
+      <div class="confidential">CONFIDENTIAL</div>
+    </div>
+
+    <div class="instructions">
+      Please complete and submit this form, along with a covering letter, CV and transcripts to
+      <a href="mailto:applications@volterrafietta.com">applications@volterrafietta.com</a>.
+    </div>
+
+    <div class="section-bar">ABOUT YOU:</div>
+
+    <form id="mainForm" autocomplete="off">
+      <table class="form-table" aria-label="Associate Application Form - About You">
+        <colgroup>
+          <col class="num"/>
+          <col class="q"/>
+        </colgroup>
+        <tbody>
+          <tr>
+            <td>1.</td>
+            <td class="qcell">
+              <p class="qtext">Are you a qualified lawyer?</p>
+              <div class="bool-row" role="group" aria-label="Are you a qualified lawyer">
+                <label class="bool-pill">
+                  <input type="radio" name="are_you_a_qualified_lawyer" value="true" />
+                  <span>Yes</span>
+                </label>
+                <label class="bool-pill">
+                  <input type="radio" name="are_you_a_qualified_lawyer" value="false" />
+                  <span>No</span>
+                </label>
+                <label class="bool-pill">
+                  <input type="radio" name="are_you_a_qualified_lawyer" value="N/A" />
+                  <span>N/A</span>
+                </label>
+                <label class="bool-pill">
+                  <input type="radio" name="are_you_a_qualified_lawyer" value="" />
+                  <span>Blank</span>
+                </label>
+              </div>
+              <input type="hidden" id="are_you_a_qualified_lawyer" name="are_you_a_qualified_lawyer" value="" />
+            </td>
+          </tr>
+
+          <tr>
+            <td>2.</td>
+            <td class="qcell">
+              <p class="qtext">In which jurisdiction(s) are you qualified?<sup>1</sup></p>
+              <textarea id="in_which_jurisdictions_are_you_qualified" name="in_which_jurisdictions_are_you_qualified" class="answer multiline" placeholder=""></textarea>
+            </td>
+          </tr>
+
+          <tr>
+            <td>3.</td>
+            <td class="qcell">
+              <p class="qtext">Please provide your qualification(s) date.</p>
+              <input type="date" id="please_provide_your_qualifications_date" name="please_provide_your_qualifications_date" class="answer" />
+            </td>
+          </tr>
+
+          <tr>
+            <td>4.</td>
+            <td class="qcell">
+              <p class="qtext">Are you licensed to practise law in one or more jurisdiction(s)?</p>
+              <div class="bool-row" role="group" aria-label="Are you licensed to practice law in one or more jurisdictions">
+                <label class="bool-pill">
+                  <input type="radio" name="are_you_licensed_to_practice_law_in_one_or_more_jurisdictions" value="true" />
+                  <span>Yes</span>
+                </label>
+                <label class="bool-pill">
+                  <input type="radio" name="are_you_licensed_to_practice_law_in_one_or_more_jurisdictions" value="false" />
+                  <span>No</span>
+                </label>
+                <label class="bool-pill">
+                  <input type="radio" name="are_you_licensed_to_practice_law_in_one_or_more_jurisdictions" value="N/A" />
+                  <span>N/A</span>
+                </label>
+                <label class="bool-pill">
+                  <input type="radio" name="are_you_licensed_to_practice_law_in_one_or_more_jurisdictions" value="" />
+                  <span>Blank</span>
+                </label>
+              </div>
+              <input type="hidden" id="are_you_licensed_to_practice_law_in_one_or_more_jurisdictions" name="are_you_licensed_to_practice_law_in_one_or_more_jurisdictions" value="" />
+            </td>
+          </tr>
+
+          <tr>
+            <td>5.</td>
+            <td class="qcell">
+              <p class="qtext">Who is your current or most recent employer?</p>
+              <input type="text" id="who_is_your_current_or_most_recent_employer" name="who_is_your_current_or_most_recent_employer" class="answer" />
+            </td>
+          </tr>
+
+          <tr>
+            <td>6.</td>
+            <td class="qcell">
+              <p class="qtext">What is your current salary?</p>
+              <input type="text" id="what_is_your_current_salary" name="what_is_your_current_salary" class="answer" />
+            </td>
+          </tr>
+
+          <tr>
+            <td>7.</td>
+            <td class="qcell">
+              <p class="qtext">What is your salary expectation?</p>
+              <input type="text" id="what_is_your_salary_expectation" name="what_is_your_salary_expectation" class="answer" />
+            </td>
+          </tr>
+
+          <tr>
+            <td>8.</td>
+            <td class="qcell">
+              <p class="qtext">What is your current or most recent job title.</p>
+              <input type="text" id="what_is_your_current_or_most_recent_job_title" name="what_is_your_current_or_most_recent_job_title" class="answer" />
+            </td>
+          </tr>
+
+          <tr>
+            <td>9.</td>
+            <td class="qcell">
+              <p class="qtext">Please give details of your notice period/availability.</p>
+              <textarea id="please_give_details_of_your_notice_period_availability" name="please_give_details_of_your_notice_period_availability" class="answer multiline"></textarea>
+            </td>
+          </tr>
+
+          <tr>
+            <td>10.</td>
+            <td class="qcell">
+              <p class="qtext">Have you previously applied to work for or been employed by Volterra Fietta?</p>
+              <div class="bool-row" role="group" aria-label="Have you previously applied to work for or been employed by Volterra Fietta">
+                <label class="bool-pill">
+                  <input type="radio" name="have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta" value="true" />
+                  <span>Yes</span>
+                </label>
+                <label class="bool-pill">
+                  <input type="radio" name="have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta" value="false" />
+                  <span>No</span>
+                </label>
+                <label class="bool-pill">
+                  <input type="radio" name="have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta" value="N/A" />
+                  <span>N/A</span>
+                </label>
+                <label class="bool-pill">
+                  <input type="radio" name="have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta" value="" />
+                  <span>Blank</span>
+                </label>
+              </div>
+              <input type="hidden" id="have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta" name="have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta" value="" />
+            </td>
+          </tr>
+
+          <tr>
+            <td>11.</td>
+            <td class="qcell">
+              <p class="qtext">If you answered yes to Q.10 above, please give details.</p>
+              <textarea id="if_you_answered_yes_to_q10_above_please_give_details" name="if_you_answered_yes_to_q10_above_please_give_details" class="answer multiline"></textarea>
+            </td>
+          </tr>
+
+          <tr>
+            <td>12.</td>
+            <td class="qcell">
+              <p class="qtext">Do you know anyone or have professional connections with VF?</p>
+              <textarea id="do_you_know_anyone_or_have_professional_connections_with_vf" name="do_you_know_anyone_or_have_professional_connections_with_vf" class="answer multiline"></textarea>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr class="footnote-rule" />
+      <div class="footnote">
+        <sup>1</sup> If you are qualified in the UK, please provide your SRA number and indicate whether you hold a current practising
+        certificate.
+      </div>
+
+      <div class="submit-row">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn btn-submit">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    function syncBooleanLikeHidden(hiddenId, groupName){
+      const hidden = document.getElementById(hiddenId);
+      const checked = document.querySelector('input[type="radio"][name="'+groupName+'"]:checked');
+      hidden.value = checked ? checked.value : "";
+    }
+
+    // Keep hidden fields in sync for BooleanLike ids
+    const boolMaps = [
+      ["are_you_a_qualified_lawyer", "are_you_a_qualified_lawyer"],
+      ["are_you_licensed_to_practice_law_in_one_or_more_jurisdictions", "are_you_licensed_to_practice_law_in_one_or_more_jurisdictions"],
+      ["have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta", "have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta"]
+    ];
+
+    boolMaps.forEach(([hiddenId, groupName]) => {
+      document.querySelectorAll('input[type="radio"][name="'+groupName+'"]').forEach(r => {
+        r.addEventListener('change', () => syncBooleanLikeHidden(hiddenId, groupName));
+      });
+      // initialize
+      syncBooleanLikeHidden(hiddenId, groupName);
+    });
+
+    document.getElementById('mainForm').addEventListener('reset', function(){
+      // wait for browser reset to apply
+      setTimeout(() => {
+        boolMaps.forEach(([hiddenId, groupName]) => syncBooleanLikeHidden(hiddenId, groupName));
+      }, 0);
+    });
+
+    document.getElementById('mainForm').addEventListener('submit', function(e){
+      e.preventDefault();
+
+      // Ensure hidden BooleanLike ids reflect the radio selections
+      boolMaps.forEach(([hiddenId, groupName]) => syncBooleanLikeHidden(hiddenId, groupName));
+
+      const data = {
+        are_you_a_qualified_lawyer: (document.getElementById('are_you_a_qualified_lawyer').value ?? ""),
+        in_which_jurisdictions_are_you_qualified: (document.getElementById('in_which_jurisdictions_are_you_qualified').value ?? ""),
+        please_provide_your_qualifications_date: (document.getElementById('please_provide_your_qualifications_date').value ?? ""),
+        are_you_licensed_to_practice_law_in_one_or_more_jurisdictions: (document.getElementById('are_you_licensed_to_practice_law_in_one_or_more_jurisdictions').value ?? ""),
+        who_is_your_current_or_most_recent_employer: (document.getElementById('who_is_your_current_or_most_recent_employer').value ?? ""),
+        what_is_your_current_salary: (document.getElementById('what_is_your_current_salary').value ?? ""),
+        what_is_your_salary_expectation: (document.getElementById('what_is_your_salary_expectation').value ?? ""),
+        what_is_your_current_or_most_recent_job_title: (document.getElementById('what_is_your_current_or_most_recent_job_title').value ?? ""),
+        please_give_details_of_your_notice_period_availability: (document.getElementById('please_give_details_of_your_notice_period_availability').value ?? ""),
+        have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta: (document.getElementById('have_you_previously_applied_to_work_for_or_been_employed_by_volterra_fietta').value ?? ""),
+        if_you_answered_yes_to_q10_above_please_give_details: (document.getElementById('if_you_answered_yes_to_q10_above_please_give_details').value ?? ""),
+        do_you_know_anyone_or_have_professional_connections_with_vf: (document.getElementById('do_you_know_anyone_or_have_professional_connections_with_vf').value ?? "")
+      };
+
+      console.log(JSON.stringify(data, null, 2));
+      alert('Submitted! Check console for JSON.');
+    });
+  </script>
+</body>
+</html>

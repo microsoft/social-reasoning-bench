@@ -36,7 +36,7 @@ class AgencyandRespondentInformation(BaseModel):
     position_title: str = Field(
         ...,
         description=(
-            "Job title or position of the person completing the form .If you cannot fill "
+            "Job title or position of the person completing this form .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -44,48 +44,48 @@ class AgencyandRespondentInformation(BaseModel):
 
 
 class PriorREIAntiRacismInitiativesInvolvement(BaseModel):
-    """County involvement in prior anti-racism and REI initiatives"""
+    """Information about the county’s involvement in prior REI or anti-racism initiatives"""
 
     family_to_family_through_annie_e_casey: BooleanLike = Field(
         default="",
-        description=(
-            "Check if the county was involved in the Family to Family initiative through "
-            "Annie E. Casey"
-        ),
+        description="Indicate whether your county was involved in the Family to Family initiative",
     )
 
     the_california_disproportionality_project_cdp: BooleanLike = Field(
         default="",
         description=(
-            "Check if the county was involved in The California Disproportionality Project (CDP)"
+            "Indicate whether your county was involved in The California Disproportionality "
+            "Project (CDP)"
         ),
     )
 
-    capp: BooleanLike = Field(default="", description="Check if the county was involved in CAPP")
+    capp: BooleanLike = Field(
+        default="", description="Indicate whether your county was involved in CAPP"
+    )
 
-    an_initiative_to_address_racism_in_child_welfare_in_the_past: BooleanLike = Field(
+    initiative_to_address_racism_in_child_welfare_in_the_past: BooleanLike = Field(
         default="",
         description=(
-            "Check if the county was involved in any past initiative to address racism in "
-            "child welfare"
+            "Indicate whether your county was involved in any past initiative to address "
+            "racism in child welfare"
         ),
     )
 
 
 class ABackgroundofPersonCompletingForm(BaseModel):
-    """Background and experience of the person completing the form related to REI initiatives"""
+    """Background and experience of the person completing the form, including roles in prior initiatives and referrals to others"""
 
-    a1_how_long_have_you_been_with_the_agency: str = Field(
+    how_long_have_you_been_with_the_agency: str = Field(
         ...,
         description=(
-            "Length of time you have been employed with the agency (e.g., number of "
-            'years/months) .If you cannot fill this, write "N/A". If this field should '
-            "not be filled by you (for example, it belongs to another person or office), "
-            'leave it blank (empty string "").'
+            "Length of time you have been employed with the agency (e.g., in years or "
+            'months) .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
-    a2_were_you_with_the_agency_when_or_if_they_participated_in_any_of_those_anti_racism_initiatives_listed_above_yes: BooleanLike = Field(
+    were_you_with_the_agency_when_participated_in_initiatives_yes: BooleanLike = Field(
         ...,
         description=(
             "Select Yes if you were with the agency when it participated in any of the "
@@ -93,7 +93,7 @@ class ABackgroundofPersonCompletingForm(BaseModel):
         ),
     )
 
-    a2_were_you_with_the_agency_when_or_if_they_participated_in_any_of_those_anti_racism_initiatives_listed_above_no: BooleanLike = Field(
+    were_you_with_the_agency_when_participated_in_initiatives_no: BooleanLike = Field(
         ...,
         description=(
             "Select No if you were not with the agency when it participated in any of the "
@@ -101,13 +101,13 @@ class ABackgroundofPersonCompletingForm(BaseModel):
         ),
     )
 
-    a_are_you_familiar_with_any_of_those_anti_racism_initiatives_yes: BooleanLike = Field(
-        ...,
+    are_you_familiar_with_any_of_those_anti_racism_initiatives_yes: BooleanLike = Field(
+        default="",
         description="Select Yes if you are familiar with any of the listed anti-racism initiatives",
     )
 
-    a_are_you_familiar_with_any_of_those_anti_racism_initiatives_no: BooleanLike = Field(
-        ...,
+    are_you_familiar_with_any_of_those_anti_racism_initiatives_no: BooleanLike = Field(
+        default="",
         description=(
             "Select No if you are not familiar with any of the listed anti-racism initiatives"
         ),
@@ -116,43 +116,42 @@ class ABackgroundofPersonCompletingForm(BaseModel):
     agency_role: str = Field(
         default="",
         description=(
-            "Describe your role in the agency at the time of the initiative(s) .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Describe your role in the agency at that time .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     project_role: str = Field(
         default="",
         description=(
-            "Describe your role on the anti-racism project(s) .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Describe your role on the anti-racism project at that time .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    c_are_there_any_remaining_members_of_any_of_those_anti_racism_initiatives_that_i_could_talk_to_yes: BooleanLike = Field(
+    remaining_members_i_could_talk_to_yes: BooleanLike = Field(
         default="",
         description=(
-            "Select Yes if there are remaining members of those initiatives you can refer us to"
+            "Select Yes if there are remaining members of those initiatives that can be contacted"
         ),
     )
 
-    c_are_there_any_remaining_members_of_any_of_those_anti_racism_initiatives_that_i_could_talk_to_no: BooleanLike = Field(
+    remaining_members_i_could_talk_to_no: BooleanLike = Field(
         default="",
         description=(
-            "Select No if there are no remaining members of those initiatives you can refer us to"
+            "Select No if there are no remaining members of those initiatives that can be contacted"
         ),
     )
 
-    d_contact_information_for_other_person_people: str = Field(
+    contact_information_for_other_person_people: str = Field(
         default="",
         description=(
-            "Provide names and contact information (e.g., phone, email, role) for any other "
-            'relevant person or people .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Provide names and contact information (e.g., phone, email) for other person or "
+            'people to contact .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 

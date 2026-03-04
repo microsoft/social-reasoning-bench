@@ -63,7 +63,7 @@ class ContactInformation(BaseModel):
     )
 
     contact_persons_address: str = Field(
-        default="",
+        ...,
         description=(
             "Mailing address for the contact person .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
@@ -81,11 +81,12 @@ class ContactInformation(BaseModel):
     )
 
     contact_persons_relationship_to_me: str = Field(
-        default="",
+        ...,
         description=(
-            "How this contact person is related or connected to you .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "How this contact person is related to you (e.g., friend, relative) .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
@@ -96,9 +97,9 @@ class SpecialNeeds(BaseModel):
     interpretation_if_so_what_language: str = Field(
         default="",
         description=(
-            "Language needed for interpretation services, if any .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Specify if you need interpretation and which language .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -114,16 +115,16 @@ class SpecialNeeds(BaseModel):
     privacy_keep_my_contact_information_confidential_as_i_am_a_victim_of_domestic_violence: BooleanLike = Field(
         default="",
         description=(
-            "Check if you want your contact information kept confidential due to domestic violence"
+            "Check if you need your contact information kept confidential due to domestic violence"
         ),
     )
 
-    other: str = Field(
+    other_special_needs: str = Field(
         default="",
         description=(
-            "Any other special needs not listed above .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Describe any other special needs not listed above .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -145,7 +146,7 @@ class SettlementConciliation(BaseModel):
 class Witnesses(BaseModel):
     """Information about people who witnessed the discrimination"""
 
-    witness_1_name: str = Field(
+    name_witness_1: str = Field(
         default="",
         description=(
             'Name of the first witness .If you cannot fill this, write "N/A". If this '
@@ -154,26 +155,25 @@ class Witnesses(BaseModel):
         ),
     )
 
-    witness_1_title: str = Field(
+    title_witness_1: str = Field(
         default="",
         description=(
-            "Title or role of the first witness (e.g., job title, position) .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Title or role of the first witness (if applicable) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    witness_1_telephone_number: str = Field(
+    telephone_number_witness_1: str = Field(
         default="",
         description=(
-            'Telephone number of the first witness .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Telephone number for the first witness .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    witness_1_relationship_to_me: str = Field(
+    relationship_to_me_witness_1: str = Field(
         default="",
         description=(
             "How the first witness is related or connected to you .If you cannot fill this, "
@@ -182,7 +182,7 @@ class Witnesses(BaseModel):
         ),
     )
 
-    witness_1_what_did_this_person_witness: str = Field(
+    what_did_this_person_witness_witness_1: str = Field(
         default="",
         description=(
             "Describe what the first witness saw or heard .If you cannot fill this, write "
@@ -191,7 +191,7 @@ class Witnesses(BaseModel):
         ),
     )
 
-    witness_2_name: str = Field(
+    name_witness_2: str = Field(
         default="",
         description=(
             'Name of the second witness .If you cannot fill this, write "N/A". If this '
@@ -200,26 +200,25 @@ class Witnesses(BaseModel):
         ),
     )
 
-    witness_2_title: str = Field(
+    title_witness_2: str = Field(
         default="",
         description=(
-            "Title or role of the second witness (e.g., job title, position) .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Title or role of the second witness (if applicable) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    witness_2_telephone_number: str = Field(
+    telephone_number_witness_2: str = Field(
         default="",
         description=(
-            "Telephone number of the second witness .If you cannot fill this, write "
+            "Telephone number for the second witness .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    witness_2_relationship_to_me: str = Field(
+    relationship_to_me_witness_2: str = Field(
         default="",
         description=(
             "How the second witness is related or connected to you .If you cannot fill "
@@ -228,7 +227,7 @@ class Witnesses(BaseModel):
         ),
     )
 
-    witness_2_what_did_this_person_witness: str = Field(
+    what_did_this_person_witness_witness_2: str = Field(
         default="",
         description=(
             "Describe what the second witness saw or heard .If you cannot fill this, write "

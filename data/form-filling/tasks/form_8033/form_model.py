@@ -12,17 +12,16 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class PolicyImplementationIndicators(BaseModel):
-    """Response options used across all wellness and PE goals"""
+class PhysicalActivityBeyondPE(BaseModel):
+    """Goals and practices related to general physical activity opportunities and environment"""
 
     included_in_the_written_policy_yes: BooleanLike = Field(
-        default="",
-        description="Indicate that this item is explicitly included in the written wellness policy.",
+        default="", description="Indicate that this item is included in the written policy (Yes)."
     )
 
     included_in_the_written_policy_no: BooleanLike = Field(
         default="",
-        description="Indicate that this item is not included in the written wellness policy.",
+        description="Indicate that this item is not included in the written policy (No).",
     )
 
     implemented_in_the_school_buildings_fully_in_place: BooleanLike = Field(
@@ -40,123 +39,126 @@ class PolicyImplementationIndicators(BaseModel):
         description="Indicate that this item is not implemented in the school building(s).",
     )
 
-
-class PhysicalActivityBeyondPE(BaseModel):
-    """Goals and notes related to physical activity opportunities outside of formal PE class"""
-
-    in_addition_to_planned_physical_education_we_offer_activities_such_as_indoor_and_outdoor_recess_before_and_after_school_programs_intramurals_interscholastic_athletics_and_clubs_to_meet_the_needs_and_interests_of_our_students: BooleanLike = Field(
+    in_addition_to_planned_physical_education_we_offer_activities: BooleanLike = Field(
         default="",
         description=(
-            "Check or mark if this statement accurately describes current practice or policy."
+            "Check whether this statement about offering additional physical activity "
+            "opportunities applies."
         ),
     )
 
-    we_maintain_a_physical_and_social_environment_that_encourages_safe_and_enjoyable_activity_for_all_students: BooleanLike = Field(
+    we_maintain_a_physical_and_social_environment: BooleanLike = Field(
         default="",
-        description="Indicate whether this environmental support for physical activity is in place.",
+        description=(
+            "Indicate whether the school maintains an environment that encourages safe and "
+            "enjoyable activity."
+        ),
     )
 
-    we_discourage_extended_periods_of_inactivity_two_hours_or_more_for_students: BooleanLike = Field(
+    we_discourage_extended_periods_of_inactivity: BooleanLike = Field(
         default="",
-        description="Indicate whether the school discourages extended periods of student inactivity.",
+        description="Indicate whether extended periods of student inactivity are discouraged.",
     )
 
     we_provide_physical_activity_breaks_in_the_classroom: BooleanLike = Field(
         default="", description="Indicate whether classroom physical activity breaks are provided."
     )
 
-    we_offer_before_and_or_after_school_programs_that_include_physical_activity_for_participating_children: BooleanLike = Field(
+    we_offer_before_and_or_after_school_programs_with_physical_activity: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether before/after-school programs with physical activity are offered."
+            "Indicate whether before and/or after-school programs with physical activity "
+            "are offered."
         ),
     )
 
-    we_partner_with_parents_guardians_and_community_members_and_organizations_e_g_ymca_boys_girls_clubs_local_parks_hospitals_etc_to_offer_programs_supporting_lifelong_physical_activity: BooleanLike = Field(
+    we_partner_with_parents_and_community_organizations: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether partnerships exist to support lifelong physical activity programs."
+            "Indicate whether the school partners with families and community organizations "
+            "to support lifelong physical activity."
         ),
     )
 
-    we_do_not_use_physical_activity_as_a_punishment_e_g_running_laps: BooleanLike = Field(
+    we_do_not_use_physical_activity_as_punishment: BooleanLike = Field(
         default="",
         description="Indicate whether physical activity is not used as a form of punishment.",
     )
 
-    we_do_not_withhold_physical_activity_as_a_punishment_e_g_taking_away_recess: BooleanLike = Field(
+    we_do_not_withhold_physical_activity_as_punishment: BooleanLike = Field(
         default="",
         description="Indicate whether physical activity is not withheld as a form of punishment.",
     )
 
     we_encourage_walking_and_biking_to_school: BooleanLike = Field(
-        default="",
-        description="Indicate whether the school encourages active transportation to school.",
+        default="", description="Indicate whether walking and biking to school are encouraged."
     )
 
-    we_encourage_students_and_families_to_use_our_physical_activity_facilities_such_as_playgrounds_and_ball_fields_outside_of_school_hours_in_accordance_with_school_rules: BooleanLike = Field(
+    we_encourage_use_of_physical_activity_facilities_outside_school_hours: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether community use of school physical activity facilities is encouraged."
+            "Indicate whether students and families are encouraged to use school physical "
+            "activity facilities outside school hours."
         ),
     )
 
     other_goal_describe_physical_activity: str = Field(
         default="",
         description=(
-            "Describe any additional physical activity goals not listed above. .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Describe any other physical activity goal not listed above. .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
     notes_on_goals_for_physical_activity: str = Field(
         default="",
         description=(
-            "Provide notes, explanations, or details about the physical activity goals and "
-            'their implementation. .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Record notes or comments about the physical activity goals. .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
 
 class PhysicalEducationPE(BaseModel):
-    """Goals and notes related specifically to PE curriculum, instruction, and staffing"""
+    """Goals and practices related specifically to PE curriculum, instruction, and staffing"""
 
-    we_implement_a_pe_program_consistent_with_state_academic_standards: BooleanLike = Field(
+    we_implement_a_pe_program_consistent_with_state_standards: BooleanLike = Field(
         default="",
-        description="Indicate whether the PE program aligns with state academic standards.",
+        description="Indicate whether the PE program is consistent with state academic standards.",
     )
 
     all_students_participate_in_pe: BooleanLike = Field(
-        default="", description="Indicate whether all students are required to participate in PE."
+        default="", description="Indicate whether all students participate in PE."
     )
 
-    pe_instruction_promotes_skills_and_knowledge_necessary_for_lifelong_physical_activity: BooleanLike = Field(
+    pe_instruction_promotes_lifelong_physical_activity_skills: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether PE instruction supports skills and knowledge for lifelong activity."
+            "Indicate whether PE instruction promotes skills and knowledge for lifelong "
+            "physical activity."
         ),
     )
 
-    pe_classes_provide_the_means_for_students_to_learn_practice_and_be_assessed_on_developmentally_appropriate_skills: BooleanLike = Field(
+    pe_classes_provide_learning_practice_and_assessment: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether PE classes include learning, practice, and assessment of "
-            "appropriate skills."
+            "Indicate whether PE classes allow students to learn, practice, and be assessed "
+            "on appropriate skills."
         ),
     )
 
-    our_curriculum_promotes_both_team_and_individual_activities: BooleanLike = Field(
+    our_curriculum_promotes_team_and_individual_activities: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether the PE curriculum includes both team and individual activities."
+            "Indicate whether the PE curriculum promotes both team and individual activities."
         ),
     )
 
-    we_offer_a_comprehensive_pe_course_of_study_with_planned_instruction_time_for_students_to_meet_standards_at_the_proficient_level: BooleanLike = Field(
+    we_offer_a_comprehensive_pe_course_of_study: BooleanLike = Field(
         default="",
         description=(
             "Indicate whether a comprehensive PE course of study with sufficient "
@@ -164,70 +166,72 @@ class PhysicalEducationPE(BaseModel):
         ),
     )
 
-    we_use_a_local_assessment_system_to_track_student_progress_on_state_standards: BooleanLike = Field(
+    we_use_a_local_assessment_system_for_pe_standards: BooleanLike = Field(
         default="",
-        description="Indicate whether a local assessment system is used to monitor PE standards.",
+        description=(
+            "Indicate whether a local assessment system is used to track PE progress on "
+            "state standards."
+        ),
     )
 
-    students_are_moderately_to_vigorously_active_as_much_time_as_possible_during_pe_class_accommodations_are_made_in_class_for_documented_medical_conditions_and_disabilities: BooleanLike = Field(
+    students_are_moderately_to_vigorously_active_during_pe: BooleanLike = Field(
         default="",
-        description="Indicate whether PE maximizes active time and provides needed accommodations.",
+        description=(
+            "Indicate whether students are kept active during PE and accommodations are "
+            "made for medical conditions and disabilities."
+        ),
     )
 
-    we_provide_safe_and_adequate_equipment_facilities_and_resources_for_pe_class: BooleanLike = (
-        Field(
-            default="",
-            description=(
-                "Indicate whether PE has safe and sufficient equipment, facilities, and resources."
-            ),
-        )
+    we_provide_safe_and_adequate_equipment_and_facilities_for_pe: BooleanLike = Field(
+        default="",
+        description=(
+            "Indicate whether safe and adequate equipment, facilities, and resources are "
+            "provided for PE."
+        ),
     )
 
     certified_health_and_pe_teachers_teach_our_classes: BooleanLike = Field(
         default="",
-        description="Indicate whether PE classes are taught by certified health and PE teachers.",
+        description="Indicate whether certified health and PE teachers teach the classes.",
     )
 
     we_provide_professional_development_for_pe_staff: BooleanLike = Field(
         default="",
-        description="Indicate whether ongoing professional development is provided for PE staff.",
+        description="Indicate whether professional development is provided for PE staff.",
     )
 
-    pe_classes_have_a_teacher_student_ratio_similar_to_other_courses_for_safe_and_effective_instruction: BooleanLike = Field(
+    pe_classes_have_appropriate_teacher_student_ratio: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether PE class sizes are comparable to other courses for safety and "
-            "effectiveness."
+            "Indicate whether PE classes have a teacher-student ratio similar to other courses."
         ),
     )
 
-    we_do_not_use_or_withhold_physical_activity_as_a_form_of_punishment_in_pe_class: BooleanLike = (
-        Field(
-            default="",
-            description=(
-                "Indicate whether physical activity is neither used nor withheld as punishment "
-                "in PE."
-            ),
-        )
+    we_do_not_use_or_withhold_physical_activity_as_punishment_in_pe: BooleanLike = Field(
+        default="",
+        description=(
+            "Indicate whether physical activity is neither used nor withheld as punishment "
+            "in PE class."
+        ),
     )
 
     other_goal_describe_physical_education: str = Field(
         default="",
         description=(
-            "Describe any additional physical education goals not listed above. .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Describe any other physical education goal not listed above. .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
     notes_on_goals_for_physical_education: str = Field(
         default="",
         description=(
-            "Provide notes, explanations, or details about the physical education goals and "
-            'their implementation. .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Record notes or comments about the physical education goals. .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -239,9 +243,6 @@ class WellnessPolicyAssessmentToolAndReportTemplate(BaseModel):
     ''
     """
 
-    policy__implementation_indicators: PolicyImplementationIndicators = Field(
-        ..., description="Policy / Implementation Indicators"
-    )
     physical_activity_beyond_pe: PhysicalActivityBeyondPE = Field(
         ..., description="Physical Activity (Beyond PE)"
     )

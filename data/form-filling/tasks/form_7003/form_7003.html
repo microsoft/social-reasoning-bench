@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Brainerd City Council — Agenda Request</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#d6d2cd;
+      --ink:#111;
+      --line:#222;
+      --muted:#555;
+      --page:#fff;
+      --focus:#f5f5ee;
+      --bar:#3f3f3f;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:820px;
+      background:var(--page);
+      box-shadow:0 2px 14px rgba(0,0,0,.14);
+      padding:18px 20px 16px;
+    }
+
+    .header{
+      display:grid;
+      grid-template-columns:92px 1fr 92px;
+      align-items:start;
+      gap:14px;
+      margin-bottom:8px;
+    }
+    .logo{
+      width:92px;height:92px;
+      border:2px solid #666;
+      display:flex;align-items:center;justify-content:center;
+      position:relative;
+      background:#f7f7f7;
+    }
+    .logo svg{width:84px;height:84px}
+    .title{
+      text-align:center;
+      padding-top:6px;
+    }
+    .title h1{
+      margin:0;
+      font-size:22px;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+    .title h2{
+      margin:4px 0 0;
+      font-size:18px;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+
+    form{margin-top:8px}
+    .top-fields{
+      padding:6px 4px 8px;
+    }
+    .field-row{
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+      padding:6px 0 3px;
+    }
+    .field-row .label{
+      font-weight:600;
+      font-size:13px;
+      white-space:nowrap;
+    }
+    .line-input{
+      flex:1;
+      border:none;
+      border-bottom:1.6px solid var(--line);
+      background:transparent;
+      padding:2px 6px 2px;
+      outline:none;
+      font-size:13.5px;
+    }
+    .line-input:focus{background:var(--focus)}
+    .line-input::placeholder{color:#aaa}
+
+    .formbox{
+      border:2px solid var(--line);
+      margin-top:6px;
+    }
+
+    .grid-2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom:1.6px solid var(--line);
+    }
+    .cell{
+      min-height:92px;
+      padding:10px 10px 8px;
+    }
+    .cell + .cell{border-left:1.6px solid var(--line)}
+    .cell-title{
+      font-weight:700;
+      font-size:13px;
+      margin-bottom:6px;
+    }
+
+    .cb-col{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:8px;
+      padding-top:4px;
+    }
+    .cb-item{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-size:13px;
+      letter-spacing:.1px;
+    }
+    input[type="checkbox"]{
+      width:22px;height:22px;
+      accent-color:#222;
+      margin:0;
+      transform:translateY(-1px);
+    }
+    .muted{
+      color:var(--muted);
+      font-style:italic;
+      font-size:12px;
+      margin-top:6px;
+      line-height:1.2;
+    }
+
+    .row-2col{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom:1.6px solid var(--line);
+    }
+    .row-2col .cell{
+      min-height:auto;
+      padding:8px 10px 6px;
+    }
+    .label-inline{
+      font-weight:700;
+      font-size:13px;
+      margin:0 0 4px;
+    }
+
+    .fill-line{
+      width:100%;
+      border:none;
+      border-bottom:1.6px solid var(--line);
+      background:transparent;
+      outline:none;
+      padding:2px 6px 2px;
+      font-size:13.5px;
+      min-height:20px;
+    }
+    .fill-line:focus{background:var(--focus)}
+
+    .big-block{
+      border-bottom:1.6px solid var(--line);
+      padding:8px 10px 10px;
+      min-height:128px;
+    }
+    .big-block:last-child{border-bottom:none}
+    .big-label{
+      font-weight:700;
+      font-size:13px;
+      margin-bottom:6px;
+    }
+    textarea{
+      width:100%;
+      border:1px solid transparent;
+      outline:none;
+      resize:vertical;
+      min-height:92px;
+      padding:6px 8px;
+      font-size:13.5px;
+      font-family:inherit;
+      background:transparent;
+      border-radius:2px;
+    }
+    textarea:focus{
+      background:var(--focus);
+      border-color:#c9c9be;
+    }
+
+    .financial{
+      padding:10px 10px 12px;
+    }
+    .fin-title{
+      font-weight:800;
+      font-size:13px;
+      margin-bottom:4px;
+    }
+    .fin-grid{
+      display:grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap:12px;
+      align-items:start;
+    }
+    .fin-left .fin-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin:6px 0;
+      flex-wrap:wrap;
+      font-size:12.8px;
+    }
+    .fin-left .q{
+      font-style:italic;
+      color:#222;
+    }
+    .mini-cb{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      margin-left:8px;
+      white-space:nowrap;
+    }
+    .mini-cb input[type="checkbox"]{width:20px;height:20px}
+    .money{
+      display:flex;
+      align-items:flex-end;
+      gap:6px;
+      margin-top:10px;
+      font-size:13px;
+    }
+    .money .dollar{
+      font-weight:600;
+      padding-bottom:2px;
+    }
+    .money input{
+      width:140px;
+      text-align:left;
+    }
+
+    .please-explain{
+      margin-top:10px;
+    }
+    .please-explain .explain-label{
+      font-size:12.8px;
+      font-style:italic;
+      font-weight:700;
+      text-decoration:underline;
+      margin-bottom:4px;
+      display:inline-block;
+    }
+    .please-explain textarea{min-height:54px}
+
+    .section-bar{
+      background:var(--bar);
+      color:#fff;
+      text-transform:uppercase;
+      letter-spacing:1.8px;
+      font-weight:800;
+      font-size:12px;
+      padding:6px 12px;
+      margin:10px 0 0;
+    }
+
+    .actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:12px 2px 2px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #888;
+      background:#fff;
+      color:#333;
+    }
+    .btn.primary{
+      background:#444;
+      border-color:#333;
+      color:#fff;
+    }
+
+    /* make it feel like a paper form */
+    .paper-note{
+      font-size:12px;
+      color:#444;
+      margin:4px 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="logo" aria-label="City of Brainerd logo (stylized)">
+        <svg viewBox="0 0 100 100" role="img" aria-hidden="true">
+          <rect x="6" y="6" width="88" height="88" rx="2" fill="#efefef" stroke="#777" stroke-width="2"/>
+          <path d="M20 70 C30 62, 38 62, 48 70 C58 78, 66 78, 80 70" fill="none" stroke="#777" stroke-width="3"/>
+          <path d="M20 78 C30 70, 38 70, 48 78 C58 86, 66 86, 80 78" fill="none" stroke="#777" stroke-width="3"/>
+          <path d="M26 58 L26 40 L32 34 L38 40 L38 58" fill="none" stroke="#777" stroke-width="3"/>
+          <path d="M62 60 L62 32 L78 32 L78 60" fill="none" stroke="#777" stroke-width="3"/>
+          <path d="M62 38 L78 38" stroke="#777" stroke-width="3"/>
+          <text x="50" y="92" text-anchor="middle" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#666">BRAINERD</text>
+        </svg>
+      </div>
+      <div class="title">
+        <h1>Brainerd City Council</h1>
+        <h2>Agenda Request</h2>
+      </div>
+      <div></div>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="top-fields">
+        <div class="field-row">
+          <div class="label">Requested Meeting Date:</div>
+          <input class="line-input" type="date" id="requested_meeting_date" name="requested_meeting_date">
+        </div>
+        <div class="field-row">
+          <div class="label">Title of Item:</div>
+          <input class="line-input" type="text" id="title_of_item" name="title_of_item" placeholder="">
+        </div>
+      </div>
+
+      <div class="formbox">
+        <div class="grid-2">
+          <div class="cell">
+            <div class="cb-col" style="padding-top:2px">
+              <label class="cb-item">
+                <input type="checkbox" id="information_only" name="information_only">
+                <span>INFORMATION ONLY</span>
+              </label>
+              <label class="cb-item">
+                <input type="checkbox" id="consent_agenda" name="consent_agenda">
+                <span>CONSENT AGENDA</span>
+              </label>
+              <label class="cb-item">
+                <input type="checkbox" id="p_f_committee" name="p_f_committee">
+                <span>P&amp;F COMMITTEE</span>
+              </label>
+              <label class="cb-item">
+                <input type="checkbox" id="spw_committee" name="spw_committee">
+                <span>SPW COMMITTEE</span>
+              </label>
+              <label class="cb-item">
+                <input type="checkbox" id="main_agenda" name="main_agenda">
+                <span>MAIN AGENDA</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="cell">
+            <div class="cell-title">Action Requested:</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px 14px; padding-top:2px;">
+              <div>
+                <label class="cb-item">
+                  <input type="checkbox" id="approve_deny" name="approve_deny">
+                  <span>Approve/Deny</span>
+                </label>
+                <div class="field-row" style="padding:4px 0 0; border:none; align-items:flex-end;">
+                  <div class="label" style="font-weight:600; font-size:13px;">Motion</div>
+                  <input class="line-input" type="text" id="motion" name="motion" style="border-bottom:1.6px solid var(--line);">
+                </div>
+
+                <label class="cb-item" style="margin-top:6px;">
+                  <input type="checkbox" id="adopt" name="adopt">
+                  <span>Adopt</span>
+                </label>
+                <label class="cb-item">
+                  <input type="checkbox" id="resolution" name="resolution">
+                  <span>Resolution (attach draft)</span>
+                </label>
+              </div>
+
+              <div>
+                <label class="cb-item">
+                  <input type="checkbox" id="direction_requested" name="direction_requested">
+                  <span>Direction Requested</span>
+                </label>
+                <label class="cb-item">
+                  <input type="checkbox" id="discussion_item" name="discussion_item">
+                  <span>Discussion Item</span>
+                </label>
+                <label class="cb-item">
+                  <input type="checkbox" id="hold_public_hearing" name="hold_public_hearing">
+                  <span>Hold Public Hearing*</span>
+                </label>
+                <label class="cb-item">
+                  <input type="checkbox" id="ordinance_1st_reading" name="ordinance_1st_reading">
+                  <span>Ordinance 1<sup>st</sup> Reading</span>
+                </label>
+                <div class="muted">*provide copy of published hearing notice</div>
+              </div>
+            </div>
+
+            <div class="field-row" style="margin-top:8px;">
+              <div class="label" style="min-width:132px;">Action Requested:</div>
+              <input class="line-input" type="text" id="action_requested" name="action_requested">
+            </div>
+          </div>
+        </div>
+
+        <div class="row-2col">
+          <div class="cell">
+            <div class="label-inline">Submitted by:</div>
+            <input class="fill-line" type="text" id="submitted_by" name="submitted_by">
+          </div>
+          <div class="cell">
+            <div class="label-inline">Department:</div>
+            <input class="fill-line" type="text" id="department" name="department">
+          </div>
+        </div>
+
+        <div class="row-2col">
+          <div class="cell">
+            <div class="label-inline">Presenter (Name &amp; Title):</div>
+            <input class="fill-line" type="text" id="presenter_name_title" name="presenter_name_title">
+          </div>
+          <div class="cell">
+            <div class="label-inline">Estimated Time Needed:</div>
+            <input class="fill-line" type="text" id="estimated_time_needed" name="estimated_time_needed">
+          </div>
+        </div>
+
+        <div class="big-block">
+          <div class="big-label">Summary of Issue:</div>
+          <textarea id="summary_of_issue" name="summary_of_issue"></textarea>
+        </div>
+
+        <div class="big-block">
+          <div class="big-label">Alternatives, Options, Effects on Others/Comments:</div>
+          <textarea id="alternatives_options_effects_comments" name="alternatives_options_effects_comments"></textarea>
+        </div>
+
+        <div class="big-block">
+          <div class="big-label">Recommended Action/Motion:</div>
+          <textarea id="recommended_action_motion" name="recommended_action_motion"></textarea>
+        </div>
+
+        <div class="financial">
+          <div class="fin-title">Financial Impact:</div>
+          <div class="fin-grid">
+            <div class="fin-left">
+              <div class="fin-row">
+                <span class="q">Is there a cost associated with this request:</span>
+                <span class="mini-cb">
+                  <input type="checkbox" id="yes_cost_associated" name="yes_cost_associated">
+                  <span>Yes</span>
+                </span>
+                <span class="mini-cb">
+                  <input type="checkbox" id="no_cost_associated" name="no_cost_associated">
+                  <span>No</span>
+                </span>
+              </div>
+
+              <div class="fin-row" style="align-items:flex-end;">
+                <span class="q">What is the total cost, with tax and shipping</span>
+                <div class="money">
+                  <span class="dollar">$</span>
+                  <input class="line-input" type="number" step="0.01" id="what_is_the_total_cost_with_tax_and_shipping" name="what_is_the_total_cost_with_tax_and_shipping" style="border-bottom:1.6px solid var(--line);">
+                </div>
+              </div>
+
+              <div class="fin-row">
+                <span class="q">Is this budgeted?</span>
+                <span class="mini-cb">
+                  <input type="checkbox" id="yes_budgeted" name="yes_budgeted">
+                  <span>Yes</span>
+                </span>
+                <span class="mini-cb">
+                  <input type="checkbox" id="no_budgeted" name="no_budgeted">
+                  <span>No</span>
+                </span>
+              </div>
+
+              <div class="please-explain">
+                <span class="explain-label">Please Explain:</span>
+                <textarea id="please_explain" name="please_explain"></textarea>
+              </div>
+            </div>
+
+            <div class="fin-right">
+              <div class="paper-note" style="margin:0 0 6px 0;">
+                Provide a brief narrative if needed.
+              </div>
+              <textarea id="financial_impact" name="financial_impact" style="min-height:152px;"></textarea>
+
+              <!-- Required BooleanLike fields that appear as prompt-like indicators in the model -->
+              <div style="display:none;">
+                <input type="checkbox" id="is_there_a_cost_associated_with_this_request" name="is_there_a_cost_associated_with_this_request">
+                <input type="checkbox" id="is_this_budgeted" name="is_this_budgeted">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn primary">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // BooleanLike serialization for checkboxes: "true" or "false"
+    const cb = (id) => (document.getElementById(id)?.checked ? "true" : "false");
+
+    // Keep "indicator" BooleanLike fields in sync with explicit yes/no boxes:
+    function syncCostAssociated() {
+      const yes = document.getElementById("yes_cost_associated").checked;
+      const no = document.getElementById("no_cost_associated").checked;
+      const hidden = document.getElementById("is_there_a_cost_associated_with_this_request");
+      if (!hidden) return;
+      // Set hidden to true only if "Yes" is checked; false otherwise (even if neither selected).
+      hidden.checked = !!yes && !no;
+    }
+    function syncBudgeted() {
+      const yes = document.getElementById("yes_budgeted").checked;
+      const no = document.getElementById("no_budgeted").checked;
+      const hidden = document.getElementById("is_this_budgeted");
+      if (!hidden) return;
+      hidden.checked = !!yes && !no;
+    }
+    // Optional mutual exclusivity for yes/no pairs (more paper-like behavior)
+    function bindYesNo(yesId, noId, syncFn){
+      const yesEl = document.getElementById(yesId);
+      const noEl = document.getElementById(noId);
+      if(!yesEl || !noEl) return;
+      yesEl.addEventListener("change", () => { if (yesEl.checked) noEl.checked = false; syncFn(); });
+      noEl.addEventListener("change", () => { if (noEl.checked) yesEl.checked = false; syncFn(); });
+      syncFn();
+    }
+    bindYesNo("yes_cost_associated","no_cost_associated", syncCostAssociated);
+    bindYesNo("yes_budgeted","no_budgeted", syncBudgeted);
+
+    document.getElementById("mainForm").addEventListener("submit", function(e){
+      e.preventDefault();
+      const fd = new FormData(this);
+
+      const data = {
+        meeting__item_details: {
+          requested_meeting_date: fd.get("requested_meeting_date") || "",
+          title_of_item: fd.get("title_of_item") || ""
+        },
+        agenda_placement__action_type: {
+          information_only: cb("information_only"),
+          consent_agenda: cb("consent_agenda"),
+          p_f_committee: cb("p_f_committee"),
+          spw_committee: cb("spw_committee"),
+          main_agenda: cb("main_agenda"),
+          action_requested: fd.get("action_requested") || "",
+          direction_requested: cb("direction_requested"),
+          approve_deny: cb("approve_deny"),
+          discussion_item: cb("discussion_item"),
+          motion: fd.get("motion") || "",
+          hold_public_hearing: cb("hold_public_hearing"),
+          adopt: cb("adopt"),
+          resolution: cb("resolution"),
+          ordinance_1st_reading: cb("ordinance_1st_reading")
+        },
+        submitter__presentation_details: {
+          submitted_by: fd.get("submitted_by") || "",
+          department: fd.get("department") || "",
+          presenter_name_title: fd.get("presenter_name_title") || "",
+          estimated_time_needed: fd.get("estimated_time_needed") || ""
+        },
+        issue_description: {
+          summary_of_issue: fd.get("summary_of_issue") || "",
+          alternatives_options_effects_comments: fd.get("alternatives_options_effects_comments") || "",
+          recommended_action_motion: fd.get("recommended_action_motion") || ""
+        },
+        financial_impact: {
+          financial_impact: fd.get("financial_impact") || "",
+          is_there_a_cost_associated_with_this_request: cb("is_there_a_cost_associated_with_this_request"),
+          yes_cost_associated: cb("yes_cost_associated"),
+          no_cost_associated: cb("no_cost_associated"),
+          what_is_the_total_cost_with_tax_and_shipping: (fd.get("what_is_the_total_cost_with_tax_and_shipping") ?? ""),
+          is_this_budgeted: cb("is_this_budgeted"),
+          yes_budgeted: cb("yes_budgeted"),
+          no_budgeted: cb("no_budgeted"),
+          please_explain: fd.get("please_explain") || ""
+        }
+      };
+
+      console.log(JSON.stringify(data, null, 2));
+      alert("Submitted! Check console for JSON.");
+    });
+  </script>
+</body>
+</html>

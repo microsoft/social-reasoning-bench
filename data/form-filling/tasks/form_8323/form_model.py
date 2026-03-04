@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class PetitionLocationInformation(BaseModel):
-    """Location of the requested traffic study and primary contact details"""
+    """Location of the study area and primary contact details for the petition"""
 
     street_name: str = Field(
         ...,
@@ -82,220 +82,188 @@ class PetitionLocationInformation(BaseModel):
 
 
 class PetitionSignatures(BaseModel):
-    """Residents signing in support of the neighborhood traffic study"""
+    """Residents’ names, addresses, emails, and required signatures supporting the traffic study"""
 
-    name: str = Field(
+    name_1: str = Field(
         ...,
         description=(
-            "Printed name of the person signing the petition .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            'Printed name of the first signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    address: str = Field(
+    address_1: str = Field(
         ...,
         description=(
-            "Street address of the person signing the petition .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            'Street address of the first signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    email: str = Field(
+    email_1: str = Field(
         default="",
         description=(
-            "Email address of the person signing the petition .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            'Email address of the first signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    signature_required: str = Field(
+    signature_required_1: str = Field(
         ...,
         description=(
-            "Signature of the person indicating support for the traffic study .If you "
+            "Signature of the first signer indicating support for the traffic study .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
     )
 
-    one_name: str = Field(
+    name_2: str = Field(
         ...,
         description=(
-            'Printed name for signer 1 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Printed name of the second signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    one_address: str = Field(
+    address_2: str = Field(
         ...,
         description=(
-            'Street address for signer 1 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Street address of the second signer .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    one_email: str = Field(
+    email_2: str = Field(
         default="",
         description=(
-            'Email address for signer 1 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Email address of the second signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    one_signature_required: str = Field(
+    signature_required_2: str = Field(
         ...,
         description=(
-            'Signature for signer 1 .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Signature of the second signer indicating support for the traffic study .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    two_name: str = Field(
+    name_3: str = Field(
         ...,
         description=(
-            'Printed name for signer 2 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Printed name of the third signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    two_address: str = Field(
+    address_3: str = Field(
         ...,
         description=(
-            'Street address for signer 2 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Street address of the third signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    two_email: str = Field(
+    email_3: str = Field(
         default="",
         description=(
-            'Email address for signer 2 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Email address of the third signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    two_signature_required: str = Field(
+    signature_required_3: str = Field(
         ...,
         description=(
-            'Signature for signer 2 .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Signature of the third signer indicating support for the traffic study .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    three_name: str = Field(
+    name_4: str = Field(
         ...,
         description=(
-            'Printed name for signer 3 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Printed name of the fourth signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    three_address: str = Field(
+    address_4: str = Field(
         ...,
         description=(
-            'Street address for signer 3 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Street address of the fourth signer .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    three_email: str = Field(
+    email_4: str = Field(
         default="",
         description=(
-            'Email address for signer 3 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Email address of the fourth signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    three_signature_required: str = Field(
+    signature_required_4: str = Field(
         ...,
         description=(
-            'Signature for signer 3 .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Signature of the fourth signer indicating support for the traffic study .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    four_name: str = Field(
-        ...,
-        description=(
-            'Printed name for signer 4 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
-        ),
-    )
-
-    four_address: str = Field(
-        ...,
-        description=(
-            'Street address for signer 4 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
-        ),
-    )
-
-    four_email: str = Field(
+    name_5: str = Field(
         default="",
         description=(
-            'Email address for signer 4 .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Printed name of the fifth signer (optional additional signature) .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    four_signature_required: str = Field(
-        ...,
-        description=(
-            'Signature for signer 4 .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
-        ),
-    )
-
-    five_name: str = Field(
+    address_5: str = Field(
         default="",
         description=(
-            "Printed name for signer 5 (optional additional signer) .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            'Street address of the fifth signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    five_address: str = Field(
+    email_5: str = Field(
         default="",
         description=(
-            "Street address for signer 5 (optional additional signer) .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            'Email address of the fifth signer .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    five_email: str = Field(
+    signature_required_5: str = Field(
         default="",
         description=(
-            "Email address for signer 5 (optional additional signer) .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    five_signature_required: str = Field(
-        default="",
-        description=(
-            "Signature for signer 5 (form requires at least four total signatures) .If you "
+            "Signature of the fifth signer indicating support for the traffic study .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'

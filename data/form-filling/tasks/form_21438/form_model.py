@@ -12,19 +12,19 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class OccurrenceReportingDetails(BaseModel):
-    """Date, time, and reporting information for the grievance event"""
+class GrievanceDetails(BaseModel):
+    """Core information about the grievance event and participant preferences"""
 
     date_of_occurrence: str = Field(
-        ..., description="Date when the grievance-related event occurred"
+        ..., description="Date when the grievance-related incident occurred"
     )  # YYYY-MM-DD format
 
     time_of_occurrence: str = Field(
         ...,
         description=(
-            "Time when the grievance-related event occurred .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Time when the grievance-related incident occurred .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -32,118 +32,142 @@ class OccurrenceReportingDetails(BaseModel):
         ..., description="Date when the grievance was reported"
     )  # YYYY-MM-DD format
 
-    location_of_occurrence_home: BooleanLike = Field(
-        default="", description="Check if the occurrence took place at the participant's home"
-    )
-
-    location_of_occurrence_center: BooleanLike = Field(
-        default="", description="Check if the occurrence took place at the center"
-    )
-
-    location_of_occurrence_transportation: BooleanLike = Field(
-        default="", description="Check if the occurrence took place during transportation"
-    )
-
-    location_of_occurrence_other: str = Field(
-        default="",
-        description=(
-            "If the location is not home, center, or transportation, specify the other "
-            'location .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
-        ),
-    )
-
-
-class ParticipantGrievancePreferences(BaseModel):
-    """Participant identity and preferences regarding the grievance and follow-up"""
-
     participant_name: str = Field(
         ...,
         description=(
-            'Full name of the participant involved .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Full name of the participant involved in the grievance .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     name_relationship_of_person_filing_the_grievance_if_other_than_participant: str = Field(
         default="",
         description=(
-            "Name and relationship of the person filing the grievance, if not the "
-            'participant .If you cannot fill this, write "N/A". If this field should not '
-            "be filled by you (for example, it belongs to another person or office), leave "
-            'it blank (empty string "").'
+            "Name and relationship to the participant of the person filing the grievance, "
+            'if not the participant .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
-    wants_to_file_grievance_yes: BooleanLike = Field(
-        ..., description="Select Yes if the participant wants to file a grievance"
+    does_he_she_want_to_file_a_grievance: BooleanLike = Field(
+        ..., description="Indicate whether the participant wants to file a grievance"
     )
 
-    wants_to_file_grievance_no: BooleanLike = Field(
-        ..., description="Select No if the participant does not want to file a grievance"
+    does_he_she_want_to_file_a_grievance_no: BooleanLike = Field(
+        ..., description="Indicate whether the participant does not want to file a grievance"
     )
 
-    wants_oral_feedback_yes: BooleanLike = Field(
-        default="",
-        description="Select Yes if the participant wants oral feedback on the resolution",
-    )
-
-    wants_oral_feedback_no: BooleanLike = Field(
-        default="",
-        description="Select No if the participant does not want oral feedback on the resolution",
-    )
-
-    wants_official_letter_yes: BooleanLike = Field(
+    does_he_she_want_oral_feedback_on_the_resolution: BooleanLike = Field(
         default="",
         description=(
-            "Select Yes if the participant wants an official letter mailed to them "
-            "acknowledging receipt of the grievance"
+            "Indicate whether the participant wants oral feedback on the grievance resolution"
         ),
     )
 
-    wants_official_letter_no: BooleanLike = Field(
+    does_he_she_want_oral_feedback_on_the_resolution_no: BooleanLike = Field(
         default="",
-        description="Select No if the participant does not want an official letter mailed to them",
+        description=(
+            "Indicate whether the participant does not want oral feedback on the grievance "
+            "resolution"
+        ),
     )
 
-    sdr_needed_yes: BooleanLike = Field(
+    does_he_she_want_an_official_letter_regarding_the_receipt_of_the_grievance_mailed_to_them: BooleanLike = Field(
         default="",
-        description="Select Yes if a Service Delivery Request (SDR) needs to be completed",
+        description=(
+            "Indicate whether the participant wants an official letter acknowledging "
+            "receipt of the grievance mailed to them"
+        ),
     )
 
-    sdr_needed_no: BooleanLike = Field(
+    does_he_she_want_an_official_letter_regarding_the_receipt_of_the_grievance_mailed_to_them_no: BooleanLike = Field(
         default="",
-        description="Select No if a Service Delivery Request (SDR) does not need to be completed",
+        description=(
+            "Indicate whether the participant does not want an official letter "
+            "acknowledging receipt of the grievance mailed to them"
+        ),
     )
 
+    does_a_sdr_service_delivery_request_need_to_be_completed: BooleanLike = Field(
+        default="",
+        description="Indicate whether a Service Delivery Request (SDR) needs to be completed",
+    )
 
-class GrievanceResolutionDetails(BaseModel):
-    """Narrative description of the grievance and its resolution, plus form completer"""
+    does_a_sdr_service_delivery_request_need_to_be_completed_no: BooleanLike = Field(
+        default="",
+        description="Indicate whether a Service Delivery Request (SDR) does not need to be completed",
+    )
+
+    location_of_occurrence_home: Literal["Home", "Center", "Transportation", "Other", "N/A", ""] = (
+        Field(
+            ...,
+            description=(
+                "Select the location where the incident occurred; choose Home if it occurred at "
+                "the participant's home"
+            ),
+        )
+    )
+
+    location_of_occurrence_center: Literal[
+        "Home", "Center", "Transportation", "Other", "N/A", ""
+    ] = Field(
+        ...,
+        description=(
+            "Select the location where the incident occurred; choose Center if it occurred "
+            "at the center"
+        ),
+    )
+
+    location_of_occurrence_transportation: Literal[
+        "Home", "Center", "Transportation", "Other", "N/A", ""
+    ] = Field(
+        ...,
+        description=(
+            "Select the location where the incident occurred; choose Transportation if it "
+            "occurred during transport"
+        ),
+    )
+
+    location_of_occurrence_other: str = Field(
+        default="",
+        description=(
+            "If the location is not Home, Center, or Transportation, specify the other "
+            'location .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
+        ),
+    )
 
     brief_description_of_grievance: str = Field(
         ...,
         description=(
-            "Narrative description of the grievance or concern .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Narrative description of the grievance and relevant details .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
+
+
+class ResolutionInformation(BaseModel):
+    """Information about who completed the form and how the grievance was resolved"""
 
     name_and_title_of_person_completing_form: str = Field(
         ...,
         description=(
-            "Name and job title of the person completing this form .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Name and job title of the staff member completing this form .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
     brief_description_of_resolution: str = Field(
         default="",
         description=(
-            "Summary of how the grievance was addressed or resolved .If you cannot fill "
+            "Summary of how the grievance was addressed and resolved .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -154,19 +178,13 @@ class InternalFormSeniorCarePartnersPaceParticipantGrievanceForm(BaseModel):
     """
         INTERNAL FORM
 
-    Senior Care Partners P.A.C.E.
+    Senior Care
+    Partners P.A.C.E.
 
     Participant Grievance Form
 
         ''
     """
 
-    occurrence__reporting_details: OccurrenceReportingDetails = Field(
-        ..., description="Occurrence & Reporting Details"
-    )
-    participant__grievance_preferences: ParticipantGrievancePreferences = Field(
-        ..., description="Participant & Grievance Preferences"
-    )
-    grievance__resolution_details: GrievanceResolutionDetails = Field(
-        ..., description="Grievance & Resolution Details"
-    )
+    grievance_details: GrievanceDetails = Field(..., description="Grievance Details")
+    resolution_information: ResolutionInformation = Field(..., description="Resolution Information")

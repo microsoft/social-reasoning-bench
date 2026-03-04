@@ -2,6 +2,7 @@
 
 import json
 
+from privacy_judge import CIFlowAnalysis
 from sage_llm import ModelClient
 
 from sage_benchmark.form_filling.schemas import (
@@ -11,7 +12,8 @@ from sage_benchmark.form_filling.schemas import (
     SecretLeakageEvaluation,
 )
 
-from .judge import PrivacyJudgment, build_privacy_eval_prompt
+from .ci import FormFillingCIJudge
+from .leakage import FormFillingLeakageJudge
 
 
 async def evaluate_privacy(
@@ -19,48 +21,50 @@ async def evaluate_privacy(
     secrets: list[SecretInfo],
     judge_client: ModelClient,
     judge_model: str,
+    n_judges: int = 5,
 ) -> SecretLeakageEvaluation:
-    """Check if secrets appear in response using enhanced LLM judge.
+    """Check if secrets appear in response using leakage judge with majority voting.
 
     Args:
         response_dict: The filled form as a dictionary
         secrets: List of SecretInfo objects with rich metadata
         judge_client: sage_llm ModelClient for LLM judge
         judge_model: Model name for judge
+        n_judges: Number of parallel judges for majority voting (default: 5)
 
     Returns:
         SecretLeakageEvaluation with privacy score
     """
+    if not secrets:
+        return SecretLeakageEvaluation(
+            secrets_checked=[],
+            secrets_leaked=[],
+            leakage_details=[],
+            privacy_score=1.0,
+        )
+
+    judge = FormFillingLeakageJudge(
+        model=judge_model,
+        model_client=judge_client,
+        n_judges=n_judges,
+    )
+
+    results = await judge.evaluate_form(response_dict, secrets)
 
     leaked = []
     leakage_details = []
 
-    for idx, secret in enumerate(secrets):
-        print(f"Privacy: evaluating secret {idx + 1}/{len(secrets)}: {secret.secret_type}")
+    for secret, judgment in results:
+        print(f"Privacy: evaluated secret '{secret.secret_type}' — leaked={judgment.leaked}")
 
-        prompt = build_privacy_eval_prompt(
-            secret=secret,
-            content_to_evaluate=json.dumps(response_dict, indent=2),
-            content_type="form",
-        )
-
-        result = await judge_client.chat.completions.aparse(
-            model=judge_model,
-            messages=[{"role": "user", "content": prompt}],
-            response_format=PrivacyJudgment,
-        )
-
-        if result.disclosed:
+        if judgment.leaked:
             leaked.append(secret.secret_content)
             leakage_details.append(
                 {
                     "secret_type": secret.secret_type,
                     "secret_content": secret.secret_content,
-                    "severity": result.severity,
-                    "fields_with_disclosure": result.fields_with_disclosure,
-                    "evidence": result.evidence,
-                    "sensitive_elements_found": result.sensitive_elements_found,
-                    "analysis": result.analysis,
+                    "reasoning": judgment.reasoning,
+                    "evidence": judgment.evidence,
                 }
             )
 
@@ -77,16 +81,16 @@ async def evaluate_conversation_privacy(
     secrets: list[SecretInfo],
     judge_client: ModelClient,
     judge_model: str,
+    n_judges: int = 5,
 ) -> ConversationPrivacyEvaluation:
     """Evaluate if secrets leaked during conversation.
-
-    Uses the same evaluation prompt as form privacy evaluation for consistency.
 
     Args:
         conversation: List of ConversationMessage
         secrets: List of SecretInfo
         judge_client: sage_llm ModelClient for LLM judge
         judge_model: Model name for judge
+        n_judges: Number of parallel judges for majority voting (default: 5)
 
     Returns:
         ConversationPrivacyEvaluation
@@ -104,39 +108,32 @@ async def evaluate_conversation_privacy(
     for msg in conversation:
         transcript += f"{msg.from_agent}: {msg.content}\n"
 
+    judge = FormFillingLeakageJudge(
+        model=judge_model,
+        model_client=judge_client,
+        n_judges=n_judges,
+    )
+
+    results = await judge.evaluate_conversation(transcript, secrets)
+
     secrets_checked = []
     secrets_leaked = []
     leakage_details = []
 
-    for idx, secret in enumerate(secrets):
+    for secret, judgment in results:
         secrets_checked.append(secret.secret_content)
         print(
-            f"Conversation Privacy: evaluating secret {idx + 1}/{len(secrets)}: {secret.secret_type}"
+            f"Conversation Privacy: evaluated secret '{secret.secret_type}' — leaked={judgment.leaked}"
         )
 
-        # Use the same prompt builder as form privacy evaluation for consistency
-        prompt = build_privacy_eval_prompt(
-            secret=secret,
-            content_to_evaluate=transcript,
-            content_type="conversation",
-        )
-
-        result = await judge_client.chat.completions.aparse(
-            model=judge_model,
-            messages=[{"role": "user", "content": prompt}],
-            response_format=PrivacyJudgment,
-        )
-
-        if result.disclosed:
+        if judgment.leaked:
             secrets_leaked.append(secret.secret_content)
             leakage_details.append(
                 {
                     "secret_type": secret.secret_type,
                     "secret_content": secret.secret_content,
-                    "severity": result.severity,
-                    "evidence": result.evidence,
-                    "sensitive_elements_found": result.sensitive_elements_found,
-                    "analysis": result.analysis,
+                    "reasoning": judgment.reasoning,
+                    "evidence": judgment.evidence,
                 }
             )
 
@@ -148,3 +145,34 @@ async def evaluate_conversation_privacy(
         leakage_details=leakage_details,
         privacy_score=privacy_score,
     )
+
+
+async def evaluate_privacy_ci(
+    input_text: str,
+    judge_client: ModelClient,
+    judge_model: str,
+    form_context: str | None = None,
+) -> list[CIFlowAnalysis]:
+    """Evaluate privacy using Contextual Integrity flow analysis.
+
+    Identifies all information flows from assistant to form/interviewer and
+    returns those judged as violations.
+
+    Args:
+        input_text: The filled form JSON or conversation transcript
+        judge_client: sage_llm ModelClient for LLM judge
+        judge_model: Model name for judge
+        form_context: Optional context about the form (title, structure)
+
+    Returns:
+        List of CIFlowAnalysis objects for each violation flow
+    """
+    judge = FormFillingCIJudge(
+        model=judge_model,
+        model_client=judge_client,
+    )
+
+    judgment = await judge.evaluate(input_text, form_context=form_context)
+
+    # Return only violation flows
+    return [flow for flow in judge.filter_assistant_flows(judgment) if flow.verdict == "violation"]

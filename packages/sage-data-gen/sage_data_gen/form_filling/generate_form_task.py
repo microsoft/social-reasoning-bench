@@ -20,6 +20,9 @@ from sage_data_gen.form_filling.config import FormFillingConfig
 from sage_data_gen.form_filling.models import AllSecrets, QuestionSecrets
 from sage_data_gen.form_filling.stages.fill_groundtruth import generate_groundtruth
 from sage_data_gen.form_filling.stages.generate_artifacts import step4_create_artifacts
+from sage_data_gen.form_filling.stages.generate_filesystem_artifacts import (
+    generate_filesystem_artifacts,
+)
 from sage_data_gen.form_filling.stages.generate_gui_html import generate_gui_html
 from sage_data_gen.form_filling.stages.generate_scenario import (
     groundtruth_to_answers,
@@ -37,6 +40,9 @@ from sage_data_gen.form_filling.stages.validate_artifacts import (
     get_missing_close_ended_fields,
     validate_artifacts_with_llm,
     validate_negative_info_coverage,
+)
+from sage_data_gen.form_filling.stages.validate_filesystem_artifacts import (
+    validate_bm25_retrievability,
 )
 from sage_data_gen.form_filling.utils import extract_form_id
 
@@ -138,6 +144,7 @@ def generate_form_task(
         # Use masked ground truth so the agent doesn't see masked values
         gt_for_scenario = masked_gt
         ground_truth_answers = groundtruth_to_answers(gt_for_scenario)
+        unmasked_ground_truth_answers = groundtruth_to_answers(groundtruth)
 
         print(f"\n[Stage 3] Expanding persona...")
         persona = step2_expand_persona(extracted_text, ground_truth_answers, client, config)
@@ -291,6 +298,55 @@ def generate_form_task(
         )
         print(f"  Saved artifacts.json ({len(all_artifacts)} artifacts)")
 
+        # Optional: Generate file system artifacts for search-based evaluation
+        fs_data = {}
+        if config.filesystem_mode:
+            print(f"\n[Stage FS] Generating file system artifacts...")
+            fs_artifacts, fs_findability = generate_filesystem_artifacts(
+                persona=persona,
+                ground_truth=ground_truth_answers,
+                masked_fields=masked_fields,
+                all_secrets=all_secrets,
+                client=client,
+                config=config,
+                negative_info=negative_info,
+            )
+
+            print(f"\n[Stage FS.1] Validating BM25 retrievability...")
+            bm25_validation = validate_bm25_retrievability(fs_artifacts, fs_findability, config)
+
+            # Save filesystem_artifacts.json
+            fs_artifacts_path = task_dir / "filesystem_artifacts.json"
+            fs_artifacts_path.write_text(
+                json.dumps(fs_artifacts.model_dump(), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            print(f"  Saved filesystem_artifacts.json ({len(fs_artifacts.artifacts)} artifacts)")
+
+            # Save findability.json
+            findability_path = task_dir / "findability.json"
+            findability_path.write_text(
+                json.dumps(fs_findability.model_dump(), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            print(f"  Saved findability.json")
+
+            # Save bm25_validation.json
+            bm25_path = task_dir / "bm25_validation.json"
+            bm25_path.write_text(
+                json.dumps(bm25_validation.model_dump(), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            print(
+                f"  Saved bm25_validation.json (pass rate: {bm25_validation.overall_pass_rate:.1%})"
+            )
+
+            fs_data = {
+                "filesystem_artifacts": fs_artifacts.model_dump(),
+                "findability": fs_findability.model_dump(),
+                "bm25_validation": bm25_validation.model_dump(),
+            }
+
         # Build and save task.json
         total_secrets = sum(len(qs.secrets) for qs in all_secrets.question_secrets)
         due_diligence_fields = masked_fields
@@ -308,7 +364,7 @@ def generate_form_task(
                 "title": form_title,
                 "extracted_text": extracted_text,
             },
-            "ground_truth": ground_truth_answers.model_dump(),
+            "ground_truth": unmasked_ground_truth_answers.model_dump(),
             "persona": persona.model_dump(),
             "secrets": all_secrets.model_dump(),
             "negative_info": negative_info.model_dump(),
@@ -318,6 +374,7 @@ def generate_form_task(
                 c.model_dump() if hasattr(c, "model_dump") else c for c in neg_info_coverage
             ],
             "due_diligence_fields": due_diligence_fields,
+            **fs_data,
         }
 
         task_path = task_dir / "task.json"

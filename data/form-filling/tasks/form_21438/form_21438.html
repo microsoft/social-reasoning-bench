@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Senior Care Partners P.A.C.E. — Participant Grievance Form (Internal Form)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    :root{
+      --ink:#111;
+      --grid:#2b2b2b;
+      --light:#f7f7f4;
+      --paper:#fff;
+      --bg:#d6d2cd;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 2px 16px rgba(0,0,0,.12);
+      border:1px solid rgba(0,0,0,.18);
+    }
+
+    .top{
+      padding:16px 22px 8px;
+      position:relative;
+      min-height:84px;
+    }
+    .top .internal{
+      text-align:center;
+      font-weight:800;
+      letter-spacing:.6px;
+      font-size:16px;
+      margin-top:4px;
+      text-transform:uppercase;
+    }
+    .brand{
+      position:absolute;
+      left:22px;
+      top:18px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .logo-mark{
+      width:34px;height:34px;border-radius:50%;
+      background:radial-gradient(circle at 30% 30%, #b34a63 0 40%, #7a2240 41% 100%);
+      position:relative;
+      box-shadow:inset 0 0 0 2px rgba(255,255,255,.65);
+    }
+    .logo-mark:after{
+      content:"";
+      position:absolute; inset:8px;
+      border-radius:50%;
+      border:3px solid rgba(255,255,255,.85);
+      transform:rotate(20deg);
+      clip-path:polygon(0 0,100% 0,100% 55%,0 55%);
+      opacity:.75;
+    }
+    .brand .txt{
+      line-height:1.05;
+      font-size:13px;
+      font-weight:700;
+      color:#222;
+    }
+    .brand .txt small{display:block;font-weight:700;letter-spacing:.2px}
+    .divider{
+      height:1px;background:#bdbdbd;margin:10px 22px 0;
+    }
+
+    .form-wrap{padding:10px 22px 18px;}
+
+    .frame{
+      border:2px solid var(--grid);
+      margin-top:10px;
+    }
+    .titlebar{
+      background:#d9d9d9;
+      border-bottom:2px solid var(--grid);
+      text-align:center;
+      font-weight:800;
+      padding:8px 10px;
+      font-size:18px;
+    }
+
+    table.grid{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:13px;
+    }
+    .grid td, .grid th{
+      border:1px solid var(--grid);
+      padding:6px 8px;
+      vertical-align:middle;
+    }
+    .grid .label{
+      font-weight:700;
+      white-space:nowrap;
+    }
+
+    .cell-input{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    input[type="text"], input[type="date"], input[type="time"], textarea{
+      font-family:inherit;
+      font-size:13px;
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      padding:2px 4px;
+    }
+    textarea{resize:none}
+    input:focus, textarea:focus{background:var(--light)}
+    .nowrap{white-space:nowrap}
+
+    .yn-row{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:14px;
+      min-width:140px;
+      white-space:nowrap;
+    }
+    .yn-row .yn{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-weight:700;
+    }
+    input[type="checkbox"]{
+      width:14px;height:14px;
+      accent-color:#111;
+      cursor:pointer;
+    }
+
+    .loc-row{
+      display:grid;
+      grid-template-columns: 180px 1fr;
+      align-items:stretch;
+    }
+    .loc-row .loc-label{
+      border-right:1px solid var(--grid);
+      padding:6px 8px;
+      font-weight:700;
+      display:flex;
+      align-items:center;
+      white-space:nowrap;
+    }
+    .loc-row .loc-items{
+      display:grid;
+      grid-template-columns: 90px 90px 130px 1fr;
+    }
+    .loc-item{
+      border-right:1px solid var(--grid);
+      padding:6px 8px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight:700;
+      white-space:nowrap;
+    }
+    .loc-item:last-child{border-right:none}
+    .loc-item.other{
+      font-weight:700;
+      gap:10px;
+    }
+    .loc-item.other span{white-space:nowrap}
+    .loc-item.other input[type="text"]{min-width:0}
+
+    .block-title{
+      border-top:2px solid var(--grid);
+      border-bottom:2px solid var(--grid);
+      padding:7px 8px;
+      font-weight:800;
+      background:#efefef;
+      margin-top:0;
+    }
+    .block-area{
+      border-left:2px solid var(--grid);
+      border-right:2px solid var(--grid);
+      border-bottom:2px solid var(--grid);
+      padding:0;
+    }
+    .big-text{
+      height:240px;
+      padding:10px 10px 12px;
+    }
+    .big-text textarea{height:100%}
+    .mid-row{
+      border-left:2px solid var(--grid);
+      border-right:2px solid var(--grid);
+      border-bottom:2px solid var(--grid);
+    }
+    .line-row{
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+      padding:8px 8px 6px;
+    }
+    .line-row .lbl{
+      font-weight:800;
+      white-space:nowrap;
+    }
+    .line-row .field{
+      flex:1;
+      border-bottom:1px solid var(--grid);
+      padding:0 0 2px;
+    }
+    .line-row .field input{
+      padding:2px 4px 0;
+    }
+
+    .footer{
+      display:flex;
+      justify-content:space-between;
+      padding:10px 22px 16px;
+      font-size:12px;
+      color:#222;
+    }
+    .footer .center{margin:0 auto; transform:translateX(-40px); color:#222;}
+    .btnbar{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:0 22px 18px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #777;
+      background:#fff;
+      color:#222;
+    }
+    .btn.primary{
+      background:#3b3b3b;
+      border-color:#222;
+      color:#fff;
+    }
+    .hint{
+      font-size:11px;
+      color:#333;
+      margin:8px 0 0;
+      padding:0 2px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <div class="top">
+      <div class="brand" aria-hidden="true">
+        <div class="logo-mark"></div>
+        <div class="txt">
+          Senior Care<br/>
+          <small>Partners P.A.C.E.</small>
+        </div>
+      </div>
+      <div class="internal">INTERNAL FORM</div>
+      <div class="divider"></div>
+    </div>
+
+    <div class="form-wrap">
+      <form id="mainForm" autocomplete="off">
+        <div class="frame">
+          <div class="titlebar">Participant Grievance Form</div>
+
+          <!-- Top grid: occurrence/reporting + participant prefs -->
+          <table class="grid" aria-label="Occurrence and participant details">
+            <colgroup>
+              <col style="width:34%">
+              <col style="width:33%">
+              <col style="width:33%">
+            </colgroup>
+
+            <tr>
+              <td>
+                <div class="cell-input">
+                  <span class="label">Date of Occurrence:</span>
+                  <span style="flex:1; border-bottom:1px solid var(--grid); margin-left:8px;">
+                    <input type="date" id="date_of_occurrence" name="date_of_occurrence" aria-label="Date of Occurrence">
+                  </span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-input">
+                  <span class="label">Time of Occurrence:</span>
+                  <span style="flex:1; border-bottom:1px solid var(--grid); margin-left:8px;">
+                    <input type="time" id="time_of_occurrence" name="time_of_occurrence" aria-label="Time of Occurrence" placeholder='N/A'>
+                  </span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-input">
+                  <span class="label">Date Reported:</span>
+                  <span style="flex:1; border-bottom:1px solid var(--grid); margin-left:8px;">
+                    <input type="date" id="date_reported" name="date_reported" aria-label="Date Reported">
+                  </span>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td colspan="3">
+                <div class="cell-input">
+                  <span class="label">Participant Name:</span>
+                  <span style="flex:1; border-bottom:1px solid var(--grid); margin-left:8px;">
+                    <input type="text" id="participant_name" name="participant_name" aria-label="Participant Name" placeholder='N/A'>
+                  </span>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td colspan="3">
+                <div class="cell-input">
+                  <span class="label">Name/Relationship of Person Filing the Grievance if other than participant:</span>
+                  <span style="flex:1; border-bottom:1px solid var(--grid); margin-left:8px;">
+                    <input type="text" id="name_relationship_of_person_filing_the_grievance_if_other_than_participant" name="name_relationship_of_person_filing_the_grievance_if_other_than_participant" aria-label="Name/Relationship of filer" placeholder='N/A'>
+                  </span>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td colspan="3">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <div class="label" style="flex:1;">
+                    Does he/she want to file a grievance?
+                  </div>
+                  <div class="yn-row" aria-label="Wants to file grievance yes/no">
+                    <label class="yn"><span>Yes</span><input type="checkbox" id="wants_to_file_grievance_yes" name="wants_to_file_grievance_yes"></label>
+                    <label class="yn"><span>No</span><input type="checkbox" id="wants_to_file_grievance_no" name="wants_to_file_grievance_no"></label>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td colspan="3">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <div class="label" style="flex:1;">
+                    Does he/she want oral feedback on the resolution?
+                  </div>
+                  <div class="yn-row" aria-label="Wants oral feedback yes/no">
+                    <label class="yn"><span>Yes</span><input type="checkbox" id="wants_oral_feedback_yes" name="wants_oral_feedback_yes"></label>
+                    <label class="yn"><span>No</span><input type="checkbox" id="wants_oral_feedback_no" name="wants_oral_feedback_no"></label>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td colspan="3">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <div class="label" style="flex:1;">
+                    Does he/she want an official letter regarding the receipt of the grievance mailed to them?
+                  </div>
+                  <div class="yn-row" aria-label="Wants official letter yes/no">
+                    <label class="yn"><span>Yes</span><input type="checkbox" id="wants_official_letter_yes" name="wants_official_letter_yes"></label>
+                    <label class="yn"><span>No</span><input type="checkbox" id="wants_official_letter_no" name="wants_official_letter_no"></label>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td colspan="3">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <div class="label" style="flex:1;">
+                    Does a SDR (Service Delivery Request) need to be completed?
+                  </div>
+                  <div class="yn-row" aria-label="SDR needed yes/no">
+                    <label class="yn"><span>Yes</span><input type="checkbox" id="sdr_needed_yes" name="sdr_needed_yes"></label>
+                    <label class="yn"><span>No</span><input type="checkbox" id="sdr_needed_no" name="sdr_needed_no"></label>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td colspan="3" style="padding:0;">
+                <div class="loc-row">
+                  <div class="loc-label">Location of Occurrence:</div>
+                  <div class="loc-items">
+                    <label class="loc-item">
+                      <input type="checkbox" id="location_of_occurrence_home" name="location_of_occurrence_home">
+                      <span>Home</span>
+                    </label>
+                    <label class="loc-item">
+                      <input type="checkbox" id="location_of_occurrence_center" name="location_of_occurrence_center">
+                      <span>Center</span>
+                    </label>
+                    <label class="loc-item">
+                      <input type="checkbox" id="location_of_occurrence_transportation" name="location_of_occurrence_transportation">
+                      <span>Transportation</span>
+                    </label>
+                    <div class="loc-item other">
+                      <span>Other:</span>
+                      <span style="flex:1; border-bottom:1px solid var(--grid);">
+                        <input type="text" id="location_of_occurrence_other" name="location_of_occurrence_other" aria-label="Other location" placeholder='N/A'>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Narrative blocks -->
+          <div class="block-title">Brief Description of Grievance:</div>
+          <div class="block-area">
+            <div class="big-text">
+              <textarea id="brief_description_of_grievance" name="brief_description_of_grievance" aria-label="Brief Description of Grievance" placeholder='N/A'></textarea>
+            </div>
+          </div>
+
+          <div class="mid-row">
+            <div class="line-row">
+              <div class="lbl">Name and Title of Person Completing Form:</div>
+              <div class="field">
+                <input type="text" id="name_and_title_of_person_completing_form" name="name_and_title_of_person_completing_form" aria-label="Name and Title of Person Completing Form" placeholder='N/A'>
+              </div>
+            </div>
+          </div>
+
+          <div class="block-title">Brief Description of Resolution:</div>
+          <div class="block-area">
+            <div class="big-text" style="height:240px;">
+              <textarea id="brief_description_of_resolution" name="brief_description_of_resolution" aria-label="Brief Description of Resolution" placeholder='N/A'></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="btnbar">
+          <button class="btn" type="reset">Clear Form</button>
+          <button class="btn primary" type="submit">Submit</button>
+        </div>
+
+        <div class="footer">
+          <div style="width:220px;"></div>
+          <div class="center">Page 1 of 2</div>
+          <div class="nowrap">Last Reviewed/Updated: 01/14/2021</div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      // Enforce mutually exclusive Yes/No pairs (visual behavior; still serializes per checkbox)
+      const pairs = [
+        ['wants_to_file_grievance_yes','wants_to_file_grievance_no'],
+        ['wants_oral_feedback_yes','wants_oral_feedback_no'],
+        ['wants_official_letter_yes','wants_official_letter_no'],
+        ['sdr_needed_yes','sdr_needed_no'],
+      ];
+      pairs.forEach(([yesId,noId])=>{
+        const yes = document.getElementById(yesId);
+        const no = document.getElementById(noId);
+        if(!yes || !no) return;
+        yes.addEventListener('change', ()=>{ if(yes.checked) no.checked = false; });
+        no.addEventListener('change', ()=>{ if(no.checked) yes.checked = false; });
+      });
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+        const cb = (id) => (document.getElementById(id)?.checked ? "true" : "false");
+
+        const data = {
+          occurrence__reporting_details: {
+            date_of_occurrence: (fd.get('date_of_occurrence') || ''),
+            time_of_occurrence: (fd.get('time_of_occurrence') || ''),
+            date_reported: (fd.get('date_reported') || ''),
+            location_of_occurrence_home: cb('location_of_occurrence_home'),
+            location_of_occurrence_center: cb('location_of_occurrence_center'),
+            location_of_occurrence_transportation: cb('location_of_occurrence_transportation'),
+            location_of_occurrence_other: (fd.get('location_of_occurrence_other') || '')
+          },
+          participant__grievance_preferences: {
+            participant_name: (fd.get('participant_name') || ''),
+            name_relationship_of_person_filing_the_grievance_if_other_than_participant: (fd.get('name_relationship_of_person_filing_the_grievance_if_other_than_participant') || ''),
+            wants_to_file_grievance_yes: cb('wants_to_file_grievance_yes'),
+            wants_to_file_grievance_no: cb('wants_to_file_grievance_no'),
+            wants_oral_feedback_yes: cb('wants_oral_feedback_yes'),
+            wants_oral_feedback_no: cb('wants_oral_feedback_no'),
+            wants_official_letter_yes: cb('wants_official_letter_yes'),
+            wants_official_letter_no: cb('wants_official_letter_no'),
+            sdr_needed_yes: cb('sdr_needed_yes'),
+            sdr_needed_no: cb('sdr_needed_no')
+          },
+          grievance__resolution_details: {
+            brief_description_of_grievance: (fd.get('brief_description_of_grievance') || ''),
+            name_and_title_of_person_completing_form: (fd.get('name_and_title_of_person_completing_form') || ''),
+            brief_description_of_resolution: (fd.get('brief_description_of_resolution') || '')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

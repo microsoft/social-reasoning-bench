@@ -12,16 +12,16 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class ProjectIdentificationLeadAgency(BaseModel):
-    """Basic project identifiers and lead agency contact information"""
+class ProjectIdentification(BaseModel):
+    """Basic project and lead agency information"""
 
     sch_number: str = Field(
         default="",
         description=(
-            "Existing State Clearinghouse (SCH) number, if previously assigned .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "State Clearinghouse identification number, if already assigned .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -64,9 +64,9 @@ class ProjectIdentificationLeadAgency(BaseModel):
     phone: str = Field(
         ...,
         description=(
-            "Telephone number for the contact person or lead agency .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Phone number for the contact person or lead agency .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -79,7 +79,7 @@ class ProjectIdentificationLeadAgency(BaseModel):
         ),
     )
 
-    zip: str = Field(..., description="ZIP code for the lead agency mailing address")
+    zip: str = Field(..., description="ZIP code of the lead agency mailing address")
 
     county: str = Field(
         ...,
@@ -92,7 +92,7 @@ class ProjectIdentificationLeadAgency(BaseModel):
 
 
 class ProjectLocation(BaseModel):
-    """Geographic location and nearby features"""
+    """Location details and nearby features"""
 
     project_location_county: str = Field(
         ...,
@@ -112,39 +112,37 @@ class ProjectLocation(BaseModel):
         ),
     )
 
+    project_location_zip_code: str = Field(
+        default="", description="ZIP code of the project location"
+    )
+
     cross_streets: str = Field(
         default="",
         description=(
-            "Major cross streets near the project site .If you cannot fill this, write "
+            "Major cross streets near the project location .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    zip_code: str = Field(default="", description="ZIP code for the project location")
-
-    longitude_degrees: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Longitude degrees of the project location"
+    longitude_dms: str = Field(
+        default="",
+        description=(
+            "Longitude of the project in degrees, minutes, and seconds (W) .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
+        ),
     )
 
-    longitude_minutes: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Longitude minutes of the project location"
-    )
-
-    longitude_seconds: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Longitude seconds of the project location"
-    )
-
-    latitude_degrees: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Latitude degrees of the project location"
-    )
-
-    latitude_minutes: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Latitude minutes of the project location"
-    )
-
-    latitude_seconds: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Latitude seconds of the project location"
+    latitude_dms: str = Field(
+        default="",
+        description=(
+            "Latitude of the project in degrees, minutes, and seconds (N) .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
+        ),
     )
 
     total_acres: Union[float, Literal["N/A", ""]] = Field(
@@ -163,25 +161,25 @@ class ProjectLocation(BaseModel):
     section: str = Field(
         default="",
         description=(
-            "Survey section for the project location .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Section number for the project’s legal description .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     twp: str = Field(
         default="",
         description=(
-            "Township designation for the project location .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Township (Twp.) for the project’s legal description .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     range: str = Field(
         default="",
         description=(
-            "Range designation for the project location .If you cannot fill this, write "
+            "Range for the project’s legal description .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -190,7 +188,7 @@ class ProjectLocation(BaseModel):
     base: str = Field(
         default="",
         description=(
-            "Base meridian reference for the project location .If you cannot fill this, "
+            "Base meridian for the project’s legal description .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -243,91 +241,84 @@ class ProjectLocation(BaseModel):
 
 
 class DocumentType(BaseModel):
-    """Type of CEQA/NEPA environmental document being filed"""
+    """Type of environmental document being filed"""
 
     ceqa_nop: BooleanLike = Field(
-        default="", description="Check if the document type is a CEQA Notice of Preparation (NOP)"
-    )
-
-    ceqa_draft_eir: BooleanLike = Field(
-        default="",
-        description=(
-            "Check if the document type is a CEQA Draft Environmental Impact Report (Draft EIR)"
-        ),
-    )
-
-    nepa_noi: BooleanLike = Field(
-        default="", description="Check if the document type is a NEPA Notice of Intent (NOI)"
-    )
-
-    other_joint_document: BooleanLike = Field(
-        default="",
-        description="Check if the document is a joint CEQA/NEPA or similar joint document",
+        default="", description="Check if the CEQA document type is Notice of Preparation (NOP)"
     )
 
     ceqa_early_cons: BooleanLike = Field(
-        default="", description="Check if the document type is a CEQA Early Consultation"
+        default="", description="Check if the CEQA document type is Early Consultation"
     )
 
-    ceqa_supplement_subsequent_eir: BooleanLike = Field(
-        default="", description="Check if the document type is a CEQA Supplement or Subsequent EIR"
-    )
-
-    nepa_ea: BooleanLike = Field(
-        default="", description="Check if the document type is a NEPA Environmental Assessment (EA)"
-    )
-
-    nepa_final_document: BooleanLike = Field(
-        default="", description="Check if the document is a NEPA final document"
-    )
-
-    ceqa_neg_dec_prior_sch_no: str = Field(
-        default="",
-        description=(
-            "Check if CEQA Negative Declaration and provide prior SCH number if applicable "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
-        ),
-    )
-
-    nepa_draft_eis: BooleanLike = Field(
-        default="",
-        description=(
-            "Check if the document type is a NEPA Draft Environmental Impact Statement (Draft EIS)"
-        ),
-    )
-
-    nepa_other: str = Field(
-        default="",
-        description=(
-            "Specify other NEPA document type, if checked .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
+    ceqa_neg_dec: BooleanLike = Field(
+        default="", description="Check if the CEQA document type is Negative Declaration"
     )
 
     ceqa_mit_neg_dec: BooleanLike = Field(
+        default="", description="Check if the CEQA document type is Mitigated Negative Declaration"
+    )
+
+    ceqa_draft_eir: BooleanLike = Field(
+        default="", description="Check if the CEQA document type is Draft EIR"
+    )
+
+    ceqa_supplement_subsequent_eir: BooleanLike = Field(
+        default="", description="Check if the CEQA document type is Supplement or Subsequent EIR"
+    )
+
+    ceqa_prior_sch_no: str = Field(
         default="",
-        description="Check if the document type is a CEQA Mitigated Negative Declaration",
+        description=(
+            "Prior State Clearinghouse number, if applicable .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
     )
 
     ceqa_other: str = Field(
         default="",
         description=(
-            "Specify other CEQA document type, if checked .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Description of other CEQA document type, if checked .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    nepa_fonsi: str = Field(
+    nepa_noi: BooleanLike = Field(
+        default="", description="Check if the NEPA document type is Notice of Intent (NOI)"
+    )
+
+    nepa_ea: BooleanLike = Field(
+        default="", description="Check if the NEPA document type is Environmental Assessment (EA)"
+    )
+
+    nepa_draft_eis: BooleanLike = Field(
         default="",
         description=(
-            "Check if NEPA Finding of No Significant Impact (FONSI) and provide any "
-            'identifier if applicable .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Check if the NEPA document type is Draft Environmental Impact Statement (Draft EIS)"
+        ),
+    )
+
+    nepa_fonsi: BooleanLike = Field(
+        default="",
+        description="Check if the NEPA document type is Finding of No Significant Impact (FONSI)",
+    )
+
+    other_joint_document: BooleanLike = Field(
+        default="", description="Check if the document is a joint CEQA/NEPA or other joint document"
+    )
+
+    other_final_document: BooleanLike = Field(
+        default="", description="Check if the document is a final document"
+    )
+
+    other_other: str = Field(
+        default="",
+        description=(
+            "Description of other document type, if checked .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -335,442 +326,444 @@ class DocumentType(BaseModel):
 class LocalActionType(BaseModel):
     """Local planning and permitting actions associated with the project"""
 
-    general_plan_update: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes a General Plan Update"
+    local_action_general_plan_update: BooleanLike = Field(
+        default="", description="Check if the local action type is General Plan Update"
     )
 
-    specific_plan: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes a Specific Plan"
+    local_action_specific_plan: BooleanLike = Field(
+        default="", description="Check if the local action type is Specific Plan"
     )
 
-    rezone: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes a Rezone"
+    local_action_rezone: BooleanLike = Field(
+        default="", description="Check if the local action type is Rezone"
     )
 
-    annexation: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes an Annexation"
+    local_action_annexation: BooleanLike = Field(
+        default="", description="Check if the local action type is Annexation"
     )
 
-    general_plan_amendment: BooleanLike = Field(
+    local_action_general_plan_amendment: BooleanLike = Field(
+        default="", description="Check if the local action type is General Plan Amendment"
+    )
+
+    local_action_master_plan: BooleanLike = Field(
+        default="", description="Check if the local action type is Master Plan"
+    )
+
+    local_action_prezone: BooleanLike = Field(
+        default="", description="Check if the local action type is Prezone"
+    )
+
+    local_action_redevelopment: BooleanLike = Field(
+        default="", description="Check if the local action type is Redevelopment"
+    )
+
+    local_action_general_plan_element: BooleanLike = Field(
+        default="", description="Check if the local action type is General Plan Element"
+    )
+
+    local_action_planned_unit_development: BooleanLike = Field(
+        default="", description="Check if the local action type is Planned Unit Development"
+    )
+
+    local_action_use_permit: BooleanLike = Field(
+        default="", description="Check if the local action type is Use Permit"
+    )
+
+    local_action_coastal_permit: BooleanLike = Field(
+        default="", description="Check if the local action type is Coastal Permit"
+    )
+
+    local_action_community_plan: BooleanLike = Field(
+        default="", description="Check if the local action type is Community Plan"
+    )
+
+    local_action_site_plan: BooleanLike = Field(
+        default="", description="Check if the local action type is Site Plan"
+    )
+
+    local_action_land_division: BooleanLike = Field(
         default="",
-        description="Indicate if the local action type includes a General Plan Amendment",
+        description="Check if the local action type is Land Division (Subdivision, etc.)",
     )
 
-    master_plan: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes a Master Plan"
-    )
-
-    prezone: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes a Prezone"
-    )
-
-    redevelopment: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes Redevelopment"
-    )
-
-    general_plan_element: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes a General Plan Element"
-    )
-
-    planned_unit_development: BooleanLike = Field(
-        default="",
-        description="Indicate if the local action type includes a Planned Unit Development",
-    )
-
-    use_permit: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes a Use Permit"
-    )
-
-    coastal_permit: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes a Coastal Permit"
-    )
-
-    community_plan: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes a Community Plan"
-    )
-
-    site_plan: BooleanLike = Field(
-        default="", description="Indicate if the local action type includes a Site Plan"
-    )
-
-    land_division_subdivision_etc: BooleanLike = Field(
-        default="",
-        description="Indicate if the local action type includes Land Division (Subdivision, etc.)",
-    )
-
-    local_action_type_other: str = Field(
+    local_action_other: str = Field(
         default="",
         description=(
-            "Specify other local action type, if checked .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Description of other local action type, if checked .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
 
 class DevelopmentType(BaseModel):
-    """Nature and scale of proposed development"""
+    """Type and scale of proposed development"""
 
-    residential: BooleanLike = Field(
+    development_residential_checkbox: BooleanLike = Field(
         default="", description="Check if the project includes residential development"
     )
 
-    residential_units: Union[float, Literal["N/A", ""]] = Field(
+    development_residential_units: Union[float, Literal["N/A", ""]] = Field(
         default="", description="Number of residential units proposed"
     )
 
-    residential_acres: Union[float, Literal["N/A", ""]] = Field(
+    development_residential_acres: Union[float, Literal["N/A", ""]] = Field(
         default="", description="Acreage of residential development"
     )
 
-    transportation: BooleanLike = Field(
-        default="", description="Check if the project includes transportation facilities"
+    development_office_checkbox: BooleanLike = Field(
+        default="", description="Check if the project includes office development"
     )
 
-    transportation_type: str = Field(
+    development_office_sqft: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Square footage of office development"
+    )
+
+    development_office_acres: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Acreage of office development"
+    )
+
+    development_office_employees: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of employees associated with office development"
+    )
+
+    development_commercial_checkbox: BooleanLike = Field(
+        default="", description="Check if the project includes commercial development"
+    )
+
+    development_commercial_sqft: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Square footage of commercial development"
+    )
+
+    development_commercial_acres: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Acreage of commercial development"
+    )
+
+    development_commercial_employees: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of employees associated with commercial development"
+    )
+
+    development_industrial_checkbox: BooleanLike = Field(
+        default="", description="Check if the project includes industrial development"
+    )
+
+    development_industrial_sqft: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Square footage of industrial development"
+    )
+
+    development_industrial_acres: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Acreage of industrial development"
+    )
+
+    development_industrial_employees: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of employees associated with industrial development"
+    )
+
+    development_educational: str = Field(
         default="",
         description=(
-            "Type of transportation project (e.g., road, rail, transit) .If you cannot fill "
+            "Description of educational development, if applicable .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    office: BooleanLike = Field(
-        default="", description="Check if the project includes office development"
-    )
-
-    office_sq_ft: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Square footage of office space"
-    )
-
-    office_acres: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Acreage of office development"
-    )
-
-    office_employees: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Number of employees associated with office development"
-    )
-
-    mining: BooleanLike = Field(
-        default="", description="Check if the project includes mining activities"
-    )
-
-    mining_mineral: str = Field(
+    development_recreational: str = Field(
         default="",
         description=(
-            'Type of mineral to be extracted .If you cannot fill this, write "N/A". If '
+            "Description of recreational development, if applicable .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    development_water_facilities_checkbox: BooleanLike = Field(
+        default="", description="Check if the project includes water facilities"
+    )
+
+    development_water_facilities_type: str = Field(
+        default="",
+        description=(
+            'Type of water facilities proposed .If you cannot fill this, write "N/A". If '
             "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
-    commercial: BooleanLike = Field(
-        default="", description="Check if the project includes commercial development"
+    development_water_facilities_mgd: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Capacity of water facilities in million gallons per day (MGD)"
     )
 
-    commercial_sq_ft: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Square footage of commercial space"
+    development_transportation_checkbox: BooleanLike = Field(
+        default="", description="Check if the project includes transportation facilities"
     )
 
-    commercial_acres: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Acreage of commercial development"
+    development_transportation_type: str = Field(
+        default="",
+        description=(
+            "Type of transportation facilities proposed .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
     )
 
-    commercial_employees: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Number of employees associated with commercial development"
+    development_mining_checkbox: BooleanLike = Field(
+        default="", description="Check if the project includes mining activities"
     )
 
-    power: BooleanLike = Field(
+    development_mining_mineral: str = Field(
+        default="",
+        description=(
+            'Type of mineral to be mined .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
+        ),
+    )
+
+    development_power_checkbox: BooleanLike = Field(
         default="", description="Check if the project includes power generation facilities"
     )
 
-    power_type: str = Field(
+    development_power_type: str = Field(
         default="",
         description=(
-            "Type of power generation (e.g., solar, wind, gas) .If you cannot fill this, "
+            "Type of power generation (e.g., solar, gas, wind) .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    power_mw: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Megawatt capacity of the power facility"
+    development_power_mw: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Power generation capacity in megawatts (MW)"
     )
 
-    industrial: BooleanLike = Field(
-        default="", description="Check if the project includes industrial development"
-    )
-
-    industrial_sq_ft: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Square footage of industrial space"
-    )
-
-    industrial_acres: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Acreage of industrial development"
-    )
-
-    industrial_employees: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Number of employees associated with industrial development"
-    )
-
-    waste_treatment: BooleanLike = Field(
+    development_waste_treatment_checkbox: BooleanLike = Field(
         default="", description="Check if the project includes waste treatment facilities"
     )
 
-    waste_treatment_type: str = Field(
+    development_waste_treatment_type: str = Field(
         default="",
         description=(
-            'Type of waste treatment facility .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Type of waste treatment facility proposed .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    waste_treatment_mgd: Union[float, Literal["N/A", ""]] = Field(
+    development_waste_treatment_mgd: Union[float, Literal["N/A", ""]] = Field(
         default="",
-        description="Capacity of waste treatment facility in million gallons per day (MGD)",
+        description="Capacity of waste treatment facilities in million gallons per day (MGD)",
     )
 
-    educational: BooleanLike = Field(
-        default="", description="Check if the project includes educational facilities"
-    )
-
-    recreational: BooleanLike = Field(
-        default="", description="Check if the project includes recreational facilities"
-    )
-
-    hazardous_waste: BooleanLike = Field(
+    development_hazardous_waste_checkbox: BooleanLike = Field(
         default="",
         description="Check if the project includes hazardous waste facilities or activities",
     )
 
-    hazardous_waste_type: str = Field(
+    development_hazardous_waste_type: str = Field(
         default="",
         description=(
-            'Type of hazardous waste involved .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Type of hazardous waste facility or activity .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    other_development_type: str = Field(
+    development_other: str = Field(
         default="",
         description=(
-            "Specify any other type of development not listed .If you cannot fill this, "
+            "Description of other development types not listed .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    water_facilities: BooleanLike = Field(
-        default="", description="Check if the project includes water facilities"
+
+class ProjectIssues(BaseModel):
+    """Environmental issues addressed in the document"""
+
+    project_issues_aesthetic_visual: BooleanLike = Field(
+        default="", description="Check if aesthetic/visual impacts are discussed in the document"
     )
 
-    water_facilities_type: str = Field(
+    project_issues_fiscal: BooleanLike = Field(
+        default="", description="Check if fiscal impacts are discussed in the document"
+    )
+
+    project_issues_recreation_parks: BooleanLike = Field(
+        default="", description="Check if recreation/parks impacts are discussed in the document"
+    )
+
+    project_issues_vegetation: BooleanLike = Field(
+        default="", description="Check if vegetation impacts are discussed in the document"
+    )
+
+    project_issues_agricultural_land: BooleanLike = Field(
+        default="", description="Check if agricultural land impacts are discussed in the document"
+    )
+
+    project_issues_flood_plain_flooding: BooleanLike = Field(
+        default="",
+        description="Check if flood plain or flooding impacts are discussed in the document",
+    )
+
+    project_issues_schools_universities: BooleanLike = Field(
+        default="",
+        description="Check if impacts to schools/universities are discussed in the document",
+    )
+
+    project_issues_water_quality: BooleanLike = Field(
+        default="", description="Check if water quality impacts are discussed in the document"
+    )
+
+    project_issues_air_quality: BooleanLike = Field(
+        default="", description="Check if air quality impacts are discussed in the document"
+    )
+
+    project_issues_forest_land_fire_hazard: BooleanLike = Field(
+        default="",
+        description="Check if forest land or fire hazard impacts are discussed in the document",
+    )
+
+    project_issues_septic_systems: BooleanLike = Field(
+        default="", description="Check if septic system impacts are discussed in the document"
+    )
+
+    project_issues_water_supply_groundwater: BooleanLike = Field(
+        default="",
+        description="Check if water supply or groundwater impacts are discussed in the document",
+    )
+
+    project_issues_archaeological_historical: BooleanLike = Field(
+        default="",
+        description="Check if archaeological or historical resource impacts are discussed",
+    )
+
+    project_issues_geologic_seismic: BooleanLike = Field(
+        default="", description="Check if geologic or seismic impacts are discussed in the document"
+    )
+
+    project_issues_sewer_capacity: BooleanLike = Field(
+        default="", description="Check if sewer capacity impacts are discussed in the document"
+    )
+
+    project_issues_wetland_riparian: BooleanLike = Field(
+        default="", description="Check if wetland or riparian impacts are discussed in the document"
+    )
+
+    project_issues_biological_resources: BooleanLike = Field(
+        default="", description="Check if biological resource impacts are discussed in the document"
+    )
+
+    project_issues_minerals: BooleanLike = Field(
+        default="", description="Check if mineral resource impacts are discussed in the document"
+    )
+
+    project_issues_soil_erosion_compaction_grading: BooleanLike = Field(
+        default="",
+        description="Check if soil erosion, compaction, or grading impacts are discussed",
+    )
+
+    project_issues_growth_inducement: BooleanLike = Field(
+        default="", description="Check if growth-inducing impacts are discussed in the document"
+    )
+
+    project_issues_coastal_zone: BooleanLike = Field(
+        default="", description="Check if coastal zone impacts are discussed in the document"
+    )
+
+    project_issues_noise: BooleanLike = Field(
+        default="", description="Check if noise impacts are discussed in the document"
+    )
+
+    project_issues_solid_waste: BooleanLike = Field(
+        default="", description="Check if solid waste impacts are discussed in the document"
+    )
+
+    project_issues_land_use: BooleanLike = Field(
+        default="", description="Check if land use impacts are discussed in the document"
+    )
+
+    project_issues_drainage_absorption: BooleanLike = Field(
+        default="",
+        description="Check if drainage or absorption impacts are discussed in the document",
+    )
+
+    project_issues_population_housing_balance: BooleanLike = Field(
+        default="", description="Check if population/housing balance impacts are discussed"
+    )
+
+    project_issues_toxic_hazardous: BooleanLike = Field(
+        default="", description="Check if toxic or hazardous materials impacts are discussed"
+    )
+
+    project_issues_cumulative_effects: BooleanLike = Field(
+        default="", description="Check if cumulative effects are discussed in the document"
+    )
+
+    project_issues_economic_jobs: BooleanLike = Field(
+        default="", description="Check if economic or jobs-related impacts are discussed"
+    )
+
+    project_issues_public_services_facilities: BooleanLike = Field(
+        default="", description="Check if public services or facilities impacts are discussed"
+    )
+
+    project_issues_traffic_circulation: BooleanLike = Field(
+        default="", description="Check if traffic or circulation impacts are discussed"
+    )
+
+    project_issues_other: str = Field(
         default="",
         description=(
-            "Type of water facilities (e.g., treatment plant, pipeline) .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    water_facilities_mgd: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Capacity of water facilities in million gallons per day (MGD)"
-    )
-
-
-class ProjectIssuesDiscussedinDocument(BaseModel):
-    """Environmental topics and issues addressed in the document"""
-
-    aesthetic_visual: BooleanLike = Field(
-        default="", description="Indicate if aesthetic/visual issues are discussed in the document"
-    )
-
-    fiscal: BooleanLike = Field(
-        default="", description="Indicate if fiscal issues are discussed in the document"
-    )
-
-    recreation_parks: BooleanLike = Field(
-        default="", description="Indicate if recreation/parks issues are discussed in the document"
-    )
-
-    vegetation: BooleanLike = Field(
-        default="", description="Indicate if vegetation issues are discussed in the document"
-    )
-
-    agricultural_land: BooleanLike = Field(
-        default="", description="Indicate if agricultural land issues are discussed in the document"
-    )
-
-    flood_plain_flooding: BooleanLike = Field(
-        default="",
-        description="Indicate if flood plain/flooding issues are discussed in the document",
-    )
-
-    schools_universities: BooleanLike = Field(
-        default="",
-        description="Indicate if schools/universities issues are discussed in the document",
-    )
-
-    water_quality: BooleanLike = Field(
-        default="", description="Indicate if water quality issues are discussed in the document"
-    )
-
-    air_quality: BooleanLike = Field(
-        default="", description="Indicate if air quality issues are discussed in the document"
-    )
-
-    forest_land_fire_hazard: BooleanLike = Field(
-        default="",
-        description="Indicate if forest land or fire hazard issues are discussed in the document",
-    )
-
-    septic_systems: BooleanLike = Field(
-        default="", description="Indicate if septic systems issues are discussed in the document"
-    )
-
-    water_supply_groundwater: BooleanLike = Field(
-        default="",
-        description="Indicate if water supply/groundwater issues are discussed in the document",
-    )
-
-    archeological_historical: BooleanLike = Field(
-        default="",
-        description="Indicate if archeological/historical issues are discussed in the document",
-    )
-
-    geologic_seismic: BooleanLike = Field(
-        default="", description="Indicate if geologic/seismic issues are discussed in the document"
-    )
-
-    sewer_capacity: BooleanLike = Field(
-        default="", description="Indicate if sewer capacity issues are discussed in the document"
-    )
-
-    wetland_riparian: BooleanLike = Field(
-        default="", description="Indicate if wetland/riparian issues are discussed in the document"
-    )
-
-    biological_resources: BooleanLike = Field(
-        default="",
-        description="Indicate if biological resources issues are discussed in the document",
-    )
-
-    minerals: BooleanLike = Field(
-        default="", description="Indicate if minerals issues are discussed in the document"
-    )
-
-    soil_erosion_compaction_grading: BooleanLike = Field(
-        default="",
-        description=(
-            "Indicate if soil erosion/compaction/grading issues are discussed in the document"
-        ),
-    )
-
-    growth_inducement: BooleanLike = Field(
-        default="", description="Indicate if growth inducement issues are discussed in the document"
-    )
-
-    coastal_zone: BooleanLike = Field(
-        default="", description="Indicate if coastal zone issues are discussed in the document"
-    )
-
-    noise: BooleanLike = Field(
-        default="", description="Indicate if noise issues are discussed in the document"
-    )
-
-    solid_waste: BooleanLike = Field(
-        default="", description="Indicate if solid waste issues are discussed in the document"
-    )
-
-    land_use: BooleanLike = Field(
-        default="", description="Indicate if land use issues are discussed in the document"
-    )
-
-    drainage_absorption: BooleanLike = Field(
-        default="",
-        description="Indicate if drainage/absorption issues are discussed in the document",
-    )
-
-    population_housing_balance: BooleanLike = Field(
-        default="",
-        description="Indicate if population/housing balance issues are discussed in the document",
-    )
-
-    toxic_hazardous: BooleanLike = Field(
-        default="", description="Indicate if toxic/hazardous issues are discussed in the document"
-    )
-
-    cumulative_effects: BooleanLike = Field(
-        default="", description="Indicate if cumulative effects are discussed in the document"
-    )
-
-    economic_jobs: BooleanLike = Field(
-        default="", description="Indicate if economic/jobs issues are discussed in the document"
-    )
-
-    public_services_facilities: BooleanLike = Field(
-        default="",
-        description="Indicate if public services/facilities issues are discussed in the document",
-    )
-
-    traffic_circulation: BooleanLike = Field(
-        default="",
-        description="Indicate if traffic/circulation issues are discussed in the document",
-    )
-
-    other_project_issues: str = Field(
-        default="",
-        description=(
-            "Specify any other project issues discussed in the document .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Description of other project issues discussed in the document .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
 
-class LandUseProjectDescription(BaseModel):
-    """Existing land use designations and narrative project description"""
+class ExistingConditionsandDescription(BaseModel):
+    """Current land use and narrative project description"""
 
-    present_land_use_zoning_general_plan_designation: str = Field(
+    present_land_use_zoning_gp_designation: str = Field(
         default="",
         description=(
-            "Current land use, zoning, and general plan designation for the project site "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
+            "Current land use, zoning, and general plan designation of the project site .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     project_description: str = Field(
         ...,
         description=(
-            "Detailed description of the proposed project .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Narrative description of the project; attach additional pages if necessary .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
 
-class NoticeOfCompletionEnvironmentalDocumentTransmittal(BaseModel):
+class AppendixCNoticeOfCompletionEnvironmentalDocumentTransmittal(BaseModel):
     """
+        Appendix C
+
     Notice of Completion & Environmental Document Transmittal
 
-    Note: The State Clearinghouse will assign identification numbers for all new projects. If a SCH number already exists for a project (e.g. Notice of Preparation or previous draft document) please fill in.
+        Notice of Completion & Environmental Document Transmittal
     """
 
-    project_identification__lead_agency: ProjectIdentificationLeadAgency = Field(
-        ..., description="Project Identification & Lead Agency"
-    )
+    project_identification: ProjectIdentification = Field(..., description="Project Identification")
     project_location: ProjectLocation = Field(..., description="Project Location")
     document_type: DocumentType = Field(..., description="Document Type")
     local_action_type: LocalActionType = Field(..., description="Local Action Type")
     development_type: DevelopmentType = Field(..., description="Development Type")
-    project_issues_discussed_in_document: ProjectIssuesDiscussedinDocument = Field(
-        ..., description="Project Issues Discussed in Document"
-    )
-    land_use__project_description: LandUseProjectDescription = Field(
-        ..., description="Land Use & Project Description"
+    project_issues: ProjectIssues = Field(..., description="Project Issues")
+    existing_conditions_and_description: ExistingConditionsandDescription = Field(
+        ..., description="Existing Conditions and Description"
     )

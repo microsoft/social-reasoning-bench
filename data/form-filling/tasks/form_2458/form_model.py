@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class SectionIGeneralInformation(BaseModel):
-    """Patient and transport details"""
+    """General patient and transport details"""
 
     patients_name: str = Field(
         ...,
@@ -58,26 +58,23 @@ class SectionIGeneralInformation(BaseModel):
     )
 
     medicare_part_a_covered_yes: BooleanLike = Field(
-        ...,
-        description="Indicate YES if the patient’s stay is covered under Medicare Part A (PPS/DRG)",
+        ..., description="Check if the patient’s stay is covered under Medicare Part A (PPS/DRG)"
     )
 
     medicare_part_a_covered_no: BooleanLike = Field(
         ...,
-        description=(
-            "Indicate NO if the patient’s stay is not covered under Medicare Part A (PPS/DRG)"
-        ),
+        description="Check if the patient’s stay is not covered under Medicare Part A (PPS/DRG)",
     )
 
     closest_appropriate_facility_yes: BooleanLike = Field(
-        ..., description="Indicate YES if the destination is the closest appropriate facility"
+        ..., description="Check if the destination is the closest appropriate facility"
     )
 
     closest_appropriate_facility_no: BooleanLike = Field(
-        ..., description="Indicate NO if the destination is not the closest appropriate facility"
+        ..., description="Check if the destination is not the closest appropriate facility"
     )
 
-    reason_transported_to_another_facility: str = Field(
+    reason_not_closest_facility: str = Field(
         default="",
         description=(
             "Explain why the patient was transported to a facility other than the closest "
@@ -87,38 +84,33 @@ class SectionIGeneralInformation(BaseModel):
         ),
     )
 
-    services_needed_at_second_facility: str = Field(
+    hospital_to_hospital_services_needed: str = Field(
         default="",
         description=(
-            "Describe services required at the receiving hospital that are not available at "
-            'the sending hospital .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Describe services at the receiving hospital that are not available at the "
+            'sending hospital .If you cannot fill this, write "N/A". If this field should '
+            "not be filled by you (for example, it belongs to another person or office), "
+            'leave it blank (empty string "").'
         ),
     )
 
     hospice_transport_related_yes: BooleanLike = Field(
         default="",
-        description=(
-            "For hospice patients, indicate YES if the transport is related to the terminal illness"
-        ),
+        description="Check if the transport is related to the hospice patient’s terminal illness",
     )
 
     hospice_transport_related_no: BooleanLike = Field(
         default="",
-        description=(
-            "For hospice patients, indicate NO if the transport is not related to the "
-            "terminal illness"
-        ),
+        description="Check if the transport is not related to the hospice patient’s terminal illness",
     )
 
     hospice_transport_description: str = Field(
         default="",
         description=(
-            "Brief description of how the transport relates (or does not relate) to the "
-            'hospice patient’s terminal illness .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Describe how the transport is or is not related to the hospice patient’s "
+            'terminal illness .If you cannot fill this, write "N/A". If this field should '
+            "not be filled by you (for example, it belongs to another person or office), "
+            'leave it blank (empty string "").'
         ),
     )
 
@@ -126,11 +118,11 @@ class SectionIGeneralInformation(BaseModel):
 class SectionIIMedicalNecessityQuestionnaire(BaseModel):
     """Medical condition and necessity for ambulance transport"""
 
-    medical_condition_and_contraindication: str = Field(
+    medical_condition_description: str = Field(
         ...,
         description=(
             "Describe the patient’s physical and/or mental condition at the time of "
-            "transport and why non-ambulance transport is contraindicated .If you cannot "
+            "transport and why other means of transport are contraindicated .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
@@ -138,28 +130,20 @@ class SectionIIMedicalNecessityQuestionnaire(BaseModel):
     )
 
     bed_confined_yes: BooleanLike = Field(
-        ..., description="Indicate YES if the patient meets all criteria for being bed confined"
+        ..., description="Check if the patient meets the definition of bed confined"
     )
 
     bed_confined_no: BooleanLike = Field(
-        ...,
-        description="Indicate NO if the patient does not meet all criteria for being bed confined",
+        ..., description="Check if the patient does not meet the definition of bed confined"
     )
 
     can_be_transported_by_car_yes: BooleanLike = Field(
-        ...,
-        description=(
-            "Indicate YES if the patient can safely sit during transport by car or "
-            "wheelchair van without an attendant or monitoring"
-        ),
+        ..., description="Check if the patient can safely be transported by car or wheelchair van"
     )
 
     can_be_transported_by_car_no: BooleanLike = Field(
         ...,
-        description=(
-            "Indicate NO if the patient cannot safely be transported by car or wheelchair "
-            "van without an attendant or monitoring"
-        ),
+        description="Check if the patient cannot safely be transported by car or wheelchair van",
     )
 
     contractures: BooleanLike = Field(
@@ -186,8 +170,9 @@ class SectionIIMedicalNecessityQuestionnaire(BaseModel):
         default="", description="Check if the patient poses a danger to self or others"
     )
 
-    iv_needs_fluids_required: BooleanLike = Field(
-        default="", description="Check if the patient requires IV access or IV fluids"
+    iv_meds_fluids_required: BooleanLike = Field(
+        default="",
+        description="Check if intravenous medications or fluids are required during transport",
     )
 
     patient_is_combative: BooleanLike = Field(
@@ -195,12 +180,13 @@ class SectionIIMedicalNecessityQuestionnaire(BaseModel):
     )
 
     need_or_possible_need_for_restraints: BooleanLike = Field(
-        default="", description="Check if restraints are needed or may be needed during transport"
+        default="",
+        description="Check if there is a need or possible need for restraints during transport",
     )
 
-    ivt_requires_elevation_lower_extremity: BooleanLike = Field(
+    dvt_requires_elevation: BooleanLike = Field(
         default="",
-        description="Check if IV therapy requires elevation of a lower extremity during transport",
+        description="Check if deep vein thrombosis requires elevation of a lower extremity",
     )
 
     medical_attendant_required: BooleanLike = Field(
@@ -212,7 +198,7 @@ class SectionIIMedicalNecessityQuestionnaire(BaseModel):
         description="Check if the patient requires oxygen and is unable to self-administer",
     )
 
-    special_handling_isolation_infection_control: BooleanLike = Field(
+    special_handling_isolation_precautions: BooleanLike = Field(
         default="",
         description=(
             "Check if special handling, isolation, or infection control precautions are required"
@@ -228,23 +214,18 @@ class SectionIIMedicalNecessityQuestionnaire(BaseModel):
         default="", description="Check if hemodynamic monitoring is required during transport"
     )
 
-    unable_to_sit_due_to_wounds: BooleanLike = Field(
+    unable_to_sit_due_to_ulcers_or_wounds: BooleanLike = Field(
         default="",
-        description=(
-            "Check if the patient cannot sit in a chair or wheelchair because of decubitus "
-            "ulcers or other wounds"
-        ),
+        description="Check if the patient cannot sit due to decubitus ulcers or other wounds",
     )
 
     cardiac_monitoring_required_enroute: BooleanLike = Field(
         default="", description="Check if cardiac monitoring is required during transport"
     )
 
-    morbid_obesity_requires_additional_resources: BooleanLike = Field(
+    morbid_obesity_requires_additional_personnel: BooleanLike = Field(
         default="",
-        description=(
-            "Check if morbid obesity necessitates extra personnel or equipment for safe handling"
-        ),
+        description="Check if morbid obesity requires extra personnel or equipment for safe handling",
     )
 
     orthopedic_device_special_handling: BooleanLike = Field(
@@ -255,11 +236,11 @@ class SectionIIMedicalNecessityQuestionnaire(BaseModel):
         ),
     )
 
-    other_condition_specify: str = Field(
+    other_specify: str = Field(
         default="",
         description=(
-            "Specify any other condition that affects the need for ambulance transport .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "Specify any other condition not listed above that affects transport .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
@@ -267,33 +248,33 @@ class SectionIIMedicalNecessityQuestionnaire(BaseModel):
 
 
 class SectionIIISignatureofPhysicianorOtherAuthorizedHealthcareProfessional(BaseModel):
-    """Certification, signature, and credentials of the signing professional"""
+    """Certifications and signatures by the physician or authorized healthcare professional"""
 
-    patient_unable_to_sign_certification: BooleanLike = Field(
+    patient_unable_to_sign_checkbox: BooleanLike = Field(
         default="",
         description=(
-            "Check if certifying that the patient is physically or mentally incapable of "
-            "signing the ambulance service’s claim form"
+            "Check if signing on behalf of a patient who is physically or mentally "
+            "incapable of signing"
         ),
     )
 
     reason_patient_unable_to_sign: str = Field(
         default="",
         description=(
-            "Describe the specific reasons the patient cannot physically or mentally sign "
-            'the claim form .If you cannot fill this, write "N/A". If this field should '
-            "not be filled by you (for example, it belongs to another person or office), "
-            'leave it blank (empty string "").'
+            "Describe the specific reasons the patient is unable to sign the claim form .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     physician_signature: str = Field(
         ...,
         description=(
-            "Signature of the attending physician or other authorized healthcare "
-            'professional .If you cannot fill this, write "N/A". If this field should not '
-            "be filled by you (for example, it belongs to another person or office), leave "
-            'it blank (empty string "").'
+            "Signature of the physician or other authorized healthcare professional "
+            'certifying medical necessity .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
@@ -320,7 +301,7 @@ class SectionIIISignatureofPhysicianorOtherAuthorizedHealthcareProfessional(Base
         default="", description="Check if the signer is a Clinical Nurse Specialist"
     )
 
-    licenced_practical_nurse: BooleanLike = Field(
+    licensed_practical_nurse: BooleanLike = Field(
         default="", description="Check if the signer is a Licensed Practical Nurse"
     )
 

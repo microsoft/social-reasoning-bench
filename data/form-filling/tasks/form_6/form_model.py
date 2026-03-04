@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class RequiredInformation(BaseModel):
-    """Information required to register the neighborhood organization"""
+    """Basic organization and contact details required for neighborhood registration"""
 
     organization_name: str = Field(
         ...,
@@ -25,7 +25,7 @@ class RequiredInformation(BaseModel):
     )
 
     covenant_based_homeowners_association: BooleanLike = Field(
-        ..., description="Check if the organization is a covenant-based homeowners association"
+        ..., description="Check if the organization is a covenant-based homeowner's association"
     )
 
     other_incorporated: BooleanLike = Field(
@@ -35,7 +35,7 @@ class RequiredInformation(BaseModel):
     non_profit: BooleanLike = Field(..., description="Check if the organization is a non-profit")
 
     llc: BooleanLike = Field(
-        ..., description="Check if the organization is a Limited Liability Company (LLC)"
+        ..., description="Check if the organization is a limited liability company (LLC)"
     )
 
     other: str = Field(
@@ -51,7 +51,7 @@ class RequiredInformation(BaseModel):
     commission_districts: str = Field(
         ...,
         description=(
-            "List the Athens-Clarke County commission district(s) in which the neighborhood "
+            "List the Athens-Clarke County commission districts in which the neighborhood "
             'is located .If you cannot fill this, write "N/A". If this field should not '
             "be filled by you (for example, it belongs to another person or office), leave "
             'it blank (empty string "").'
@@ -61,10 +61,9 @@ class RequiredInformation(BaseModel):
     contact_person: str = Field(
         ...,
         description=(
-            "Name of the primary contact person for the neighborhood organization .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            'Primary contact person\'s full name .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -80,19 +79,20 @@ class RequiredInformation(BaseModel):
     neighborhood_mailing_address_if_different: str = Field(
         default="",
         description=(
-            "Mailing address for the neighborhood organization, if different from the "
-            'contact person\'s address .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Mailing address for the neighborhood organization if different from the "
+            'contact person .If you cannot fill this, write "N/A". If this field should '
+            "not be filled by you (for example, it belongs to another person or office), "
+            'leave it blank (empty string "").'
         ),
     )
 
     telephone_number: str = Field(
         ...,
         description=(
-            "Primary telephone number for the contact person .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Primary telephone number for the contact person or organization .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -108,7 +108,7 @@ class RequiredInformation(BaseModel):
 
 
 class OptionalInformation(BaseModel):
-    """Additional, optional details about the neighborhood organization"""
+    """Additional neighborhood communication and meeting details"""
 
     website: str = Field(
         default="",
@@ -122,10 +122,10 @@ class OptionalInformation(BaseModel):
     newsletter_or_other_publication: str = Field(
         default="",
         description=(
-            "Name or description of any neighborhood newsletter or other regular "
-            'publication .If you cannot fill this, write "N/A". If this field should not '
-            "be filled by you (for example, it belongs to another person or office), leave "
-            'it blank (empty string "").'
+            "Name or description of any neighborhood newsletter or other publication .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
@@ -137,7 +137,7 @@ class OptionalInformation(BaseModel):
     provide_date_time_and_location: str = Field(
         default="",
         description=(
-            "Details of the regular meeting schedule, including date, time, and location "
+            "Details on the regular meeting schedule, including date, time, and location "
             '.If you cannot fill this, write "N/A". If this field should not be filled by '
             "you (for example, it belongs to another person or office), leave it blank "
             '(empty string "").'
@@ -156,7 +156,7 @@ class OptionalInformation(BaseModel):
 
 
 class PlanningDepartmentUse(BaseModel):
-    """For Planning Department processing and approval"""
+    """For Planning Department processing and approval tracking"""
 
     date_received_by_planning_department: str = Field(
         default="", description="Date the registration form was received by the Planning Department"
@@ -167,21 +167,20 @@ class PlanningDepartmentUse(BaseModel):
     )  # YYYY-MM-DD format
 
 
-class AthensClarkeNeighborhoodNotificationRegistrationForm(BaseModel):
+class NeighborhoodNotificationInitiativeNeighborhoodRegistrationForm(BaseModel):
     """
-        ATHENS
-    CLARKE
-    COUNTY
-
-    Neighborhood Notification Initiative
+        Neighborhood Notification Initiative
     NEIGHBORHOOD REGISTRATION FORM
 
         *A valid e-mail address is required for all Contact Persons where they may receive neighborhood notifications.
         Please include the following information with this completed registration form:
-        1. Map of neighborhood boundaries
-        2. One of the following:
-        • For established neighborhoods - Documentation indicating your neighborhood group's organizational structure and/or legal status (i.e. by-laws, articles of incorporation, etc.)
-        • For newly forming groups - A petition acknowledging the endorsement of the neighborhood organization and Contact Person signed by at least 20% of the property owners and/or residents within the proposed neighborhood boundaries.*
+        1.  Map of neighborhood boundaries
+        2.  One of the following:
+            •  For established neighborhoods - Documentation indicating your neighborhood group's
+               organizational structure and/or legal status (i.e. by-laws, articles of incorporation, etc.)
+            •  For newly forming groups - A petition acknowledging the endorsement of the neighborhood
+               organization and Contact Person signed by at least 20% of the property owners and/or residents
+               within the proposed neighborhood boundaries.*
     """
 
     required_information: RequiredInformation = Field(..., description="Required Information")

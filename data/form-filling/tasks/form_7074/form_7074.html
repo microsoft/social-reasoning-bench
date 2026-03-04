@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Brainerd City Council — Agenda Request</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    :root{
+      --ink:#111;
+      --grid:#2b2b2b;
+      --soft:#f5f5ee;
+      --page:#ffffff;
+      --bg:#d6d2cd;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:820px;
+      background: var(--page);
+      box-shadow: 0 2px 14px rgba(0,0,0,.14);
+      padding:18px 22px 18px;
+    }
+
+    /* Header */
+    .header{
+      display:grid;
+      grid-template-columns: 92px 1fr 92px;
+      align-items:center;
+      column-gap: 12px;
+      margin-bottom:10px;
+    }
+    .logo{
+      width:86px;height:86px;
+      border:1px solid #777;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:8px;
+    }
+    .logo svg{width:100%;height:100%}
+    .title{
+      text-align:center;
+      line-height:1.1;
+    }
+    .title .t1{
+      font-weight:800;
+      font-size:22px;
+      letter-spacing:.2px;
+    }
+    .title .t2{
+      font-weight:800;
+      font-size:22px;
+      margin-top:4px;
+      letter-spacing:.2px;
+    }
+
+    /* Top lines */
+    .top-lines{
+      margin: 10px 0 12px;
+      display:grid;
+      grid-template-columns: 1fr;
+      row-gap: 8px;
+    }
+    .line-row{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      padding:4px 0;
+    }
+    .line-row label{
+      font-weight:700;
+      font-size:13px;
+      white-space:nowrap;
+    }
+    .line{
+      flex:1;
+      border-bottom:1px solid var(--grid);
+      padding-bottom:2px;
+      min-height:26px;
+      display:flex;
+      align-items:flex-end;
+    }
+    .line input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font-size:13.5px;
+      padding:2px 6px 2px;
+    }
+    .line input:focus{background:var(--soft)}
+    .hint{
+      font-size:11.5px;
+      color:#333;
+      margin-top:2px;
+    }
+
+    /* Form box layout */
+    .box{
+      border:2px solid var(--grid);
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .cell{
+      border-top:1px solid var(--grid);
+      border-left:1px solid var(--grid);
+      padding:8px 10px;
+      min-height:44px;
+    }
+    .grid .cell:nth-child(1),
+    .grid .cell:nth-child(2){
+      border-top:none;
+    }
+    .grid .cell:nth-child(odd){ /* left column */
+      border-left:none;
+    }
+
+    .cell h4{
+      margin:0 0 6px;
+      font-size:12.5px;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+
+    .checklist{
+      display:grid;
+      grid-template-columns: 1fr;
+      row-gap:8px;
+      margin-top:2px;
+    }
+    .cb{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-size:12.5px;
+      letter-spacing:.2px;
+    }
+    .cb .boxy{
+      width:22px;height:22px;
+      border:2px solid var(--grid);
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 auto;
+      background:#fff;
+    }
+    .cb input[type="checkbox"]{
+      width:16px;height:16px;
+      margin:0;
+      accent-color:#111;
+    }
+    .subnote{
+      font-size:11px;
+      font-style:italic;
+      margin-top:2px;
+      color:#222;
+    }
+
+    /* Field rows inside cells */
+    .field-row{
+      display:flex;
+      align-items:flex-end;
+      gap:8px;
+      border-bottom:1px solid var(--grid);
+      padding:6px 0 3px;
+      min-height:30px;
+    }
+    .field-row .lbl{
+      font-weight:800;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .field-row input[type="text"],
+    .field-row input[type="date"],
+    .field-row input[type="number"]{
+      flex:1;
+      border:none;
+      outline:none;
+      background:transparent;
+      font-size:13.5px;
+      padding:2px 6px 2px;
+      min-width:0;
+    }
+    .field-row input:focus{background:var(--soft)}
+    .two-col{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+    }
+
+    /* Large text areas */
+    .full{
+      border-top:1px solid var(--grid);
+      padding:8px 10px;
+    }
+    .full:first-of-type{border-top:none}
+    .full .label{
+      font-weight:800;
+      font-size:12.5px;
+      margin-bottom:6px;
+    }
+    textarea{
+      width:100%;
+      min-height:110px;
+      resize:vertical;
+      border:1px solid var(--grid);
+      outline:none;
+      background:transparent;
+      padding:8px 10px;
+      font-family:inherit;
+      font-size:13.5px;
+      line-height:1.35;
+    }
+    textarea:focus{background:var(--soft)}
+    .tall textarea{min-height:130px}
+    .taller textarea{min-height:140px}
+
+    /* Financial impact block */
+    .fin{
+      border-top:1px solid var(--grid);
+      padding:10px 10px 12px;
+    }
+    .fin .label{
+      font-weight:800;
+      font-size:12.5px;
+      margin-bottom:4px;
+    }
+    .fin .q{
+      font-size:12.5px;
+      margin: 6px 0 2px;
+      display:flex;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    .fin .q em{
+      font-style:italic;
+      font-weight:600;
+    }
+    .yn{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      margin-left:6px;
+      margin-right:6px;
+    }
+    .yn .boxy{width:22px;height:22px;border:2px solid var(--grid);display:inline-flex;align-items:center;justify-content:center}
+    .yn input[type="checkbox"]{width:16px;height:16px;margin:0;accent-color:#111}
+    .moneyline{
+      display:inline-flex;
+      align-items:flex-end;
+      gap:6px;
+      margin-left:10px;
+    }
+    .moneyline .dollar{
+      font-weight:700;
+    }
+    .moneyline .line{
+      width:220px;
+      border-bottom:1px solid var(--grid);
+      min-height:26px;
+      display:flex;
+      align-items:flex-end;
+    }
+    .moneyline input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      padding:2px 6px 2px;
+      font-size:13.5px;
+    }
+    .moneyline input:focus{background:var(--soft)}
+    .explain{
+      margin-top:8px;
+    }
+    .explain .pl{
+      font-size:12.5px;
+      font-weight:700;
+      font-style:italic;
+      text-decoration: underline;
+      margin-bottom:6px;
+    }
+    .explain textarea{min-height:78px}
+
+    .section-bar{
+      background:#333;
+      color:#fff;
+      text-transform:uppercase;
+      letter-spacing:1.8px;
+      font-weight:800;
+      font-size:12px;
+      padding:6px 12px;
+      margin:14px 0 8px;
+    }
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:14px 0 2px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+    }
+    .btn-clear{
+      background:#fff;
+      color:#333;
+      border:1px solid #777;
+    }
+    .btn-submit{
+      background:#444;
+      color:#fff;
+      border:1px solid #222;
+    }
+
+    /* Small responsiveness */
+    @media (max-width:640px){
+      .header{grid-template-columns:72px 1fr 0px}
+      .grid{grid-template-columns:1fr}
+      .grid .cell{border-left:none}
+      .grid .cell:nth-child(2){border-top:1px solid var(--grid)}
+      .two-col{grid-template-columns:1fr}
+      .moneyline .line{width:160px}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="logo" aria-label="City of Brainerd logo (placeholder)">
+        <svg viewBox="0 0 100 100" role="img" aria-label="Logo">
+          <rect x="6" y="6" width="88" height="88" rx="4" fill="#f7f7f7" stroke="#666" stroke-width="2"/>
+          <path d="M22 62c8-10 16-10 24 0s16 10 24 0" fill="none" stroke="#666" stroke-width="3"/>
+          <path d="M22 72c8-10 16-10 24 0s16 10 24 0" fill="none" stroke="#666" stroke-width="3"/>
+          <rect x="44" y="26" width="12" height="44" fill="#666"/>
+          <rect x="36" y="26" width="28" height="10" fill="#666"/>
+          <text x="50" y="92" text-anchor="middle" font-size="14" font-family="Inter, Arial" font-weight="800" fill="#666">BRAINERD</text>
+        </svg>
+      </div>
+      <div class="title">
+        <div class="t1">Brainerd City Council</div>
+        <div class="t2">Agenda Request</div>
+      </div>
+      <div></div>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="top-lines">
+        <div class="line-row">
+          <label for="requested_meeting_date">Requested Meeting Date:</label>
+          <div class="line">
+            <input type="date" id="requested_meeting_date" name="requested_meeting_date" />
+          </div>
+        </div>
+        <div class="line-row">
+          <label for="title_of_item">Title of Item:</label>
+          <div class="line">
+            <input type="text" id="title_of_item" name="title_of_item" />
+          </div>
+        </div>
+      </div>
+
+      <div class="box">
+        <div class="grid">
+          <!-- Left: agenda placement -->
+          <div class="cell">
+            <div class="checklist" style="margin-top:2px;">
+              <div class="cb">
+                <span class="boxy"><input type="checkbox" id="information_only" name="information_only" /></span>
+                <span>INFORMATION ONLY</span>
+              </div>
+              <div class="cb">
+                <span class="boxy"><input type="checkbox" id="consent_agenda" name="consent_agenda" /></span>
+                <span>CONSENT AGENDA</span>
+              </div>
+              <div class="cb">
+                <span class="boxy"><input type="checkbox" id="p_f_committee" name="p_f_committee" /></span>
+                <span>P&amp;F COMMITTEE</span>
+              </div>
+              <div class="cb">
+                <span class="boxy"><input type="checkbox" id="spw_committee" name="spw_committee" /></span>
+                <span>SPW COMMITTEE</span>
+              </div>
+              <div class="cb">
+                <span class="boxy"><input type="checkbox" id="main_agenda" name="main_agenda" /></span>
+                <span>MAIN AGENDA</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: action requested -->
+          <div class="cell">
+            <h4>Action Requested:</h4>
+            <div class="two-col">
+              <div class="checklist" style="row-gap:10px;">
+                <div class="cb">
+                  <span class="boxy"><input type="checkbox" id="approve_deny_motion" name="approve_deny_motion" /></span>
+                  <span>Approve/Deny<br/>Motion</span>
+                </div>
+                <div class="cb" style="align-items:flex-start;">
+                  <span class="boxy" style="margin-top:2px;"><input type="checkbox" id="adopt_resolution_attach_draft" name="adopt_resolution_attach_draft" /></span>
+                  <span>Adopt<br/>Resolution<br/>(attach draft)</span>
+                </div>
+              </div>
+              <div class="checklist" style="row-gap:10px;">
+                <div class="cb">
+                  <span class="boxy"><input type="checkbox" id="direction_requested" name="direction_requested" /></span>
+                  <span>Direction Requested</span>
+                </div>
+                <div class="cb">
+                  <span class="boxy"><input type="checkbox" id="discussion_item" name="discussion_item" /></span>
+                  <span>Discussion Item</span>
+                </div>
+                <div class="cb" style="flex-wrap:wrap;">
+                  <span class="boxy"><input type="checkbox" id="hold_public_hearing" name="hold_public_hearing" /></span>
+                  <span>Hold Public Hearing*</span>
+                  <div class="subnote" style="margin-left:32px;">*provide copy of published hearing notice</div>
+                </div>
+                <div class="cb">
+                  <span class="boxy"><input type="checkbox" id="ordinance_1st_reading" name="ordinance_1st_reading" /></span>
+                  <span>Ordinance 1<sup>st</sup> Reading</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submitted by / Department -->
+          <div class="cell">
+            <div class="field-row">
+              <div class="lbl"><label for="submitted_by">Submitted by:</label></div>
+              <input type="text" id="submitted_by" name="submitted_by" />
+            </div>
+          </div>
+          <div class="cell">
+            <div class="field-row">
+              <div class="lbl"><label for="department">Department:</label></div>
+              <input type="text" id="department" name="department" />
+            </div>
+          </div>
+
+          <!-- Presenter / Time -->
+          <div class="cell">
+            <div class="field-row">
+              <div class="lbl"><label for="presenter_name_title">Presenter (Name &amp; Title):</label></div>
+              <input type="text" id="presenter_name_title" name="presenter_name_title" />
+            </div>
+          </div>
+          <div class="cell">
+            <div class="field-row">
+              <div class="lbl"><label for="estimated_time_needed">Estimated Time Needed:</label></div>
+              <input type="text" id="estimated_time_needed" name="estimated_time_needed" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Large narrative sections -->
+        <div class="full tall">
+          <div class="label">Summary of Issue:</div>
+          <textarea id="summary_of_issue" name="summary_of_issue"></textarea>
+        </div>
+
+        <div class="full taller">
+          <div class="label">Alternatives, Options, Effects on Others/Comments:</div>
+          <textarea id="alternatives_options_effects_on_others_comments" name="alternatives_options_effects_on_others_comments"></textarea>
+        </div>
+
+        <div class="full tall">
+          <div class="label">Recommended Action/Motion:</div>
+          <textarea id="recommended_action_motion" name="recommended_action_motion"></textarea>
+        </div>
+
+        <!-- Financial impact -->
+        <div class="fin">
+          <div class="label">Financial Impact:</div>
+
+          <div class="q">
+            <em>Is there a cost associated with this request:</em>
+            <span class="yn"><span class="boxy"><input type="checkbox" id="is_there_a_cost_associated_with_this_request" name="is_there_a_cost_associated_with_this_request"></span><span>Yes</span></span>
+            <span style="font-size:11.5px;color:#333;">(uncheck for "false")</span>
+          </div>
+
+          <div class="q" style="margin-top:6px;">
+            <em>What is the total cost, with tax and shipping</em>
+            <span class="moneyline">
+              <span class="dollar">$</span>
+              <span class="line">
+                <input type="number" step="0.01" inputmode="decimal" id="what_is_the_total_cost_with_tax_and_shipping" name="what_is_the_total_cost_with_tax_and_shipping" />
+              </span>
+            </span>
+          </div>
+
+          <div class="q" style="margin-top:6px;">
+            <em>Is this budgeted?</em>
+            <span class="yn"><span class="boxy"><input type="checkbox" id="is_this_budgeted" name="is_this_budgeted"></span><span>Yes</span></span>
+            <span style="font-size:11.5px;color:#333;">(uncheck for "false")</span>
+          </div>
+
+          <div class="explain">
+            <div class="pl">Please Explain:</div>
+            <textarea id="please_explain" name="please_explain"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button type="reset" class="btn btn-clear">Clear Form</button>
+        <button type="submit" class="btn btn-submit">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function cbAsString(id){
+        const el = document.getElementById(id);
+        return el && el.checked ? "true" : "false";
+      }
+      function val(id){
+        const el = document.getElementById(id);
+        return el ? (el.value ?? "") : "";
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          meeting__agenda_details: {
+            requested_meeting_date: val('requested_meeting_date'),
+            title_of_item: val('title_of_item'),
+            information_only: cbAsString('information_only'),
+            consent_agenda: cbAsString('consent_agenda'),
+            p_f_committee: cbAsString('p_f_committee'),
+            spw_committee: cbAsString('spw_committee'),
+            main_agenda: cbAsString('main_agenda')
+          },
+          requested_council_action: {
+            approve_deny_motion: cbAsString('approve_deny_motion'),
+            adopt_resolution_attach_draft: cbAsString('adopt_resolution_attach_draft'),
+            direction_requested: cbAsString('direction_requested'),
+            discussion_item: cbAsString('discussion_item'),
+            hold_public_hearing: cbAsString('hold_public_hearing'),
+            ordinance_1st_reading: cbAsString('ordinance_1st_reading')
+          },
+          submission__presentation_details: {
+            submitted_by: val('submitted_by'),
+            department: val('department'),
+            presenter_name_title: val('presenter_name_title'),
+            estimated_time_needed: val('estimated_time_needed')
+          },
+          issue_description__recommendation: {
+            summary_of_issue: val('summary_of_issue'),
+            alternatives_options_effects_on_others_comments: val('alternatives_options_effects_on_others_comments'),
+            recommended_action_motion: val('recommended_action_motion')
+          },
+          financial_impact: {
+            is_there_a_cost_associated_with_this_request: cbAsString('is_there_a_cost_associated_with_this_request'),
+            what_is_the_total_cost_with_tax_and_shipping: (val('what_is_the_total_cost_with_tax_and_shipping') || ""),
+            is_this_budgeted: cbAsString('is_this_budgeted'),
+            please_explain: val('please_explain')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

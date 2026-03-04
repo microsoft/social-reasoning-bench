@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clear Your Clutter Coach — Coaching Strategy Session Questionnaire</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    :root{
+      --bg:#d6d2cd;
+      --ink:#151515;
+      --muted:#5a5a5a;
+      --line:#2a2a2a;
+      --bar:#2f2f2f;
+      --paper:#ffffff;
+      --accent:#1f6f78;
+      --accent2:#7a2f2f;
+      --focus:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 2px 16px rgba(0,0,0,.14);
+      padding:26px 34px 18px;
+    }
+
+    .top{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px 18px;
+      align-items:start;
+    }
+
+    .brand{
+      border-bottom:3px solid #7a9aa0;
+      padding-bottom:8px;
+      max-width:320px;
+    }
+    .brand .line1{
+      font-weight:800;
+      letter-spacing:.2px;
+      color:var(--accent2);
+      font-size:16px;
+      text-transform:uppercase;
+    }
+    .brand .line2{
+      font-weight:800;
+      color:#2c6c73;
+      font-size:28px;
+      line-height:1.05;
+      margin-top:2px;
+    }
+
+    .titleBlock{
+      text-align:center;
+      padding-top:2px;
+    }
+    .titleBlock .small{
+      font-size:15px;
+      font-weight:600;
+      color:#202020;
+    }
+    .titleBlock .big{
+      font-size:24px;
+      font-weight:800;
+      margin-top:2px;
+    }
+    .titleBlock .sub{
+      margin-top:2px;
+      font-size:16px;
+      font-weight:600;
+    }
+
+    .lead{
+      margin-top:14px;
+      font-size:13.5px;
+      line-height:1.45;
+    }
+    .lead b{font-weight:800}
+    .lead p{margin:6px 0}
+
+    .form{
+      margin-top:10px;
+    }
+
+    .section-bar{
+      background:var(--bar);
+      color:#fff;
+      text-transform:uppercase;
+      letter-spacing:1.7px;
+      font-weight:800;
+      font-size:12px;
+      padding:6px 10px;
+      margin:16px 0 10px;
+    }
+
+    .rows{
+      padding:0 4px;
+    }
+
+    .field-row{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      padding:8px 0 5px;
+      border-bottom:1px solid var(--line);
+      min-height:34px;
+    }
+    .field-row.no-border{border-bottom:none}
+    .label{
+      font-size:13.5px;
+      font-weight:600;
+      white-space:nowrap;
+      flex:0 0 auto;
+    }
+    .input-wrap{
+      flex:1 1 auto;
+      display:flex;
+      align-items:flex-end;
+      gap:8px;
+      min-width:120px;
+    }
+    input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"]{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      font-size:13.5px;
+      padding:2px 2px 1px;
+    }
+    input:focus, textarea:focus{
+      background:var(--focus);
+      outline:none;
+    }
+
+    .two-col{
+      display:grid;
+      grid-template-columns: 1fr 230px;
+      gap:18px;
+      align-items:end;
+    }
+    .two-col .field-row{margin:0}
+
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:6px;
+    }
+
+    .prompt{
+      margin:12px 0 10px;
+      font-size:13.5px;
+      font-weight:700;
+      line-height:1.45;
+    }
+
+    textarea{
+      width:100%;
+      border:1px solid #333;
+      border-radius:2px;
+      background:transparent;
+      font:inherit;
+      font-size:13.5px;
+      padding:10px 10px;
+      min-height:120px;
+      resize:vertical;
+      outline:none;
+    }
+
+    .ratings-instructions{
+      margin-top:12px;
+      font-size:13.5px;
+      line-height:1.45;
+      font-weight:700;
+    }
+
+    .rating-grid{
+      margin-top:8px;
+      border-top:1px solid #333;
+      padding-top:12px;
+    }
+
+    .rating-row{
+      display:grid;
+      grid-template-columns: 1fr 270px;
+      gap:16px;
+      padding:10px 0 14px;
+    }
+    .rating-row + .rating-row{
+      border-top:1px solid #bbb;
+    }
+
+    .rating-left .rtitle{
+      font-weight:800;
+      margin-bottom:4px;
+      font-size:13.5px;
+    }
+    .rating-left .rdesc{
+      font-size:13.2px;
+      line-height:1.45;
+      color:#1d1d1d;
+    }
+
+    .scale{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:6px;
+      padding-top:2px;
+    }
+    .scale .nums{
+      display:flex;
+      justify-content:space-between;
+      width:100%;
+      font-size:13px;
+      color:#202020;
+      letter-spacing:.2px;
+      padding:0 2px 4px;
+      user-select:none;
+    }
+    .scale .entry{
+      width:100%;
+      border-bottom:1px solid #333;
+      padding:6px 0 2px;
+      display:flex;
+      align-items:flex-end;
+    }
+    .scale .entry input{
+      text-align:center;
+      font-weight:600;
+    }
+    .scale .mini{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:4px;
+      text-align:center;
+    }
+
+    .footer{
+      margin-top:16px;
+      display:flex;
+      justify-content:flex-end;
+      color:#2a2a2a;
+      font-size:12.5px;
+      gap:10px;
+    }
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:16px;
+      padding-top:12px;
+      border-top:1px solid #c9c9c9;
+    }
+    .btn{
+      font:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #3b3b3b;
+    }
+    .btn-clear{
+      background:#fff;
+      color:#222;
+      border-color:#888;
+    }
+    .btn-submit{
+      background:#3a3a3a;
+      color:#fff;
+      border-color:#2f2f2f;
+    }
+
+    /* Print friendliness */
+    @media print{
+      body{background:#fff;padding:0}
+      .page{box-shadow:none;max-width:none}
+      .submit-row{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <div class="brand" aria-label="Clear Your Clutter Coach">
+        <div class="line1">CLEAR YOUR CLUTTER</div>
+        <div class="line2">Coach</div>
+      </div>
+      <div class="titleBlock">
+        <div class="small">Questionnaire for your</div>
+        <div class="big">Coaching Strategy Session</div>
+        <div class="sub">with Sue Crum</div>
+      </div>
+    </div>
+
+    <div class="lead">
+      <p><b>Goal:</b> To help you reach improved levels of focus, consistency, time management and taking back control of your environments.</p>
+      <p><b>Instructions:</b> Please answer the questions below and on the following page to the best of your ability and email to me before our call.</p>
+    </div>
+
+    <form id="mainForm" class="form" autocomplete="off">
+      <div class="section-bar">Client Information</div>
+      <div class="rows">
+        <div class="two-col">
+          <div class="field-row">
+            <label class="label" for="your_full_name">Your Full Name:</label>
+            <div class="input-wrap">
+              <input type="text" id="your_full_name" name="your_full_name" />
+            </div>
+          </div>
+          <div class="field-row">
+            <label class="label" for="todays_date">Today's Date:</label>
+            <div class="input-wrap">
+              <input type="date" id="todays_date" name="todays_date" />
+            </div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="label" for="phone_number">Phone Number:</label>
+          <div class="input-wrap">
+            <input type="tel" id="phone_number" name="phone_number" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="label" for="email">Email:</label>
+          <div class="input-wrap">
+            <input type="email" id="email" name="email" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="label" for="address">Address:</label>
+          <div class="input-wrap">
+            <input type="text" id="address" name="address" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="label" for="city_state_zip">City, State, Zip:</label>
+          <div class="input-wrap">
+            <input type="text" id="city_state_zip" name="city_state_zip" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="label" for="occupation">Occupation:</label>
+          <div class="input-wrap">
+            <input type="text" id="occupation" name="occupation" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section-bar">Coaching Background</div>
+      <div class="rows">
+        <div class="prompt">
+          Please briefly describe how you heard about my coaching services and why you would like a Success Strategy Session with me:
+        </div>
+        <textarea id="how_you_heard_and_why_success_strategy_session" name="how_you_heard_and_why_success_strategy_session"></textarea>
+      </div>
+
+      <div class="section-bar">Self-Ratings</div>
+      <div class="rows">
+        <div class="ratings-instructions">
+          Please rate yourself in the following areas of your life on a scale of 1 (lowest) to 10 (highest).<br />
+          Type your number under the 1 through 10 in each area:
+        </div>
+
+        <div class="rating-grid">
+          <div class="rating-row">
+            <div class="rating-left">
+              <div class="rtitle">Focus:</div>
+              <div class="rdesc">Do you feel you are able to focus your energy on the important tasks and projects before you?</div>
+            </div>
+            <div class="rating-right">
+              <div class="scale">
+                <div style="width:100%">
+                  <div class="nums" aria-hidden="true">
+                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+                  </div>
+                  <div class="entry">
+                    <input type="number" id="focus_rating_1_10" name="focus_rating_1_10" min="1" max="10" step="0.1" inputmode="decimal" />
+                  </div>
+                  <div class="mini">Enter 1–10 (or N/A)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rating-row">
+            <div class="rating-left">
+              <div class="rtitle">Consistency:</div>
+              <div class="rdesc">Do you have consistency with your mental and physical energy and that you are motivated and happy?</div>
+            </div>
+            <div class="rating-right">
+              <div class="scale">
+                <div style="width:100%">
+                  <div class="nums" aria-hidden="true">
+                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+                  </div>
+                  <div class="entry">
+                    <input type="number" id="consistency_rating_1_10" name="consistency_rating_1_10" min="1" max="10" step="0.1" inputmode="decimal" />
+                  </div>
+                  <div class="mini">Enter 1–10 (or N/A)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rating-row">
+            <div class="rating-left">
+              <div class="rtitle">Time Management:</div>
+              <div class="rdesc">Do you have a handle on where your time goes on a regular basis, getting accomplished what you want to each day?</div>
+            </div>
+            <div class="rating-right">
+              <div class="scale">
+                <div style="width:100%">
+                  <div class="nums" aria-hidden="true">
+                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+                  </div>
+                  <div class="entry">
+                    <input type="number" id="time_management_rating_1_10" name="time_management_rating_1_10" min="1" max="10" step="0.1" inputmode="decimal" />
+                  </div>
+                  <div class="mini">Enter 1–10 (or N/A)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rating-row">
+            <div class="rating-left">
+              <div class="rtitle">Being In Control:</div>
+              <div class="rdesc">Do you feel you are in control of your environments and know how to de-clutter and organize your life and space?</div>
+            </div>
+            <div class="rating-right">
+              <div class="scale">
+                <div style="width:100%">
+                  <div class="nums" aria-hidden="true">
+                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+                  </div>
+                  <div class="entry">
+                    <input type="number" id="being_in_control_rating_1_10" name="being_in_control_rating_1_10" min="1" max="10" step="0.1" inputmode="decimal" />
+                  </div>
+                  <div class="mini">Enter 1–10 (or N/A)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <div>Continue on Next page.</div>
+          <div>Page 1 of 2</div>
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button type="reset" class="btn btn-clear">Clear Form</button>
+        <button type="submit" class="btn btn-submit">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function v(id){
+        const el = document.getElementById(id);
+        return el ? (el.value ?? '') : '';
+      }
+
+      // For rating fields that are Union[float, Literal["N/A", ""]], allow typing "N/A".
+      // Since inputs are type=number, users may paste text; some browsers prevent it.
+      // We'll also accept empty and keep as "".
+      function ratingValue(id){
+        const el = document.getElementById(id);
+        if(!el) return "";
+        const raw = (el.value ?? '').toString().trim();
+        if(raw === "") return "";
+        if(raw.toUpperCase() === "N/A") return "N/A";
+        return raw; // keep as string; backend can coerce to float if numeric
+      }
+
+      // allow N/A typing by switching to text on demand (double-click)
+      ['focus_rating_1_10','consistency_rating_1_10','time_management_rating_1_10','being_in_control_rating_1_10'].forEach(id=>{
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.addEventListener('dblclick', ()=>{
+          el.type = (el.type === 'number') ? 'text' : 'number';
+          if(el.type === 'number'){
+            el.inputMode = 'decimal';
+            el.min = '1'; el.max='10'; el.step='0.1';
+          }else{
+            el.removeAttribute('min'); el.removeAttribute('max'); el.removeAttribute('step');
+            el.inputMode = 'text';
+          }
+        });
+      });
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          client_information: {
+            your_full_name: v('your_full_name'),
+            todays_date: v('todays_date'),
+            phone_number: v('phone_number'),
+            email: v('email'),
+            address: v('address'),
+            city_state_zip: v('city_state_zip'),
+            occupation: v('occupation')
+          },
+          coaching_background: {
+            how_you_heard_and_why_success_strategy_session: v('how_you_heard_and_why_success_strategy_session')
+          },
+          self_ratings: {
+            focus_rating_1_10: ratingValue('focus_rating_1_10'),
+            consistency_rating_1_10: ratingValue('consistency_rating_1_10'),
+            time_management_rating_1_10: ratingValue('time_management_rating_1_10'),
+            being_in_control_rating_1_10: ratingValue('being_in_control_rating_1_10')
+          }
+        };
+
+        console.log('Submitted JSON:\n', JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for the JSON output.');
+      });
+    })();
+  </script>
+</body>
+</html>

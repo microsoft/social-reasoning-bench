@@ -12,8 +12,8 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class ForOfficeUseOnly(BaseModel):
-    """Internal tracking and approval details"""
+class OfficeUseOnly(BaseModel):
+    """Internal processing details for office use only"""
 
     reference_number: str = Field(
         default="",
@@ -31,7 +31,7 @@ class ForOfficeUseOnly(BaseModel):
     date_received_by: str = Field(
         default="",
         description=(
-            "Name or initials of staff member who received the application .If you cannot "
+            "Initials or name of staff member who recorded the date received .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
@@ -45,7 +45,7 @@ class ForOfficeUseOnly(BaseModel):
     date_approved_by: str = Field(
         default="",
         description=(
-            "Name or initials of staff member who approved the application .If you cannot "
+            "Initials or name of staff member who approved the application .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
@@ -60,16 +60,16 @@ class ForOfficeUseOnly(BaseModel):
     termination_date_by: str = Field(
         default="",
         description=(
-            "Name or initials of staff member who set the termination date .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Initials or name of staff member who recorded the termination date .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
 
 class OrganizationInformation(BaseModel):
-    """Basic details about the organization"""
+    """Basic information about the applying organization"""
 
     organization_name: str = Field(
         ...,
@@ -143,20 +143,6 @@ class OrganizationInformation(BaseModel):
         ),
     )
 
-    referred_by: str = Field(
-        default="",
-        description=(
-            "Name of the person or organization that referred you, if any .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-
-class PrimaryContactPerson(BaseModel):
-    """Representative contact details"""
-
     representative_first_name: str = Field(
         ...,
         description=(
@@ -175,8 +161,8 @@ class PrimaryContactPerson(BaseModel):
         ),
     )
 
-    representative_phone_number: str = Field(
-        ...,
+    phone_number_representative: str = Field(
+        default="",
         description=(
             "Phone number for the representative/contact person .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
@@ -184,8 +170,8 @@ class PrimaryContactPerson(BaseModel):
         ),
     )
 
-    representative_email: str = Field(
-        ...,
+    email_representative: str = Field(
+        default="",
         description=(
             "Email address for the representative/contact person .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
@@ -194,30 +180,39 @@ class PrimaryContactPerson(BaseModel):
     )
 
     best_contact_method_phone: BooleanLike = Field(
-        default="", description="Check or select if phone is the preferred contact method"
+        default="", description="Select if phone is the preferred contact method"
     )
 
     best_contact_method_email: BooleanLike = Field(
-        default="", description="Check or select if email is the preferred contact method"
+        default="", description="Select if email is the preferred contact method"
+    )
+
+    referred_by: str = Field(
+        default="",
+        description=(
+            "Name of person or organization that referred you, if any .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
     )
 
 
 class OrganizationPurpose(BaseModel):
-    """Description of the organization’s purpose"""
+    """Details about the purpose and beneficiaries of the organization"""
 
     purpose_of_the_organization_description: str = Field(
         ...,
         description=(
-            "Describe the organization’s purpose, who it benefits, and how .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Description of the organization’s purpose, who it benefits, and how .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
 
 class SupportRequested(BaseModel):
-    """Type of support the organization is requesting"""
+    """Information about the type of support requested from the foundation"""
 
     do_you_need_financial_support: BooleanLike = Field(
         default="", description="Indicate whether you are requesting financial support"
@@ -227,7 +222,7 @@ class SupportRequested(BaseModel):
         default="", description="Indicate whether you are requesting volunteer support"
     )
 
-    other_support_needed: str = Field(
+    other: str = Field(
         default="",
         description=(
             "Describe any other type of support you are requesting .If you cannot fill "
@@ -238,7 +233,7 @@ class SupportRequested(BaseModel):
 
 
 class Authorization(BaseModel):
-    """Applicant authorization and agreement"""
+    """Applicant authorization and confirmation"""
 
     signature: str = Field(
         ...,
@@ -250,20 +245,22 @@ class Authorization(BaseModel):
     )
 
 
-class DigWheelCommunityFoundationCharityFundingApplicationForm(BaseModel):
+class BigWheelCommunityFoundationCharityFundingApplicationForm(BaseModel):
     """
-        DIG WHEEL COMMUNITY FOUNDATION
+        BIG WHEEL
+    COMMUNITY FOUNDATION
 
-    CHARITY FUNDING APPLICATION FORM
+
+    CHARITY FUNDING
+    APPLICATION FORM
 
         ''
     """
 
-    for_office_use_only: ForOfficeUseOnly = Field(..., description="For Office Use Only")
+    office_use_only: OfficeUseOnly = Field(..., description="Office Use Only")
     organization_information: OrganizationInformation = Field(
         ..., description="Organization Information"
     )
-    primary_contact_person: PrimaryContactPerson = Field(..., description="Primary Contact Person")
     organization_purpose: OrganizationPurpose = Field(..., description="Organization Purpose")
     support_requested: SupportRequested = Field(..., description="Support Requested")
     authorization: Authorization = Field(..., description="Authorization")

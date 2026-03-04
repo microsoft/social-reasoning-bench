@@ -18,18 +18,18 @@ class CampaignOverview(BaseModel):
     campaign_name: str = Field(
         ...,
         description=(
-            'Name of the campaign .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            'Name of the GURPS campaign .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
     gm: str = Field(
         ...,
         description=(
-            'Name of the Game Master .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Name of the Game Master running the campaign .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -40,7 +40,7 @@ class CampaignOverview(BaseModel):
     genre: str = Field(
         ...,
         description=(
-            "Primary genre of the campaign (e.g., fantasy, sci‑fi, horror) .If you cannot "
+            "Primary genre of the campaign (e.g., fantasy, sci-fi, horror) .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
@@ -50,107 +50,110 @@ class CampaignOverview(BaseModel):
     tech_level_tl: str = Field(
         ...,
         description=(
-            "Overall technology level of the setting .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Overall technology level of the setting (GURPS TL value) .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     tl_exceptions: str = Field(
         default="",
         description=(
-            "Notable exceptions to the general tech level .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "Notable exceptions to the general tech level (e.g., advanced medicine, "
+            'primitive weapons) .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
     power_level: str = Field(
         ...,
         description=(
-            "Overall power level of characters and threats in the campaign .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Overall power level of characters (e.g., point total or descriptive level) .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
     realism_level: Literal[
-        "Grittily Realistic", "Realistic", "Cinematic", "Over-the-Top", "N/A", ""
-    ] = Field(..., description="How realistic or cinematic the campaign tone is")
+        "Grittly Realistic", "Realistic", "Cinematic", "Over-the-Top", "N/A", ""
+    ] = Field(..., description="Tone of realism for the campaign")
 
     campaign_synopsis_and_recent_events: str = Field(
         ...,
         description=(
-            "Brief overview of the campaign and any recent events .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    timeline_of_significant_historical_events: str = Field(
-        default="",
-        description=(
-            "Key historical events relevant to the campaign world .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-
-class EconomyandCurrency(BaseModel):
-    """Monetary system and economic details of the setting"""
-
-    currency_value_1: str = Field(
-        default="",
-        description=(
-            "Name and relative value of a currency used in the setting .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    currency_value_2: str = Field(
-        default="",
-        description=(
-            "Name and relative value of a second currency used in the setting .If you "
+            "Summary of the campaign premise and any recent or ongoing events .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
     )
 
+    timeline_of_significant_historical_events: str = Field(
+        default="",
+        description=(
+            "Chronological list of important historical events in the setting .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
+    )
+
+
+class Economy(BaseModel):
+    """Currency and economic basics of the setting"""
+
+    currency_value_1: str = Field(
+        default="",
+        description=(
+            "Description or name of a currency and its value relative to a baseline .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
+    )
+
+    currency_value_2: str = Field(
+        default="",
+        description=(
+            "Description or name of a second currency and its value .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
     currency_value_3: str = Field(
         default="",
         description=(
-            "Name and relative value of a third currency used in the setting .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Description or name of a third currency and its value .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     precious_metals: BooleanLike = Field(
-        default="", description="Whether precious metals are used as currency or store of value"
+        default="",
+        description="Indicate whether precious metals are used as currency or store of value",
     )
 
     paper_money: BooleanLike = Field(
-        default="", description="Whether paper money is used in the setting"
+        default="", description="Indicate whether paper money is used in the setting"
     )
 
     e_money: BooleanLike = Field(
-        default="", description="Whether electronic or digital money is used in the setting"
+        default="", description="Indicate whether electronic money is used in the setting"
     )
 
     is_slavery_legal: BooleanLike = Field(
-        default="", description="Indicate if slavery is legally permitted in the setting"
+        default="", description="Indicate whether slavery is legally permitted in the setting"
     )
 
 
 class MajorNations(BaseModel):
-    """Key nations and their political, social, and military details"""
+    """Details for major nations in the campaign world"""
 
-    name_1: str = Field(
+    major_nation_1_name: str = Field(
         default="",
         description=(
             'Name of the major nation .If you cannot fill this, write "N/A". If this '
@@ -159,106 +162,115 @@ class MajorNations(BaseModel):
         ),
     )
 
-    capital_1: str = Field(
+    major_nation_1_capital: str = Field(
         default="",
         description=(
-            'Capital city of the nation .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Capital city of the major nation .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    ruler_1: str = Field(
+    major_nation_1_ruler: str = Field(
         default="",
         description=(
-            "Primary ruler or governing body of the nation .If you cannot fill this, write "
+            "Primary ruler or head of state of the nation .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    population_1: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Approximate population of the nation"
-    )
-
-    search_bonus_1: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Search bonus modifier for this nation or region"
-    )
-
-    terrain_1: str = Field(
+    major_nation_1_population: str = Field(
         default="",
         description=(
-            'Dominant terrain types in the nation .If you cannot fill this, write "N/A". '
+            'Approximate population of the nation .If you cannot fill this, write "N/A". '
             "If this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
-    appearance_1: str = Field(
+    major_nation_1_search_bonus: str = Field(
         default="",
         description=(
-            "General appearance or aesthetic of the nation or its people .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-    hygiene_1: str = Field(
-        default="",
-        description=(
-            'Typical hygiene level or modifier .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    mana_1: str = Field(
-        default="",
-        description=(
-            'Mana level in this nation or region .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    enchantment_1: str = Field(
-        default="",
-        description=(
-            'Enchantment level or availability .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    cultural_familiarity_1: str = Field(
-        default="",
-        description=(
-            "Relevant cultural familiarity traits for this nation .If you cannot fill this, "
+            "Search bonus modifier associated with this nation .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    languages_1: str = Field(
+    major_nation_1_terrain: str = Field(
         default="",
         description=(
-            "Languages commonly spoken in this nation .If you cannot fill this, write "
+            "Dominant terrain types within the nation .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    literacy_1: str = Field(
+    major_nation_1_appearance: str = Field(
         default="",
         description=(
-            'General literacy level or rate .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "General appearance modifier or description for inhabitants .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    tl_1: str = Field(
+    major_nation_1_hygiene: str = Field(
+        default="",
+        description=(
+            "Hygiene level or modifier for the nation .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_1_mana: str = Field(
+        default="",
+        description=(
+            "Mana level or magical energy availability in the nation .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_1_enchantment: str = Field(
+        default="",
+        description=(
+            "Enchantment level or prevalence of magical items .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_1_cultural_familiarity: str = Field(
+        default="",
+        description=(
+            "Relevant cultural familiarities for this nation .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_1_languages: str = Field(
+        default="",
+        description=(
+            "Languages commonly spoken in the nation .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_1_literacy: str = Field(
+        default="",
+        description=(
+            "General literacy level or rules for literacy in the nation .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_1_tl: str = Field(
         default="",
         description=(
             'Tech level specific to this nation .If you cannot fill this, write "N/A". If '
@@ -267,64 +279,80 @@ class MajorNations(BaseModel):
         ),
     )
 
-    wealth_1: str = Field(
+    major_nation_1_wealth: str = Field(
         default="",
         description=(
-            'Typical wealth level or modifier .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Typical wealth level or economic status in the nation .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    status_range_1: str = Field(
+    major_nation_1_status_range: str = Field(
         default="",
         description=(
-            "Common social status range in this nation .If you cannot fill this, write "
+            "Range of social Status levels common in the nation .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_1_society_government: str = Field(
+        default="",
+        description=(
+            "Type of society and form of government .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    society_government_1: str = Field(
+    major_nation_1_control_rating_cr: str = Field(
         default="",
         description=(
-            "Type of society and government structure .If you cannot fill this, write "
+            "Control Rating value representing governmental control .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_1_corruption_modifier: str = Field(
+        default="",
+        description=(
+            "Modifier representing the level of corruption .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    control_rating_cr_1: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Control Rating (CR) for this nation"
-    )
-
-    corruption_modifier_1: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Corruption modifier for this nation"
-    )
-
-    military_resources_1: str = Field(
+    major_nation_1_military_resources: str = Field(
         default="",
         description=(
-            "Summary of the nation's military resources .If you cannot fill this, write "
+            "Summary of the nation's military resources and capabilities .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
+        ),
+    )
+
+    major_nation_1_defense_bonus: str = Field(
+        default="",
+        description=(
+            "Defense bonus value associated with the nation .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    defense_bonus_1: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Defense bonus value for this nation"
-    )
-
-    notes_1: str = Field(
+    major_nation_1_notes: str = Field(
         default="",
         description=(
-            'Additional notes about this nation .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Additional notes or details about the nation .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    name_2: str = Field(
+    major_nation_2_name: str = Field(
         default="",
         description=(
             'Name of the second major nation .If you cannot fill this, write "N/A". If '
@@ -333,88 +361,100 @@ class MajorNations(BaseModel):
         ),
     )
 
-    capital_2: str = Field(
+    major_nation_2_capital: str = Field(
         default="",
         description=(
-            'Capital city of the second nation .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    ruler_2: str = Field(
-        default="",
-        description=(
-            "Primary ruler or governing body of the second nation .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    population_2: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Approximate population of the second nation"
-    )
-
-    search_bonus_2: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Search bonus modifier for the second nation or region"
-    )
-
-    terrain_2: str = Field(
-        default="",
-        description=(
-            "Dominant terrain types in the second nation .If you cannot fill this, write "
+            "Capital city of the second major nation .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    appearance_2: str = Field(
+    major_nation_2_ruler: str = Field(
         default="",
         description=(
-            "General appearance or aesthetic of the second nation or its people .If you "
+            "Primary ruler or head of state of the second nation .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_2_population: str = Field(
+        default="",
+        description=(
+            "Approximate population of the second nation .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_2_search_bonus: str = Field(
+        default="",
+        description=(
+            "Search bonus modifier for the second nation .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_2_terrain: str = Field(
+        default="",
+        description=(
+            "Dominant terrain types within the second nation .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_2_appearance: str = Field(
+        default="",
+        description=(
+            "General appearance modifier or description for inhabitants of the second "
+            'nation .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
+        ),
+    )
+
+    major_nation_2_hygiene: str = Field(
+        default="",
+        description=(
+            "Hygiene level or modifier for the second nation .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_2_mana: str = Field(
+        default="",
+        description=(
+            "Mana level or magical energy availability in the second nation .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
+        ),
+    )
+
+    major_nation_2_enchantment: str = Field(
+        default="",
+        description=(
+            "Enchantment level or prevalence of magical items in the second nation .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
     )
 
-    hygiene_2: str = Field(
+    major_nation_2_cultural_familiarity: str = Field(
         default="",
         description=(
-            "Typical hygiene level or modifier in the second nation .If you cannot fill "
+            "Relevant cultural familiarities for the second nation .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    mana_2: str = Field(
-        default="",
-        description=(
-            "Mana level in the second nation or region .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    enchantment_2: str = Field(
-        default="",
-        description=(
-            "Enchantment level or availability in the second nation .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    cultural_familiarity_2: str = Field(
-        default="",
-        description=(
-            "Relevant cultural familiarity traits for the second nation .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    languages_2: str = Field(
+    major_nation_2_languages: str = Field(
         default="",
         description=(
             "Languages commonly spoken in the second nation .If you cannot fill this, write "
@@ -423,16 +463,17 @@ class MajorNations(BaseModel):
         ),
     )
 
-    literacy_2: str = Field(
+    major_nation_2_literacy: str = Field(
         default="",
         description=(
-            "General literacy level or rate in the second nation .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "General literacy level or rules for literacy in the second nation .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    tl_2: str = Field(
+    major_nation_2_tl: str = Field(
         default="",
         description=(
             "Tech level specific to the second nation .If you cannot fill this, write "
@@ -441,69 +482,88 @@ class MajorNations(BaseModel):
         ),
     )
 
-    wealth_2: str = Field(
+    major_nation_2_wealth: str = Field(
         default="",
         description=(
-            "Typical wealth level or modifier in the second nation .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    status_range_2: str = Field(
-        default="",
-        description=(
-            "Common social status range in the second nation .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    society_government_2: str = Field(
-        default="",
-        description=(
-            "Type of society and government structure in the second nation .If you cannot "
+            "Typical wealth level or economic status in the second nation .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
         ),
     )
 
-    control_rating_cr_2: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Control Rating (CR) for the second nation"
-    )
-
-    corruption_modifier_2: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Corruption modifier for the second nation"
-    )
-
-    military_resources_2: str = Field(
+    major_nation_2_status_range: str = Field(
         default="",
         description=(
-            "Summary of the second nation's military resources .If you cannot fill this, "
+            "Range of social Status levels common in the second nation .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_2_society_government: str = Field(
+        default="",
+        description=(
+            "Type of society and form of government in the second nation .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
+        ),
+    )
+
+    major_nation_2_control_rating_cr: str = Field(
+        default="",
+        description=(
+            "Control Rating value representing governmental control in the second nation "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
+        ),
+    )
+
+    major_nation_2_corruption_modifier: str = Field(
+        default="",
+        description=(
+            "Modifier representing the level of corruption in the second nation .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
+    )
+
+    major_nation_2_military_resources: str = Field(
+        default="",
+        description=(
+            "Summary of the second nation's military resources and capabilities .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
+    )
+
+    major_nation_2_defense_bonus: str = Field(
+        default="",
+        description=(
+            "Defense bonus value associated with the second nation .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    major_nation_2_notes: str = Field(
+        default="",
+        description=(
+            "Additional notes or details about the second nation .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    defense_bonus_2: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Defense bonus value for the second nation"
-    )
-
-    notes_2: str = Field(
-        default="",
-        description=(
-            "Additional notes about the second nation .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
 
 class OtherMajorPlanesofExistence(BaseModel):
-    """Information about additional planes or dimensions in the setting"""
+    """Information about other planes relevant to the campaign"""
 
-    name_plane_1: str = Field(
+    plane_1_name: str = Field(
         default="",
         description=(
             "Name of the other major plane of existence .If you cannot fill this, write "
@@ -512,7 +572,7 @@ class OtherMajorPlanesofExistence(BaseModel):
         ),
     )
 
-    type_plane_1: str = Field(
+    plane_1_type: str = Field(
         default="",
         description=(
             "Type or category of this plane (e.g., astral, elemental) .If you cannot fill "
@@ -521,25 +581,25 @@ class OtherMajorPlanesofExistence(BaseModel):
         ),
     )
 
-    description_plane_1: str = Field(
+    plane_1_description: str = Field(
         default="",
         description=(
-            "Brief description of this plane of existence .If you cannot fill this, write "
+            "Brief description of the plane of existence .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    name_plane_2: str = Field(
+    plane_2_name: str = Field(
         default="",
         description=(
-            "Name of another major plane of existence .If you cannot fill this, write "
+            "Name of the second major plane of existence .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    type_plane_2: str = Field(
+    plane_2_type: str = Field(
         default="",
         description=(
             'Type or category of the second plane .If you cannot fill this, write "N/A". '
@@ -548,7 +608,7 @@ class OtherMajorPlanesofExistence(BaseModel):
         ),
     )
 
-    description_plane_2: str = Field(
+    plane_2_description: str = Field(
         default="",
         description=(
             "Brief description of the second plane of existence .If you cannot fill this, "
@@ -558,10 +618,10 @@ class OtherMajorPlanesofExistence(BaseModel):
     )
 
 
-class GURPSBooksUsed(BaseModel):
-    """Sourcebooks and references used for this campaign"""
+class Rules(BaseModel):
+    """GURPS books used, optional rules, and house rules for the campaign"""
 
-    title_1: str = Field(
+    book_1_title: str = Field(
         default="",
         description=(
             "Title of a GURPS book used in this campaign .If you cannot fill this, write "
@@ -570,7 +630,7 @@ class GURPSBooksUsed(BaseModel):
         ),
     )
 
-    notes_book_1: str = Field(
+    book_1_notes: str = Field(
         default="",
         description=(
             'Notes on how this GURPS book is used .If you cannot fill this, write "N/A". '
@@ -579,7 +639,7 @@ class GURPSBooksUsed(BaseModel):
         ),
     )
 
-    title_2: str = Field(
+    book_2_title: str = Field(
         default="",
         description=(
             'Title of a second GURPS book used .If you cannot fill this, write "N/A". If '
@@ -588,7 +648,7 @@ class GURPSBooksUsed(BaseModel):
         ),
     )
 
-    notes_book_2: str = Field(
+    book_2_notes: str = Field(
         default="",
         description=(
             "Notes on how the second GURPS book is used .If you cannot fill this, write "
@@ -597,7 +657,7 @@ class GURPSBooksUsed(BaseModel):
         ),
     )
 
-    title_3: str = Field(
+    book_3_title: str = Field(
         default="",
         description=(
             'Title of a third GURPS book used .If you cannot fill this, write "N/A". If '
@@ -606,7 +666,7 @@ class GURPSBooksUsed(BaseModel):
         ),
     )
 
-    notes_book_3: str = Field(
+    book_3_notes: str = Field(
         default="",
         description=(
             "Notes on how the third GURPS book is used .If you cannot fill this, write "
@@ -615,11 +675,7 @@ class GURPSBooksUsed(BaseModel):
         ),
     )
 
-
-class OptionalRules(BaseModel):
-    """Specific optional rules and where they are found"""
-
-    rule_1: str = Field(
+    optional_rule_1_rule: str = Field(
         default="",
         description=(
             "Name or description of an optional rule used .If you cannot fill this, write "
@@ -628,7 +684,7 @@ class OptionalRules(BaseModel):
         ),
     )
 
-    book_1: str = Field(
+    optional_rule_1_book: str = Field(
         default="",
         description=(
             "Book where this optional rule is found .If you cannot fill this, write "
@@ -637,11 +693,16 @@ class OptionalRules(BaseModel):
         ),
     )
 
-    page_1: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Page number of the optional rule"
+    optional_rule_1_page: str = Field(
+        default="",
+        description=(
+            "Page number of the optional rule in the book .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
     )
 
-    rule_2: str = Field(
+    optional_rule_2_rule: str = Field(
         default="",
         description=(
             "Name or description of a second optional rule used .If you cannot fill this, "
@@ -650,7 +711,7 @@ class OptionalRules(BaseModel):
         ),
     )
 
-    book_2: str = Field(
+    optional_rule_2_book: str = Field(
         default="",
         description=(
             "Book where the second optional rule is found .If you cannot fill this, write "
@@ -659,11 +720,16 @@ class OptionalRules(BaseModel):
         ),
     )
 
-    page_2: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Page number of the second optional rule"
+    optional_rule_2_page: str = Field(
+        default="",
+        description=(
+            "Page number of the second optional rule in the book .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
     )
 
-    rule_3: str = Field(
+    optional_rule_3_rule: str = Field(
         default="",
         description=(
             "Name or description of a third optional rule used .If you cannot fill this, "
@@ -672,7 +738,7 @@ class OptionalRules(BaseModel):
         ),
     )
 
-    book_3: str = Field(
+    optional_rule_3_book: str = Field(
         default="",
         description=(
             "Book where the third optional rule is found .If you cannot fill this, write "
@@ -681,13 +747,14 @@ class OptionalRules(BaseModel):
         ),
     )
 
-    page_3: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Page number of the third optional rule"
+    optional_rule_3_page: str = Field(
+        default="",
+        description=(
+            "Page number of the third optional rule in the book .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
     )
-
-
-class HouseRules(BaseModel):
-    """Custom rules defined by the GM for this campaign"""
 
     house_rules: str = Field(
         default="",
@@ -700,14 +767,16 @@ class HouseRules(BaseModel):
 
 
 class ExpandedCampaignPlanningForm(BaseModel):
-    """EXPANDED CAMPAIGN PLANNING FORM"""
+    """
+    EXPANDED CAMPAIGN PLANNING FORM
+
+    ''
+    """
 
     campaign_overview: CampaignOverview = Field(..., description="Campaign Overview")
-    economy_and_currency: EconomyandCurrency = Field(..., description="Economy and Currency")
+    economy: Economy = Field(..., description="Economy")
     major_nations: MajorNations = Field(..., description="Major Nations")
     other_major_planes_of_existence: OtherMajorPlanesofExistence = Field(
         ..., description="Other Major Planes of Existence"
     )
-    gurps_books_used: GURPSBooksUsed = Field(..., description="GURPS Books Used")
-    optional_rules: OptionalRules = Field(..., description="Optional Rules")
-    house_rules: HouseRules = Field(..., description="House Rules")
+    rules: Rules = Field(..., description="Rules")

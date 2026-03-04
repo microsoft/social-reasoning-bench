@@ -69,6 +69,11 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Skip HTML form generation (Stage 6).",
     )
+    parser.add_argument(
+        "--filesystem",
+        action="store_true",
+        help="Generate file system artifacts (emails/calendar) for search-based evaluation.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -86,6 +91,8 @@ def main(argv: list[str] | None = None) -> None:
         config_kwargs["vision_model"] = args.vision_model
     if args.no_html:
         config_kwargs["skip_html"] = True
+    if args.filesystem:
+        config_kwargs["filesystem_mode"] = True
 
     config = FormFillingConfig(**config_kwargs)
 

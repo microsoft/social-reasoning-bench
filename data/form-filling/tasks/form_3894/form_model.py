@@ -12,10 +12,39 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class SubmittingAgenciesandAddresses(BaseModel):
-    """From public agency and county clerk address information"""
+class RecipientandAgencyInformation(BaseModel):
+    """Information about the county clerk and public agency submitting the notice"""
 
-    from_public_agency: str = Field(
+    county_of: str = Field(
+        ...,
+        description=(
+            "Name of the county where the notice is being filed .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    county_second_line: str = Field(
+        default="",
+        description=(
+            "Additional address information for the county clerk (second line) .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
+    )
+
+    county_third_line: str = Field(
+        default="",
+        description=(
+            "Additional address information for the county clerk (third line) .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
+    )
+
+    public_agency: str = Field(
         ...,
         description=(
             "Name of the public agency submitting the notice .If you cannot fill this, "
@@ -24,55 +53,38 @@ class SubmittingAgenciesandAddresses(BaseModel):
         ),
     )
 
-    from_public_agency_address_line_1: str = Field(
+    public_agency_address_line_1: str = Field(
         ...,
         description=(
-            "Mailing address of the public agency, first line .If you cannot fill this, "
+            "Street address of the public agency (first line) .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    from_public_agency_address_line_2: str = Field(
+    public_agency_address_line_2: str = Field(
         default="",
         description=(
-            "Mailing address of the public agency, second line (if needed) .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Additional address information for the public agency (second line) .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    county: str = Field(
-        ...,
-        description=(
-            "Name of the county where the county clerk is located .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    county_clerk_address_line_1: str = Field(
+    public_agency_address_line_3: str = Field(
         default="",
         description=(
-            "County clerk mailing address, first line .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    county_clerk_address_line_2: str = Field(
-        default="",
-        description=(
-            "County clerk mailing address, second line (if needed) .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Additional address information for the public agency (third line) .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
 
 class ProjectInformation(BaseModel):
-    """Core details about the project and its location"""
+    """Basic details about the project and its location"""
 
     project_title: str = Field(
         ...,
@@ -86,24 +98,24 @@ class ProjectInformation(BaseModel):
     project_applicant: str = Field(
         ...,
         description=(
-            "Name of the project applicant (individual or organization) .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            'Name of the project applicant .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
     project_location_specific: str = Field(
         ...,
         description=(
-            "Specific description of the project location (e.g., address, coordinates, "
-            'parcel numbers) .If you cannot fill this, write "N/A". If this field should '
-            "not be filled by you (for example, it belongs to another person or office), "
-            'leave it blank (empty string "").'
+            "Specific location description of the project (e.g., address, parcel number) "
+            '.If you cannot fill this, write "N/A". If this field should not be filled by '
+            "you (for example, it belongs to another person or office), leave it blank "
+            '(empty string "").'
         ),
     )
 
     project_location_city: str = Field(
-        ...,
+        default="",
         description=(
             'City where the project is located .If you cannot fill this, write "N/A". If '
             "this field should not be filled by you (for example, it belongs to another "
@@ -120,39 +132,56 @@ class ProjectInformation(BaseModel):
         ),
     )
 
-    description_of_nature_purpose_and_beneficiaries_of_project: str = Field(
+    description_of_nature_purpose_and_beneficiaries_of_project_line_1: str = Field(
         ...,
         description=(
-            "Narrative description of what the project is, its purpose, and who benefits "
+            "Description of the project's nature, purpose, and beneficiaries (first line) "
             '.If you cannot fill this, write "N/A". If this field should not be filled by '
             "you (for example, it belongs to another person or office), leave it blank "
             '(empty string "").'
         ),
     )
 
+    description_of_nature_purpose_and_beneficiaries_of_project_line_2: str = Field(
+        default="",
+        description=(
+            "Continuation of the project description (second line) .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    description_of_nature_purpose_and_beneficiaries_of_project_line_3: str = Field(
+        default="",
+        description=(
+            "Continuation of the project description (third line) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+
+class ExemptionDetermination(BaseModel):
+    """Agency approvals and exemption status for the project"""
+
     name_of_public_agency_approving_project: str = Field(
         ...,
         description=(
-            "Name of the public agency with approval authority over the project .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Name of the public agency that approved the project .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     name_of_person_or_agency_carrying_out_project: str = Field(
         ...,
         description=(
-            "Name of the person or agency responsible for implementing the project .If you "
+            "Name of the person or agency responsible for carrying out the project .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
     )
-
-
-class ExemptionStatus(BaseModel):
-    """Type of exemption claimed and reasons"""
 
     ministerial_sec_21080_b_1_15268: BooleanLike = Field(
         default="",
@@ -196,10 +225,20 @@ class ExemptionStatus(BaseModel):
         ),
     )
 
-    reasons_why_project_is_exempt: str = Field(
+    reasons_why_project_is_exempt_line_1: str = Field(
         ...,
         description=(
-            "Explanation supporting the exemption determination .If you cannot fill this, "
+            "Explanation of why the project qualifies for exemption (first line) .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
+    )
+
+    reasons_why_project_is_exempt_line_2: str = Field(
+        default="",
+        description=(
+            "Continuation of reasons for exemption (second line) .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -207,29 +246,44 @@ class ExemptionStatus(BaseModel):
 
 
 class LeadAgencyContact(BaseModel):
-    """Lead agency contact person and phone"""
+    """Lead agency and contact person details"""
 
-    contact_person: str = Field(
+    lead_agency: str = Field(
         ...,
         description=(
-            "Primary contact person for information about this project .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Name of the lead agency for the project .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     area_code_telephone_extension: str = Field(
         ...,
         description=(
-            "Contact phone number including area code and extension .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Primary contact phone number including area code and extension .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
+        ),
+    )
+
+    contact_person: str = Field(
+        ...,
+        description=(
+            "Name of the primary contact person for this project .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
 
-class FilingandCertification(BaseModel):
-    """Applicant filing, certification, signatures, and filing date"""
+class ApplicantFilingandCertification(BaseModel):
+    """Applicant filing information, certification, and signatures"""
+
+    attach_certified_document_of_exemption_finding: BooleanLike = Field(
+        default="",
+        description="Indicate whether the certified document of exemption finding is attached",
+    )
 
     notice_of_exemption_filed_yes: BooleanLike = Field(
         default="",
@@ -248,7 +302,7 @@ class FilingandCertification(BaseModel):
     signature: str = Field(
         ...,
         description=(
-            "Signature of authorized representative .If you cannot fill this, write "
+            "Signature of the authorized representative .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -266,32 +320,41 @@ class FilingandCertification(BaseModel):
     )
 
     signed_by_lead_agency: BooleanLike = Field(
-        default="", description="Indicate if the notice is signed by the lead agency"
+        default="", description="Indicate that the notice is signed by the lead agency"
     )
 
     signed_by_applicant: BooleanLike = Field(
-        default="", description="Indicate if the notice is signed by the applicant"
+        default="", description="Indicate that the notice is signed by the applicant"
     )
 
+
+class ClerkOPRFilingInformation(BaseModel):
+    """Office of Planning and Research filing details"""
+
     date_received_for_filing_at_opr: str = Field(
-        default="", description="Date the Office of Planning and Research received the filing"
+        default="",
+        description="Date the notice was received for filing at the Office of Planning and Research",
     )  # YYYY-MM-DD format
 
 
-class NoticeOfExemptionAppendixE(BaseModel):
+class NoticeOfExemption(BaseModel):
     """
-        Notice of Exemption
-    Appendix E
+    Notice of Exemption
 
-        ''
+    ''
     """
 
-    submitting_agencies_and_addresses: SubmittingAgenciesandAddresses = Field(
-        ..., description="Submitting Agencies and Addresses"
+    recipient_and_agency_information: RecipientandAgencyInformation = Field(
+        ..., description="Recipient and Agency Information"
     )
     project_information: ProjectInformation = Field(..., description="Project Information")
-    exemption_status: ExemptionStatus = Field(..., description="Exemption Status")
+    exemption_determination: ExemptionDetermination = Field(
+        ..., description="Exemption Determination"
+    )
     lead_agency_contact: LeadAgencyContact = Field(..., description="Lead Agency Contact")
-    filing_and_certification: FilingandCertification = Field(
-        ..., description="Filing and Certification"
+    applicant_filing_and_certification: ApplicantFilingandCertification = Field(
+        ..., description="Applicant Filing and Certification"
+    )
+    clerkopr_filing_information: ClerkOPRFilingInformation = Field(
+        ..., description="Clerk/OPR Filing Information"
     )

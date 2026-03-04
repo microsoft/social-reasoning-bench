@@ -33,21 +33,21 @@ class OrganizationContactInformation(BaseModel):
         ),
     )
 
-    phone_primary: str = Field(
+    organization_phone: str = Field(
         ...,
         description=(
-            'Main organizational phone number .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Main phone number for the organization .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     fax: str = Field(
         default="",
         description=(
-            'Organization fax number .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Fax number for the organization, if applicable .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -63,7 +63,7 @@ class OrganizationContactInformation(BaseModel):
     website: str = Field(
         default="",
         description=(
-            'Organization website URL .If you cannot fill this, write "N/A". If this '
+            'Organization’s website URL .If you cannot fill this, write "N/A". If this '
             "field should not be filled by you (for example, it belongs to another person "
             'or office), leave it blank (empty string "").'
         ),
@@ -72,9 +72,9 @@ class OrganizationContactInformation(BaseModel):
     organization_email_address: str = Field(
         ...,
         description=(
-            "Primary email address for the organization .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            "General contact email address for the organization .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -108,10 +108,10 @@ class OrganizationContactInformation(BaseModel):
     application_contact_title_if_not_the_ceo_or_executive_director: str = Field(
         default="",
         description=(
-            "Name and title of the primary application contact, if different from the CEO "
-            'or Executive Director .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
+            "Name and title of the primary contact for this application, if different from "
+            'the CEO or Executive Director .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
@@ -135,68 +135,53 @@ class OrganizationContactInformation(BaseModel):
 
 
 class OrganizationInformation(BaseModel):
-    """Background and mission of the organization"""
+    """Background and status information about the organization"""
 
     year_founded: Union[float, Literal["N/A", ""]] = Field(
         ..., description="Year the organization was founded"
     )
 
-    five01_c_3: BooleanLike = Field(
-        default="", description="Indicate whether the organization is a 501(c)(3) tax-exempt entity"
+    tax_exemption_status_501c3: BooleanLike = Field(
+        ..., description="Indicate whether the organization is a 501(c)(3) tax-exempt entity"
     )
 
     tax_exempt_number: str = Field(
-        default="",
-        description=(
-            "Organization's tax exemption identification number .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    mission_statement_line_1: str = Field(
         ...,
         description=(
-            "First line of the organization's mission statement .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Tax exemption identification number assigned to the organization .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
-    mission_statement_line_2: str = Field(
-        default="",
+    mission_statement: str = Field(
+        ...,
         description=(
-            "Second line of the organization's mission statement .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    mission_statement_line_3: str = Field(
-        default="",
-        description=(
-            "Third line of the organization's mission statement .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            'Organization’s mission statement .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     geographic_area_served: str = Field(
         ...,
         description=(
-            "Primary geographic region(s) where the organization operates or provides "
-            'services .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
+            "Primary geographic region(s) the organization serves .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
 
-class GrantApplicationForm(BaseModel):
+class BuffaloRenaissanceFoundationGrantApplicationForm(BaseModel):
     """
+        BUFFALO
+    RENAISSANCE FOUNDATION
+
     GRANT APPLICATION FORM
 
-    ''
+        ''
     """
 
     organization_contact_information: OrganizationContactInformation = Field(

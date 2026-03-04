@@ -18,27 +18,27 @@ class PersonalInformation(BaseModel):
     surname: str = Field(
         ...,
         description=(
-            'Applicant\'s last name (family name) .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            'Applicant\'s last name .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
     first_name: str = Field(
         ...,
         description=(
-            'Applicant\'s first (given) name .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            'Applicant\'s first name .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
     second_name: str = Field(
         default="",
         description=(
-            "Applicant's middle or second name, if applicable .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Applicant's middle or second given name, if applicable .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -54,13 +54,13 @@ class PersonalInformation(BaseModel):
     address: str = Field(
         ...,
         description=(
-            'Applicant\'s full mailing address .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Full mailing address including street, city, and province .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    postal_code: str = Field(..., description="Postal code for the mailing address")
+    postal_code: str = Field(..., description="Mailing postal code")
 
     primary_phone: str = Field(
         ...,
@@ -74,7 +74,7 @@ class PersonalInformation(BaseModel):
     alternate_phone: str = Field(
         default="",
         description=(
-            'Secondary contact phone number .If you cannot fill this, write "N/A". If '
+            'Alternate contact phone number .If you cannot fill this, write "N/A". If '
             "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
@@ -83,9 +83,9 @@ class PersonalInformation(BaseModel):
     e_mail: str = Field(
         ...,
         description=(
-            'Applicant\'s email address .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Email address for contacting the applicant .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -106,17 +106,8 @@ class PersonalInformation(BaseModel):
     )
 
 
-class MotivationandBackground(BaseModel):
+class MotivationandInterests(BaseModel):
     """Reasons for volunteering and personal interests"""
-
-    why_do_you_want_to_volunteer_at_carewest: str = Field(
-        default="",
-        description=(
-            "Describe the reasons for wanting to volunteer at Carewest .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
 
     required_for_school: BooleanLike = Field(
         default="", description="Check if volunteering is required for a school program"
@@ -127,72 +118,94 @@ class MotivationandBackground(BaseModel):
     )
 
     personal_growth_and_satisfaction: BooleanLike = Field(
-        default="",
-        description="Check if the reason for volunteering is personal growth and satisfaction",
+        default="", description="Check if the motivation is personal growth and satisfaction"
     )
 
-    other_reason_checkbox: BooleanLike = Field(
-        default="", description="Check if the reason for volunteering is other than those listed"
-    )
-
-    hobbies_and_interests: str = Field(
+    other_motivation_for_volunteering: str = Field(
         default="",
         description=(
-            "List hobbies and interests that may be relevant to volunteering .If you cannot "
+            "Describe other reasons for wanting to volunteer at Carewest .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
         ),
     )
 
+    hobbies_and_interests_line_1: str = Field(
+        default="",
+        description=(
+            "First line describing hobbies and interests .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    hobbies_and_interests_line_2: str = Field(
+        default="",
+        description=(
+            "Second line describing hobbies and interests .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    hobbies_and_interests_line_3: str = Field(
+        default="",
+        description=(
+            "Third line describing hobbies and interests .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
 
 class VolunteeringPreferences(BaseModel):
-    """Preferred volunteer areas, schedule, and time commitment"""
+    """Preferred volunteer areas and availability"""
 
     community_outing: BooleanLike = Field(
-        default="", description="Check if applying to volunteer in Community Outing area"
+        default="", description="Check if applying to volunteer in Community Outing"
     )
 
     leisure_activities: BooleanLike = Field(
-        default="", description="Check if applying to volunteer in Leisure Activities area"
+        default="", description="Check if applying to volunteer in Leisure Activities"
     )
 
     one_to_one_visiting: BooleanLike = Field(
-        default="", description="Check if applying to volunteer in One to One Visiting area"
+        default="", description="Check if applying to volunteer in One to One Visiting"
     )
 
     pastoral_care: BooleanLike = Field(
-        default="", description="Check if applying to volunteer in Pastoral Care area"
+        default="", description="Check if applying to volunteer in Pastoral Care"
     )
 
     non_resident_activities: BooleanLike = Field(
-        default="", description="Check if applying to volunteer in Non Resident Activities area"
+        default="", description="Check if applying to volunteer in Non Resident Activities"
     )
 
     rehab_and_recovery: BooleanLike = Field(
-        default="", description="Check if applying to volunteer in Rehab and Recovery area"
+        default="", description="Check if applying to volunteer in Rehab and Recovery"
     )
 
     gift_stores: BooleanLike = Field(
-        default="", description="Check if applying to volunteer in Gift Stores area"
+        default="", description="Check if applying to volunteer in Gift Stores"
     )
 
     community_programs: BooleanLike = Field(
-        default="", description="Check if applying to volunteer in Community Programs area"
+        default="", description="Check if applying to volunteer in Community Programs"
     )
 
     palliative_care: BooleanLike = Field(
-        default="", description="Check if applying to volunteer in Palliative Care area"
+        default="", description="Check if applying to volunteer in Palliative Care"
     )
 
     no_preference_unknown: BooleanLike = Field(
-        default="", description="Check if there is no specific area preference or it is unknown"
+        default="", description="Check if there is no preference or the area is unknown"
     )
 
-    other_areas_applying_for: str = Field(
+    other_area_applying_for: str = Field(
         default="",
         description=(
-            "Specify another area of interest not listed .If you cannot fill this, write "
+            "Specify another volunteer area not listed .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -210,61 +223,61 @@ class VolunteeringPreferences(BaseModel):
         default="", description="Check if available to volunteer monthly"
     )
 
-    frequency_discuss_in_person: BooleanLike = Field(
+    frequency_would_like_to_discuss_in_person: BooleanLike = Field(
         default="", description="Check if the applicant would like to discuss frequency in person"
     )
 
-    day_pref_sunday: BooleanLike = Field(
+    day_of_week_preference_sunday: BooleanLike = Field(
         default="", description="Check if Sunday is a preferred day to volunteer"
     )
 
-    day_pref_monday: BooleanLike = Field(
+    day_of_week_preference_monday: BooleanLike = Field(
         default="", description="Check if Monday is a preferred day to volunteer"
     )
 
-    day_pref_tuesday: BooleanLike = Field(
+    day_of_week_preference_tuesday: BooleanLike = Field(
         default="", description="Check if Tuesday is a preferred day to volunteer"
     )
 
-    day_pref_wednesday: BooleanLike = Field(
+    day_of_week_preference_wednesday: BooleanLike = Field(
         default="", description="Check if Wednesday is a preferred day to volunteer"
     )
 
-    day_pref_thursday: BooleanLike = Field(
+    day_of_week_preference_thursday: BooleanLike = Field(
         default="", description="Check if Thursday is a preferred day to volunteer"
     )
 
-    day_pref_friday: BooleanLike = Field(
+    day_of_week_preference_friday: BooleanLike = Field(
         default="", description="Check if Friday is a preferred day to volunteer"
     )
 
-    day_pref_saturday: BooleanLike = Field(
+    day_of_week_preference_saturday: BooleanLike = Field(
         default="", description="Check if Saturday is a preferred day to volunteer"
     )
 
-    shift_pref_morning: BooleanLike = Field(
-        default="", description="Check if morning is a preferred shift time"
+    shift_preference_morning: BooleanLike = Field(
+        default="", description="Check if morning shifts are preferred"
     )
 
-    shift_pref_afternoon: BooleanLike = Field(
-        default="", description="Check if afternoon is a preferred shift time"
+    shift_preference_afternoon: BooleanLike = Field(
+        default="", description="Check if afternoon shifts are preferred"
     )
 
-    shift_pref_evening: BooleanLike = Field(
-        default="", description="Check if evening is a preferred shift time"
+    shift_preference_evening: BooleanLike = Field(
+        default="", description="Check if evening shifts are preferred"
     )
 
-    shift_pref_weekend: BooleanLike = Field(
-        default="", description="Check if weekend is a preferred shift time"
+    shift_preference_weekend: BooleanLike = Field(
+        default="", description="Check if weekend shifts are preferred"
     )
 
-    available_time_commitment_per_shift: str = Field(
+    available_volunteer_time_commitment_per_shift_hours_week: str = Field(
         default="",
         description=(
-            "Indicate the typical time commitment per shift, such as hours per week .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Approximate time commitment per shift, such as hours per week .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -277,14 +290,14 @@ class VolunteerApplication(BaseModel):
     We encourage all applicants to visit our website www.carewest.ca to learn more about our company and current volunteer openings. A fillable PDF version of this form can also be found on our website.
     Note: The minimum age to volunteer is 16 years.
     Please submit your completed application form using one of the following methods:
-    Mail or Deliver to: Carewest Administration Email: carewest.hr@ahs.ca
-    10101 Southport Road SW, Calgary, AB, T2W 3N2
-    If you have any questions regarding your volunteer application and/or Carewest's volunteer opportunities please contact Recruitment at 403-943-8170 or 403-943-8171.
+    Mail or Deliver to:      Carewest Administration
+                             10101 Southport Road SW, Calgary, AB, T2W 3N2            Email:      carewest.hr@ahs.ca
+    If you have any questions regarding your volunteer application and/or Carewest’s volunteer opportunities please contact Recruitment at 403-943-8170 or 403-943-8171.
     """
 
     personal_information: PersonalInformation = Field(..., description="Personal Information")
-    motivation_and_background: MotivationandBackground = Field(
-        ..., description="Motivation and Background"
+    motivation_and_interests: MotivationandInterests = Field(
+        ..., description="Motivation and Interests"
     )
     volunteering_preferences: VolunteeringPreferences = Field(
         ..., description="Volunteering Preferences"

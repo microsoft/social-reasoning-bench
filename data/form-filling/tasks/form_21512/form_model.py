@@ -12,13 +12,13 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class ApplicantContactInformation(BaseModel):
-    """Company and primary contact details for the application"""
+class ApplicantInformation(BaseModel):
+    """Contact information for the company and responsible person"""
 
     fax_phone: str = Field(
         default="",
         description=(
-            'Fax phone number, including area code .If you cannot fill this, write "N/A". '
+            'Fax phone number including area code .If you cannot fill this, write "N/A". '
             "If this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
@@ -36,8 +36,8 @@ class ApplicantContactInformation(BaseModel):
     address: str = Field(
         ...,
         description=(
-            'Street mailing address of the company .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
+            'Mailing address of the company .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
@@ -45,10 +45,9 @@ class ApplicantContactInformation(BaseModel):
     telephone: str = Field(
         ...,
         description=(
-            "Primary telephone number for the company, including area code .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Primary telephone number including area code .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -61,11 +60,11 @@ class ApplicantContactInformation(BaseModel):
         ),
     )
 
-    person_responsible_on_location: str = Field(
+    name_title_phone_person_responsible_on_location: str = Field(
         ...,
         description=(
-            "Name, job title, and phone number of the person in charge at the location .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "Name, title, and phone number of the person in charge on location .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
@@ -78,83 +77,81 @@ class LocationInformation(BaseModel):
     location_of_site_desired: str = Field(
         ...,
         description=(
-            "General description of the site or area requested, referencing the enclosed "
-            'map .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
+            "General description of the desired site location .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     specific_locations_to_be_used: str = Field(
         ...,
         description=(
-            "Detailed description of specific parts of the site to be used and "
-            'corresponding markings on the map .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Specific parts of the area to be used (e.g., which part of lake bed, dunes, "
+            'etc.) .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
 
-class TypePurposeofUse(BaseModel):
-    """Type of production and purpose of the commercial use"""
+class TypeandPurposeofUse(BaseModel):
+    """Type of production and purpose of use"""
 
-    type_of_use_commercial_production: BooleanLike = Field(
-        ..., description="Check if the use is a commercial production"
+    commercial_production: BooleanLike = Field(
+        default="", description="Check if the type of use is commercial production"
     )
 
-    type_of_use_nonprofit_production: BooleanLike = Field(
-        ..., description="Check if the use is a nonprofit production"
+    nonprofit_production: BooleanLike = Field(
+        default="", description="Check if the type of use is nonprofit production"
     )
 
-    type_of_use_community_service_production: BooleanLike = Field(
-        ..., description="Check if the use is a community service production"
+    community_service_production: BooleanLike = Field(
+        default="", description="Check if the type of use is community service production"
     )
 
-    type_of_use_educational_production: BooleanLike = Field(
-        ..., description="Check if the use is an educational production"
+    educational_production: BooleanLike = Field(
+        default="", description="Check if the type of use is educational production"
     )
 
-    purpose_feature_film: BooleanLike = Field(
-        ..., description="Check if the purpose of use is a feature film"
+    feature_film: BooleanLike = Field(
+        default="", description="Check if the purpose of use is a feature film"
     )
 
-    purpose_advertisement: BooleanLike = Field(
-        ..., description="Check if the purpose of use is an advertisement"
+    advertisement: BooleanLike = Field(
+        default="", description="Check if the purpose of use is an advertisement"
     )
 
-    purpose_documentary: BooleanLike = Field(
-        ..., description="Check if the purpose of use is a documentary"
+    documentary: BooleanLike = Field(
+        default="", description="Check if the purpose of use is a documentary"
     )
 
-    purpose_still_photograph: BooleanLike = Field(
-        ..., description="Check if the purpose of use is still photography"
+    still_photograph: BooleanLike = Field(
+        default="", description="Check if the purpose of use is still photography"
     )
 
-    purpose_video: BooleanLike = Field(..., description="Check if the purpose of use is video")
+    video: BooleanLike = Field(default="", description="Check if the purpose of use is video")
 
-    purpose_other_state: str = Field(
+    other_state: str = Field(
         default="",
         description=(
-            "If the purpose is other than the listed options, describe it here .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Describe other purpose of use if not listed above .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    name_of_feature_film_tv_series_commercial_product_music_video_group_other: str = Field(
+    state_name_of_feature_film_tv_series_commercial_product_music_video_group_other: str = Field(
         ...,
         description=(
-            "Title or name of the feature film, TV series, product, music video group, or "
-            'other project .If you cannot fill this, write "N/A". If this field should '
-            "not be filled by you (for example, it belongs to another person or office), "
-            'leave it blank (empty string "").'
+            "Title or name of the feature film, TV series, commercial product, music video "
+            'group, or other project .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
 
-class SchedulePersonnel(BaseModel):
+class UseScheduleandPersonnel(BaseModel):
     """Timing of use and number of people involved"""
 
     dates_of_use: str = Field(
@@ -169,59 +166,61 @@ class SchedulePersonnel(BaseModel):
     hours_of_use: str = Field(
         ...,
         description=(
-            'Planned hours of use for each day .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    number_of_personnel_involved: Union[float, Literal["N/A", ""]] = Field(
-        ...,
-        description="Total number of people on site, including production staff, cast, and crew",
-    )
-
-
-class ActivityAnimals(BaseModel):
-    """Description of planned activities and any animals used"""
-
-    statement_of_activity: str = Field(
-        ...,
-        description=(
-            "Detailed description of all activities that will occur on location .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
-    animals_how_many: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Number of animals that will be used on location"
-    )
-
-    animals_what_kind: str = Field(
-        default="",
-        description=(
-            "Species or type of animals that will be used on location .If you cannot fill "
+            "Planned hours of use for the site on the specified dates .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
-    animals_none: BooleanLike = Field(
+    number_of_personnel_involved_include_production_cast_and_crew: Union[
+        float, Literal["N/A", ""]
+    ] = Field(
+        ...,
+        description="Total number of people involved, including production staff, cast, and crew",
+    )
+
+
+class ActivityandAnimals(BaseModel):
+    """Description of activities and animals to be used on location"""
+
+    statement_of_activity_to_take_place_in_detail: str = Field(
+        ...,
+        description=(
+            "Detailed description of all activities that will take place on location .If "
+            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
+    )
+
+    animals_to_be_used_on_location_how_many: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Number of animals that will be used on location"
+    )
+
+    what_kind: str = Field(
+        default="",
+        description=(
+            "Types or species of animals to be used on location .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    none: BooleanLike = Field(
         default="", description="Check if no animals will be used on location"
     )
 
 
-class BLMCommercialUseApplication(BaseModel):
+class UsDeptInteriorBLMCommercialUseApplication(BaseModel):
     """UNITED STATES DEPARTMENT OF THE INTERIOR
     BUREAU OF LAND MANAGEMENT
 
-    COMMERCIAL USE APPLICATION"""
+    COMMERCIAL USE APPLICATION (revised 8/13/98)"""
 
-    applicant__contact_information: ApplicantContactInformation = Field(
-        ..., description="Applicant & Contact Information"
-    )
+    applicant_information: ApplicantInformation = Field(..., description="Applicant Information")
     location_information: LocationInformation = Field(..., description="Location Information")
-    type__purpose_of_use: TypePurposeofUse = Field(..., description="Type & Purpose of Use")
-    schedule__personnel: SchedulePersonnel = Field(..., description="Schedule & Personnel")
-    activity__animals: ActivityAnimals = Field(..., description="Activity & Animals")
+    type_and_purpose_of_use: TypeandPurposeofUse = Field(..., description="Type and Purpose of Use")
+    use_schedule_and_personnel: UseScheduleandPersonnel = Field(
+        ..., description="Use Schedule and Personnel"
+    )
+    activity_and_animals: ActivityandAnimals = Field(..., description="Activity and Animals")

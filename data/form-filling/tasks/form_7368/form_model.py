@@ -12,8 +12,8 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class PropertyDetails(BaseModel):
-    """Description and location of the property where the advertisement/sign will be displayed"""
+class PropertyDescription(BaseModel):
+    """Location and position of the proposed advertisement/sign"""
 
     description_of_property_on_which_advertisement_is_to_be_displayed_including_full_details_of_its_proposed_position_within_the_property: str = Field(
         ...,
@@ -26,56 +26,57 @@ class PropertyDetails(BaseModel):
     )
 
 
-class ProposedSignDetails(BaseModel):
-    """Specifications and characteristics of the proposed advertisement/sign"""
+class DetailsofProposedSign(BaseModel):
+    """Physical characteristics, materials, and illumination details of the proposed sign"""
 
     type_of_structure_on_which_advertisement_is_to_be_erected_ie_freestanding_wall_mounted_other: str = Field(
         ...,
         description=(
-            "Specify the type of structure for the advertisement (e.g. freestanding, wall "
-            'mounted, other). .If you cannot fill this, write "N/A". If this field should '
-            "not be filled by you (for example, it belongs to another person or office), "
-            'leave it blank (empty string "").'
+            "Specify the type of structure on which the advertisement will be erected (e.g. "
+            'freestanding, wall mounted, other). .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     height: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Overall height of the proposed sign structure."
+        ..., description="Overall height of the proposed sign structure (include units)."
     )
 
     width: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Overall width of the proposed sign structure."
+        ..., description="Overall width of the proposed sign structure (include units)."
     )
 
     depth: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Overall depth (projection) of the proposed sign structure."
+        ...,
+        description="Overall depth or thickness of the proposed sign structure (include units).",
     )
 
     colours_to_be_used: str = Field(
         ...,
         description=(
-            "List all colours to be used on the sign, including background and text. .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "List the colours to be used on the sign and its structure. .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     height_above_ground_level_to_top_of_advertisement: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Height from ground level to the top of the advertisement."
+        ..., description="Height from ground level to the top of the advertisement (include units)."
     )
 
     height_above_ground_level_to_underside: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Height from ground level to the underside of the advertisement."
+        ...,
+        description="Height from ground level to the underside of the advertisement (include units).",
     )
 
     materials_to_be_used: str = Field(
         ...,
         description=(
-            "Describe the materials used in the construction of the sign and its support. "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
+            "Describe the materials to be used in the construction of the sign and its "
+            'support. .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
@@ -104,7 +105,7 @@ class ProposedSignDetails(BaseModel):
     )
 
     illumination_type_digital: BooleanLike = Field(
-        default="", description="Tick if the sign uses digital illumination."
+        default="", description="Tick if the illumination will be digital."
     )
 
     illumination_type_animated: BooleanLike = Field(
@@ -126,8 +127,8 @@ class ProposedSignDetails(BaseModel):
     )
 
 
-class AdvertisementDuration(BaseModel):
-    """Requested period for which the advertisement is to be displayed"""
+class AdvertisingPeriod(BaseModel):
+    """Duration for which the advertisement is required"""
 
     period_of_time_for_which_advertisement_is_required: str = Field(
         ...,
@@ -143,7 +144,7 @@ class AdvertisementDuration(BaseModel):
 class ExistingSignstobeRemoved(BaseModel):
     """Details of any existing signs that will be removed if this application is approved"""
 
-    details_of_signs_if_any_to_be_removed_in_this_application_is_approved: str = Field(
+    details_of_signs_if_any_to_be_removed_if_this_application_is_approved: str = Field(
         default="",
         description=(
             "Describe any existing signs that will be removed if this application is "
@@ -155,15 +156,14 @@ class ExistingSignstobeRemoved(BaseModel):
 
 
 class Declaration(BaseModel):
-    """Applicant’s signature and date"""
+    """Signature and date of advertiser(s)"""
 
     signature_of_advertisers: str = Field(
         ...,
         description=(
-            "Signature of the advertiser(s), if different from the land owner. .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            'Signature of the advertiser(s). .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -172,7 +172,7 @@ class Declaration(BaseModel):
     )  # YYYY-MM-DD format
 
 
-class EastPilbaraDevApprovalForAdSignsInfo(BaseModel):
+class ShireOfEastPilbaraDevelopmentApprovalAdvertisementInfo(BaseModel):
     """
         SHIRE OF EAST PILBARA
     ADDITIONAL INFORMATION FOR DEVELOPMENT
@@ -181,9 +181,11 @@ class EastPilbaraDevApprovalForAdSignsInfo(BaseModel):
         NOTE: THIS FORM IS TO BE COMPLETED IN ADDITION TO THE APPLICATION FOR DEVELOPMENT APPROVAL FORM WHERE AN ADVERTISEMENT / SIGN IS PROPOSED
     """
 
-    property_details: PropertyDetails = Field(..., description="Property Details")
-    proposed_sign_details: ProposedSignDetails = Field(..., description="Proposed Sign Details")
-    advertisement_duration: AdvertisementDuration = Field(..., description="Advertisement Duration")
+    property_description: PropertyDescription = Field(..., description="Property Description")
+    details_of_proposed_sign: DetailsofProposedSign = Field(
+        ..., description="Details of Proposed Sign"
+    )
+    advertising_period: AdvertisingPeriod = Field(..., description="Advertising Period")
     existing_signs_to_be_removed: ExistingSignstobeRemoved = Field(
         ..., description="Existing Signs to be Removed"
     )

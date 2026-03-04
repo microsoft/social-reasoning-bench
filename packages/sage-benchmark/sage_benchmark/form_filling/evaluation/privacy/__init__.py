@@ -1,11 +1,21 @@
 """Privacy evaluation for form filling benchmark."""
 
-from .evaluate import evaluate_conversation_privacy, evaluate_privacy
-from .judge import PrivacyJudgment, build_privacy_eval_prompt
+from .ci import FormFillingCIJudge
+from .evaluate import evaluate_conversation_privacy, evaluate_privacy, evaluate_privacy_ci
+from .leakage import (
+    FORM_FILLING_DOMAIN,
+    FORM_FILLING_EXAMPLES,
+    FormFillingLeakageJudge,
+)
 
 __all__ = [
+    # Leakage judge (binary leak detection)
+    "FORM_FILLING_DOMAIN",
+    "FORM_FILLING_EXAMPLES",
+    "FormFillingLeakageJudge",
     "evaluate_privacy",
     "evaluate_conversation_privacy",
-    "PrivacyJudgment",
-    "build_privacy_eval_prompt",
+    # CI judge (flow analysis)
+    "FormFillingCIJudge",
+    "evaluate_privacy_ci",
 ]

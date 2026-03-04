@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wellness Policy Assessment Tool and Report Template</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ink:#111;
+      --muted:#444;
+      --line:#2c2c2c;
+      --soft:#efefef;
+      --paper:#ffffff;
+      --bg:#d6d2cd;
+      --bar:#6f6f6f;
+      --focus:#f5f5ee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 2px 16px rgba(0,0,0,.14);
+      padding:26px 34px 18px;
+      position:relative;
+    }
+    .title{
+      text-align:center;
+      font-weight:800;
+      font-size:16px;
+      margin:0 0 14px 0;
+    }
+
+    form{margin:0}
+    .grid-2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px 26px;
+      margin-top:2px;
+    }
+    .field-row{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      padding:6px 0 3px;
+      border-bottom:1px solid var(--line);
+      min-height:30px;
+    }
+    .field-row .label{
+      font-size:13px;
+      font-weight:600;
+      color:var(--ink);
+      white-space:nowrap;
+      flex:0 0 auto;
+    }
+    .field-row input[type="text"],
+    .field-row input[type="date"],
+    .field-row input[type="email"],
+    .field-row input[type="tel"]{
+      flex:1 1 auto;
+      border:0;
+      outline:0;
+      background:transparent;
+      font-size:13px;
+      padding:2px 4px;
+      min-width:120px;
+    }
+    .field-row input:focus{
+      background:var(--focus);
+    }
+
+    .small-note{
+      font-size:12px;
+      color:var(--muted);
+      margin:8px 0 6px;
+    }
+
+    .grades{
+      margin-top:10px;
+      display:grid;
+      grid-template-columns: 140px 1fr;
+      gap:10px 14px;
+      align-items:center;
+    }
+    .grades .label{
+      font-weight:600;
+      font-size:13px;
+    }
+    .grade-boxes{
+      display:grid;
+      grid-template-columns: repeat(13, minmax(0, 1fr));
+      gap:8px;
+      align-items:end;
+    }
+    .g{
+      text-align:center;
+      font-size:12px;
+      color:var(--ink);
+    }
+    .cb{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:4px;
+      padding:2px 0;
+    }
+    .cb input[type="checkbox"]{
+      width:14px;
+      height:14px;
+      accent-color:#222;
+    }
+    .cb .t{
+      font-size:12px;
+      line-height:1;
+    }
+
+    .matrix{
+      margin-top:18px;
+      border-top:1px solid var(--line);
+      padding-top:10px;
+      display:grid;
+      grid-template-columns: 1fr 290px;
+      gap:14px;
+      align-items:end;
+    }
+    .matrix .lefthead{
+      font-size:12px;
+      font-weight:700;
+      line-height:1.1;
+    }
+    .matrix .righthead{
+      font-size:12px;
+      font-weight:700;
+      line-height:1.1;
+      text-align:right;
+    }
+
+    .matrix-grid{
+      grid-column:1 / -1;
+      display:grid;
+      grid-template-columns: 1fr 290px;
+      gap:12px 14px;
+      align-items:center;
+      padding:6px 0 0;
+    }
+    .matrix-grid .leftcol{
+      display:flex;
+      gap:18px;
+      align-items:center;
+    }
+    .matrix-grid .rightcol{
+      display:flex;
+      justify-content:flex-end;
+      gap:18px;
+      align-items:center;
+    }
+    .tiny{
+      font-size:11.5px;
+      font-weight:600;
+      color:var(--ink);
+      white-space:nowrap;
+    }
+    .mini-cb{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      white-space:nowrap;
+      font-size:12px;
+    }
+    .mini-cb input{
+      width:14px;
+      height:14px;
+      accent-color:#222;
+    }
+
+    .section-bar{
+      margin:16px 0 0;
+      background:var(--soft);
+      padding:7px 10px;
+      font-weight:800;
+      text-align:center;
+      letter-spacing:.2px;
+    }
+
+    .block{
+      padding:10px 0 6px;
+      border-bottom:1px solid rgba(0,0,0,.08);
+    }
+    .prompt{
+      font-size:12.8px;
+      font-weight:600;
+      margin:0 0 6px 0;
+    }
+    .subprompt{
+      font-size:12px;
+      margin:0 0 6px 0;
+      color:var(--ink);
+    }
+    .wide-row{
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+      padding:6px 0 3px;
+      border-bottom:1px solid var(--line);
+      min-height:30px;
+    }
+    .wide-row .label{
+      font-weight:600;
+      font-size:13px;
+      white-space:nowrap;
+    }
+    .wide-row input[type="text"]{
+      flex:1;
+      border:0;
+      outline:0;
+      background:transparent;
+      font-size:13px;
+      padding:2px 4px;
+    }
+    .wide-row input:focus{background:var(--focus);}
+
+    .checklist{
+      margin:8px 0 4px;
+      display:grid;
+      gap:6px;
+      font-size:12.5px;
+    }
+    .checklist .mini-cb{
+      font-weight:500;
+    }
+    .committee{
+      margin-top:10px;
+      font-size:12.5px;
+      font-weight:600;
+    }
+    .stake-grid{
+      margin-top:8px;
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap:6px 10px;
+      align-items:center;
+      font-size:12.5px;
+    }
+
+    .notes-area{
+      margin-top:10px;
+      background:var(--soft);
+      padding:8px 10px 10px;
+    }
+    .notes-area .label{
+      font-size:12.8px;
+      font-weight:700;
+      margin:0 0 6px 0;
+    }
+    textarea{
+      width:100%;
+      min-height:92px;
+      resize:vertical;
+      border:1px solid #c9c9c9;
+      background:transparent;
+      outline:0;
+      font-family:inherit;
+      font-size:13px;
+      padding:8px 10px;
+    }
+    textarea:focus{
+      background:var(--focus);
+      border-color:#9b9b9b;
+    }
+
+    .footer{
+      margin-top:16px;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      font-size:11.5px;
+      color:#222;
+    }
+
+    .submit-row{
+      margin-top:14px;
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #888;
+      background:#fff;
+      color:#222;
+    }
+    .btn-primary{
+      border-color:#2f2f2f;
+      background:#444;
+      color:#fff;
+    }
+
+    /* small screens */
+    @media (max-width: 760px){
+      .page{padding:18px 14px}
+      .grid-2{grid-template-columns:1fr}
+      .matrix{grid-template-columns:1fr}
+      .matrix-grid{grid-template-columns:1fr}
+      .matrix .righthead{text-align:left}
+      .matrix-grid .rightcol{justify-content:flex-start; flex-wrap:wrap}
+      .stake-grid{grid-template-columns: repeat(2, minmax(0, 1fr));}
+      .grades{grid-template-columns:1fr}
+      .grade-boxes{grid-template-columns: repeat(7, minmax(0, 1fr));}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1 class="title">Wellness Policy Assessment Tool and Report Template</h1>
+
+    <form id="mainForm" autocomplete="off">
+      <!-- REPORT HEADER -->
+      <div class="grid-2">
+        <div class="field-row">
+          <label class="label" for="lea_district_name">LEA / District Name:</label>
+          <input type="text" id="lea_district_name" name="lea_district_name" />
+        </div>
+
+        <div class="field-row">
+          <label class="label" for="reporting_timeframe_month_year_to_month_year">Reporting Timeframe (month/year to month/year):</label>
+          <input type="text" id="reporting_timeframe_month_year_to_month_year" name="reporting_timeframe_month_year_to_month_year" />
+        </div>
+
+        <div class="field-row">
+          <label class="label" for="names_of_reviewers">Name(s) of Reviewer(s):</label>
+          <input type="text" id="names_of_reviewers" name="names_of_reviewers" />
+        </div>
+
+        <div class="field-row">
+          <label class="label" for="school_name_if_applicable">School Name (if applicable):</label>
+          <input type="text" id="school_name_if_applicable" name="school_name_if_applicable" />
+        </div>
+      </div>
+
+      <div class="grades">
+        <div class="label">Select grades:</div>
+        <div class="grade-boxes" aria-label="Select grades included">
+          <div class="cb">
+            <div class="t">PK</div>
+            <input type="checkbox" id="grade_pk" />
+          </div>
+          <div class="cb">
+            <div class="t">K</div>
+            <input type="checkbox" id="grade_k" />
+          </div>
+          <div class="cb">
+            <div class="t">1</div>
+            <input type="checkbox" id="grade_1" />
+          </div>
+          <div class="cb">
+            <div class="t">2</div>
+            <input type="checkbox" id="grade_2" />
+          </div>
+          <div class="cb">
+            <div class="t">3</div>
+            <input type="checkbox" id="grade_3" />
+          </div>
+          <div class="cb">
+            <div class="t">4</div>
+            <input type="checkbox" id="grade_4" />
+          </div>
+          <div class="cb">
+            <div class="t">5</div>
+            <input type="checkbox" id="grade_5" />
+          </div>
+          <div class="cb">
+            <div class="t">6</div>
+            <input type="checkbox" id="grade_6" />
+          </div>
+          <div class="cb">
+            <div class="t">7</div>
+            <input type="checkbox" id="grade_7" />
+          </div>
+          <div class="cb">
+            <div class="t">8</div>
+            <input type="checkbox" id="grade_8" />
+          </div>
+          <div class="cb">
+            <div class="t">9</div>
+            <input type="checkbox" id="grade_9" />
+          </div>
+          <div class="cb">
+            <div class="t">10</div>
+            <input type="checkbox" id="grade_10" />
+          </div>
+          <div class="cb">
+            <div class="t">11</div>
+            <input type="checkbox" id="grade_11" />
+          </div>
+          <div class="cb">
+            <div class="t">12</div>
+            <input type="checkbox" id="grade_12" />
+          </div>
+        </div>
+      </div>
+
+      <!-- POLICY INCLUSION / IMPLEMENTATION STATUS HEADERS (as seen at top of page) -->
+      <div class="matrix" aria-label="Policy inclusion and implementation status headers">
+        <div class="lefthead">Included in the<br>written policy?</div>
+        <div class="righthead">Implemented in the<br>school building(s)?</div>
+
+        <div class="matrix-grid">
+          <div class="leftcol">
+            <span class="tiny">Yes</span>
+            <span class="tiny">No</span>
+          </div>
+          <div class="rightcol">
+            <span class="tiny">Fully in<br>Place</span>
+            <span class="tiny">Partially<br>in Place</span>
+            <span class="tiny">Not in<br>Place</span>
+          </div>
+
+          <!-- Inputs for the model's status flags (not tied to any specific row in the scanned snippet) -->
+          <div class="leftcol" style="padding-top:6px; border-top:1px solid rgba(0,0,0,.08);">
+            <label class="mini-cb" title="Included in written policy - Yes">
+              <input type="checkbox" id="included_in_written_policy_yes">
+              <span>Included (Yes)</span>
+            </label>
+            <label class="mini-cb" title="Included in written policy - No">
+              <input type="checkbox" id="included_in_written_policy_no">
+              <span>Included (No)</span>
+            </label>
+          </div>
+          <div class="rightcol" style="padding-top:6px; border-top:1px solid rgba(0,0,0,.08);">
+            <label class="mini-cb" title="Implemented - Fully in place">
+              <input type="checkbox" id="implemented_in_school_buildings_fully_in_place">
+              <span>Fully</span>
+            </label>
+            <label class="mini-cb" title="Implemented - Partially in place">
+              <input type="checkbox" id="implemented_in_school_buildings_partially_in_place">
+              <span>Partially</span>
+            </label>
+            <label class="mini-cb" title="Implemented - Not in place">
+              <input type="checkbox" id="implemented_in_school_buildings_not_in_place">
+              <span>Not in place</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- PUBLIC INVOLVEMENT, NOTIFICATION, AND ASSESSMENT -->
+      <div class="section-bar">Public Involvement, Notification, and Assessment</div>
+
+      <div class="block">
+        <p class="prompt">We have LEA official(s)/designee(s) in charge of wellness policy compliance.</p>
+        <div class="wide-row">
+          <label class="label" for="names_titles">Name(s)/Title(s):</label>
+          <input type="text" id="names_titles" name="names_titles" />
+        </div>
+      </div>
+
+      <div class="block">
+        <p class="prompt">We complete an assessment of the local school wellness policy at least every three years ("triennial assessment").</p>
+        <p class="subprompt"><strong>Triennial assessment results</strong> are made available to the public in an easily accessible manner.</p>
+        <div class="wide-row">
+          <label class="label" for="website_address_or_access_description_triennial_results">Website address and/or description of how to access copy:</label>
+          <input type="text" id="website_address_or_access_description_triennial_results" name="website_address_or_access_description_triennial_results" />
+        </div>
+      </div>
+
+      <div class="block">
+        <p class="prompt">At least every three years we use the results of the triennial assessment to update or modify the wellness policy as needed.</p>
+        <p class="subprompt">The LEA informs and updates the public about the contents, updates, and implementation of the wellness policy at least annually and the policy is accessible to the public.</p>
+        <div class="wide-row">
+          <label class="label" for="website_address_for_policy_or_access_description">Website address for policy and/or description of how to access copy:</label>
+          <input type="text" id="website_address_for_policy_or_access_description" name="website_address_for_policy_or_access_description" />
+        </div>
+      </div>
+
+      <div class="block">
+        <p class="prompt">We retain records as required by federal regulations including:</p>
+        <div class="checklist">
+          <label class="mini-cb">
+            <input type="checkbox" id="retain_written_school_wellness_policy">
+            <span>The written school wellness policy,</span>
+          </label>
+          <label class="mini-cb">
+            <input type="checkbox" id="retain_documentation_publicly_available">
+            <span>Documentation of making the wellness policy publicly available,</span>
+          </label>
+          <label class="mini-cb">
+            <input type="checkbox" id="retain_documentation_outreach_efforts">
+            <span>Documentation of outreach efforts inviting stakeholders to participate in the wellness committee / wellness policy process, and</span>
+          </label>
+          <label class="mini-cb">
+            <input type="checkbox" id="retain_copy_triennial_assessment">
+            <span>Copy of triennial assessment and documentation of reporting results to public.</span>
+          </label>
+        </div>
+
+        <div class="committee">
+          The LEA utilizes a wellness committee that includes these community stakeholders in the development, implementation, review, and update of the wellness policy:
+        </div>
+
+        <div class="stake-grid">
+          <label class="mini-cb"><input type="checkbox" id="stakeholder_administrators"><span>Administrators</span></label>
+          <label class="mini-cb"><input type="checkbox" id="stakeholder_food_service_staff"><span>Food service staff</span></label>
+          <label class="mini-cb"><input type="checkbox" id="stakeholder_school_health_professionals"><span>School health professionals</span></label>
+          <label class="mini-cb"><input type="checkbox" id="stakeholder_parents"><span>Parents</span></label>
+
+          <label class="mini-cb"><input type="checkbox" id="stakeholder_school_board_members"><span>School board members</span></label>
+          <label class="mini-cb"><input type="checkbox" id="stakeholder_pe_teachers"><span>PE teachers</span></label>
+          <label class="mini-cb"><input type="checkbox" id="stakeholder_students"><span>Students</span></label>
+          <label class="mini-cb"><input type="checkbox" id="stakeholder_public"><span>Public</span></label>
+        </div>
+
+        <div class="wide-row" style="margin-top:10px;">
+          <label class="label" for="other_stakeholders_describe">Other stakeholders (describe):</label>
+          <input type="text" id="other_stakeholders_describe" name="other_stakeholders_describe" />
+        </div>
+      </div>
+
+      <div class="notes-area">
+        <p class="label">Notes on public involvement, notification, and assessment:</p>
+        <textarea id="notes_on_public_involvement_notification_and_assessment" name="notes_on_public_involvement_notification_and_assessment"></textarea>
+      </div>
+
+      <div class="section-bar">Nutrition Education*</div>
+      <div class="small-note" style="margin-top:8px;">
+        Nutrition education is provided within PDE’s sequential, comprehensive health education standards. We teach, model, encourage, and support healthy eating through nutrition education.
+      </div>
+
+      <div class="submit-row">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+
+      <div class="footer">
+        <div>July 2018</div>
+        <div>This institution is an equal opportunity provider</div>
+        <div>1</div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function cb(id){
+        const el = document.getElementById(id);
+        return el && el.checked ? "true" : "false";
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+
+        const data = {
+          report_header: {
+            lea_district_name: (fd.get('lea_district_name') || '').toString(),
+            reporting_timeframe_month_year_to_month_year: (fd.get('reporting_timeframe_month_year_to_month_year') || '').toString(),
+            names_of_reviewers: (fd.get('names_of_reviewers') || '').toString(),
+            school_name_if_applicable: (fd.get('school_name_if_applicable') || '').toString(),
+            grade_pk: cb('grade_pk'),
+            grade_k: cb('grade_k'),
+            grade_1: cb('grade_1'),
+            grade_2: cb('grade_2'),
+            grade_3: cb('grade_3'),
+            grade_4: cb('grade_4'),
+            grade_5: cb('grade_5'),
+            grade_6: cb('grade_6'),
+            grade_7: cb('grade_7'),
+            grade_8: cb('grade_8'),
+            grade_9: cb('grade_9'),
+            grade_10: cb('grade_10'),
+            grade_11: cb('grade_11'),
+            grade_12: cb('grade_12')
+          },
+          policy_inclusion_and_implementation_status: {
+            included_in_written_policy_yes: cb('included_in_written_policy_yes'),
+            included_in_written_policy_no: cb('included_in_written_policy_no'),
+            implemented_in_school_buildings_fully_in_place: cb('implemented_in_school_buildings_fully_in_place'),
+            implemented_in_school_buildings_partially_in_place: cb('implemented_in_school_buildings_partially_in_place'),
+            implemented_in_school_buildings_not_in_place: cb('implemented_in_school_buildings_not_in_place')
+          },
+          public_involvement_notification_and_assessment: {
+            names_titles: (fd.get('names_titles') || '').toString(),
+            website_address_or_access_description_triennial_results: (fd.get('website_address_or_access_description_triennial_results') || '').toString(),
+            website_address_for_policy_or_access_description: (fd.get('website_address_for_policy_or_access_description') || '').toString(),
+            retain_written_school_wellness_policy: cb('retain_written_school_wellness_policy'),
+            retain_documentation_publicly_available: cb('retain_documentation_publicly_available'),
+            retain_documentation_outreach_efforts: cb('retain_documentation_outreach_efforts'),
+            retain_copy_triennial_assessment: cb('retain_copy_triennial_assessment'),
+            stakeholder_administrators: cb('stakeholder_administrators'),
+            stakeholder_food_service_staff: cb('stakeholder_food_service_staff'),
+            stakeholder_school_health_professionals: cb('stakeholder_school_health_professionals'),
+            stakeholder_parents: cb('stakeholder_parents'),
+            stakeholder_school_board_members: cb('stakeholder_school_board_members'),
+            stakeholder_pe_teachers: cb('stakeholder_pe_teachers'),
+            stakeholder_students: cb('stakeholder_students'),
+            stakeholder_public: cb('stakeholder_public'),
+            other_stakeholders_describe: (fd.get('other_stakeholders_describe') || '').toString(),
+            notes_on_public_involvement_notification_and_assessment: (fd.get('notes_on_public_involvement_notification_and_assessment') || '').toString()
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

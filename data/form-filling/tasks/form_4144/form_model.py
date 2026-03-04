@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class ApplicantInformation(BaseModel):
-    """Basic contact details and background of the applicant"""
+    """Basic contact and background details of the applicant"""
 
     name: str = Field(
         ...,
@@ -53,25 +53,25 @@ class ApplicantInformation(BaseModel):
     )
 
     date_of_sobriety: str = Field(
-        ..., description="Date the applicant last used alcohol (sobriety date)"
+        ..., description="Date the applicant achieved continuous sobriety"
     )  # YYYY-MM-DD format
 
     education: str = Field(
         default="",
         description=(
-            "Educational background, degrees, certifications, or relevant training .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Educational background, including degrees, certifications, and relevant "
+            'training .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
 
 class ExperienceandQualifications(BaseModel):
-    """A.A. experience, work history, and relevant skills/background"""
+    """Professional, A.A. service, and other relevant experience"""
 
     current_and_past_aa_experience: str = Field(
-        ...,
+        default="",
         description=(
             "Description of current and previous A.A. service and involvement .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
@@ -81,19 +81,18 @@ class ExperienceandQualifications(BaseModel):
     )
 
     occupational_background: str = Field(
-        ...,
+        default="",
         description=(
-            "Summary of work history, professions, and relevant occupational experience .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Summary of work history and professional experience .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     additional_abilities_skills_background_and_life_experiences_that_may_benefit_the_aa_world_services_board: str = Field(
         default="",
         description=(
-            "Other skills, abilities, background, or life experiences that may benefit the "
+            "Other abilities, skills, background, or life experiences that may benefit the "
             'A.A. World Services Board .If you cannot fill this, write "N/A". If this '
             "field should not be filled by you (for example, it belongs to another person "
             'or office), leave it blank (empty string "").'
@@ -125,9 +124,7 @@ class Certification(BaseModel):
         ),
     )
 
-    date: str = Field(
-        ..., description="Date the form is signed by the applicant"
-    )  # YYYY-MM-DD format
+    date: str = Field(..., description="Date the applicant signs this form")  # YYYY-MM-DD format
 
 
 class AaWorldServicesDirectorResumeSheet(BaseModel):

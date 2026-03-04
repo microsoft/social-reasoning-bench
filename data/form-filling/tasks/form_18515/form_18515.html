@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pennsylvania PKC/HSSAP Advisory Committee Application</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --paper:#ffffff;
+      --ink:#111;
+      --muted:#444;
+      --line:#222;
+      --bg:#d6d2cd;
+      --bar:#5b5b5b;
+      --focus:#f5f5ee;
+      --gold:#f2b01e;
+      --blue:#1b4f8a;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+      font-size:13.5px;
+      line-height:1.35;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:28px 44px 22px;
+      position:relative;
+    }
+
+    /* header */
+    .top{
+      display:flex;
+      align-items:flex-start;
+      gap:14px;
+      margin-bottom:10px;
+    }
+    .pa-logo{
+      width:64px;
+      height:54px;
+      flex:0 0 auto;
+      position:relative;
+      margin-top:2px;
+    }
+    .pa-logo svg{display:block;width:100%;height:100%}
+    .brand{
+      flex:1 1 auto;
+    }
+    .brand .pennsylvania{
+      font-weight:800;
+      font-size:30px;
+      letter-spacing:.2px;
+      color:var(--blue);
+      line-height:1.05;
+      margin:0;
+    }
+    .brand .office{
+      margin:2px 0 0;
+      font-weight:600;
+      font-size:12px;
+      letter-spacing:.8px;
+      color:#1f1f1f;
+      text-transform:uppercase;
+    }
+    .title{
+      text-align:left;
+      margin:8px 0 18px;
+      font-size:16px;
+      font-weight:600;
+      color:#111;
+    }
+
+    .section-bar{
+      background:var(--bar);
+      color:#fff;
+      text-transform:uppercase;
+      letter-spacing:1.7px;
+      font-size:11px;
+      font-weight:800;
+      padding:6px 10px;
+      margin:14px -10px 8px;
+    }
+
+    .field-row{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      border-bottom:1px solid var(--line);
+      padding:10px 0 4px;
+      min-height:36px;
+    }
+    .field-row .label{
+      font-weight:700;
+      white-space:nowrap;
+      min-width:72px;
+    }
+    .field-row input[type="text"],
+    .field-row input[type="email"],
+    .field-row textarea{
+      flex:1;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      color:var(--ink);
+      padding:2px 6px 2px 6px;
+      min-width:0;
+    }
+    .field-row input:focus,
+    .field-row textarea:focus{
+      background:var(--focus);
+    }
+
+    .q-label{
+      margin:16px 0 6px;
+      font-weight:700;
+    }
+    .q-number{
+      font-weight:800;
+      margin-right:8px;
+    }
+    .question{
+      margin:6px 0 0;
+      font-weight:600;
+    }
+    textarea.long{
+      width:100%;
+      min-height:190px;
+      resize:vertical;
+      border:1px solid transparent; /* keep paper look */
+      background:transparent;
+      padding:8px 8px;
+      outline:none;
+      line-height:1.35;
+    }
+    .textarea-wrap{
+      border-bottom:1px solid var(--line);
+      padding:6px 0 10px;
+    }
+    .help{
+      color:var(--muted);
+      font-size:12px;
+      margin-top:6px;
+    }
+
+    .checklist{
+      margin-top:8px;
+      padding-left:0;
+    }
+    .check-item{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      margin:6px 0;
+    }
+    .check-item input[type="checkbox"]{
+      width:14px;
+      height:14px;
+      margin-top:2px;
+      accent-color:#333;
+      flex:0 0 auto;
+    }
+    .check-item .text{
+      flex:1 1 auto;
+    }
+    .inline-describe{
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+      margin:8px 0 2px;
+    }
+    .inline-describe .desc-label{
+      min-width:0;
+      font-weight:600;
+      color:#111;
+    }
+    .inline-describe input[type="text"]{
+      flex:1;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:2px 6px;
+      border-bottom:1px solid var(--line);
+    }
+    .inline-describe input[type="text"]:focus{background:var(--focus)}
+    .muted-note{
+      font-style:italic;
+      color:#222;
+      font-size:12.5px;
+    }
+
+    .footer-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:16px;
+      padding-top:10px;
+      border-top:1px solid #d0d0d0;
+    }
+    .btn{
+      font:inherit;
+      font-weight:700;
+      font-size:13px;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+    }
+    .btn-clear{
+      background:#fff;
+      border:1px solid #8d8d8d;
+      color:#333;
+    }
+    .btn-submit{
+      background:#444;
+      border:1px solid #333;
+      color:#fff;
+    }
+
+    /* keep a lot of whitespace like the scan */
+    .spacer{
+      height:30px;
+    }
+
+    @media print{
+      body{background:#fff;padding:0}
+      .page{box-shadow:none;max-width:none;padding:24px 36px}
+      .footer-actions{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <div class="pa-logo" aria-hidden="true">
+        <svg viewBox="0 0 120 100" role="img" aria-label="">
+          <path fill="var(--gold)" d="M12 18 L46 18 L46 10 L74 10 L74 18 L108 18 L108 86 L12 86 Z"/>
+          <path fill="var(--gold)" d="M46 18 L46 34 L34 34 L34 18 Z"/>
+          <path fill="var(--gold)" d="M74 18 L86 18 L86 34 L74 34 Z"/>
+          <text x="28" y="68" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="44" fill="#fff">PA</text>
+        </svg>
+      </div>
+      <div class="brand">
+        <p class="pennsylvania">pennsylvania</p>
+        <p class="office">Office of Child Development<br/>and Early Learning</p>
+      </div>
+    </div>
+
+    <div class="title">Pennsylvania PKC/HSSAP Advisory Committee Application</div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="field-row">
+        <label class="label" for="name">NAME:</label>
+        <input type="text" id="name" name="name" />
+      </div>
+      <div class="field-row">
+        <label class="label" for="email">EMAIL:</label>
+        <input type="email" id="email" name="email" />
+      </div>
+
+      <div class="q-label">QUESTIONS:</div>
+
+      <div class="question">
+        <span class="q-number">1.</span>
+        Why are you interested in serving on the Pennsylvania PreK Counts/Head Start Supplemental Assistance Program Advisory Committee?
+      </div>
+      <div class="textarea-wrap">
+        <textarea class="long" id="why_are_you_interested_in_serving_on_the_pennsylvania_prek_counts_head_start_supplemental_assistance_program_advisory_committee" name="why_are_you_interested_in_serving_on_the_pennsylvania_prek_counts_head_start_supplemental_assistance_program_advisory_committee"></textarea>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="question">
+        <span class="q-number">2.</span>
+        What attributes would you bring to the Pennsylvania PreK Counts/Head Start Supplemental Assistance Program Advisory Committee?
+        <span class="muted-note">Check all that apply.</span>
+      </div>
+
+      <div class="checklist" role="group" aria-label="Attributes checklist">
+        <label class="check-item">
+          <input type="checkbox" id="pa_prek_counts_program_content_knowledge_and_or_experience" name="pa_prek_counts_program_content_knowledge_and_or_experience" />
+          <span class="text">PA PreK Counts Program content knowledge and/or experience</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="head_start_head_start_supplemental_assistance_program_content_knowledge_and_or_experience" name="head_start_head_start_supplemental_assistance_program_content_knowledge_and_or_experience" />
+          <span class="text">Head Start/Head Start Supplemental Assistance Program content knowledge and/or experience</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="content_knowledge_and_or_experience" name="content_knowledge_and_or_experience" />
+          <span class="text">Content knowledge and/or experience</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="family_member_experience_with_pa_pkc_program_services_in_pennsylvania_child_currently_or_formerly_enrolled_in_the_program" name="family_member_experience_with_pa_pkc_program_services_in_pennsylvania_child_currently_or_formerly_enrolled_in_the_program" />
+          <span class="text">Family member experience with PA PKC Program services in Pennsylvania (child currently or formerly enrolled in the program)</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="family_member_experience_with_hs_hssap_program_services_in_pennsylvania_child_currently_or_formerly_enrolled_in_the_program" name="family_member_experience_with_hs_hssap_program_services_in_pennsylvania_child_currently_or_formerly_enrolled_in_the_program" />
+          <span class="text">Family member experience with HS/HSSAP Program services in Pennsylvania (child currently or formerly enrolled in the program)</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="practical_experiences_in_center_setting" name="practical_experiences_in_center_setting" />
+          <span class="text">Practical experiences in Center setting.</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="practical_experiences_in_family_child_care_setting" name="practical_experiences_in_family_child_care_setting" />
+          <span class="text">Practical experiences in Family Child Care setting.</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="practical_experiences_in_group_home_setting" name="practical_experiences_in_group_home_setting" />
+          <span class="text">Practical experiences in Group Home setting.</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="practical_experiences_in_school_district_setting" name="practical_experiences_in_school_district_setting" />
+          <span class="text">Practical experiences in School District setting.</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="practical_experiences_in_pde_private_academic_school_setting" name="practical_experiences_in_pde_private_academic_school_setting" />
+          <span class="text">Practical experiences in PDE Private Academic School setting.</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="practical_experiences_in_an_intermediate_unit_setting" name="practical_experiences_in_an_intermediate_unit_setting" />
+          <span class="text">Practical experiences in an Intermediate Unit setting.</span>
+        </label>
+
+        <div class="inline-describe">
+          <div class="desc-label">Practical experiences in other setting that is not listed, please describe:</div>
+          <input type="text" id="practical_experiences_in_other_setting_that_is_not_listed_please_describe" name="practical_experiences_in_other_setting_that_is_not_listed_please_describe" />
+        </div>
+
+        <label class="check-item" style="margin-top:10px;">
+          <input type="checkbox" id="early_childhood_education_academic_and_or_research_experience" name="early_childhood_education_academic_and_or_research_experience" />
+          <span class="text">Early Childhood Education Academic and/or research experience</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="mentoring_technical_assistance_or_professional_development_experience" name="mentoring_technical_assistance_or_professional_development_experience" />
+          <span class="text">Mentoring, Technical Assistance or professional development experience</span>
+        </label>
+
+        <div class="inline-describe">
+          <div class="desc-label">Non-Profit or other statewide Committee experience, please describe:</div>
+          <input type="text" id="non_profit_or_other_statewide_committee_experience_please_describe" name="non_profit_or_other_statewide_committee_experience_please_describe" />
+        </div>
+
+        <label class="check-item" style="margin-top:10px;">
+          <input type="checkbox" id="political_advocacy_experience" name="political_advocacy_experience" />
+          <span class="text">Political/Advocacy experience</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" id="parent_family_leadership_training" name="parent_family_leadership_training" />
+          <span class="text">Parent/Family Leadership Training</span>
+        </label>
+
+        <div class="inline-describe">
+          <div class="desc-label">Other, please describe:</div>
+          <input type="text" id="other_please_describe" name="other_please_describe" />
+        </div>
+      </div>
+
+      <div class="footer-actions">
+        <button type="reset" class="btn btn-clear">Clear Form</button>
+        <button type="submit" class="btn btn-submit">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      const cbVal = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return "";
+        return el.checked ? "true" : "false";
+      };
+
+      const getVal = (name) => {
+        const el = document.getElementById(name);
+        return (el && typeof el.value === 'string') ? el.value : "";
+      };
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          applicant_information: {
+            name: getVal('name'),
+            email: getVal('email')
+          },
+          interest_in_committee: {
+            why_are_you_interested_in_serving_on_the_pennsylvania_prek_counts_head_start_supplemental_assistance_program_advisory_committee:
+              getVal('why_are_you_interested_in_serving_on_the_pennsylvania_prek_counts_head_start_supplemental_assistance_program_advisory_committee')
+          },
+          relevant_experience_and_attributes: {
+            pa_prek_counts_program_content_knowledge_and_or_experience: cbVal('pa_prek_counts_program_content_knowledge_and_or_experience'),
+            head_start_head_start_supplemental_assistance_program_content_knowledge_and_or_experience: cbVal('head_start_head_start_supplemental_assistance_program_content_knowledge_and_or_experience'),
+            content_knowledge_and_or_experience: cbVal('content_knowledge_and_or_experience'),
+            family_member_experience_with_pa_pkc_program_services_in_pennsylvania_child_currently_or_formerly_enrolled_in_the_program:
+              cbVal('family_member_experience_with_pa_pkc_program_services_in_pennsylvania_child_currently_or_formerly_enrolled_in_the_program'),
+            family_member_experience_with_hs_hssap_program_services_in_pennsylvania_child_currently_or_formerly_enrolled_in_the_program:
+              cbVal('family_member_experience_with_hs_hssap_program_services_in_pennsylvania_child_currently_or_formerly_enrolled_in_the_program'),
+            practical_experiences_in_center_setting: cbVal('practical_experiences_in_center_setting'),
+            practical_experiences_in_family_child_care_setting: cbVal('practical_experiences_in_family_child_care_setting'),
+            practical_experiences_in_group_home_setting: cbVal('practical_experiences_in_group_home_setting'),
+            practical_experiences_in_school_district_setting: cbVal('practical_experiences_in_school_district_setting'),
+            practical_experiences_in_pde_private_academic_school_setting: cbVal('practical_experiences_in_pde_private_academic_school_setting'),
+            practical_experiences_in_an_intermediate_unit_setting: cbVal('practical_experiences_in_an_intermediate_unit_setting'),
+            practical_experiences_in_other_setting_that_is_not_listed_please_describe:
+              getVal('practical_experiences_in_other_setting_that_is_not_listed_please_describe'),
+            early_childhood_education_academic_and_or_research_experience:
+              cbVal('early_childhood_education_academic_and_or_research_experience'),
+            mentoring_technical_assistance_or_professional_development_experience:
+              cbVal('mentoring_technical_assistance_or_professional_development_experience'),
+            non_profit_or_other_statewide_committee_experience_please_describe:
+              getVal('non_profit_or_other_statewide_committee_experience_please_describe'),
+            political_advocacy_experience: cbVal('political_advocacy_experience'),
+            parent_family_leadership_training: cbVal('parent_family_leadership_training'),
+            other_please_describe: getVal('other_please_describe')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -12,10 +12,10 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class Insured(BaseModel):
-    """Details of the insured person or entity"""
+class InsuredDetails(BaseModel):
+    """Information about the insured person or entity"""
 
-    name_and_occupation: str = Field(
+    insured_name_and_occupation: str = Field(
         ...,
         description=(
             "Full name of the insured and their occupation .If you cannot fill this, write "
@@ -24,16 +24,16 @@ class Insured(BaseModel):
         ),
     )
 
-    address: str = Field(
+    insured_address: str = Field(
         ...,
         description=(
-            'Postal address of the insured .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Postal or physical address of the insured .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    tel_no: str = Field(
+    insured_tel_no: str = Field(
         ...,
         description=(
             'Telephone number of the insured .If you cannot fill this, write "N/A". If '
@@ -44,7 +44,7 @@ class Insured(BaseModel):
 
 
 class DescriptionofLoss(BaseModel):
-    """Details about when, where, and how the loss or damage occurred"""
+    """Details about when, where and how the loss or damage occurred"""
 
     date_and_time_of_loss_damage: str = Field(
         ...,
@@ -58,107 +58,99 @@ class DescriptionofLoss(BaseModel):
     place_where_loss_damage_occurred: str = Field(
         ...,
         description=(
-            "Location where the loss or damage took place .If you cannot fill this, write "
+            "Location where the loss or damage occurred .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    state_exactly_how_the_loss_damage_occurred: str = Field(
+    how_the_loss_damage_occurred: str = Field(
         ...,
         description=(
-            "Detailed description of how the loss or damage occurred .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Detailed description of exactly how the loss or damage occurred .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
 
 class Witnesses(BaseModel):
-    """Information about witnesses to the incident"""
+    """Details of witnesses to the incident"""
 
-    name_address_tel_no_of_witnesses: str = Field(
+    witness1_name: str = Field(
         default="",
         description=(
-            "Names, addresses, and telephone numbers of any witnesses .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            'Full name of the first witness .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
-    name_witness_1: str = Field(
+    witness1_address: str = Field(
         default="",
         description=(
-            'Full name of first witness .If you cannot fill this, write "N/A". If this '
+            'Address of the first witness .If you cannot fill this, write "N/A". If this '
             "field should not be filled by you (for example, it belongs to another person "
             'or office), leave it blank (empty string "").'
         ),
     )
 
-    address_witness_1: str = Field(
+    witness1_tel_no: str = Field(
         default="",
         description=(
-            'Postal address of first witness .If you cannot fill this, write "N/A". If '
+            'Telephone number of the first witness .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    witness2_name: str = Field(
+        default="",
+        description=(
+            'Full name of the second witness .If you cannot fill this, write "N/A". If '
             "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
-    tel_no_witness_1: str = Field(
+    witness2_address: str = Field(
         default="",
         description=(
-            'Telephone number of first witness .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    name_witness_2: str = Field(
-        default="",
-        description=(
-            'Full name of second witness .If you cannot fill this, write "N/A". If this '
+            'Address of the second witness .If you cannot fill this, write "N/A". If this '
             "field should not be filled by you (for example, it belongs to another person "
             'or office), leave it blank (empty string "").'
         ),
     )
 
-    address_witness_2: str = Field(
+    witness2_tel_no: str = Field(
         default="",
         description=(
-            'Postal address of second witness .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    tel_no_witness_2: str = Field(
-        default="",
-        description=(
-            'Telephone number of second witness .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Telephone number of the second witness .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
 
-class Police(BaseModel):
-    """Police station and case reference details"""
+class PoliceDetails(BaseModel):
+    """Information about any police report filed"""
 
-    name_of_police_station_and_case_reference_number: str = Field(
+    police_station_and_case_reference: str = Field(
         default="",
         description=(
-            "Name of the police station and the related case reference number, if reported "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
+            "Name of the police station and the related case reference number .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
         ),
     )
 
 
 class PropertyDamage(BaseModel):
-    """Details of damage to property"""
+    """Information about damaged property"""
 
-    name_and_address_of_owner: str = Field(
+    owner_name_and_address: str = Field(
         default="",
         description=(
             "Name and address of the owner of the damaged property .If you cannot fill "
@@ -170,7 +162,7 @@ class PropertyDamage(BaseModel):
     description_of_damage_to_property: str = Field(
         default="",
         description=(
-            "Description of the damage sustained by the property .If you cannot fill this, "
+            "Detailed description of the damage to the property .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -178,9 +170,9 @@ class PropertyDamage(BaseModel):
 
 
 class PersonalInjuries(BaseModel):
-    """Details of any personal injuries"""
+    """Information about any injured persons"""
 
-    name_and_age_of_injured_person: str = Field(
+    injured_person_name_and_age: str = Field(
         default="",
         description=(
             "Full name and age of the injured person .If you cannot fill this, write "
@@ -189,19 +181,19 @@ class PersonalInjuries(BaseModel):
         ),
     )
 
-    address_of_injured_person: str = Field(
+    injured_person_address: str = Field(
         default="",
         description=(
-            'Postal address of the injured person .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            'Address of the injured person .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
     details_of_injuries: str = Field(
         default="",
         description=(
-            "Full description of the injuries sustained .If you cannot fill this, write "
+            "Full details of the injuries sustained .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -209,23 +201,23 @@ class PersonalInjuries(BaseModel):
 
 
 class Relationship(BaseModel):
-    """Relationship of injured or affected person to the insured"""
+    """Relationship of injured/affected persons to the insured"""
 
     relationship_details: str = Field(
         default="",
         description=(
-            "Details of the relationship if the injured person is your employee, tenant, or "
-            'related to you .If you cannot fill this, write "N/A". If this field should '
-            "not be filled by you (for example, it belongs to another person or office), "
-            'leave it blank (empty string "").'
+            "Details of the relationship if the injured person is in your service, your "
+            'tenant, or related to you .If you cannot fill this, write "N/A". If this '
+            "field should not be filled by you (for example, it belongs to another person "
+            'or office), leave it blank (empty string "").'
         ),
     )
 
 
-class Claim(BaseModel):
-    """Details of any claim made against the insured"""
+class ClaimDetails(BaseModel):
+    """Information about any claim made against the insured"""
 
-    claim_details_against_you: str = Field(
+    details_of_claim_made_against_you: str = Field(
         default="",
         description=(
             "Details of any claim made against you and reference to attached correspondence "
@@ -248,22 +240,26 @@ class Declaration(BaseModel):
         ),
     )
 
-    date: str = Field(..., description="Date the declaration is signed")  # YYYY-MM-DD format
+    date: str = Field(..., description="Date the form is signed")  # YYYY-MM-DD format
 
 
-class PublicLiabilityClaimForm(BaseModel):
+class SouthsureShorttermInsurancePublicLiabilityClaimForm(BaseModel):
     """
+        Southsure
+    SHORT-TERM INSURANCE
+
+
     PUBLIC LIABILITY CLAIM FORM
 
-    ''
+        ''
     """
 
-    insured: Insured = Field(..., description="Insured")
+    insured_details: InsuredDetails = Field(..., description="Insured Details")
     description_of_loss: DescriptionofLoss = Field(..., description="Description of Loss")
     witnesses: Witnesses = Field(..., description="Witnesses")
-    police: Police = Field(..., description="Police")
+    police_details: PoliceDetails = Field(..., description="Police Details")
     property_damage: PropertyDamage = Field(..., description="Property Damage")
     personal_injuries: PersonalInjuries = Field(..., description="Personal Injuries")
     relationship: Relationship = Field(..., description="Relationship")
-    claim: Claim = Field(..., description="Claim")
+    claim_details: ClaimDetails = Field(..., description="Claim Details")
     declaration: Declaration = Field(..., description="Declaration")

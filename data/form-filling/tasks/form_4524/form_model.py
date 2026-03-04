@@ -18,9 +18,9 @@ class InformationofApplicantsLaboratory(BaseModel):
     laboratory_name: str = Field(
         ...,
         description=(
-            "Full legal name of the applicant’s testing laboratory .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Full legal name of the applicant’s laboratory .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -36,38 +36,37 @@ class InformationofApplicantsLaboratory(BaseModel):
     first_name: str = Field(
         ...,
         description=(
-            "First name of the primary contact person for the laboratory .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "First name of the primary contact person .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     last_name: str = Field(
         ...,
         description=(
-            "Last name of the primary contact person for the laboratory .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    address: str = Field(
-        ...,
-        description=(
-            "Primary street address line for the laboratory .If you cannot fill this, write "
+            "Last name of the primary contact person .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
     )
 
-    address_second_line: str = Field(
+    address_line_1: str = Field(
+        ...,
+        description=(
+            "Primary street address of the laboratory (line 1) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    address_line_2: str = Field(
         default="",
         description=(
-            "Second line of the street address (suite, building, etc.), if applicable .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Additional address information (suite, building, etc.) (line 2) .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -98,7 +97,7 @@ class InformationofApplicantsLaboratory(BaseModel):
         ),
     )
 
-    postal_code: str = Field(..., description="Postal or ZIP code for the laboratory’s address")
+    postal_code: str = Field(..., description="Postal or ZIP code for the laboratory address")
 
     tel_please_do_not_include_country_code_or_1: str = Field(
         ...,
@@ -113,24 +112,23 @@ class InformationofApplicantsLaboratory(BaseModel):
     e_mail: str = Field(
         ...,
         description=(
-            "Primary email address for communication with the laboratory .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Primary email address for the laboratory contact .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
 
 class OrganizationandHumanResourcesoftheTestingLaboratory(BaseModel):
-    """Organizational structure and staffing of the testing laboratory"""
+    """Organizational structure and staffing information"""
 
     legal_status_of_the_testing_laboratory: str = Field(
         ...,
         description=(
             "Describe the legal status (e.g., corporation, partnership, division, "
-            "subsidiary, or part of a larger corporate entity) .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "subsidiary, or part of a larger entity) .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -146,11 +144,11 @@ class ApplicationForAcceptanceAsAnSeiBiobasedTestingLaboratory(BaseModel):
 
         SEI has been awarded a contract by the U.S. Department of Agriculture (“USDA”) to provide certification services supporting the USDA’s development and administration of the BioPreferred Product Certification and Labeling Program (“the Program”).
         To be registered by SEI as an accepted biobased testing laboratory, a laboratory shall meet the following requirements:
-        » Be accredited to ISO 17025 General Requirements for the Competence of Calibration and Testing Laboratory
-        » Demonstrated capability to perform testing according to ASTM D6866, Standard Test Method for Determining the Biobased Content of Solid, Liquid, and Gaseous Radiocarbon Analysis
-        » Willingness to comply with the SEI Practice for Documentation and Reporting of Laboratory Results for Biobased Products in accord with ASTM Test Method D6866 (Annex to the Laboratory Testing Agreement for Biobased Products)
-        » Execution of the SEI Laboratory Testing Agreement
-        » Laboratory shall not have direct exposure to artificial carbon-14
+        ◦  Be accredited to ISO 17025 General Requirements for the Competence of Calibration and Testing Laboratory
+        ◦  Demonstrated capability to perform testing according to ASTM D6866, Standard Test Method for Determining the Biobased Content of Solid, Liquid, and Gaseous Radiocarbon Analysis
+        ◦  Willingness to comply with the SEI Practice for Documentation and Reporting of Laboratory Results for Biobased Products in accord with ASTM Test Method D6866 (Annex to the Laboratory Testing Agreement for Biobased Products)
+        ◦  Execution of the SEI Laboratory Testing Agreement
+        ◦  Laboratory shall not have direct exposure to artificial carbon-14
     """
 
     information_of_applicants_laboratory: InformationofApplicantsLaboratory = Field(

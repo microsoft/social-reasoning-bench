@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Brainerd City Council — Agenda Request</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ink:#111;
+      --line:#3a3a3a;
+      --bg:#d6d2cd;
+      --paper:#fff;
+      --bar:#2f2f2f;
+      --muted:#666;
+      --focus:#f5f5ee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:18px 18px 14px;
+    }
+    .top{
+      display:grid;
+      grid-template-columns:96px 1fr 96px;
+      align-items:start;
+      gap:10px;
+      margin-bottom:8px;
+    }
+    .logo{
+      width:88px;height:88px;border:1px solid #888;
+      display:flex;align-items:center;justify-content:center;
+      overflow:hidden;
+      background:#f9f9f9;
+    }
+    .logo svg{width:100%;height:100%}
+    .title{
+      text-align:center;
+      padding-top:6px;
+      line-height:1.1;
+    }
+    .title .h1{font-weight:800;font-size:22px;letter-spacing:.2px}
+    .title .h2{font-weight:800;font-size:20px;margin-top:6px}
+    .spacer{height:88px}
+    .top-fields{
+      margin:10px 6px 10px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:8px;
+      font-size:13.5px;
+    }
+    .fieldline{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+    }
+    .fieldline label{
+      font-weight:700;
+      white-space:nowrap;
+      min-width:180px;
+    }
+    .fieldline input[type="text"],
+    .fieldline input[type="date"]{
+      flex:1;
+      border:none;
+      border-bottom:1.5px solid var(--line);
+      outline:none;
+      font-size:13.5px;
+      padding:3px 6px 2px;
+      background:transparent;
+    }
+    .fieldline input:focus{background:var(--focus)}
+    .formbox{
+      border:2px solid var(--line);
+      margin:6px 0 10px;
+    }
+    .grid-top{
+      display:grid;
+      grid-template-columns: 42% 58%;
+      border-bottom:1px solid var(--line);
+      min-height:112px;
+    }
+    .cell{
+      padding:10px 10px 8px;
+    }
+    .cell + .cell{border-left:1px solid var(--line)}
+    .left-checks{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding-top:6px;
+      font-size:13px;
+    }
+    .cb{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    input[type="checkbox"]{
+      width:22px;height:22px;
+      accent-color:#111;
+      transform:translateY(-1px);
+    }
+    .action-title{
+      font-weight:700;
+      margin-bottom:6px;
+      font-size:13.5px;
+    }
+    .action-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px 30px;
+      padding-top:2px;
+      font-size:13px;
+      align-items:start;
+    }
+    .cb .small{
+      font-size:12px;color:var(--muted);font-style:italic;
+      margin-left:32px;display:block;margin-top:4px;line-height:1.25;
+    }
+
+    .row2{
+      display:grid;
+      grid-template-columns: 42% 58%;
+      border-bottom:1px solid var(--line);
+    }
+    .row3{
+      display:grid;
+      grid-template-columns: 42% 58%;
+      border-bottom:1px solid var(--line);
+    }
+    .inrow{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      padding:8px 10px 6px;
+      min-height:44px;
+    }
+    .inrow label{
+      font-weight:700;
+      white-space:nowrap;
+    }
+    .inrow input[type="text"]{
+      flex:1;
+      border:none;
+      border-bottom:1px solid var(--line);
+      outline:none;
+      font-size:13.5px;
+      padding:3px 6px 2px;
+      background:transparent;
+      min-width:0;
+    }
+    .inrow input:focus{background:var(--focus)}
+    .textarea-block{
+      border-bottom:1px solid var(--line);
+      padding:8px 10px 10px;
+      min-height:160px;
+    }
+    .textarea-block .lbl{
+      font-weight:700;
+      margin-bottom:6px;
+      font-size:13px;
+    }
+    textarea{
+      width:100%;
+      min-height:128px;
+      resize:vertical;
+      border:1px solid transparent;
+      border-top:1px solid var(--line);
+      outline:none;
+      padding:8px 10px;
+      font-size:13.5px;
+      font-family:inherit;
+      background:transparent;
+      line-height:1.35;
+    }
+    textarea:focus{background:var(--focus); border-color:#c9c9c9}
+    .textarea-block.tight{min-height:150px}
+    .textarea-block.tight textarea{min-height:118px}
+
+    .fin{
+      padding:10px 10px 10px;
+      min-height:140px;
+    }
+    .fin .lbl{
+      font-weight:700;
+      margin-bottom:6px;
+      font-size:13px;
+    }
+    .fin-grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:8px;
+      font-size:13px;
+      margin-top:2px;
+    }
+    .fin-row{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .fin-row .question{
+      font-style:italic;
+      color:#222;
+      margin-right:8px;
+    }
+    .yn{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-right:14px;
+    }
+    .money{
+      display:flex;
+      align-items:flex-end;
+      gap:6px;
+      margin-left:auto;
+      min-width:240px;
+    }
+    .money span{font-weight:600}
+    .money input[type="text"],
+    .money input[type="number"]{
+      flex:1;
+      min-width:120px;
+      border:none;
+      border-bottom:1px solid var(--line);
+      outline:none;
+      padding:3px 6px 2px;
+      background:transparent;
+      font-size:13.5px;
+    }
+    .money input:focus{background:var(--focus)}
+    .explain{
+      margin-top:6px;
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+    }
+    .explain .question{
+      font-style:italic;
+      font-weight:600;
+      text-decoration:underline;
+      white-space:nowrap;
+    }
+    .explain input[type="text"]{
+      flex:1;
+      border:none;
+      border-bottom:1px solid var(--line);
+      outline:none;
+      padding:3px 6px 2px;
+      background:transparent;
+      font-size:13.5px;
+      min-width:0;
+    }
+    .explain input:focus{background:var(--focus)}
+    .fin-narrative{
+      margin-top:8px;
+    }
+    .fin-narrative textarea{
+      min-height:70px;
+    }
+
+    .submit-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding:8px 0 0;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #888;
+      background:#fff;
+      color:#333;
+    }
+    .btn-primary{
+      background:#3a3a3a;
+      border-color:#2a2a2a;
+      color:#fff;
+    }
+
+    /* Print-like subtle */
+    .note{
+      font-size:11.5px;
+      color:#555;
+      margin-top:6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <div class="logo" aria-label="City of Brainerd logo (stylized)">
+        <!-- simple inline graphic placeholder -->
+        <svg viewBox="0 0 100 100" role="img" aria-hidden="true">
+          <rect x="6" y="6" width="88" height="88" rx="2" fill="#f2f2f2" stroke="#777" stroke-width="2"/>
+          <circle cx="50" cy="36" r="20" fill="none" stroke="#777" stroke-width="2"/>
+          <path d="M30 58 Q50 48 70 58" fill="none" stroke="#777" stroke-width="2"/>
+          <rect x="24" y="64" width="52" height="18" fill="none" stroke="#777" stroke-width="2"/>
+          <text x="50" y="79" text-anchor="middle" font-family="Inter, Arial" font-size="12" font-weight="800" fill="#555">BRAINERD</text>
+        </svg>
+      </div>
+      <div class="title">
+        <div class="h1">Brainerd City Council</div>
+        <div class="h2">Agenda Request</div>
+      </div>
+      <div class="spacer"></div>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="top-fields">
+        <div class="fieldline">
+          <label for="requested_meeting_date">Requested Meeting Date:</label>
+          <input type="date" id="requested_meeting_date" name="requested_meeting_date" />
+        </div>
+        <div class="fieldline">
+          <label for="title_of_item">Title of Item:</label>
+          <input type="text" id="title_of_item" name="title_of_item" />
+        </div>
+      </div>
+
+      <div class="formbox">
+        <div class="grid-top">
+          <div class="cell">
+            <div class="left-checks">
+              <label class="cb">
+                <input type="checkbox" id="information_only" name="information_only">
+                <span>INFORMATION ONLY</span>
+              </label>
+              <label class="cb">
+                <input type="checkbox" id="consent_agenda" name="consent_agenda">
+                <span>CONSENT AGENDA</span>
+              </label>
+              <label class="cb">
+                <input type="checkbox" id="p_f_committee" name="p_f_committee">
+                <span>P&amp;F COMMITTEE</span>
+              </label>
+              <label class="cb">
+                <input type="checkbox" id="spw_committee" name="spw_committee">
+                <span>SPW COMMITTEE</span>
+              </label>
+              <label class="cb">
+                <input type="checkbox" id="main_agenda" name="main_agenda">
+                <span>MAIN AGENDA</span>
+              </label>
+            </div>
+          </div>
+          <div class="cell">
+            <div class="action-title">Action Requested:</div>
+            <div class="action-grid">
+              <div>
+                <label class="cb">
+                  <input type="checkbox" id="approve_deny_motion" name="approve_deny_motion">
+                  <span>Approve/Deny Motion</span>
+                </label>
+              </div>
+              <div>
+                <label class="cb">
+                  <input type="checkbox" id="direction_requested" name="direction_requested">
+                  <span>Direction Requested</span>
+                </label>
+              </div>
+
+              <div>
+                <label class="cb">
+                  <input type="checkbox" id="adopt_resolution_attach_draft" name="adopt_resolution_attach_draft">
+                  <span>Adopt Resolution (attach draft)</span>
+                </label>
+              </div>
+              <div>
+                <label class="cb">
+                  <input type="checkbox" id="discussion_item" name="discussion_item">
+                  <span>Discussion Item</span>
+                </label>
+              </div>
+
+              <div></div>
+              <div>
+                <label class="cb">
+                  <input type="checkbox" id="hold_public_hearing" name="hold_public_hearing">
+                  <span>Hold Public Hearing*</span>
+                </label>
+                <span class="small">*provide copy of published hearing notice</span>
+              </div>
+
+              <div></div>
+              <div>
+                <label class="cb">
+                  <input type="checkbox" id="ordinance_1st_reading" name="ordinance_1st_reading">
+                  <span>Ordinance 1<sup>st</sup> Reading</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="inrow">
+            <label for="submitted_by">Submitted by:</label>
+            <input type="text" id="submitted_by" name="submitted_by" />
+          </div>
+          <div class="inrow" style="border-left:1px solid var(--line);">
+            <label for="department">Department:</label>
+            <input type="text" id="department" name="department" />
+          </div>
+        </div>
+
+        <div class="row3">
+          <div class="inrow">
+            <label for="presenter_name_title">Presenter (Name &amp; Title):</label>
+            <input type="text" id="presenter_name_title" name="presenter_name_title" />
+          </div>
+          <div class="inrow" style="border-left:1px solid var(--line);">
+            <label for="estimated_time_needed">Estimated Time Needed:</label>
+            <input type="text" id="estimated_time_needed" name="estimated_time_needed" />
+          </div>
+        </div>
+
+        <div class="textarea-block">
+          <div class="lbl">Summary of Issue:</div>
+          <textarea id="summary_of_issue" name="summary_of_issue"></textarea>
+        </div>
+
+        <div class="textarea-block">
+          <div class="lbl">Alternatives, Options, Effects on Others/Comments:</div>
+          <textarea id="alternatives_options_effects_on_others_comments" name="alternatives_options_effects_on_others_comments"></textarea>
+        </div>
+
+        <div class="textarea-block tight">
+          <div class="lbl">Recommended Action/Motion:</div>
+          <textarea id="recommended_action_motion" name="recommended_action_motion"></textarea>
+        </div>
+
+        <div class="fin">
+          <div class="lbl">Financial Impact:</div>
+
+          <div class="fin-narrative">
+            <textarea id="financial_impact" name="financial_impact" placeholder=""></textarea>
+          </div>
+
+          <div class="fin-grid">
+            <div class="fin-row">
+              <span class="question">Is there a cost associated with this request:</span>
+
+              <label class="yn">
+                <input type="checkbox" id="is_there_a_cost_associated_with_this_request_yes" name="is_there_a_cost_associated_with_this_request_yes">
+                <span>Yes</span>
+              </label>
+
+              <label class="yn">
+                <input type="checkbox" id="is_there_a_cost_associated_with_this_request_no" name="is_there_a_cost_associated_with_this_request_no">
+                <span>No</span>
+              </label>
+
+              <div class="money">
+                <span>What is the total cost, with tax and shipping</span>
+                <span>$</span>
+                <input type="number" step="0.01" id="what_is_the_total_cost_with_tax_and_shipping" name="what_is_the_total_cost_with_tax_and_shipping" />
+              </div>
+            </div>
+
+            <div class="fin-row">
+              <span class="question">Is this budgeted?</span>
+
+              <label class="yn">
+                <input type="checkbox" id="is_this_budgeted_yes" name="is_this_budgeted_yes">
+                <span>Yes</span>
+              </label>
+
+              <label class="yn">
+                <input type="checkbox" id="is_this_budgeted_no" name="is_this_budgeted_no">
+                <span>No</span>
+              </label>
+            </div>
+
+            <div class="explain">
+              <span class="question">Please Explain:</span>
+              <input type="text" id="please_explain" name="please_explain" />
+            </div>
+          </div>
+
+          <div class="note">Tip: Checkboxes serialize as "true"/"false". Leave blank fields empty if not applicable.</div>
+        </div>
+      </div>
+
+      <!-- Hidden model field not present in scan but required by Pydantic -->
+      <div style="margin:0 6px 6px;">
+        <div class="fieldline" style="min-height:34px">
+          <label for="action_requested" style="min-width:180px;font-weight:700;">Action Requested (text):</label>
+          <input type="text" id="action_requested" name="action_requested" />
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      const cbVal = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return "";
+        return el.checked ? "true" : "false";
+      };
+
+      const getVal = (name) => {
+        const el = document.getElementById(name);
+        if (!el) return "";
+        if (el.type === 'checkbox') return cbVal(name);
+        return (el.value ?? "").toString();
+      };
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          agenda_item_details: {
+            requested_meeting_date: getVal('requested_meeting_date'),
+            title_of_item: getVal('title_of_item'),
+            information_only: getVal('information_only'),
+            consent_agenda: getVal('consent_agenda'),
+            p_f_committee: getVal('p_f_committee'),
+            spw_committee: getVal('spw_committee'),
+            main_agenda: getVal('main_agenda')
+          },
+          requested_action: {
+            action_requested: getVal('action_requested'),
+            approve_deny_motion: getVal('approve_deny_motion'),
+            adopt_resolution_attach_draft: getVal('adopt_resolution_attach_draft'),
+            direction_requested: getVal('direction_requested'),
+            discussion_item: getVal('discussion_item'),
+            hold_public_hearing: getVal('hold_public_hearing'),
+            ordinance_1st_reading: getVal('ordinance_1st_reading')
+          },
+          submission__presenter_information: {
+            submitted_by: getVal('submitted_by'),
+            department: getVal('department'),
+            presenter_name_title: getVal('presenter_name_title'),
+            estimated_time_needed: getVal('estimated_time_needed')
+          },
+          issue_details: {
+            summary_of_issue: getVal('summary_of_issue'),
+            alternatives_options_effects_on_others_comments: getVal('alternatives_options_effects_on_others_comments'),
+            recommended_action_motion: getVal('recommended_action_motion')
+          },
+          financial_impact: {
+            financial_impact: getVal('financial_impact'),
+            is_there_a_cost_associated_with_this_request_yes: getVal('is_there_a_cost_associated_with_this_request_yes'),
+            is_there_a_cost_associated_with_this_request_no: getVal('is_there_a_cost_associated_with_this_request_no'),
+            what_is_the_total_cost_with_tax_and_shipping: (document.getElementById('what_is_the_total_cost_with_tax_and_shipping').value ?? "").toString(),
+            is_this_budgeted_yes: getVal('is_this_budgeted_yes'),
+            is_this_budgeted_no: getVal('is_this_budgeted_no'),
+            please_explain: getVal('please_explain')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for the JSON payload.');
+      });
+    })();
+  </script>
+</body>
+</html>

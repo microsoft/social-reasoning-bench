@@ -26,7 +26,7 @@ class ChurchInformation(BaseModel):
 
     date: str = Field(..., description="Date this application is completed")  # YYYY-MM-DD format
 
-    physical_address: str = Field(
+    physical_adress: str = Field(
         ...,
         description=(
             "Street address where the church building is located .If you cannot fill this, "
@@ -47,83 +47,79 @@ class ChurchInformation(BaseModel):
     phone: str = Field(
         ...,
         description=(
-            "Best phone number for the contact person .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Phone number for the contact person .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
     e_mail: str = Field(
         ...,
         description=(
-            "Email address for the contact person or church office .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Email address for the contact person or church .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
 
-class ProjectDescription(BaseModel):
-    """Details about the repair work requested and any professional evaluations"""
+class ProjectDescriptionProfessionalEvaluation(BaseModel):
+    """Details of the repair work and any professional assessments"""
 
     describe_what_work_needs_to_be_done: str = Field(
         ...,
         description=(
-            "Detailed description of the repair work requested .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    has_the_church_had_any_professional_evaluation_of_the_needed_work_or_a_professional_cost_estimate_done: str = Field(
-        default="",
-        description=(
-            "Indicate whether a professional evaluation or cost estimate has been done and "
-            "summarize the findings; attach bids or estimates if available .If you cannot "
+            "Detailed description of the repair or project work requested .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
         ),
     )
 
-
-class FinancialInformation(BaseModel):
-    """Budget, funding, and fundraising related to the project"""
-
-    what_is_the_churchs_operating_budget_for_the_current_calendar_year: Union[
-        float, Literal["N/A", ""]
-    ] = Field(
-        ..., description="Total operating budget amount for the current calendar year in dollars"
-    )
-
-    briefly_tell_why_the_congregation_cannot_undertake_this_project_by_itself: str = Field(
-        ...,
+    has_the_church_had_any_professional_evaluation_of_the_needed_work_or_a_professional_cost_estimate_done: str = Field(
+        default="",
         description=(
-            "Explanation of financial or other limitations preventing the congregation from "
-            'doing the project alone .If you cannot fill this, write "N/A". If this field '
+            "Explain any professional evaluations or cost estimates obtained and summarize "
+            'what was communicated .If you cannot fill this, write "N/A". If this field '
             "should not be filled by you (for example, it belongs to another person or "
             'office), leave it blank (empty string "").'
         ),
     )
 
-    does_the_congregation_have_any_funds_to_devote_to_this_project: BooleanLike = Field(
-        default="",
+
+class FinancialInformationFundraising(BaseModel):
+    """Budget, financial capacity, and fundraising plans for the project"""
+
+    what_is_the_churchs_operating_budget_for_the_current_calendar_year: Union[
+        float, Literal["N/A", ""]
+    ] = Field(
+        ..., description="Total operating budget amount for the current calendar year (in dollars)"
+    )
+
+    briefly_tell_why_the_congregation_cannot_undertake_this_project_by_itself: str = Field(
+        ...,
         description=(
-            "Indicate whether the congregation currently has funds available for this project"
+            "Short explanation of why the congregation cannot fund or complete the project "
+            'on its own .If you cannot fill this, write "N/A". If this field should not '
+            "be filled by you (for example, it belongs to another person or office), leave "
+            'it blank (empty string "").'
         ),
     )
 
-    have_future_fundraising_activities_been_planned: BooleanLike = Field(
+    does_the_congregation_have_any_funds_to_devote_to_this_project: str = Field(
         default="",
         description=(
-            "Indicate whether any future fundraising activities are planned to support this project"
+            "Indicate whether funds are available for this project and describe the amount "
+            'or source .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
-    if_so_describe: str = Field(
+    have_future_fundraising_activities_been_planned: str = Field(
         default="",
         description=(
-            "Description of available funds and/or planned fundraising activities .If you "
+            "Describe any planned fundraising activities related to this project .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
@@ -131,20 +127,22 @@ class FinancialInformation(BaseModel):
     )
 
 
-class CongregationalSupport(BaseModel):
-    """Ways the congregation can assist with the project"""
+class CongregationalParticipation(BaseModel):
+    """Information on volunteer and in-kind support from the congregation"""
 
-    would_the_church_assist_if_this_project_were_undertaken_by_the_west_district_by_providing_volunteer_laborers_and_meals_for_the_work_teams: BooleanLike = Field(
+    would_the_church_assist_if_this_project_were_undertaken_by_the_west_district_by_providing_volunteer_laborers_and_meals_for_the_work_teams: str = Field(
         default="",
         description=(
-            "Indicate whether the church can provide volunteer laborers and meals for work "
-            "teams if the West District undertakes the project"
+            "Explain whether and how the church can assist with volunteer labor and meals "
+            'for work teams .If you cannot fill this, write "N/A". If this field should '
+            "not be filled by you (for example, it belongs to another person or office), "
+            'leave it blank (empty string "").'
         ),
     )
 
 
-class CongregationalStatistics(BaseModel):
-    """Attendance and apportionment payment history"""
+class AttendanceApportionments(BaseModel):
+    """Worship attendance history and apportionment payment percentages"""
 
     what_has_been_the_average_sunday_worship_attendance_for_the_current_calendar_year: Union[
         float, Literal["N/A", ""]
@@ -160,35 +158,28 @@ class CongregationalStatistics(BaseModel):
     )
 
     in_the_year_before_that: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Average Sunday worship attendance for the year prior to last year"
+        ..., description="Average Sunday worship attendance for two years ago"
     )
 
     conference_percentage_paid: Union[float, Literal["N/A", ""]] = Field(
         ...,
-        description=(
-            "Percentage of Conference apportionments paid by the congregation in the past "
-            "calendar year"
-        ),
+        description="Percentage of Conference apportionments paid during the past calendar year",
     )
 
     district_percentage_paid: Union[float, Literal["N/A", ""]] = Field(
-        ...,
-        description=(
-            "Percentage of district apportionments paid by the congregation in the past "
-            "calendar year"
-        ),
+        ..., description="Percentage of district apportionments paid during the past calendar year"
     )
 
 
-class Authorization(BaseModel):
-    """Signatures from church leadership"""
+class Signatures(BaseModel):
+    """Authorization and verification by church leadership"""
 
     name_of_pastor: str = Field(
         ...,
         description=(
-            'Printed name of the pastor .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Full name of the pastor .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
         ),
     )
 
@@ -204,7 +195,7 @@ class Authorization(BaseModel):
     name_of_trustees_chair: str = Field(
         ...,
         description=(
-            "Printed name of the chair of the Board of Trustees .If you cannot fill this, "
+            "Full name of the chair of the Board of Trustees .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -213,10 +204,9 @@ class Authorization(BaseModel):
     signature_of_trustees_chair: str = Field(
         ...,
         description=(
-            "Signature of the Trustees chair supporting this application .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "Signature of the Trustees chair approving this application .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -229,10 +219,16 @@ class ApplicationForWestDistrictChurchRepairs(BaseModel):
     """
 
     church_information: ChurchInformation = Field(..., description="Church Information")
-    project_description: ProjectDescription = Field(..., description="Project Description")
-    financial_information: FinancialInformation = Field(..., description="Financial Information")
-    congregational_support: CongregationalSupport = Field(..., description="Congregational Support")
-    congregational_statistics: CongregationalStatistics = Field(
-        ..., description="Congregational Statistics"
+    project_description__professional_evaluation: ProjectDescriptionProfessionalEvaluation = Field(
+        ..., description="Project Description & Professional Evaluation"
     )
-    authorization: Authorization = Field(..., description="Authorization")
+    financial_information__fundraising: FinancialInformationFundraising = Field(
+        ..., description="Financial Information & Fundraising"
+    )
+    congregational_participation: CongregationalParticipation = Field(
+        ..., description="Congregational Participation"
+    )
+    attendance__apportionments: AttendanceApportionments = Field(
+        ..., description="Attendance & Apportionments"
+    )
+    signatures: Signatures = Field(..., description="Signatures")

@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Resident Complaint Notice</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    :root{
+      --ink:#111;
+      --muted:#555;
+      --line:#222;
+      --bar:#222;
+      --paper:#fff;
+      --bg:#d6d2cd;
+      --focus:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:26px 12px;
+      font-size:13px;
+      line-height:1.35;
+    }
+
+    .page{
+      width:100%;
+      max-width:800px;
+      background:var(--paper);
+      box-shadow:0 1px 14px rgba(0,0,0,.14);
+      padding:18px 28px 20px;
+      position:relative;
+    }
+
+    .toprow{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      padding-bottom:8px;
+      border-bottom:2px solid var(--ink);
+    }
+
+    .brand{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      min-width:250px;
+    }
+    .logoMark{
+      width:44px;height:34px;
+      position:relative;
+      margin-top:2px;
+      flex:0 0 auto;
+    }
+    .logoMark:before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        linear-gradient(135deg, transparent 0 20%, #000 20% 22%, transparent 22% 100%),
+        linear-gradient(45deg, transparent 0 38%, #000 38% 40%, transparent 40% 100%),
+        linear-gradient(90deg, #000 0 2px, transparent 2px 100%);
+      opacity:.35;
+      border:1px solid #000;
+      clip-path:polygon(4% 90%, 30% 10%, 58% 70%, 86% 18%, 96% 90%);
+    }
+    .brandText{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .brandText .r{
+      font-weight:800;
+      letter-spacing:.8px;
+      font-size:20px;
+      line-height:1;
+    }
+    .brandText .sub{
+      font-size:10px;
+      color:var(--muted);
+      margin-top:-2px;
+    }
+
+    .title{
+      text-align:right;
+      font-weight:800;
+      letter-spacing:.6px;
+      font-size:16px;
+      margin-top:2px;
+      text-transform:uppercase;
+      flex:1;
+    }
+
+    form{margin:0}
+    .section{
+      margin-top:16px;
+    }
+
+    .lineRow{
+      display:grid;
+      grid-template-columns: 180px 1fr;
+      gap:10px;
+      align-items:end;
+      padding:8px 0 3px;
+      border-bottom:1px solid var(--line);
+      min-height:34px;
+    }
+    .lineRow .label{
+      color:var(--ink);
+      font-size:12px;
+    }
+
+    .gridRow{
+      display:grid;
+      gap:10px;
+      align-items:end;
+      padding:8px 0 3px;
+      border-bottom:1px solid var(--line);
+      min-height:34px;
+    }
+    .cols-5{ grid-template-columns: 1.4fr 0.5fr 1fr 0.55fr 0.7fr; }
+    .cols-2{ grid-template-columns: 1fr 1fr; }
+    .cols-3{ grid-template-columns: 1fr 1fr 1fr; }
+    .cols-2-wide{ grid-template-columns: 1.6fr 0.7fr; }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-width:0;
+    }
+    .field label{
+      font-size:11px;
+      color:var(--ink);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    input[type="text"],
+    input[type="tel"],
+    input[type="date"],
+    input[type="number"]{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      padding:2px 4px 1px;
+      font:inherit;
+    }
+    input:focus{
+      background:var(--focus);
+    }
+
+    .bar{
+      margin-top:16px;
+      background:var(--bar);
+      color:#fff;
+      font-weight:800;
+      letter-spacing:1.3px;
+      text-transform:uppercase;
+      padding:6px 10px;
+      font-size:12px;
+    }
+
+    .complaintBlock{
+      border-top:1px solid transparent;
+      margin-top:8px;
+    }
+    .complaintLine{
+      display:grid;
+      grid-template-columns: 1fr;
+      border-bottom:1px solid var(--line);
+      min-height:26px;
+      align-items:end;
+      padding:6px 0 2px;
+    }
+    .complaintLine input{
+      padding-left:4px;
+    }
+
+    .dated{
+      margin-top:18px;
+      padding-top:6px;
+    }
+    .datedRow{
+      display:flex;
+      align-items:flex-end;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+    .datedRow .prefix{
+      font-size:12px;
+      color:var(--ink);
+      white-space:nowrap;
+    }
+    .mini{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      align-items:stretch;
+    }
+    .mini input{
+      min-width:60px;
+      border:none;
+      outline:none;
+      border-bottom:1px solid var(--line);
+      background:transparent;
+      padding:2px 4px 2px;
+      font:inherit;
+    }
+    .mini input:focus{background:var(--focus)}
+    .mini .hint{
+      font-size:10px;
+      color:var(--muted);
+      text-align:center;
+      margin-top:-2px;
+    }
+
+    .sigRow{
+      margin-top:14px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:6px;
+      align-items:end;
+    }
+    .sigLine{
+      border-bottom:1px solid var(--line);
+      min-height:28px;
+      display:flex;
+      align-items:end;
+      padding-bottom:2px;
+    }
+    .sigLine input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      padding:2px 4px 1px;
+      font:inherit;
+    }
+    .sigFooter{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      margin-top:2px;
+      font-size:11px;
+      color:var(--ink);
+    }
+    .sigFooter .left{
+      font-weight:600;
+      letter-spacing:.2px;
+    }
+
+    .bottomNotes{
+      margin-top:20px;
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:flex-end;
+      border-top:2px solid var(--ink);
+      padding-top:10px;
+      color:#333;
+      font-size:9.5px;
+      line-height:1.25;
+    }
+    .bottomNotes .rightBox{
+      border:1px solid #111;
+      padding:6px 8px;
+      font-size:11px;
+      min-width:210px;
+      text-align:right;
+      background:#eee;
+    }
+    .bottomNotes .rightBox .small{
+      font-size:10px;
+      color:#333;
+    }
+
+    .actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:16px;
+    }
+    .btn{
+      font-family:inherit;
+      font-size:13px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #777;
+      background:#fff;
+      color:#222;
+    }
+    .btn.primary{
+      background:#444;
+      border-color:#222;
+      color:#fff;
+    }
+
+    /* Make the top “Complaint filed by” line match the scanned form style */
+    .simpleLine{
+      display:grid;
+      grid-template-columns: 170px 1fr;
+      gap:10px;
+      border-bottom:1px solid var(--line);
+      padding:10px 0 3px;
+      min-height:34px;
+      align-items:end;
+    }
+    .simpleLine .label{
+      font-size:12px;
+    }
+    .simpleLine input{
+      border:none;
+      outline:none;
+      background:transparent;
+      padding:2px 4px 1px;
+      font:inherit;
+      width:100%;
+    }
+    .simpleLine input:focus{background:var(--focus)}
+
+    /* Keep page feeling like a fixed form */
+    .tight{margin-top:10px}
+  </style>
+</head>
+<body>
+  <div class="page" role="document" aria-label="Resident Complaint Notice">
+    <div class="toprow">
+      <div class="brand" aria-label="RHAWA brand">
+        <div class="logoMark" aria-hidden="true"></div>
+        <div class="brandText">
+          <div class="r">RHAWA</div>
+          <div class="sub">Rental Housing Association of WA</div>
+        </div>
+      </div>
+      <div class="title">RESIDENT COMPLAINT NOTICE</div>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <!-- RESIDENT INFORMATION -->
+      <div class="section tight">
+        <div class="simpleLine">
+          <div class="label">Complaint filed by</div>
+          <input type="text" id="complaint_filed_by" name="complaint_filed_by" />
+        </div>
+
+        <div class="gridRow cols-5">
+          <div class="field">
+            <label for="address">Address</label>
+            <input type="text" id="address" name="address" />
+          </div>
+          <div class="field">
+            <label for="unit_number">Unit #</label>
+            <input type="text" id="unit_number" name="unit_number" />
+          </div>
+          <div class="field">
+            <label for="city">City</label>
+            <input type="text" id="city" name="city" />
+          </div>
+          <div class="field">
+            <label for="state">State</label>
+            <input type="text" id="state" name="state" maxlength="20" />
+          </div>
+          <div class="field">
+            <label for="zip">Zip</label>
+            <input type="text" id="zip" name="zip" inputmode="numeric" />
+          </div>
+        </div>
+
+        <div class="gridRow cols-2">
+          <div class="field">
+            <label for="home_cell_number">Home / Cell Number</label>
+            <input type="tel" id="home_cell_number" name="home_cell_number" />
+          </div>
+          <div class="field">
+            <label for="business_phone">Business Phone</label>
+            <input type="tel" id="business_phone" name="business_phone" />
+          </div>
+        </div>
+      </div>
+
+      <!-- INCIDENT DETAILS -->
+      <div class="bar">INCIDENT DETAILS</div>
+      <div class="section">
+        <div class="gridRow cols-2">
+          <div class="field">
+            <label for="date_of_incident">Date of Incident</label>
+            <input type="date" id="date_of_incident" name="date_of_incident" />
+          </div>
+          <div class="field">
+            <label for="time_of_incident">Time of Incident</label>
+            <input type="text" id="time_of_incident" name="time_of_incident" />
+          </div>
+        </div>
+
+        <div class="gridRow cols-2-wide">
+          <div class="field">
+            <label for="names_of_parties_involved_in_the_incident_1">Name(s) of parties involved in the incident</label>
+            <input type="text" id="names_of_parties_involved_in_the_incident_1" name="names_of_parties_involved_in_the_incident_1" />
+          </div>
+          <div class="field">
+            <label for="unit_if_known_1">Unit # – If known</label>
+            <input type="text" id="unit_if_known_1" name="unit_if_known_1" />
+          </div>
+        </div>
+
+        <div class="gridRow cols-2-wide">
+          <div class="field">
+            <label for="names_of_parties_involved_in_the_incident_2">Name(s) of parties involved in the incident</label>
+            <input type="text" id="names_of_parties_involved_in_the_incident_2" name="names_of_parties_involved_in_the_incident_2" />
+          </div>
+          <div class="field">
+            <label for="unit_if_known_2">Unit # – If known</label>
+            <input type="text" id="unit_if_known_2" name="unit_if_known_2" />
+          </div>
+        </div>
+
+        <div class="gridRow cols-2-wide">
+          <div class="field">
+            <label for="names_of_parties_involved_in_the_incident_3">Name(s) of parties involved in the incident</label>
+            <input type="text" id="names_of_parties_involved_in_the_incident_3" name="names_of_parties_involved_in_the_incident_3" />
+          </div>
+          <div class="field">
+            <label for="unit_if_known_3">Unit # – If known</label>
+            <input type="text" id="unit_if_known_3" name="unit_if_known_3" />
+          </div>
+        </div>
+
+        <div class="gridRow cols-2-wide">
+          <div class="field">
+            <label for="names_of_other_witnesses_to_the_incident">Name(s) of other witnesses to the incident</label>
+            <input type="text" id="names_of_other_witnesses_to_the_incident" name="names_of_other_witnesses_to_the_incident" />
+          </div>
+          <div class="field">
+            <label for="unit_if_known_witness">Unit # – If known</label>
+            <input type="text" id="unit_if_known_witness" name="unit_if_known_witness" />
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPLAINT -->
+      <div class="bar">COMPLAINT</div>
+      <div class="section complaintBlock" aria-label="Complaint lines">
+        <div class="complaintLine"><input type="text" id="complaint_line_1" name="complaint_line_1" aria-label="Complaint line 1" /></div>
+        <div class="complaintLine"><input type="text" id="complaint_line_2" name="complaint_line_2" aria-label="Complaint line 2" /></div>
+        <div class="complaintLine"><input type="text" id="complaint_line_3" name="complaint_line_3" aria-label="Complaint line 3" /></div>
+        <div class="complaintLine"><input type="text" id="complaint_line_4" name="complaint_line_4" aria-label="Complaint line 4" /></div>
+        <div class="complaintLine"><input type="text" id="complaint_line_5" name="complaint_line_5" aria-label="Complaint line 5" /></div>
+        <div class="complaintLine"><input type="text" id="complaint_line_6" name="complaint_line_6" aria-label="Complaint line 6" /></div>
+        <div class="complaintLine"><input type="text" id="complaint_line_7" name="complaint_line_7" aria-label="Complaint line 7" /></div>
+        <div class="complaintLine"><input type="text" id="complaint_line_8" name="complaint_line_8" aria-label="Complaint line 8" /></div>
+        <div class="complaintLine"><input type="text" id="complaint_line_9" name="complaint_line_9" aria-label="Complaint line 9" /></div>
+        <div class="complaintLine"><input type="text" id="complaint_line_10" name="complaint_line_10" aria-label="Complaint line 10" /></div>
+        <div class="complaintLine"><input type="text" id="complaint_line_11" name="complaint_line_11" aria-label="Complaint line 11" /></div>
+      </div>
+
+      <!-- SIGNATURE AND DATE -->
+      <div class="section dated">
+        <div class="datedRow" aria-label="Dated this line">
+          <div class="prefix">DATED this</div>
+
+          <div class="mini">
+            <input type="number" id="day_of_month" name="day_of_month" step="1" inputmode="numeric" />
+            <div class="hint">(date)</div>
+          </div>
+
+          <div class="prefix">day of</div>
+
+          <div class="mini">
+            <input type="text" id="month" name="month" />
+            <div class="hint">(month)</div>
+          </div>
+
+          <div class="prefix">, 20</div>
+
+          <div class="mini">
+            <input type="number" id="year" name="year" step="1" inputmode="numeric" />
+            <div class="hint">(year)</div>
+          </div>
+
+          <div class="prefix">.</div>
+        </div>
+
+        <div class="sigRow">
+          <div class="sigLine">
+            <input type="text" id="resident_signature" name="resident_signature" aria-label="Resident signature" />
+          </div>
+          <div class="sigFooter">
+            <div class="left">RESIDENT</div>
+            <div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="reset" class="btn" aria-label="Clear form">Clear Form</button>
+        <button type="submit" class="btn primary" aria-label="Submit form">Submit</button>
+      </div>
+
+      <div class="bottomNotes" aria-label="Form footnotes">
+        <div class="leftNote">
+          Formal legal advice and review is recommended for both Resident and Owner prior to selection and use of provided form.<br/>
+          RHA does not represent your selection or execution of this form as appropriate for your specific circumstances.<br/>
+          © RHA 2015. For use by current RHA members only. No representation is made as to the sufficiency or tax consequences from use of this form.
+        </div>
+        <div class="rightBox">
+          <div>Resident Complaint Notice</div>
+          <div class="small">Reviewed 07/2014 | Revised 07/2014</div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      function v(id){
+        const el = document.getElementById(id);
+        return (el && typeof el.value === 'string') ? el.value : '';
+      }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          resident_information: {
+            complaint_filed_by: v('complaint_filed_by'),
+            address: v('address'),
+            unit_number: v('unit_number'),
+            city: v('city'),
+            state: v('state'),
+            zip: v('zip'),
+            home_cell_number: v('home_cell_number'),
+            business_phone: v('business_phone')
+          },
+          incident_details: {
+            date_of_incident: v('date_of_incident'),
+            time_of_incident: v('time_of_incident'),
+            names_of_parties_involved_in_the_incident_1: v('names_of_parties_involved_in_the_incident_1'),
+            unit_if_known_1: v('unit_if_known_1'),
+            names_of_parties_involved_in_the_incident_2: v('names_of_parties_involved_in_the_incident_2'),
+            unit_if_known_2: v('unit_if_known_2'),
+            names_of_parties_involved_in_the_incident_3: v('names_of_parties_involved_in_the_incident_3'),
+            unit_if_known_3: v('unit_if_known_3'),
+            names_of_other_witnesses_to_the_incident: v('names_of_other_witnesses_to_the_incident'),
+            unit_if_known_witness: v('unit_if_known_witness')
+          },
+          complaint: {
+            complaint_line_1: v('complaint_line_1'),
+            complaint_line_2: v('complaint_line_2'),
+            complaint_line_3: v('complaint_line_3'),
+            complaint_line_4: v('complaint_line_4'),
+            complaint_line_5: v('complaint_line_5'),
+            complaint_line_6: v('complaint_line_6'),
+            complaint_line_7: v('complaint_line_7'),
+            complaint_line_8: v('complaint_line_8'),
+            complaint_line_9: v('complaint_line_9'),
+            complaint_line_10: v('complaint_line_10'),
+            complaint_line_11: v('complaint_line_11')
+          },
+          signature_and_date: {
+            day_of_month: (v('day_of_month') === '' ? '' : Number(v('day_of_month'))),
+            month: v('month'),
+            year: (v('year') === '' ? '' : Number(v('year'))),
+            resident_signature: v('resident_signature')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -13,7 +13,7 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 
 
 class Section1PatientInformation(BaseModel):
-    """Patient personal and contact information"""
+    """Patient contact and identifying information"""
 
     last_name: str = Field(
         ...,
@@ -74,15 +74,15 @@ class Section1PatientInformation(BaseModel):
     city: str = Field(
         ...,
         description=(
-            'City of patient\'s home address .If you cannot fill this, write "N/A". If '
+            'City for patient\'s home address .If you cannot fill this, write "N/A". If '
             "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
-    state: str = Field(..., description="State of patient's home address")
+    state: str = Field(..., description="State for patient's home address")
 
-    zip: str = Field(..., description="Zip code of patient's home address")
+    zip: str = Field(..., description="ZIP code for patient's home address")
 
     home_phone_number: str = Field(
         default="",
@@ -96,9 +96,9 @@ class Section1PatientInformation(BaseModel):
     cell_phone_number: str = Field(
         default="",
         description=(
-            'Patient\'s cell phone number .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            'Patient\'s mobile/cell phone number .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -113,23 +113,23 @@ class Section1PatientInformation(BaseModel):
 
 
 class Section2ResponsiblePartyInformation(BaseModel):
-    """Responsible party details, if different from patient"""
+    """Responsible party contact and billing information"""
 
     last_name_responsible_party: str = Field(
         default="",
         description=(
-            'Responsible party\'s legal last name .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Responsible party's last name, if different from patient .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     first_name_responsible_party: str = Field(
         default="",
         description=(
-            'Responsible party\'s legal first name .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Responsible party's first name, if different from patient .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -163,18 +163,18 @@ class Section2ResponsiblePartyInformation(BaseModel):
     city_responsible_party: str = Field(
         default="",
         description=(
-            'City of responsible party\'s address .If you cannot fill this, write "N/A". '
+            'City for responsible party\'s address .If you cannot fill this, write "N/A". '
             "If this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
 
     state_responsible_party: str = Field(
-        default="", description="State of responsible party's address"
+        default="", description="State for responsible party's address"
     )
 
     zip_responsible_party: str = Field(
-        default="", description="Zip code of responsible party's address"
+        default="", description="ZIP code for responsible party's address"
     )
 
     home_phone_number_responsible_party: str = Field(
@@ -189,9 +189,9 @@ class Section2ResponsiblePartyInformation(BaseModel):
     cell_phone_number_responsible_party: str = Field(
         default="",
         description=(
-            'Responsible party\'s cell phone number .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Responsible party's mobile/cell phone number .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -206,45 +206,65 @@ class Section2ResponsiblePartyInformation(BaseModel):
 
 
 class Section3FinancialInformation(BaseModel):
-    """Household income and financial details"""
+    """Household income, employment, and health care expenses"""
 
-    total_earned_annual_gross_household_income: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Total earned annual gross household income before taxes and deductions"
+    total_earned_annual_gross_household_income_income_before_taxes_and_deductions: Union[
+        float, Literal["N/A", ""]
+    ] = Field(
+        default="",
+        description="Total earned annual gross household income before taxes and deductions",
     )
 
     unemployment_income: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Amount of unemployment income received"
+        default="", description="Total unemployment income received"
     )
 
     social_security_income: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Amount of Social Security income received"
+        default="", description="Total Social Security income received"
     )
 
     additional_income_please_specify: str = Field(
         default="",
         description=(
-            "Description and amount of any additional income sources .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Description and amount of any additional income .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
 
     number_of_persons_in_household_supported_by_above_income: Union[float, Literal["N/A", ""]] = (
         Field(
-            ...,
+            default="",
             description="Total number of people in the household supported by the listed income",
         )
     )
 
-    are_you_currently_employed: Literal["Yes", "No", "N/A", ""] = Field(
-        ..., description="Indicate whether you are currently employed"
+    are_you_currently_employed: BooleanLike = Field(
+        default="", description="Indicates whether the patient is currently employed"
     )
 
-    other_health_care_expenses_amounts_and_how_often_the_cost_occurs: str = Field(
+    are_you_currently_employed_no: BooleanLike = Field(
+        default="", description="Indicates whether the patient is not currently employed"
+    )
+
+    other_health_care_expenses: str = Field(
         default="",
         description=(
-            "List other health care expenses, their amounts, and how often they occur .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
+            "Description of other health care expenses .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    other_health_care_expenses_amount: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Amount associated with the other health care expenses"
+    )
+
+    other_health_care_expenses_frequency: str = Field(
+        default="",
+        description=(
+            "How often the other health care expense occurs (e.g., monthly, yearly) .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
@@ -255,8 +275,7 @@ class OmniseqCaresFinancialSupportApplication(BaseModel):
     """
     OmniSeq CARES – Financial Support Application
 
-    Application for patients who are invoiced by OmniSeq, Inc.
-    OmniSeq CARES representatives are available to answer any questions Monday through Friday 8:00 AM – 5:00 PM EST. For timely processing of your application, please complete all fields. Return completed to PO Box 8000, Dept 815, Buffalo, NY 14267-0002, by fax 888-770-4931 or secured email to CARES@omniseq.com.
+    Application for patients who are invoiced by OmniSeq, Inc. • OmniSeq CARES representatives are available to answer any questions Monday through Friday 8:00 AM – 5:00 PM EST. • For timely processing of your application, please complete all fields. • Return completed to PO Box 8000, Dept 815, Buffalo, NY 14267-0002, by fax 888-770-4931 or secured email to CARES@omniseq.com.
     """
 
     section_1___patient_information: Section1PatientInformation = Field(

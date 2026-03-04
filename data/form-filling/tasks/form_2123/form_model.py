@@ -12,63 +12,8 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class AppropriateContactsNameRow(BaseModel):
-    """Single row in Appropriate Contacts Name"""
-
-    name: str = Field(default="", description="Name")
-    type: str = Field(default="", description="Type")
-    skill: str = Field(default="", description="Skill")
-    effective_level: str = Field(default="", description="Effective_Level")
-    reliability: str = Field(default="", description="Reliability")
-    base_point_cost: str = Field(default="", description="Base_Point_Cost")
-
-
-class AppropriateContactsTypeRow(BaseModel):
-    """Single row in Appropriate Contacts Type"""
-
-    name: str = Field(default="", description="Name")
-    type: str = Field(default="", description="Type")
-    skill: str = Field(default="", description="Skill")
-    effective_level: str = Field(default="", description="Effective_Level")
-    reliability: str = Field(default="", description="Reliability")
-    base_point_cost: str = Field(default="", description="Base_Point_Cost")
-
-
-class AppropriateContactsSkillRow(BaseModel):
-    """Single row in Appropriate Contacts Skill"""
-
-    name: str = Field(default="", description="Name")
-    type: str = Field(default="", description="Type")
-    skill: str = Field(default="", description="Skill")
-    effective_level: str = Field(default="", description="Effective_Level")
-    reliability: str = Field(default="", description="Reliability")
-    base_point_cost: str = Field(default="", description="Base_Point_Cost")
-
-
-class AppropriateContactsEffectiveLevelRow(BaseModel):
-    """Single row in Appropriate Contacts Effective Level"""
-
-    name: str = Field(default="", description="Name")
-    type: str = Field(default="", description="Type")
-    skill: str = Field(default="", description="Skill")
-    effective_level: str = Field(default="", description="Effective_Level")
-    reliability: str = Field(default="", description="Reliability")
-    base_point_cost: str = Field(default="", description="Base_Point_Cost")
-
-
-class AppropriateContactsReliabilityRow(BaseModel):
-    """Single row in Appropriate Contacts Reliability"""
-
-    name: str = Field(default="", description="Name")
-    type: str = Field(default="", description="Type")
-    skill: str = Field(default="", description="Skill")
-    effective_level: str = Field(default="", description="Effective_Level")
-    reliability: str = Field(default="", description="Reliability")
-    base_point_cost: str = Field(default="", description="Base_Point_Cost")
-
-
-class AppropriateContactsBasePointCostRow(BaseModel):
-    """Single row in Appropriate Contacts Base Point Cost"""
+class NameRow(BaseModel):
+    """Single row in Name"""
 
     name: str = Field(default="", description="Name")
     type: str = Field(default="", description="Type")
@@ -79,10 +24,10 @@ class AppropriateContactsBasePointCostRow(BaseModel):
 
 
 class CampaignBasics(BaseModel):
-    """Overall character creation parameters and templates"""
+    """Overall point totals and high-level character concept/template information"""
 
     starting_points: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Total character points each player character starts with"
+        ..., description="Total character points available at character creation"
     )
 
     disadvantage_limit: Union[float, Literal["N/A", ""]] = Field(
@@ -92,26 +37,26 @@ class CampaignBasics(BaseModel):
     suggested_character_concepts: str = Field(
         default="",
         description=(
-            "Suggested archetypes or concepts appropriate for this campaign .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-    character_racial_templates_point_total: str = Field(
-        default="",
-        description=(
-            "List of allowed character or racial templates and their point totals .If you "
+            "List of suggested character ideas or archetypes for the campaign .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
         ),
     )
 
+    character_racial_templates_point_total: str = Field(
+        default="",
+        description=(
+            "Available character or racial templates and their point totals .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
+        ),
+    )
+
 
 class Attributes(BaseModel):
-    """Primary attributes and any house rules for them"""
+    """Primary attributes and their allowed ranges/house rules"""
 
     st_min: Union[float, Literal["N/A", ""]] = Field(
         default="", description="Minimum allowed Strength (ST) score"
@@ -183,14 +128,14 @@ class Attributes(BaseModel):
 
 
 class SecondaryCharacteristics(BaseModel):
-    """Secondary stats derived from attributes, with limits and house rules"""
+    """Secondary stats relative to base attributes, with ranges and house rules"""
 
     hp_min: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Minimum allowed Hit Points (HP) relative to base"
+        default="", description="Minimum allowed Hit Points (HP)"
     )
 
     hp_max: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Maximum allowed Hit Points (HP) relative to base"
+        default="", description="Maximum allowed Hit Points (HP)"
     )
 
     hp_house_rules: str = Field(
@@ -203,11 +148,11 @@ class SecondaryCharacteristics(BaseModel):
     )
 
     will_min: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Minimum allowed Will score relative to base"
+        default="", description="Minimum allowed Will score"
     )
 
     will_max: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Maximum allowed Will score relative to base"
+        default="", description="Maximum allowed Will score"
     )
 
     will_house_rules: str = Field(
@@ -220,11 +165,11 @@ class SecondaryCharacteristics(BaseModel):
     )
 
     per_min: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Minimum allowed Perception (Per) score relative to base"
+        default="", description="Minimum allowed Perception (Per) score"
     )
 
     per_max: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Maximum allowed Perception (Per) score relative to base"
+        default="", description="Maximum allowed Perception (Per) score"
     )
 
     per_house_rules: str = Field(
@@ -237,11 +182,11 @@ class SecondaryCharacteristics(BaseModel):
     )
 
     fp_min: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Minimum allowed Fatigue Points (FP) relative to base"
+        default="", description="Minimum allowed Fatigue Points (FP)"
     )
 
     fp_max: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Maximum allowed Fatigue Points (FP) relative to base"
+        default="", description="Maximum allowed Fatigue Points (FP)"
     )
 
     fp_house_rules: str = Field(
@@ -254,11 +199,11 @@ class SecondaryCharacteristics(BaseModel):
     )
 
     basic_speed_min: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Minimum allowed Basic Speed relative to base"
+        default="", description="Minimum allowed Basic Speed"
     )
 
     basic_speed_max: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Maximum allowed Basic Speed relative to base"
+        default="", description="Maximum allowed Basic Speed"
     )
 
     basic_speed_house_rules: str = Field(
@@ -271,11 +216,11 @@ class SecondaryCharacteristics(BaseModel):
     )
 
     basic_move_min: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Minimum allowed Basic Move relative to base"
+        default="", description="Minimum allowed Basic Move"
     )
 
     basic_move_max: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Maximum allowed Basic Move relative to base"
+        default="", description="Maximum allowed Basic Move"
     )
 
     basic_move_house_rules: str = Field(
@@ -292,11 +237,11 @@ class SocialTraits(BaseModel):
     """Tech level, wealth, culture, language, status, and rank-related traits"""
 
     low_tl: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Lowest allowed Tech Level (TL) for characters"
+        default="", description="Lowest allowed Technology Level (TL) for characters"
     )
 
     high_tl: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Highest allowed Tech Level (TL) for characters"
+        default="", description="Highest allowed Technology Level (TL) for characters"
     )
 
     status_levels_min_max: str = Field(
@@ -308,9 +253,14 @@ class SocialTraits(BaseModel):
         ),
     )
 
-    pc_starting_wealth: Union[float, Literal["N/A", ""]] = Field(
+    pc_starting_wealth: str = Field(
         default="",
-        description="Starting wealth for player characters, usually in campaign currency",
+        description=(
+            "Starting wealth for player characters, including currency and amount .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
     )
 
     wealth_levels_min_max: str = Field(
@@ -325,7 +275,7 @@ class SocialTraits(BaseModel):
     cultures_for_cultural_familiarity: str = Field(
         default="",
         description=(
-            "List of cultures relevant for Cultural Familiarity advantages .If you cannot "
+            "List of cultures available for Cultural Familiarity advantages .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
@@ -335,7 +285,7 @@ class SocialTraits(BaseModel):
     languages: str = Field(
         default="",
         description=(
-            "Languages commonly known or available in the campaign .If you cannot fill "
+            "List of languages available in the campaign and any notes .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -344,7 +294,7 @@ class SocialTraits(BaseModel):
     social_stigma: str = Field(
         default="",
         description=(
-            "Common or campaign-specific Social Stigma disadvantages .If you cannot fill "
+            "Types of Social Stigma disadvantages allowed or common .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -353,7 +303,7 @@ class SocialTraits(BaseModel):
     social_regard: str = Field(
         default="",
         description=(
-            "Common or campaign-specific Social Regard advantages .If you cannot fill this, "
+            "Types of Social Regard advantages allowed or common .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -362,9 +312,9 @@ class SocialTraits(BaseModel):
     other: str = Field(
         default="",
         description=(
-            "Any other notable social traits or modifiers .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
+            'Other relevant social traits or notes .If you cannot fill this, write "N/A". '
+            "If this field should not be filled by you (for example, it belongs to another "
+            'person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -379,7 +329,7 @@ class SocialTraits(BaseModel):
     )
 
     number_of_levels_1: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Number of levels in the first Rank entry"
+        default="", description="Number of levels in the first Rank type"
     )
 
     notes_1: str = Field(
@@ -401,7 +351,7 @@ class SocialTraits(BaseModel):
     )
 
     number_of_levels_2: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Number of levels in the second Rank entry"
+        default="", description="Number of levels in the second Rank type"
     )
 
     notes_2: str = Field(
@@ -415,14 +365,15 @@ class SocialTraits(BaseModel):
 
 
 class Advantages(BaseModel):
-    """Allowed, required, and prohibited advantages"""
+    """Required, allowed, and prohibited advantages for the campaign"""
 
     required_advantages: str = Field(
         default="",
         description=(
-            "Advantages that all or certain characters must take .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Advantages that all or most characters are required to take .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -447,14 +398,15 @@ class Advantages(BaseModel):
 
 
 class Disadvantages(BaseModel):
-    """Allowed, required, and prohibited disadvantages"""
+    """Required, allowed, and prohibited disadvantages for the campaign"""
 
     required_disadvantages: str = Field(
         default="",
         description=(
-            "Disadvantages that all or certain characters must take .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Disadvantages that all or most characters are required to take .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
         ),
     )
 
@@ -480,35 +432,59 @@ class Disadvantages(BaseModel):
 
 
 class AppropriateContacts(BaseModel):
-    """Details for contacts appropriate to the campaign"""
+    """Details of appropriate contacts including type, skill, and cost"""
 
-    appropriate_contacts_name: List[AppropriateContactsNameRow] = Field(
+    name: List[NameRow] = Field(
         default="",
         description=(
-            "Table of appropriate Contacts, including name, type, skill, effective level, "
-            "reliability, and base point cost"
+            "Table of appropriate contacts including name, type, skill, level, reliability, "
+            "and base point cost"
         ),
     )  # List of table rows
 
-    appropriate_contacts_type: List[AppropriateContactsTypeRow] = Field(
-        default="", description="Same contacts table; see 'Appropriate Contacts Name'"
-    )  # List of table rows
+    type: str = Field(
+        default="",
+        description=(
+            "Contact type (e.g., Ally, Informant, Patron) – captured as a column in the "
+            'contacts table .If you cannot fill this, write "N/A". If this field should '
+            "not be filled by you (for example, it belongs to another person or office), "
+            'leave it blank (empty string "").'
+        ),
+    )
 
-    appropriate_contacts_skill: List[AppropriateContactsSkillRow] = Field(
-        default="", description="Same contacts table; see 'Appropriate Contacts Name'"
-    )  # List of table rows
+    skill: str = Field(
+        default="",
+        description=(
+            "Primary skill or area of expertise of the contact – captured as a column in "
+            'the contacts table .If you cannot fill this, write "N/A". If this field '
+            "should not be filled by you (for example, it belongs to another person or "
+            'office), leave it blank (empty string "").'
+        ),
+    )
 
-    appropriate_contacts_effective_level: List[AppropriateContactsEffectiveLevelRow] = Field(
-        default="", description="Same contacts table; see 'Appropriate Contacts Name'"
-    )  # List of table rows
+    effective_level: str = Field(
+        default="",
+        description=(
+            "Effective skill level or usefulness rating of the contact – column in the "
+            'contacts table .If you cannot fill this, write "N/A". If this field should '
+            "not be filled by you (for example, it belongs to another person or office), "
+            'leave it blank (empty string "").'
+        ),
+    )
 
-    appropriate_contacts_reliability: List[AppropriateContactsReliabilityRow] = Field(
-        default="", description="Same contacts table; see 'Appropriate Contacts Name'"
-    )  # List of table rows
+    reliability: str = Field(
+        default="",
+        description=(
+            "Reliability rating of the contact – column in the contacts table .If you "
+            'cannot fill this, write "N/A". If this field should not be filled by you '
+            "(for example, it belongs to another person or office), leave it blank (empty "
+            'string "").'
+        ),
+    )
 
-    appropriate_contacts_base_point_cost: List[AppropriateContactsBasePointCostRow] = Field(
-        default="", description="Same contacts table; see 'Appropriate Contacts Name'"
-    )  # List of table rows
+    base_point_cost: Union[float, Literal["N/A", ""]] = Field(
+        default="", description="Base point cost of the contact – column in the contacts table"
+    )
 
 
 class GurpsCharacterCreationGuidePart1(BaseModel):

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buffalo Renaissance Foundation — Grant Application Form</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    :root{
+      --bg:#d6d2cd;
+      --ink:#1a1a1a;
+      --muted:#555;
+      --page:#ffffff;
+      --bar:#4b4b4b;
+      --barText:#ffffff;
+      --line:#2c2c2c;
+      --fieldStroke:#e1a370;
+      --fieldHi:#f5f5ee;
+      --fieldFillTop:#fff8f2;
+      --fieldFillBot:#f4c9a4;
+      --shadow:0 1px 14px rgba(0,0,0,.14);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:24px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--page);
+      box-shadow:var(--shadow);
+      padding:26px 34px 22px;
+      position:relative;
+    }
+
+    /* Header with faux logo */
+    .header{
+      display:grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items:center;
+      gap:12px;
+      margin-bottom:10px;
+    }
+    .logo{
+      justify-self:start;
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      user-select:none;
+    }
+    .logoMark{
+      width:72px;
+      height:34px;
+      position:relative;
+      margin-bottom:2px;
+    }
+    .logoMark .word{
+      font-weight:800;
+      letter-spacing:1px;
+      color:#8d8d8d;
+      font-size:34px;
+      line-height:1;
+    }
+    .logoMark .a{
+      position:absolute;
+      right:5px;
+      top:-2px;
+      color:#f3a43a;
+      font-weight:900;
+      font-size:36px;
+      line-height:1;
+    }
+    .logoText{
+      font-size:10.5px;
+      letter-spacing:.8px;
+      color:#9b9b9b;
+      margin-left:-2px;
+      margin-bottom:2px;
+      text-transform:uppercase;
+      font-weight:600;
+      white-space:nowrap;
+    }
+    .title{
+      grid-column:2;
+      justify-self:center;
+      font-weight:800;
+      letter-spacing:.6px;
+      font-size:18px;
+      text-transform:uppercase;
+    }
+
+    .divider{
+      height:1px;
+      background:var(--line);
+      opacity:.9;
+      margin:10px 0 12px;
+    }
+
+    form{margin:0}
+    .section{
+      margin-top:6px;
+    }
+
+    .section-bar{
+      background:var(--bar);
+      color:var(--barText);
+      padding:6px 12px;
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:1.7px;
+      text-transform:uppercase;
+      margin:14px 0 10px;
+    }
+
+    .hint{
+      font-size:11.5px;
+      color:var(--muted);
+      margin:-2px 0 10px;
+      line-height:1.35;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+    }
+
+    .field-row{
+      display:grid;
+      grid-template-columns: auto 1fr;
+      align-items:center;
+      gap:10px;
+    }
+
+    .field-row .label{
+      font-size:13px;
+      font-weight:700;
+      white-space:nowrap;
+    }
+
+    /* Gradient “paper form” input style */
+    .field{
+      width:100%;
+      border:1px solid var(--fieldStroke);
+      background:linear-gradient(#fff, var(--fieldFillTop) 25%, var(--fieldFillBot));
+      border-radius:2px;
+      padding:7px 10px;
+      min-height:30px;
+      font-size:13.5px;
+      outline:none;
+    }
+    .field:focus{
+      background:linear-gradient(#fff, var(--fieldHi) 30%, #f0d7c1);
+      box-shadow:0 0 0 2px rgba(245,245,238,.9);
+    }
+
+    textarea.field{
+      resize:vertical;
+      min-height:110px;
+      padding:10px 10px;
+      line-height:1.35;
+    }
+
+    .row-3{
+      display:grid;
+      grid-template-columns: auto 1fr auto 1fr auto 1fr;
+      gap:10px 10px;
+      align-items:center;
+    }
+    .row-2{
+      display:grid;
+      grid-template-columns: auto 1fr auto 1fr;
+      gap:10px 10px;
+      align-items:center;
+    }
+
+    .small-label{
+      font-size:13px;
+      font-weight:700;
+      white-space:nowrap;
+    }
+
+    .field.small{
+      min-height:28px;
+      padding:6px 8px;
+    }
+
+    .subtle-rule{
+      height:1px;
+      background:var(--line);
+      opacity:.65;
+      margin:10px 0 10px;
+    }
+
+    /* Checkbox line like the scanned form */
+    .checkbox-line{
+      display:grid;
+      grid-template-columns:auto 1fr auto 1fr;
+      gap:14px 18px;
+      align-items:center;
+      margin:2px 0 6px;
+    }
+    .cb-wrap{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      white-space:nowrap;
+      font-size:13px;
+      font-weight:700;
+    }
+    .cb-wrap input[type="checkbox"]{
+      width:14px;
+      height:14px;
+      accent-color:#333;
+      transform:translateY(1px);
+    }
+
+    /* Mission statement lines */
+    .mission-grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:8px;
+    }
+
+    .footer-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:16px;
+      padding-top:12px;
+      border-top:1px solid rgba(0,0,0,.12);
+    }
+
+    .btn{
+      font-family:inherit;
+      font-size:13.5px;
+      font-weight:700;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid #7b7b7b;
+      background:#fff;
+      color:#333;
+    }
+    .btn.primary{
+      background:#444;
+      border-color:#333;
+      color:#fff;
+    }
+
+    /* Fine-tune for the scanned form proportions */
+    .tight{margin-top:4px}
+    .spacer-6{height:6px}
+
+    /* Print-friendly */
+    @media print{
+      body{background:#fff;padding:0}
+      .page{box-shadow:none;max-width:none}
+      .footer-actions{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="logo" aria-hidden="true">
+        <div>
+          <div class="logoMark">
+            <div class="word">BUFF</div>
+            <div class="a">A</div>
+          </div>
+          <div class="logoText">Renaissance Foundation</div>
+        </div>
+      </div>
+      <div class="title">Grant Application Form</div>
+      <div></div>
+    </div>
+
+    <form id="mainForm" autocomplete="off">
+      <div class="section">
+        <div class="grid">
+
+          <div class="field-row">
+            <label class="label" for="legal_name_of_organization">Legal Name of Organization:</label>
+            <input class="field" type="text" id="legal_name_of_organization" name="legal_name_of_organization" />
+          </div>
+
+          <div class="field-row">
+            <label class="label" for="mailing_address">Mailing Address:</label>
+            <textarea class="field" id="mailing_address" name="mailing_address"></textarea>
+          </div>
+
+          <div class="row-3">
+            <div class="small-label"><label for="phone_primary">Phone:</label></div>
+            <input class="field small" type="tel" id="phone_primary" name="phone_primary" />
+
+            <div class="small-label"><label for="fax">Fax:</label></div>
+            <input class="field small" type="tel" id="fax" name="fax" />
+
+            <div class="small-label"><label for="ein">EIN:</label></div>
+            <input class="field small" type="text" id="ein" name="ein" />
+          </div>
+
+          <div class="field-row">
+            <label class="label" for="website">Website:</label>
+            <input class="field" type="text" id="website" name="website" placeholder="" />
+          </div>
+
+          <div class="field-row">
+            <label class="label" for="organization_email_address">Organization Email Address:</label>
+            <input class="field" type="email" id="organization_email_address" name="organization_email_address" />
+          </div>
+
+          <div class="field-row">
+            <label class="label" for="name_of_ceo_or_executive_director">Name of CEO or Executive Director:</label>
+            <input class="field" type="text" id="name_of_ceo_or_executive_director" name="name_of_ceo_or_executive_director" />
+          </div>
+
+          <div class="row-2">
+            <div class="small-label"><label for="ceo_phone">Phone:</label></div>
+            <input class="field small" type="tel" id="ceo_phone" name="ceo_phone" />
+
+            <div class="small-label"><label for="ceo_email">Email:</label></div>
+            <input class="field small" type="email" id="ceo_email" name="ceo_email" />
+          </div>
+
+          <div class="field-row">
+            <label class="label" for="application_contact_title_if_not_the_ceo_or_executive_director">Application Contact &amp; Title (if not the CEO or Executive Director):</label>
+            <input class="field" type="text" id="application_contact_title_if_not_the_ceo_or_executive_director" name="application_contact_title_if_not_the_ceo_or_executive_director" />
+          </div>
+
+          <div class="row-2">
+            <div class="small-label"><label for="application_contact_phone">Phone:</label></div>
+            <input class="field small" type="tel" id="application_contact_phone" name="application_contact_phone" />
+
+            <div class="small-label"><label for="application_contact_email">Email:</label></div>
+            <input class="field small" type="email" id="application_contact_email" name="application_contact_email" />
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section">
+        <div class="section-title" style="font-weight:800;font-size:16px;margin:0 0 8px;">Organization Information</div>
+
+        <div class="row-2 tight" style="grid-template-columns:auto 110px 1fr 1fr; gap:10px 16px;">
+          <div class="small-label"><label for="year_founded">Year Founded:</label></div>
+          <input class="field small" type="text" id="year_founded" name="year_founded" inputmode="numeric" />
+
+          <div class="checkbox-line" style="grid-column:3 / 5;">
+            <div class="small-label" style="justify-self:start;">Tax Exemption Status:</div>
+            <label class="cb-wrap" style="justify-self:start;">
+              <input type="checkbox" id="five01_c_3" name="five01_c_3" />
+              <span>501(c)(3)</span>
+            </label>
+
+            <div class="small-label" style="justify-self:end;"><label for="tax_exempt_number">Tax Exempt Number:</label></div>
+            <input class="field small" type="text" id="tax_exempt_number" name="tax_exempt_number" />
+          </div>
+        </div>
+
+        <div class="spacer-6"></div>
+
+        <div class="field-row" style="align-items:start;">
+          <div class="label" style="padding-top:7px;">Mission Statement:</div>
+          <div class="mission-grid">
+            <input class="field" type="text" id="mission_statement_line_1" name="mission_statement_line_1" />
+            <input class="field" type="text" id="mission_statement_line_2" name="mission_statement_line_2" />
+            <input class="field" type="text" id="mission_statement_line_3" name="mission_statement_line_3" />
+          </div>
+        </div>
+
+        <div class="field-row" style="align-items:start;">
+          <label class="label" for="geographic_area_served" style="padding-top:7px;">Geographic Area Served:</label>
+          <textarea class="field" id="geographic_area_served" name="geographic_area_served"></textarea>
+        </div>
+      </div>
+
+      <div class="footer-actions">
+        <button type="reset" class="btn">Clear Form</button>
+        <button type="submit" class="btn primary">Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      const val = (id) => {
+        const el = document.getElementById(id);
+        if(!el) return "";
+        return (el.value ?? "").toString();
+      };
+
+      const cb = (id) => {
+        const el = document.getElementById(id);
+        if(!el) return "";
+        return el.checked ? "true" : "false";
+      };
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const data = {
+          organization_contact_information: {
+            legal_name_of_organization: val('legal_name_of_organization'),
+            mailing_address: val('mailing_address'),
+            phone_primary: val('phone_primary'),
+            fax: val('fax'),
+            ein: val('ein'),
+            website: val('website'),
+            organization_email_address: val('organization_email_address'),
+            name_of_ceo_or_executive_director: val('name_of_ceo_or_executive_director'),
+            ceo_phone: val('ceo_phone'),
+            ceo_email: val('ceo_email'),
+            application_contact_title_if_not_the_ceo_or_executive_director: val('application_contact_title_if_not_the_ceo_or_executive_director'),
+            application_contact_phone: val('application_contact_phone'),
+            application_contact_email: val('application_contact_email')
+          },
+          organization_information: {
+            year_founded: val('year_founded'),
+            five01_c_3: cb('five01_c_3'),
+            tax_exempt_number: val('tax_exempt_number'),
+            mission_statement_line_1: val('mission_statement_line_1'),
+            mission_statement_line_2: val('mission_statement_line_2'),
+            mission_statement_line_3: val('mission_statement_line_3'),
+            geographic_area_served: val('geographic_area_served')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check console for JSON.');
+      });
+    })();
+  </script>
+</body>
+</html>

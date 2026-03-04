@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Team Coaching Supervision Training Programme — Application Form</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    :root{
+      --ink:#1b1b1b;
+      --muted:#4a4a4a;
+      --line:#2f2f2f;
+      --paper:#ffffff;
+      --bg:#d6d2cd;
+      --bar:#5d6a63;
+      --bar2:#3f4a45;
+      --focus:#f5f5ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      display:flex;
+      justify-content:center;align-items:flex-start;
+      padding:22px 12px;
+    }
+
+    .page{
+      width:100%;
+      max-width:810px;
+      background:var(--paper);
+      box-shadow:0 2px 18px rgba(0,0,0,.15);
+      border:1px solid rgba(0,0,0,.08);
+    }
+
+    /* Top banner approximating scanned header */
+    .banner{
+      height:170px;
+      position:relative;
+      overflow:hidden;
+      background:
+        radial-gradient(120px 80px at 22% 30%, rgba(255,255,255,.75), rgba(255,255,255,0) 60%),
+        radial-gradient(160px 100px at 50% 45%, rgba(255,255,255,.55), rgba(255,255,255,0) 65%),
+        radial-gradient(120px 80px at 78% 32%, rgba(255,255,255,.6), rgba(255,255,255,0) 60%),
+        linear-gradient(180deg, #a8b97a 0%, #7e9c6f 35%, #b5cfa6 100%);
+      border-bottom:1px solid rgba(0,0,0,.18);
+    }
+    .banner .left-title{
+      position:absolute;
+      left:22px;
+      top:16px;
+      color:#fff;
+      font-weight:800;
+      letter-spacing:.2px;
+      line-height:1.05;
+      text-shadow:0 1px 2px rgba(0,0,0,.22);
+      font-size:26px;
+      max-width:62%;
+    }
+    .banner .left-title small{
+      display:block;
+      font-weight:800;
+      font-size:24px;
+      margin-top:6px;
+    }
+    .banner .center{
+      position:absolute;
+      left:0; right:0;
+      bottom:16px;
+      text-align:center;
+      color:#4b5a3f;
+      font-weight:800;
+      letter-spacing:.8px;
+      font-size:26px;
+      text-transform:uppercase;
+      text-shadow:0 1px 0 rgba(255,255,255,.35);
+    }
+    .banner .brand{
+      position:absolute;
+      right:22px;
+      top:18px;
+      text-align:right;
+      color:#2c3a31;
+      max-width:34%;
+    }
+    .brand .name{
+      font-weight:800;
+      font-size:28px;
+      line-height:1.0;
+    }
+    .brand .sub{
+      font-size:10.8px;
+      color:#405147;
+      margin-top:2px;
+    }
+    .brand .leaf{
+      display:inline-block;
+      width:18px; height:18px;
+      margin-left:6px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.55), rgba(255,255,255,0) 60%),
+        linear-gradient(135deg, #3f7c5f, #8dbb79);
+      border-radius:0 100% 0 100%;
+      transform:rotate(-20deg);
+      vertical-align:middle;
+      opacity:.75;
+    }
+
+    .content{
+      padding:18px 34px 26px;
+      font-size:13.5px;
+    }
+
+    .instruction{
+      font-weight:600;
+      margin:6px 0 12px;
+      color:#222;
+    }
+
+    .section-bar{
+      margin:12px 0 8px;
+      background:var(--bar2);
+      color:#fff;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:1.6px;
+      font-size:12px;
+      padding:6px 10px;
+    }
+
+    /* Table blocks mimic the paper boxes */
+    .box{
+      border:1.6px solid var(--line);
+      padding:0;
+      margin:10px 0 18px;
+    }
+    .box .box-head{
+      padding:6px 8px;
+      border-bottom:1.6px solid var(--line);
+      font-weight:700;
+      background:#fff;
+    }
+
+    table.grid{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:13.5px;
+    }
+    table.grid td, table.grid th{
+      border:1.4px solid var(--line);
+      padding:0;
+      vertical-align:middle;
+    }
+    table.grid th{
+      text-align:left;
+      font-weight:700;
+      background:#fff;
+      padding:7px 8px;
+      width:38%;
+    }
+    table.grid td{
+      height:34px;
+    }
+
+    .cell-input{
+      width:100%;
+      height:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:7px 8px;
+    }
+    .cell-input:focus{ background:var(--focus); }
+
+    .textarea-block{
+      width:100%;
+      min-height:240px;
+      resize:vertical;
+      border:none;
+      outline:none;
+      font:inherit;
+      padding:10px 10px;
+      background:transparent;
+    }
+    .textarea-block:focus{ background:var(--focus); }
+
+    .practice-box{
+      border:1.6px solid var(--line);
+      margin-top:10px;
+    }
+    .practice-title{
+      padding:6px 8px;
+      font-weight:700;
+      border-bottom:1.6px solid var(--line);
+    }
+    .practice-rows{
+      padding:12px 14px 14px;
+      min-height:190px;
+    }
+    .practice-row{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      margin:14px 0;
+    }
+    .practice-row .letter{
+      width:22px;
+      font-weight:700;
+    }
+    .practice-row label{
+      width:140px;
+      font-weight:600;
+      color:#222;
+    }
+    .practice-row .line{
+      flex:1;
+      border-bottom:1.4px solid var(--line);
+      height:26px;
+      display:flex;
+      align-items:flex-end;
+    }
+    .practice-row input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+      padding:0 6px 3px 6px;
+    }
+    .practice-row input:focus{ background:var(--focus); }
+
+    .btn-row{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:16px;
+      padding-top:8px;
+    }
+    .btn{
+      font-family:inherit;
+      font-weight:700;
+      font-size:13px;
+      padding:8px 18px;
+      border-radius:2px;
+      cursor:pointer;
+      border:1px solid rgba(0,0,0,.55);
+      background:#fff;
+      color:#222;
+    }
+    .btn.primary{
+      background:#3d4742;
+      color:#fff;
+      border-color:#2b332f;
+    }
+
+    .fine{
+      color:var(--muted);
+      font-size:11.5px;
+      margin-top:6px;
+    }
+
+    /* Make it feel like a form printout */
+    .spacer{height:6px}
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <div class="banner" aria-hidden="true">
+      <div class="left-title">
+        Team Coaching Supervision
+        <small>Training Programme</small>
+      </div>
+      <div class="brand">
+        <div class="name">Renewal<br/>Associates <span class="leaf"></span></div>
+        <div class="sub">Leadership | Board &amp; Team Coaching | Supervision</div>
+      </div>
+      <div class="center">Application Form</div>
+    </div>
+
+    <div class="content">
+      <div class="instruction">Please return all completed forms via email to jo.ellis@renewalassociates.co.uk</div>
+
+      <form id="mainForm" autocomplete="off">
+        <div class="box" role="group" aria-label="Contact & Billing Details">
+          <table class="grid" aria-label="Contact & Billing Details Table">
+            <tbody>
+              <tr>
+                <th><label for="name">Name:</label></th>
+                <td><input class="cell-input" type="text" id="name" name="name" /></td>
+              </tr>
+              <tr>
+                <th><label for="company">Company:</label></th>
+                <td><input class="cell-input" type="text" id="company" name="company" /></td>
+              </tr>
+              <tr>
+                <th><label for="address">Address:</label></th>
+                <td><input class="cell-input" type="text" id="address" name="address" /></td>
+              </tr>
+              <tr>
+                <th><label for="invoice_address_if_different">Invoice address (if different):</label></th>
+                <td><input class="cell-input" type="text" id="invoice_address_if_different" name="invoice_address_if_different" /></td>
+              </tr>
+              <tr>
+                <th><label for="telephone">Telephone:</label></th>
+                <td><input class="cell-input" type="tel" id="telephone" name="telephone" /></td>
+              </tr>
+              <tr>
+                <th><label for="email">Email:</label></th>
+                <td><input class="cell-input" type="email" id="email" name="email" /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="box" role="group" aria-label="Training & Experience Qualifications">
+          <div class="box-head">
+            Please detail your coach/supervision related training qualifications and certifications including the date, duration, and level:
+          </div>
+          <textarea
+            id="coach_supervision_related_training_qualifications_and_certifications_including_the_date_duration_and_level"
+            name="coach_supervision_related_training_qualifications_and_certifications_including_the_date_duration_and_level"
+            class="textarea-block"
+          ></textarea>
+        </div>
+
+        <div class="practice-box" role="group" aria-label="How long have you been practicing as a Coach">
+          <div class="practice-title">How long have you been practicing as a Coach?</div>
+          <div class="practice-rows">
+            <div class="practice-row">
+              <div class="letter">a)</div>
+              <label for="how_long_have_you_been_practicing_as_a_coach_a_coach">A Coach</label>
+              <div class="line">
+                <input type="text" id="how_long_have_you_been_practicing_as_a_coach_a_coach" name="how_long_have_you_been_practicing_as_a_coach_a_coach" />
+              </div>
+            </div>
+
+            <div class="practice-row">
+              <div class="letter">b)</div>
+              <label for="how_long_have_you_been_practicing_as_a_coach_team_coach">Team Coach</label>
+              <div class="line">
+                <input type="text" id="how_long_have_you_been_practicing_as_a_coach_team_coach" name="how_long_have_you_been_practicing_as_a_coach_team_coach" />
+              </div>
+            </div>
+
+            <div class="practice-row">
+              <div class="letter">c)</div>
+              <label for="how_long_have_you_been_practicing_as_a_coach_coach_supervisor">Coach Supervisor</label>
+              <div class="line">
+                <input type="text" id="how_long_have_you_been_practicing_as_a_coach_coach_supervisor" name="how_long_have_you_been_practicing_as_a_coach_coach_supervisor" />
+              </div>
+            </div>
+
+            <div class="practice-row">
+              <div class="letter">d)</div>
+              <label for="how_long_have_you_been_practicing_as_a_coach_other">Other</label>
+              <div class="line">
+                <input type="text" id="how_long_have_you_been_practicing_as_a_coach_other" name="how_long_have_you_been_practicing_as_a_coach_other" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button type="reset" class="btn">Clear Form</button>
+          <button type="submit" class="btn primary">Submit</button>
+        </div>
+        <div class="fine">Tip: If you cannot fill a field, write “N/A”. If it should be left for someone else, leave it blank.</div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const form = document.getElementById('mainForm');
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const fd = new FormData(form);
+        const v = (id) => (fd.get(id) ?? '').toString();
+
+        const data = {
+          contact__billing_details: {
+            name: v('name'),
+            company: v('company'),
+            address: v('address'),
+            invoice_address_if_different: v('invoice_address_if_different'),
+            telephone: v('telephone'),
+            email: v('email')
+          },
+          training__experience: {
+            coach_supervision_related_training_qualifications_and_certifications_including_the_date_duration_and_level:
+              v('coach_supervision_related_training_qualifications_and_certifications_including_the_date_duration_and_level'),
+            how_long_have_you_been_practicing_as_a_coach_a_coach: v('how_long_have_you_been_practicing_as_a_coach_a_coach'),
+            how_long_have_you_been_practicing_as_a_coach_team_coach: v('how_long_have_you_been_practicing_as_a_coach_team_coach'),
+            how_long_have_you_been_practicing_as_a_coach_coach_supervisor: v('how_long_have_you_been_practicing_as_a_coach_coach_supervisor'),
+            how_long_have_you_been_practicing_as_a_coach_other: v('how_long_have_you_been_practicing_as_a_coach_other')
+          }
+        };
+
+        console.log(JSON.stringify(data, null, 2));
+        alert('Submitted! Check the console for the JSON output.');
+      });
+    })();
+  </script>
+</body>
+</html>

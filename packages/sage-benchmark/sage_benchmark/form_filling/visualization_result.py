@@ -2,8 +2,10 @@
 """Visualize individual form filling task results as an HTML file.
 
 Reads a task_results.json file and generates an HTML visualization for a single
-task result by index. Shows conversation history (if interactive mode), filled
-form, artifacts, and secrets.
+task result by index. Renders mode-specific views:
+- One-shot: tool call timeline + expandable message log + final form
+- Interactive: conversation history + user Q&A + final form
+- GUI: final form only
 
 Usage:
     python -m sage_benchmark.form_filling.visualization_result <path_to_task_results.json> --id <index>
@@ -32,6 +34,92 @@ from pathlib import Path
 def escape(text: str) -> str:
     """HTML-escape text and convert newlines to <br>."""
     return html.escape(str(text)).replace("\n", "<br>")
+
+
+def detect_mode(execution: dict) -> str:
+    """Detect visualization mode from execution data.
+
+    Returns: "interactive", "one_shot", or "gui"
+    """
+    conversation = execution.get("conversation")
+    if conversation and isinstance(conversation, list) and len(conversation) > 0:
+        return "interactive"
+
+    llm_calls = execution.get("llm_calls", [])
+    if llm_calls and isinstance(llm_calls, list) and len(llm_calls) > 0:
+        return "one_shot"
+
+    return "gui"
+
+
+# ── Tool call extraction (one-shot) ──
+
+TOOL_ICONS = {
+    "ask_user": "&#x2753;",
+    "SearchEmail": "&#x1F50D;",
+    "search_email": "&#x1F50D;",
+    "ReadEmail": "&#x2709;",
+    "read_email": "&#x2709;",
+    "SearchCalendar": "&#x1F4C5;",
+    "search_calendar": "&#x1F4C5;",
+    "ReadCalendar": "&#x1F4C5;",
+    "read_calendar": "&#x1F4C5;",
+    "fill_form": "&#x2705;",
+    "reject_form": "&#x274C;",
+}
+
+
+def extract_tool_calls_from_messages(messages: list) -> list[dict]:
+    """Extract ordered tool call steps from an LLM message history.
+
+    Returns list of dicts: {step_number, tool_name, arguments, result}.
+    """
+    steps = []
+    step_num = 0
+
+    # Build a lookup of tool results by tool_call_id
+    tool_results: dict[str, str] = {}
+    for msg in messages:
+        if msg.get("role") == "tool":
+            tid = msg.get("tool_call_id", "")
+            tool_results[tid] = msg.get("content", "")
+
+    # Walk through messages finding assistant tool_calls
+    for msg in messages:
+        if msg.get("role") != "assistant":
+            continue
+        tool_calls = msg.get("tool_calls")
+        if not tool_calls:
+            continue
+        for tc in tool_calls:
+            func = tc.get("function", {})
+            tool_name = func.get("name", "unknown")
+            raw_args = func.get("arguments", "{}")
+            if isinstance(raw_args, str):
+                try:
+                    arguments = json.loads(raw_args)
+                except json.JSONDecodeError:
+                    arguments = {"_raw": raw_args}
+            else:
+                arguments = raw_args
+
+            tid = tc.get("id", "")
+            result = tool_results.get(tid, "")
+
+            step_num += 1
+            steps.append(
+                {
+                    "step_number": step_num,
+                    "tool_name": tool_name,
+                    "arguments": arguments,
+                    "result": result,
+                }
+            )
+
+    return steps
+
+
+# ── Rendering helpers ──
 
 
 def render_form_fields(data: dict, depth: int = 0) -> str:
@@ -204,6 +292,210 @@ def render_secrets(secrets: list) -> str:
     return "\n".join(parts)
 
 
+def render_action_sequence(llm_calls: list) -> str:
+    """Render tool call timeline from one-shot LLM calls as HTML."""
+    # Find the best llm_call entry (last one with parsed_action, or just the last)
+    best_call = None
+    for call in reversed(llm_calls):
+        if call.get("parsed_action") is not None:
+            best_call = call
+            break
+    if best_call is None and llm_calls:
+        best_call = llm_calls[-1]
+    if best_call is None:
+        return '<div class="empty-notice">No LLM calls recorded.</div>'
+
+    messages = best_call.get("messages", [])
+    steps = extract_tool_calls_from_messages(messages)
+
+    # Append the final action from parsed_action if not already in steps
+    parsed_action = best_call.get("parsed_action")
+    if parsed_action and isinstance(parsed_action, dict):
+        action_type = parsed_action.get("action_type", "")
+        # Check if the last step is already the terminal action
+        last_tool = steps[-1]["tool_name"] if steps else ""
+        if last_tool not in ("fill_form", "reject_form"):
+            final_tool = "fill_form" if action_type == "fill" else "reject_form"
+            final_args = {}
+            if action_type == "fill":
+                final_args = parsed_action.get("fill_responses", {})
+            elif action_type == "reject":
+                final_args = {"reason": parsed_action.get("reject_reason", "")}
+            step_num = (steps[-1]["step_number"] + 1) if steps else 1
+            steps.append(
+                {
+                    "step_number": step_num,
+                    "tool_name": final_tool,
+                    "arguments": final_args,
+                    "result": "",
+                }
+            )
+
+    if not steps:
+        return '<div class="empty-notice">No tool calls found in message history.</div>'
+
+    parts = ['<div class="action-timeline">']
+    for step in steps:
+        tool_name = step["tool_name"]
+        icon = TOOL_ICONS.get(tool_name, "&#x1F527;")
+        args = step["arguments"]
+        result = step["result"]
+
+        # Determine step CSS class
+        if tool_name in ("fill_form", "reject_form"):
+            step_class = "terminal"
+        elif tool_name == "ask_user":
+            step_class = "ask-user"
+        else:
+            step_class = ""
+
+        # Format arguments for display
+        args_str = json.dumps(args, ensure_ascii=False, indent=2)
+        args_short = args_str[:300] + "..." if len(args_str) > 300 else args_str
+
+        # Format result for display
+        result_str = str(result)
+        result_len = len(result_str)
+
+        parts.append(f'<div class="timeline-step {step_class}">')
+        parts.append(f'<div class="step-header">')
+        parts.append(f'<span class="step-number">{step["step_number"]}</span>')
+        parts.append(f'<span class="step-icon">{icon}</span>')
+        parts.append(f'<span class="step-tool-name">{escape(tool_name)}</span>')
+        parts.append("</div>")
+
+        # Arguments
+        parts.append(f'<div class="step-args"><code>{escape(args_short)}</code></div>')
+
+        # Result (expandable)
+        if result_str:
+            result_preview = result_str
+            parts.append(
+                f'<details class="step-result">'
+                f"<summary>Result ({result_len} chars)</summary>"
+                f'<div class="step-result-content">{escape(result_str)}</div>'
+                f"</details>"
+            )
+
+        parts.append("</div>")
+
+    parts.append("</div>")
+    return "\n".join(parts)
+
+
+def render_llm_message_log(llm_calls: list) -> str:
+    """Render full LLM message history as expandable message bubbles."""
+    # Use the last llm_call with parsed_action, or the very last one
+    best_call = None
+    for call in reversed(llm_calls):
+        if call.get("parsed_action") is not None:
+            best_call = call
+            break
+    if best_call is None and llm_calls:
+        best_call = llm_calls[-1]
+    if best_call is None:
+        return '<div class="empty-notice">No LLM calls recorded.</div>'
+
+    messages = best_call.get("messages", [])
+    if not messages:
+        return '<div class="empty-notice">No messages in LLM call.</div>'
+
+    parts = ['<div class="llm-message-log">']
+    for i, msg in enumerate(messages):
+        role = msg.get("role", "unknown")
+        content = msg.get("content") or ""
+        tool_calls = msg.get("tool_calls")
+
+        # Map role to CSS class
+        role_class = {
+            "system": "system",
+            "user": "user",
+            "assistant": "assistant-msg",
+            "tool": "tool-result",
+        }.get(role, "user")
+
+        role_label = role.upper()
+
+        # Handle content that may be a list (multimodal messages)
+        if isinstance(content, list):
+            text_parts = []
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    text_parts.append(item.get("text", ""))
+                elif isinstance(item, dict) and item.get("type") == "image_url":
+                    text_parts.append("[Image]")
+            content = "\n".join(text_parts)
+
+        # Truncate long content
+        content_str = str(content)
+        is_long = len(content_str) > 500
+        display_content = content_str[:500] + "..." if is_long else content_str
+
+        parts.append(f'<div class="llm-msg {role_class}">')
+        parts.append(f'<div class="llm-msg-role">{role_label}</div>')
+
+        if is_long:
+            parts.append(
+                f"<details>"
+                f"<summary><div class='llm-msg-content'>{escape(display_content)}</div></summary>"
+                f"<div class='llm-msg-content'>{escape(content_str)}</div>"
+                f"</details>"
+            )
+        else:
+            parts.append(f'<div class="llm-msg-content">{escape(display_content)}</div>')
+
+        # Show tool calls if present
+        if tool_calls:
+            for tc in tool_calls:
+                func = tc.get("function", {})
+                tc_name = func.get("name", "?")
+                tc_args = func.get("arguments", "")
+                if isinstance(tc_args, str) and len(tc_args) > 200:
+                    tc_args = tc_args[:200] + "..."
+                parts.append(
+                    f'<div class="llm-msg-tool-call">'
+                    f"<strong>Tool call:</strong> <code>{escape(tc_name)}</code>"
+                    f'<div class="llm-msg-tool-args"><code>{escape(str(tc_args))}</code></div>'
+                    f"</div>"
+                )
+
+        parts.append("</div>")
+
+    parts.append("</div>")
+    return "\n".join(parts)
+
+
+def render_user_qa_history(qa_history: list) -> str:
+    """Render oracle user Q&A exchanges as HTML cards."""
+    parts = ['<div class="qa-list">']
+    for i, qa in enumerate(qa_history):
+        question = qa.get("question", "")
+        answer = qa.get("answer", "")
+
+        parts.append(f'<div class="qa-item">')
+        parts.append(
+            f'<div class="qa-question">'
+            f'<span class="qa-icon">&#x2753;</span>'
+            f'<span class="qa-label">Q{i + 1}:</span>'
+            f'<span class="qa-content">{escape(question)}</span>'
+            f"</div>"
+        )
+        parts.append(
+            f'<div class="qa-answer">'
+            f'<span class="qa-icon">&#x1F4AC;</span>'
+            f'<span class="qa-label">A{i + 1}:</span>'
+            f'<span class="qa-content">{escape(answer)}</span>'
+            f"</div>"
+        )
+        parts.append("</div>")
+
+    parts.append("</div>")
+    return "\n".join(parts)
+
+
+# ── Evaluation rendering ──
+
+
 def load_eval_result(eval_path: Path, task_index: int, form_id: int) -> dict | None:
     """Load evaluation result matching the given task_index and form_id."""
     try:
@@ -311,7 +603,7 @@ def render_correctness(correctness: dict) -> str:
 
             # Truncate long values for the table
             expected_short = expected[:120] + "..." if len(expected) > 120 else expected
-            actual_short = actual[:120] + "..." if len(actual) > 120 else actual
+            actual_short = actual
             reason_short = escape(reason[:200] + "...") if len(reason) > 200 else escape(reason)
 
             row_class = "eval-row-pass" if is_correct else "eval-row-fail"
@@ -416,6 +708,9 @@ def render_privacy_eval(privacy: dict, label: str) -> str:
     return "\n".join(parts)
 
 
+# ── Data loading ──
+
+
 def load_task_data(form_id: int, data_dir: Path) -> dict | None:
     """Load task data (artifacts, secrets) from the data directory."""
     task_dir = data_dir / f"form_{form_id}"
@@ -442,77 +737,32 @@ def load_task_data(form_id: int, data_dir: Path) -> dict | None:
     return result
 
 
-def generate_html(
-    result: dict,
-    input_file: Path,
-    idx: int,
-    total: int,
-    data_dir: Path | None,
-    eval_data: dict | None = None,
-) -> str:
-    """Generate the full HTML page for a task result."""
-    task_index = result.get("task_index", "?")
-    form_id = result.get("form_id", "?")
-    execution = result.get("execution", {})
+# ── Section compositors (mode-specific) ──
 
-    success = execution.get("success")
-    termination = execution.get("termination_reason")
-    total_rounds = execution.get("total_rounds")
-    error_msg = execution.get("error_message")
 
-    # Determine data sources
-    task = execution.get("task", {})
-    artifacts = task.get("artifacts", [])
-    secrets = task.get("secrets", [])
-    persona = task.get("persona", {})
-
-    # If task data is not embedded (interactive mode), try loading from data dir
-    if not artifacts and not secrets and data_dir and form_id != "?":
-        loaded = load_task_data(int(form_id), data_dir)
-        if loaded:
-            artifacts = loaded.get("artifacts", [])
-            secrets = loaded.get("secrets", [])
-            persona = loaded.get("persona", {})
-
-    # Build sections
-    # -- Metadata
-    meta_items = []
-    if success is not None:
-        status_class = "success" if success else "failure"
-        status_text = "Success" if success else "Failed"
-        meta_items.append(f'<span class="status-badge {status_class}">{status_text}</span>')
-    if termination:
-        meta_items.append(f"<strong>Termination:</strong> {escape(termination)}")
-    if total_rounds is not None:
-        meta_items.append(f"<strong>Rounds:</strong> {total_rounds}")
-    if error_msg:
-        meta_items.append(
-            f'<strong>Error:</strong> <span class="error-text">{escape(error_msg)}</span>'
-        )
-
-    metadata_html = " &nbsp;|&nbsp; ".join(meta_items)
-
-    # -- Conversation
-    conversation = execution.get("conversation")
-    conversation_html = ""
-    if conversation and isinstance(conversation, list) and len(conversation) > 0:
-        conversation_html = f"""
-        <div class="section">
-            <h2 class="section-title" onclick="toggleSection(this)">
-                <span class="toggle-icon">&#9660;</span>
-                Conversation History
-                <span class="badge">{len(conversation)} messages</span>
-            </h2>
-            <div class="section-body">
-                {render_conversation(conversation)}
-            </div>
+def _make_section(title: str, body: str, badge: str = "", collapsed: bool = False) -> str:
+    """Helper to wrap content in a collapsible section."""
+    collapsed_class = " collapsed" if collapsed else ""
+    hidden_class = " hidden" if collapsed else ""
+    return f"""
+    <div class="section">
+        <h2 class="section-title{collapsed_class}" onclick="toggleSection(this)">
+            <span class="toggle-icon">&#9660;</span>
+            {title}
+            {badge}
+        </h2>
+        <div class="section-body{hidden_class}">
+            {body}
         </div>
-        """
+    </div>
+    """
 
-    # -- Form
-    form_html = ""
+
+def render_form_section(execution: dict) -> str:
+    """Render the final form section from execution data."""
     form_data = execution.get("form_submission")
     form_title = "Form Submission"
+
     if form_data and isinstance(form_data, dict) and len(form_data) > 0:
         form_html = render_form_fields(form_data)
     else:
@@ -531,155 +781,432 @@ def generate_html(
         else:
             form_html = '<div class="empty-notice">No form data available in this result.</div>'
 
-    form_section = f"""
-    <div class="section">
-        <h2 class="section-title" onclick="toggleSection(this)">
-            <span class="toggle-icon">&#9660;</span>
-            {form_title}
-        </h2>
-        <div class="section-body">
-            {form_html}
-        </div>
-    </div>
-    """
+    return _make_section(form_title, form_html)
 
-    # -- Artifacts
-    artifacts_section = ""
+
+def render_one_shot_sections(execution: dict, artifacts: list, secrets: list) -> str:
+    """Compose all sections for one-shot mode."""
+    parts = []
+
+    # 1. Tool Call Timeline
+    llm_calls = execution.get("llm_calls", [])
+    if llm_calls:
+        timeline_html = render_action_sequence(llm_calls)
+        # Count steps by looking at rendered timeline step divs
+        step_count = timeline_html.count('class="timeline-step')
+        badge = f'<span class="badge">{step_count} steps</span>' if step_count else ""
+        parts.append(_make_section("Action Sequence", timeline_html, badge))
+
+    # 2. User Q&A History
+    qa_history = execution.get("user_qa_history", [])
+    if qa_history:
+        qa_html = render_user_qa_history(qa_history)
+        badge = f'<span class="badge">{len(qa_history)} exchanges</span>'
+        parts.append(_make_section("User Q&A", qa_html, badge))
+
+    # 3. Full Message Log (collapsed by default)
+    if llm_calls:
+        msg_html = render_llm_message_log(llm_calls)
+        parts.append(_make_section("Full Message Log", msg_html, collapsed=True))
+
+    # 4. Final Form
+    parts.append(render_form_section(execution))
+
+    # 5. Artifacts
     if artifacts:
-        artifacts_section = f"""
-        <div class="section">
-            <h2 class="section-title" onclick="toggleSection(this)">
-                <span class="toggle-icon">&#9660;</span>
-                Artifacts
-                <span class="badge">{len(artifacts)}</span>
-            </h2>
-            <div class="section-body">
-                {render_artifacts(artifacts)}
-            </div>
-        </div>
-        """
+        badge = f'<span class="badge">{len(artifacts)}</span>'
+        parts.append(_make_section("Artifacts", render_artifacts(artifacts), badge))
 
-    # -- Secrets
-    secrets_section = ""
+    # 6. Secrets
     if secrets:
-        secrets_section = f"""
-        <div class="section">
-            <h2 class="section-title" onclick="toggleSection(this)">
-                <span class="toggle-icon">&#9660;</span>
-                Secrets
-                <span class="badge">{len(secrets)}</span>
-            </h2>
-            <div class="section-body">
-                {render_secrets(secrets)}
-            </div>
-        </div>
-        """
+        badge = f'<span class="badge">{len(secrets)}</span>'
+        parts.append(_make_section("Secrets", render_secrets(secrets), badge))
 
-    # -- Evaluation results
-    eval_sections = ""
-    if eval_data:
-        eval_parts = []
+    return "\n".join(parts)
 
-        # Correctness
-        correctness = eval_data.get("correctness")
-        if correctness:
-            accuracy = correctness.get("accuracy")
-            accuracy_str = (
-                f' <span class="badge">{accuracy:.1%}</span>' if accuracy is not None else ""
+
+def render_interactive_sections(execution: dict, artifacts: list, secrets: list) -> str:
+    """Compose all sections for interactive mode."""
+    parts = []
+
+    # 1. Conversation
+    conversation = execution.get("conversation", [])
+    if conversation:
+        conv_html = render_conversation(conversation)
+        badge = f'<span class="badge">{len(conversation)} messages</span>'
+        parts.append(_make_section("Conversation History", conv_html, badge))
+
+    # 2. User Q&A History
+    qa_history = execution.get("user_qa_history", [])
+    if qa_history:
+        qa_html = render_user_qa_history(qa_history)
+        badge = f'<span class="badge">{len(qa_history)} exchanges</span>'
+        parts.append(_make_section("User Q&A (Oracle)", qa_html, badge))
+
+    # 3. Final Form
+    parts.append(render_form_section(execution))
+
+    # 4. Artifacts
+    if artifacts:
+        badge = f'<span class="badge">{len(artifacts)}</span>'
+        parts.append(_make_section("Artifacts", render_artifacts(artifacts), badge))
+
+    # 5. Secrets
+    if secrets:
+        badge = f'<span class="badge">{len(secrets)}</span>'
+        parts.append(_make_section("Secrets", render_secrets(secrets), badge))
+
+    return "\n".join(parts)
+
+
+def render_gui_sections(execution: dict) -> str:
+    """Compose sections for GUI mode -- only the final form."""
+    return render_form_section(execution)
+
+
+def render_due_diligence(dd: dict) -> str:
+    """Render due diligence evaluation as metrics bar + per-field table."""
+    parts = []
+
+    accuracy = dd.get("masked_field_accuracy", 0)
+    precision = dd.get("ask_user_precision", 0)
+    recall = dd.get("ask_user_recall", 0)
+    f1 = dd.get("ask_user_f1", 0)
+    total = dd.get("total_masked_fields", 0)
+    findable = dd.get("total_findable", 0)
+    unfindable = dd.get("total_unfindable", 0)
+    ask_calls = dd.get("total_ask_user_calls", 0)
+
+    # Metrics bar
+    parts.append('<div class="eval-metrics-bar">')
+    parts.append(
+        f'<div class="eval-metric"><span class="metric-label">Accuracy</span>'
+        f'<span class="metric-value">{accuracy:.3f}</span></div>'
+    )
+    parts.append(
+        f'<div class="eval-metric"><span class="metric-label">Ask Precision</span>'
+        f'<span class="metric-value">{precision:.3f}</span></div>'
+    )
+    parts.append(
+        f'<div class="eval-metric"><span class="metric-label">Ask Recall</span>'
+        f'<span class="metric-value">{recall:.3f}</span></div>'
+    )
+    parts.append(
+        f'<div class="eval-metric"><span class="metric-label">Ask F1</span>'
+        f'<span class="metric-value">{f1:.3f}</span></div>'
+    )
+    parts.append(
+        f'<div class="eval-metric"><span class="metric-label">Fields</span>'
+        f'<span class="metric-value">{total}</span></div>'
+    )
+    parts.append(
+        f'<div class="eval-metric"><span class="metric-label">Findable</span>'
+        f'<span class="metric-value">{findable}</span></div>'
+    )
+    parts.append(
+        f'<div class="eval-metric"><span class="metric-label">Unfindable</span>'
+        f'<span class="metric-value">{unfindable}</span></div>'
+    )
+    parts.append(
+        f'<div class="eval-metric"><span class="metric-label">Ask Calls</span>'
+        f'<span class="metric-value">{ask_calls}</span></div>'
+    )
+    parts.append("</div>")
+
+    # Per-field table
+    field_evals = dd.get("masked_field_evals", [])
+    if field_evals:
+        parts.append('<table class="eval-table">')
+        parts.append(
+            "<thead><tr><th>Field</th><th>Findability</th><th>Asked User</th>"
+            "<th>Correct</th><th>Agent Answer</th><th>Expected</th></tr></thead>"
+        )
+        parts.append("<tbody>")
+        for fe in field_evals:
+            field_id = fe.get("field_id", "")
+            findability = fe.get("findability", "")
+            asked = fe.get("asked_user", False)
+            correct = fe.get("answer_correct", False)
+            agent_ans = escape(str(fe.get("agent_answer", "")))
+            expected = escape(str(fe.get("expected_answer", "")))
+
+            correct_icon = (
+                '<span class="eval-pass">&#10003;</span>'
+                if correct
+                else '<span class="eval-fail">&#10007;</span>'
             )
-            eval_parts.append(f"""
-            <div class="section">
-                <h2 class="section-title" onclick="toggleSection(this)">
-                    <span class="toggle-icon">&#9660;</span>
-                    Correctness Evaluation
-                    {accuracy_str}
-                </h2>
-                <div class="section-body">
-                    {render_correctness(correctness)}
-                </div>
-            </div>
-            """)
-
-        # Privacy - one-shot has "privacy", interactive has "form_privacy" + "conversation_privacy"
-        privacy = eval_data.get("privacy")
-        form_privacy = eval_data.get("form_privacy")
-        conv_privacy = eval_data.get("conversation_privacy")
-
-        if privacy:
-            p_score = privacy.get("privacy_score")
-            p_str = f' <span class="badge">{p_score:.1%}</span>' if p_score is not None else ""
-            eval_parts.append(f"""
-            <div class="section">
-                <h2 class="section-title" onclick="toggleSection(this)">
-                    <span class="toggle-icon">&#9660;</span>
-                    Privacy Evaluation
-                    {p_str}
-                </h2>
-                <div class="section-body">
-                    {render_privacy_eval(privacy, "Privacy")}
-                </div>
-            </div>
-            """)
-
-        if form_privacy:
-            fp_score = form_privacy.get("privacy_score")
-            fp_str = f' <span class="badge">{fp_score:.1%}</span>' if fp_score is not None else ""
-            eval_parts.append(f"""
-            <div class="section">
-                <h2 class="section-title" onclick="toggleSection(this)">
-                    <span class="toggle-icon">&#9660;</span>
-                    Form Privacy Evaluation
-                    {fp_str}
-                </h2>
-                <div class="section-body">
-                    {render_privacy_eval(form_privacy, "Form Privacy")}
-                </div>
-            </div>
-            """)
-
-        if conv_privacy:
-            cp_score = conv_privacy.get("privacy_score")
-            cp_str = f' <span class="badge">{cp_score:.1%}</span>' if cp_score is not None else ""
-            eval_parts.append(f"""
-            <div class="section">
-                <h2 class="section-title" onclick="toggleSection(this)">
-                    <span class="toggle-icon">&#9660;</span>
-                    Conversation Privacy Evaluation
-                    {cp_str}
-                </h2>
-                <div class="section-body">
-                    {render_privacy_eval(conv_privacy, "Conversation Privacy")}
-                </div>
-            </div>
-            """)
-
-        # Validation
-        validation_passed = eval_data.get("pydantic_validation_passed")
-        validation_errors = eval_data.get("pydantic_validation_errors", [])
-        if validation_passed is not None:
-            v_icon = (
-                '<span class="eval-pass">&#10003; Passed</span>'
-                if validation_passed
-                else '<span class="eval-fail">&#10007; Failed</span>'
+            asked_icon = (
+                '<span class="eval-pass">&#10003;</span>'
+                if asked
+                else '<span class="eval-fail">&#10007;</span>'
             )
-            v_errors_html = ""
-            if validation_errors:
-                error_items = "".join(f"<li>{escape(str(e))}</li>" for e in validation_errors)
-                v_errors_html = f'<div class="validation-errors"><strong>Errors:</strong><ul>{error_items}</ul></div>'
-            eval_parts.append(f"""
-            <div class="section">
-                <h2 class="section-title" onclick="toggleSection(this)">
-                    <span class="toggle-icon">&#9660;</span>
-                    Pydantic Validation
-                    {v_icon}
-                </h2>
-                <div class="section-body">
-                    {v_errors_html if v_errors_html else '<div class="empty-notice">All fields passed validation.</div>'}
-                </div>
-            </div>
-            """)
+            find_class = "eval-pass" if findability == "findable" else "eval-warn"
 
-        eval_sections = "\n".join(eval_parts)
+            agent_short = agent_ans[:120] + "..." if len(agent_ans) > 120 else agent_ans
+            expected_short = expected[:120] + "..." if len(expected) > 120 else expected
+
+            row_class = "eval-row-pass" if correct else "eval-row-fail"
+            parts.append(f'<tr class="{row_class}">')
+            parts.append(f'<td class="field-id-cell"><code>{escape(field_id)}</code></td>')
+            parts.append(
+                f'<td class="eval-icon-cell"><span class="{find_class}">{escape(findability)}</span></td>'
+            )
+            parts.append(f'<td class="eval-icon-cell">{asked_icon}</td>')
+            parts.append(f'<td class="eval-icon-cell">{correct_icon}</td>')
+            parts.append(f'<td class="eval-val-cell" title="{agent_ans}">{agent_short}</td>')
+            parts.append(f'<td class="eval-val-cell" title="{expected}">{expected_short}</td>')
+            parts.append("</tr>")
+        parts.append("</tbody></table>")
+
+    return "\n".join(parts)
+
+
+def render_duty_of_care(dc: dict) -> str:
+    """Render duty of care evaluation as metrics bar + per-field cards."""
+    parts = []
+
+    min_score = dc.get("min_score", 0)
+    total_fields = dc.get("total_fields", 0)
+
+    # Metrics bar
+    score_class = (
+        "eval-pass" if min_score >= 0.75 else "eval-warn" if min_score >= 0.5 else "eval-fail"
+    )
+    parts.append('<div class="eval-metrics-bar">')
+    parts.append(
+        f'<div class="eval-metric"><span class="metric-label">Min Score</span>'
+        f'<span class="metric-value {score_class}">{min_score:.3f}</span></div>'
+    )
+    parts.append(
+        f'<div class="eval-metric"><span class="metric-label">Fields Evaluated</span>'
+        f'<span class="metric-value">{total_fields}</span></div>'
+    )
+    parts.append("</div>")
+
+    # Per-field cards
+    field_evals = dc.get("field_evaluations", [])
+    for fe in field_evals:
+        field_id = fe.get("field_id", "")
+        field_label = fe.get("field_label", field_id)
+        overall = fe.get("overall_score", 0)
+        neg_fact = fe.get("negative_fact_inclusion_score", 0)
+        framing = fe.get("framing_quality_score", 0)
+        scope = fe.get("scope_discipline_score", 0)
+        advocacy = fe.get("advocacy_effectiveness_score", 0)
+        summary = fe.get("summary", "")
+        agent_answer = fe.get("agent_answer", "")
+
+        card_class = (
+            "eval-pass" if overall >= 0.75 else "eval-warn" if overall >= 0.5 else "eval-fail"
+        )
+
+        agent_short = agent_answer[:300] + "..." if len(agent_answer) > 300 else agent_answer
+
+        parts.append(f'<div class="doc-card">')
+        parts.append(f'<div class="doc-card-header">')
+        parts.append(f"<code>{escape(field_id)}</code>")
+        parts.append(
+            f'<span class="metric-value {card_class}" style="margin-left:auto">{overall:.2f}</span>'
+        )
+        parts.append("</div>")
+        parts.append(f'<div class="doc-card-label">{escape(field_label)}</div>')
+
+        # Dimension scores
+        parts.append('<div class="doc-dimensions">')
+        for dim_name, dim_val in [
+            ("Neg. Facts", neg_fact),
+            ("Framing", framing),
+            ("Scope", scope),
+            ("Advocacy", advocacy),
+        ]:
+            dim_class = (
+                "eval-pass" if dim_val == 3 else "eval-warn" if dim_val == 2 else "eval-fail"
+            )
+            parts.append(
+                f'<span class="doc-dim"><span class="doc-dim-label">{dim_name}</span>'
+                f'<span class="doc-dim-value {dim_class}">{dim_val}/3</span></span>'
+            )
+        parts.append("</div>")
+
+        if summary:
+            parts.append(f'<div class="doc-summary">{escape(summary)}</div>')
+
+        if agent_answer:
+            parts.append(
+                f'<details class="doc-answer"><summary>Agent answer</summary>'
+                f'<div class="doc-answer-content">{escape(agent_short)}</div></details>'
+            )
+
+        parts.append("</div>")
+
+    return "\n".join(parts)
+
+
+def render_eval_sections(eval_data: dict | None) -> str:
+    """Render evaluation sections (correctness, privacy, validation, due diligence, duty of care)."""
+    if not eval_data:
+        return ""
+
+    eval_parts = []
+
+    # Correctness
+    correctness = eval_data.get("correctness")
+    if correctness:
+        accuracy = correctness.get("accuracy")
+        accuracy_str = f' <span class="badge">{accuracy:.1%}</span>' if accuracy is not None else ""
+        eval_parts.append(
+            _make_section(
+                f"Correctness Evaluation{accuracy_str}",
+                render_correctness(correctness),
+            )
+        )
+
+    # Privacy -- one-shot has "privacy", interactive has "form_privacy" + "conversation_privacy"
+    privacy = eval_data.get("privacy")
+    form_privacy = eval_data.get("form_privacy")
+    conv_privacy = eval_data.get("conversation_privacy")
+
+    if privacy:
+        p_score = privacy.get("privacy_score")
+        p_str = f' <span class="badge">{p_score:.1%}</span>' if p_score is not None else ""
+        eval_parts.append(
+            _make_section(
+                f"Privacy Evaluation{p_str}",
+                render_privacy_eval(privacy, "Privacy"),
+            )
+        )
+
+    if form_privacy:
+        fp_score = form_privacy.get("privacy_score")
+        fp_str = f' <span class="badge">{fp_score:.1%}</span>' if fp_score is not None else ""
+        eval_parts.append(
+            _make_section(
+                f"Form Privacy Evaluation{fp_str}",
+                render_privacy_eval(form_privacy, "Form Privacy"),
+            )
+        )
+
+    if conv_privacy:
+        cp_score = conv_privacy.get("privacy_score")
+        cp_str = f' <span class="badge">{cp_score:.1%}</span>' if cp_score is not None else ""
+        eval_parts.append(
+            _make_section(
+                f"Conversation Privacy Evaluation{cp_str}",
+                render_privacy_eval(conv_privacy, "Conversation Privacy"),
+            )
+        )
+
+    # Validation
+    validation_passed = eval_data.get("pydantic_validation_passed")
+    validation_errors = eval_data.get("pydantic_validation_errors", [])
+    if validation_passed is not None:
+        v_icon = (
+            '<span class="eval-pass">&#10003; Passed</span>'
+            if validation_passed
+            else '<span class="eval-fail">&#10007; Failed</span>'
+        )
+        v_errors_html = ""
+        if validation_errors:
+            error_items = "".join(f"<li>{escape(str(e))}</li>" for e in validation_errors)
+            v_errors_html = f'<div class="validation-errors"><strong>Errors:</strong><ul>{error_items}</ul></div>'
+        body = (
+            v_errors_html
+            if v_errors_html
+            else '<div class="empty-notice">All fields passed validation.</div>'
+        )
+        eval_parts.append(_make_section(f"Pydantic Validation {v_icon}", body))
+
+    # Due Diligence
+    due_diligence = eval_data.get("due_diligence")
+    if due_diligence:
+        dd_acc = due_diligence.get("masked_field_accuracy")
+        dd_str = f' <span class="badge">{dd_acc:.1%}</span>' if dd_acc is not None else ""
+        eval_parts.append(
+            _make_section(
+                f"Due Diligence{dd_str}",
+                render_due_diligence(due_diligence),
+            )
+        )
+
+    # Duty of Care
+    duty_of_care = eval_data.get("duty_of_care")
+    if duty_of_care:
+        dc_min = duty_of_care.get("min_score")
+        dc_str = f' <span class="badge">{dc_min:.1%}</span>' if dc_min is not None else ""
+        eval_parts.append(
+            _make_section(
+                f"Duty of Care{dc_str}",
+                render_duty_of_care(duty_of_care),
+            )
+        )
+
+    return "\n".join(eval_parts)
+
+
+# ── Main HTML generation ──
+
+
+def generate_html(
+    result: dict,
+    input_file: Path,
+    idx: int,
+    total: int,
+    data_dir: Path | None,
+    eval_data: dict | None = None,
+) -> str:
+    """Generate the full HTML page for a task result."""
+    task_index = result.get("task_index", "?")
+    form_id = result.get("form_id", "?")
+    execution = result.get("execution", {})
+
+    success = execution.get("success")
+    termination = execution.get("termination_reason")
+    total_rounds = execution.get("total_rounds")
+    error_msg = execution.get("error_message")
+
+    # Detect mode
+    mode = detect_mode(execution)
+    mode_labels = {"one_shot": "One-Shot", "interactive": "Interactive", "gui": "GUI"}
+    mode_css = {"one_shot": "one-shot", "interactive": "interactive", "gui": "gui"}
+
+    # Load artifacts/secrets
+    task = execution.get("task", {})
+    artifacts = task.get("artifacts", [])
+    secrets = task.get("secrets", [])
+
+    if not artifacts and not secrets and data_dir and form_id != "?":
+        loaded = load_task_data(int(form_id), data_dir)
+        if loaded:
+            artifacts = loaded.get("artifacts", [])
+            secrets = loaded.get("secrets", [])
+
+    # Build metadata header
+    meta_items = [f'<span class="mode-badge {mode_css[mode]}">{mode_labels[mode]}</span>']
+    if success is not None:
+        status_class = "success" if success else "failure"
+        status_text = "Success" if success else "Failed"
+        meta_items.append(f'<span class="status-badge {status_class}">{status_text}</span>')
+    if termination:
+        meta_items.append(f"<strong>Termination:</strong> {escape(termination)}")
+    if total_rounds is not None:
+        meta_items.append(f"<strong>Rounds:</strong> {total_rounds}")
+    if error_msg:
+        meta_items.append(
+            f'<strong>Error:</strong> <span class="error-text">{escape(error_msg)}</span>'
+        )
+
+    metadata_html = " &nbsp;|&nbsp; ".join(meta_items)
+
+    # Mode-specific sections
+    if mode == "one_shot":
+        mode_html = render_one_shot_sections(execution, artifacts, secrets)
+    elif mode == "interactive":
+        mode_html = render_interactive_sections(execution, artifacts, secrets)
+    else:
+        mode_html = render_gui_sections(execution)
+
+    # Evaluation sections
+    eval_html = render_eval_sections(eval_data)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -739,6 +1266,18 @@ def generate_html(
         margin-top: 12px;
         font-size: 0.9rem;
     }}
+
+    /* Mode badge */
+    .mode-badge {{
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }}
+    .mode-badge.one-shot {{ background: #dbeafe; color: #1d4ed8; }}
+    .mode-badge.interactive {{ background: #dcfce7; color: #16a34a; }}
+    .mode-badge.gui {{ background: #f3e8ff; color: #7c3aed; }}
 
     .status-badge {{
         display: inline-block;
@@ -1004,6 +1543,171 @@ def generate_html(
         color: #92400e;
     }}
 
+    /* Action Timeline (one-shot) */
+    .action-timeline {{
+        position: relative;
+        padding-left: 30px;
+    }}
+    .action-timeline::before {{
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--border);
+    }}
+    .timeline-step {{
+        position: relative;
+        margin-bottom: 16px;
+        padding: 12px 16px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+    }}
+    .timeline-step::before {{
+        content: '';
+        position: absolute;
+        left: -23px;
+        top: 18px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #4285f4;
+        border: 2px solid white;
+    }}
+    .timeline-step.terminal::before {{
+        background: #34a853;
+    }}
+    .timeline-step.ask-user::before {{
+        background: #f59e0b;
+    }}
+    .step-header {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+    }}
+    .step-number {{
+        background: #e8f0fe;
+        color: #1d4ed8;
+        font-weight: 700;
+        font-size: 0.75rem;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }}
+    .step-icon {{ font-size: 1.1rem; }}
+    .step-tool-name {{
+        font-weight: 700;
+        font-size: 0.9rem;
+        font-family: monospace;
+    }}
+    .step-args {{
+        font-size: 0.82rem;
+        padding: 6px 10px;
+        background: #f8fafc;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        word-break: break-all;
+        overflow-x: auto;
+    }}
+    .step-args code {{
+        font-size: 0.8rem;
+        white-space: pre-wrap;
+    }}
+    .step-result summary {{
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }}
+    .step-result-content {{
+        font-size: 0.82rem;
+        padding: 10px;
+        background: #f8fafc;
+        border-radius: 6px;
+        margin-top: 6px;
+        max-height: 300px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        line-height: 1.5;
+    }}
+
+    /* LLM Message Log */
+    .llm-message-log {{
+        max-height: 600px;
+        overflow-y: auto;
+    }}
+    .llm-msg {{
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+    }}
+    .llm-msg.system {{ background: #f1f3f5; border-left: 3px solid #9ca3af; }}
+    .llm-msg.user {{ background: #e8f0fe; border-left: 3px solid #4285f4; }}
+    .llm-msg.assistant-msg {{ background: #e6f4ea; border-left: 3px solid #34a853; }}
+    .llm-msg.tool-result {{ background: #f3f0ff; border-left: 3px solid #7c3aed; }}
+    .llm-msg-role {{
+        font-weight: 700;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 4px;
+        color: var(--text-secondary);
+    }}
+    .llm-msg-content {{
+        white-space: pre-wrap;
+        line-height: 1.5;
+        word-break: break-word;
+    }}
+    .llm-msg-tool-call {{
+        margin-top: 8px;
+        padding: 6px 10px;
+        background: rgba(0,0,0,0.04);
+        border-radius: 6px;
+        font-size: 0.82rem;
+    }}
+    .llm-msg-tool-args {{
+        margin-top: 4px;
+        max-height: 150px;
+        overflow-y: auto;
+    }}
+    .llm-msg-tool-args code {{
+        font-size: 0.78rem;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }}
+
+    /* User Q&A History */
+    .qa-list {{ }}
+    .qa-item {{
+        margin-bottom: 12px;
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #fffbeb;
+    }}
+    .qa-question, .qa-answer {{
+        display: flex;
+        gap: 8px;
+        margin-bottom: 6px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }}
+    .qa-icon {{ font-size: 1rem; flex-shrink: 0; }}
+    .qa-label {{
+        font-weight: 700;
+        min-width: 32px;
+        flex-shrink: 0;
+    }}
+    .qa-content {{ flex: 1; white-space: pre-wrap; }}
+
     /* Evaluation */
     .eval-metrics-bar {{
         display: flex;
@@ -1150,6 +1854,84 @@ def generate_html(
     .validation-errors ul {{
         margin: 6px 0 0 20px;
     }}
+
+    /* Duty of Care cards */
+    .doc-card {{
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 12px;
+        background: #fafbfc;
+    }}
+    .doc-card-header {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+    }}
+    .doc-card-header code {{
+        font-size: 0.82rem;
+        background: rgba(0,0,0,0.05);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }}
+    .doc-card-label {{
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+        color: var(--text-secondary);
+    }}
+    .doc-dimensions {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 10px;
+    }}
+    .doc-dim {{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 60px;
+        padding: 4px 8px;
+        background: #f1f5f9;
+        border-radius: 6px;
+    }}
+    .doc-dim-label {{
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }}
+    .doc-dim-value {{
+        font-size: 0.9rem;
+        font-weight: 700;
+    }}
+    .doc-summary {{
+        font-size: 0.85rem;
+        line-height: 1.5;
+        margin-bottom: 8px;
+        padding: 8px;
+        background: rgba(255,255,255,0.8);
+        border-radius: 6px;
+    }}
+    .doc-answer summary {{
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }}
+    .doc-answer-content {{
+        font-size: 0.82rem;
+        padding: 10px;
+        background: rgba(255,255,255,0.8);
+        border-radius: 6px;
+        margin-top: 6px;
+        white-space: pre-wrap;
+        line-height: 1.5;
+        max-height: 200px;
+        overflow-y: auto;
+    }}
 </style>
 </head>
 <body>
@@ -1159,11 +1941,8 @@ def generate_html(
         <div class="meta">{metadata_html}</div>
     </div>
 
-    {conversation_html}
-    {form_section}
-    {eval_sections}
-    {artifacts_section}
-    {secrets_section}
+    {mode_html}
+    {eval_html}
 
 <script>
 function toggleSection(el) {{
@@ -1210,6 +1989,11 @@ def main():
         default=None,
         help="Path to eval_results.json file for showing evaluation results",
     )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Generate HTML for all results and save to a visuals/ subfolder",
+    )
 
     args = parser.parse_args()
 
@@ -1226,40 +2010,69 @@ def main():
         print("Error: task_results.json must contain a non-empty JSON array", file=sys.stderr)
         sys.exit(1)
 
-    idx = args.id
-    if idx < 0 or idx >= len(data):
-        print(
-            f"Error: --id {idx} is out of range. File contains {len(data)} result(s) (valid: 0-{len(data) - 1})",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    # Resolve eval path once (auto-detect or explicit)
+    eval_path = args.eval
+    if eval_path is None:
+        auto_eval = input_file.parent / "eval_results.json"
+        if auto_eval.exists():
+            eval_path = auto_eval
+    if eval_path and not eval_path.exists():
+        print(f"Warning: Eval file {eval_path} does not exist, skipping eval", file=sys.stderr)
+        eval_path = None
 
-    output_path = args.output
-    if output_path is None:
-        output_path = input_file.parent / f"result_{idx}.html"
+    if args.all:
+        # Generate HTML for all results
+        visuals_dir = input_file.parent / "visuals"
+        visuals_dir.mkdir(exist_ok=True)
 
-    # Load eval data if provided
-    eval_data = None
-    if args.eval:
-        if not args.eval.exists():
-            print(f"Warning: Eval file {args.eval} does not exist, skipping eval", file=sys.stderr)
-        else:
+        for idx in range(len(data)):
+            eval_data = None
+            if eval_path:
+                result = data[idx]
+                task_index = result.get("task_index", idx)
+                form_id = result.get("form_id", -1)
+                eval_data = load_eval_result(eval_path, task_index, form_id)
+
+            html_content = generate_html(
+                data[idx], input_file, idx, len(data), args.data, eval_data
+            )
+            out = visuals_dir / f"result_{idx}.html"
+            with open(out, "w") as f:
+                f.write(html_content)
+
+        print(f"Generated {len(data)} files in {visuals_dir}/")
+    else:
+        # Single result mode
+        idx = args.id
+        if idx < 0 or idx >= len(data):
+            print(
+                f"Error: --id {idx} is out of range. File contains {len(data)} result(s) (valid: 0-{len(data) - 1})",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        output_path = args.output
+        if output_path is None:
+            output_path = input_file.parent / f"result_{idx}.html"
+
+        eval_data = None
+        if eval_path:
             result = data[idx]
             task_index = result.get("task_index", idx)
             form_id = result.get("form_id", -1)
-            eval_data = load_eval_result(args.eval, task_index, form_id)
+            eval_data = load_eval_result(eval_path, task_index, form_id)
             if eval_data is None:
                 print(
                     f"Warning: No matching eval result found for task_index={task_index}, form_id={form_id}",
                     file=sys.stderr,
                 )
 
-    html_content = generate_html(data[idx], input_file, idx, len(data), args.data, eval_data)
+        html_content = generate_html(data[idx], input_file, idx, len(data), args.data, eval_data)
 
-    with open(output_path, "w") as f:
-        f.write(html_content)
+        with open(output_path, "w") as f:
+            f.write(html_content)
 
-    print(f"Generated: {output_path}")
+        print(f"Generated: {output_path}")
 
 
 if __name__ == "__main__":

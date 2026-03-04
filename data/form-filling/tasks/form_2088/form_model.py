@@ -12,7 +12,7 @@ BLANK_HINT = (
 BooleanLike = Literal["true", "false", "N/A", ""]
 
 
-class LocationSRow(BaseModel):
+class ExposureJobTaskTableRow(BaseModel):
     """Single row in Location(s)"""
 
     location_s: str = Field(default="", description="Location_S")
@@ -20,23 +20,22 @@ class LocationSRow(BaseModel):
     job_tasks_and_descriptions: str = Field(default="", description="Job_Tasks_And_Descriptions")
 
 
-class EmployeeExposureQuestions(BaseModel):
-    """Questions about whether employees are exposed to people with suspected or confirmed COVID-19 and whether they perform aerosol-generating procedures (AGPs)."""
+class EmployeeExposureScreeningQuestions(BaseModel):
+    """Questions about whether employees are exposed to people with suspected or confirmed COVID-19 and related AGPs, including response columns."""
 
-    do_employees_provide_direct_care_to_or_are_they_otherwise_exposed_to_people_with_suspected_or_confirmed_covid_19: BooleanLike = Field(
+    do_employees_provide_direct_care_exposed_to_people_with_suspected_or_confirmed_covid_19: BooleanLike = Field(
         ...,
         description=(
-            "Indicate whether any employees provide direct care to, or are otherwise "
-            "exposed to, people with suspected or confirmed COVID-19."
+            "Indicate whether employees provide direct care to or are otherwise exposed to "
+            "people with suspected or confirmed COVID-19."
         ),
     )
 
     do_employees_perform_or_assist_in_performing_agps_on_a_person_with_suspected_or_confirmed_covid_19: BooleanLike = Field(
         ...,
         description=(
-            "Indicate whether any employees perform or assist in performing "
-            "aerosol-generating procedures (AGPs) on people with suspected or confirmed "
-            "COVID-19."
+            "Indicate whether employees perform or assist in performing aerosol-generating "
+            "procedures (AGPs) on a person with suspected or confirmed COVID-19."
         ),
     )
 
@@ -56,7 +55,7 @@ class EmployeeExposureQuestions(BaseModel):
     cardiopulmonary_resuscitation: BooleanLike = Field(
         default="",
         description=(
-            "Check if employees perform cardiopulmonary resuscitation (CPR) as an "
+            "Check if employees perform cardiopulmonary resuscitation as an "
             "aerosol-generating procedure."
         ),
     )
@@ -64,7 +63,7 @@ class EmployeeExposureQuestions(BaseModel):
     endotracheal_intubation_and_extubation: BooleanLike = Field(
         default="",
         description=(
-            "Check if employees perform endotracheal intubation or extubation as an "
+            "Check if employees perform endotracheal intubation and extubation as an "
             "aerosol-generating procedure."
         ),
     )
@@ -72,7 +71,7 @@ class EmployeeExposureQuestions(BaseModel):
     non_invasive_ventilation_eg_bipap_cpap: BooleanLike = Field(
         default="",
         description=(
-            "Check if employees use non-invasive ventilation such as BiPAP or CPAP as an "
+            "Check if employees use non-invasive ventilation (e.g., BiPAP, CPAP) as an "
             "aerosol-generating procedure."
         ),
     )
@@ -100,24 +99,25 @@ class EmployeeExposureQuestions(BaseModel):
     dental_procedures_involving_ultrasonic_scalers_high_speed_dental_handpieces_air_water_syringes_air_polishing_and_air_abrasion: BooleanLike = Field(
         default="",
         description=(
-            "Check if employees perform any of the listed dental procedures that are "
-            "considered aerosol-generating."
+            "Check if employees perform dental procedures involving ultrasonic scalers, "
+            "high-speed dental handpieces, air/water syringes, air polishing, or air "
+            "abrasion."
         ),
     )
 
-    yes: BooleanLike = Field(
-        default="", description="Select if the answer to the exposure question is yes."
+    yes_column: BooleanLike = Field(
+        default="", description="Indicates a YES response to the exposure question."
     )
 
-    no: BooleanLike = Field(
-        default="", description="Select if the answer to the exposure question is no."
+    no_column: BooleanLike = Field(
+        default="", description="Indicates a NO response to the exposure question."
     )
 
     follow_up_notes: str = Field(
         default="",
         description=(
-            "Provide any follow-up information, clarifications, or notes related to the "
-            'yes/no responses. .If you cannot fill this, write "N/A". If this field '
+            "Space to record follow-up actions, clarifications, or notes related to the "
+            'exposure question. .If you cannot fill this, write "N/A". If this field '
             "should not be filled by you (for example, it belongs to another person or "
             'office), leave it blank (empty string "").'
         ),
@@ -125,87 +125,56 @@ class EmployeeExposureQuestions(BaseModel):
 
 
 class ExposureJobTaskDetails(BaseModel):
-    """Details of locations, number of workers, and job tasks where employees have potential exposure."""
+    """Table to document locations, number of workers, and job tasks where exposure may occur."""
 
-    location_s: List[LocationSRow] = Field(
-        ...,
+    exposure_job_task_table: List[ExposureJobTaskTableRow] = Field(
+        default="",
         description=(
-            "Table to list each location where employees may be exposed, the number of "
-            "workers, and the related job tasks and descriptions."
+            "Table to record locations, number of workers, and job tasks/descriptions where "
+            "employees may be exposed."
         ),
     )  # List of table rows
 
     no_of_workers: Union[float, Literal["N/A", ""]] = Field(
         default="",
-        description="Number of workers at the specified location who have potential exposure.",
+        description="Number of workers at the specified location performing the described job tasks.",
     )
 
     job_tasks_and_descriptions: str = Field(
         default="",
         description=(
-            "Describe the job tasks performed at the location that may involve exposure, "
-            'including relevant details. .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
+            "Describe the job tasks performed and any relevant details about potential "
+            'exposure. .If you cannot fill this, write "N/A". If this field should not be '
+            "filled by you (for example, it belongs to another person or office), leave it "
+            'blank (empty string "").'
         ),
     )
 
 
-class NonExposureAreas(BaseModel):
-    """Well-defined workplace areas where there is no reasonable expectation of contact with a person with suspected or confirmed COVID-19."""
+class AreaswithNoExpectedCOVID19Presence(BaseModel):
+    """Identification of workplace areas where no person with suspected or confirmed COVID-19 is reasonably expected to be present."""
 
-    are_there_any_well_defined_areas_of_your_workplace_in_which_there_is_no_reasonable_expectation_that_any_person_with_suspected_or_confirmed_covid_19_will_be_present: BooleanLike = Field(
+    are_there_any_well_defined_areas_with_no_reasonable_expectation_of_covid_19_presence: BooleanLike = Field(
         default="",
         description=(
-            "Indicate whether there are clearly defined areas where people with suspected "
-            "or confirmed COVID-19 are not expected to be present."
+            "Indicate whether there are well-defined areas in the workplace where no person "
+            "with suspected or confirmed COVID-19 is reasonably expected to be present."
         ),
     )
 
-    well_defined_area_1: str = Field(
+    well_defined_areas_no_expected_covid_19_presence_list_items: str = Field(
         default="",
         description=(
-            "Name or description of the first well-defined area where people with suspected "
-            "or confirmed COVID-19 are not expected to be present. .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    well_defined_area_2: str = Field(
-        default="",
-        description=(
-            "Name or description of the second well-defined area where people with "
-            "suspected or confirmed COVID-19 are not expected to be present. .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-    well_defined_area_3: str = Field(
-        default="",
-        description=(
-            "Name or description of the third well-defined area where people with suspected "
-            "or confirmed COVID-19 are not expected to be present. .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    well_defined_area_4: str = Field(
-        default="",
-        description=(
-            "Name or description of the fourth well-defined area where people with "
-            "suspected or confirmed COVID-19 are not expected to be present. .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
+            "List each well-defined area where there is no reasonable expectation that any "
+            "person with suspected or confirmed COVID-19 will be present (e.g., employee "
+            'break room). .If you cannot fill this, write "N/A". If this field should not '
+            "be filled by you (for example, it belongs to another person or office), leave "
+            'it blank (empty string "").'
         ),
     )
 
 
-class EmployeeCovidExposureTaskInventory(BaseModel):
+class EmployeeCovidExposureJobTaskInventory(BaseModel):
     """
         Job Task Inventory for Employees with Potential for Exposure to a Person
     with Suspected or Confirmed COVID-19
@@ -213,10 +182,12 @@ class EmployeeCovidExposureTaskInventory(BaseModel):
         Use this Job Task Inventory and input from employees to identify any job tasks where employees have potential for exposure to a person with suspected or confirmed COVID-19.
     """
 
-    employee_exposure_questions: EmployeeExposureQuestions = Field(
-        ..., description="Employee Exposure Questions"
+    employee_exposure_screening_questions: EmployeeExposureScreeningQuestions = Field(
+        ..., description="Employee Exposure Screening Questions"
     )
     exposure_job_task_details: ExposureJobTaskDetails = Field(
         ..., description="Exposure Job Task Details"
     )
-    non_exposure_areas: NonExposureAreas = Field(..., description="Non-Exposure Areas")
+    areas_with_no_expected_covid_19_presence: AreaswithNoExpectedCOVID19Presence = Field(
+        ..., description="Areas with No Expected COVID-19 Presence"
+    )

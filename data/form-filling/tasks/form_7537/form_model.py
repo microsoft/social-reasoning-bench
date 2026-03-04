@@ -45,7 +45,7 @@ class ReferringDoctor(BaseModel):
     referring_doctor_phone: str = Field(
         ...,
         description=(
-            "Primary phone number for the referring doctor or practice .If you cannot fill "
+            "Main phone number for the referring doctor's practice .If you cannot fill "
             'this, write "N/A". If this field should not be filled by you (for example, '
             'it belongs to another person or office), leave it blank (empty string "").'
         ),
@@ -54,9 +54,9 @@ class ReferringDoctor(BaseModel):
     referring_doctor_fax: str = Field(
         default="",
         description=(
-            "Fax number for the referring doctor or practice .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Fax number for the referring doctor's practice .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -71,7 +71,7 @@ class ReferringDoctor(BaseModel):
 
 
 class PatientDetails(BaseModel):
-    """Patient demographic and contact information"""
+    """Patient contact and identification details"""
 
     patient_name: str = Field(
         ...,
@@ -96,7 +96,7 @@ class PatientDetails(BaseModel):
     patient_phone: str = Field(
         default="",
         description=(
-            "Primary landline phone number for the patient .If you cannot fill this, write "
+            "Home or primary phone number of the patient .If you cannot fill this, write "
             '"N/A". If this field should not be filled by you (for example, it belongs to '
             'another person or office), leave it blank (empty string "").'
         ),
@@ -105,8 +105,8 @@ class PatientDetails(BaseModel):
     patient_mobile: str = Field(
         default="",
         description=(
-            'Mobile phone number for the patient .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
+            'Mobile phone number of the patient .If you cannot fill this, write "N/A". If '
+            "this field should not be filled by you (for example, it belongs to another "
             'person or office), leave it blank (empty string "").'
         ),
     )
@@ -119,10 +119,6 @@ class PatientDetails(BaseModel):
             'or office), leave it blank (empty string "").'
         ),
     )
-
-
-class FundingandDVADetails(BaseModel):
-    """Medicare and DVA card information and risk assessment"""
 
     medicare_no: str = Field(
         ...,
@@ -152,46 +148,44 @@ class FundingandDVADetails(BaseModel):
     )
 
     dva_card_type_white: BooleanLike = Field(
-        default="", description="Tick if the patient's DVA card type is White"
+        default="", description="Tick if the patient holds a White DVA card"
     )
 
     dva_card_type_gold: BooleanLike = Field(
-        default="", description="Tick if the patient's DVA card type is Gold"
+        default="", description="Tick if the patient holds a Gold DVA card"
     )
 
     dva_card_type_gold_tpi: BooleanLike = Field(
-        default="", description="Tick if the patient's DVA card type is Gold (TPI)"
+        default="", description="Tick if the patient holds a Gold (TPI) DVA card"
     )
 
     dva_at_risk_client_assessment_form_completed: BooleanLike = Field(
-        default="", description="Tick if the DVA At Risk Client Assessment Form has been completed"
+        default="",
+        description="Indicate whether the DVA At Risk Client Assessment Form has been completed",
     )
 
-    dva_at_risk_client_assessment_to_be_reviewed_at_3_mths: BooleanLike = Field(
-        default="",
-        description="Tick if the DVA At Risk Client Assessment is to be reviewed at 3 months",
+    to_be_reviewed_at_3_mths: BooleanLike = Field(
+        default="", description="Tick if review is scheduled at 3 months"
     )
 
-    dva_at_risk_client_assessment_to_be_reviewed_at_6_mths: BooleanLike = Field(
-        default="",
-        description="Tick if the DVA At Risk Client Assessment is to be reviewed at 6 months",
+    to_be_reviewed_at_6_mths: BooleanLike = Field(
+        default="", description="Tick if review is scheduled at 6 months"
     )
 
-    dva_at_risk_client_assessment_to_be_reviewed_at_12_mths: BooleanLike = Field(
-        default="",
-        description="Tick if the DVA At Risk Client Assessment is to be reviewed at 12 months",
+    to_be_reviewed_at_12_mths: BooleanLike = Field(
+        default="", description="Tick if review is scheduled at 12 months"
     )
 
 
 class ClinicalInformation(BaseModel):
-    """Presenting conditions, goals, and special considerations"""
+    """Presenting issues, goals, and special considerations"""
 
     presenting_conditions: str = Field(
         ...,
         description=(
-            "Describe the patient's current presenting conditions .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Describe the patient's presenting conditions .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
@@ -207,42 +201,45 @@ class ClinicalInformation(BaseModel):
     treatment_goals: str = Field(
         ...,
         description=(
-            "Outline the goals of treatment for this patient .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
+            "Outline the treatment goals for the patient .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     medical_precautions_special_needs: str = Field(
         default="",
         description=(
-            "Note any medical precautions or special needs relevant to treatment .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Note any medical precautions or special needs .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
 
-class TreatingPsychiatristAuthorisation(BaseModel):
-    """Treating psychiatrist details and referring doctor authorisation"""
+class PsychiatryInformation(BaseModel):
+    """Information about treating psychiatrist where applicable"""
 
-    treating_psychiatrist_no: BooleanLike = Field(
+    gp_referral_treating_psychiatrist_no: BooleanLike = Field(
         default="", description="Tick if the patient does not have a treating psychiatrist"
     )
 
-    treating_psychiatrist_yes: BooleanLike = Field(
+    gp_referral_treating_psychiatrist_yes: BooleanLike = Field(
         default="", description="Tick if the patient has a treating psychiatrist"
     )
 
-    treating_psychiatrist_name: str = Field(
+    treating_psychiatrist_name_dr: str = Field(
         default="",
         description=(
-            "Name of the treating psychiatrist, if applicable .If you cannot fill this, "
+            "Name of the treating psychiatrist (following 'Dr') .If you cannot fill this, "
             'write "N/A". If this field should not be filled by you (for example, it '
             'belongs to another person or office), leave it blank (empty string "").'
         ),
     )
+
+
+class ReferrerDeclaration(BaseModel):
+    """Signature and date of the referring doctor"""
 
     doctor_signature: str = Field(
         ...,
@@ -258,10 +255,10 @@ class TreatingPsychiatristAuthorisation(BaseModel):
     )  # YYYY-MM-DD format
 
 
-class BetterLifeProgramReferralForm(BaseModel):
+class VeteranHealthAssociationBetterLifeProgramReferralForm(BaseModel):
     """
-        Better Life
-    program
+        Veteran Health Association
+    Better Life program
 
     Referral Form
 
@@ -270,10 +267,6 @@ class BetterLifeProgramReferralForm(BaseModel):
 
     referring_doctor: ReferringDoctor = Field(..., description="Referring Doctor")
     patient_details: PatientDetails = Field(..., description="Patient Details")
-    funding_and_dva_details: FundingandDVADetails = Field(
-        ..., description="Funding and DVA Details"
-    )
     clinical_information: ClinicalInformation = Field(..., description="Clinical Information")
-    treating_psychiatrist__authorisation: TreatingPsychiatristAuthorisation = Field(
-        ..., description="Treating Psychiatrist & Authorisation"
-    )
+    psychiatry_information: PsychiatryInformation = Field(..., description="Psychiatry Information")
+    referrer_declaration: ReferrerDeclaration = Field(..., description="Referrer Declaration")

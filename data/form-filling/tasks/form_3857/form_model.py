@@ -28,97 +28,57 @@ class StudentInformation(BaseModel):
 
 
 class PatientHistoryQuestions(BaseModel):
-    """General cardiac and exercise-related medical history"""
+    """General medical history related to exercise and respiratory issues"""
 
-    fainted_during_after_exercise_yes: BooleanLike = Field(
+    has_your_child_fainted_or_passed_out_during_or_after_exercise_emotion_or_startle: BooleanLike = Field(
         ...,
         description=(
-            "Check if the child has fainted or passed out during or after exercise, "
+            "Indicate if the child has ever fainted or passed out during or after exercise, "
             "emotion, or startle"
         ),
     )
 
-    fainted_during_after_exercise_no: BooleanLike = Field(
+    has_your_child_ever_had_extreme_shortness_of_breath_during_exercise: BooleanLike = Field(
         ...,
         description=(
-            "Check if the child has not fainted or passed out during or after exercise, "
-            "emotion, or startle"
+            "Indicate if the child has ever experienced extreme shortness of breath during exercise"
         ),
     )
 
-    extreme_shortness_of_breath_yes: BooleanLike = Field(
-        ..., description="Check if the child has had extreme shortness of breath during exercise"
-    )
-
-    extreme_shortness_of_breath_no: BooleanLike = Field(
+    has_your_child_had_extreme_fatigue_associated_with_exercise_different_from_other_children: BooleanLike = Field(
         ...,
-        description="Check if the child has not had extreme shortness of breath during exercise",
+        description="Indicate if the child has had extreme fatigue with exercise compared to peers",
     )
 
-    extreme_fatigue_with_exercise_yes: BooleanLike = Field(
+    has_your_child_ever_had_discomfort_pain_or_pressure_in_his_her_chest_during_exercise: BooleanLike = Field(
         ...,
         description=(
-            "Check if the child has had extreme fatigue with exercise that is different from peers"
+            "Indicate if the child has ever had chest discomfort, pain, or pressure during exercise"
         ),
     )
 
-    extreme_fatigue_with_exercise_no: BooleanLike = Field(
+    has_a_doctor_ever_ordered_a_test_for_your_childs_heart: BooleanLike = Field(
+        ...,
+        description="Indicate if any heart tests have ever been ordered for the child by a doctor",
+    )
+
+    has_your_child_ever_been_diagnosed_with_an_unexplained_seizure_disorder: BooleanLike = Field(
+        ...,
+        description="Indicate if the child has been diagnosed with an unexplained seizure disorder",
+    )
+
+    has_your_child_ever_been_diagnosed_with_exercise_induced_asthma_not_well_controlled_with_medication: BooleanLike = Field(
         ...,
         description=(
-            "Check if the child has not had extreme fatigue with exercise that is different "
-            "from peers"
-        ),
-    )
-
-    chest_discomfort_during_exercise_yes: BooleanLike = Field(
-        ...,
-        description="Check if the child has had chest discomfort, pain, or pressure during exercise",
-    )
-
-    chest_discomfort_during_exercise_no: BooleanLike = Field(
-        ...,
-        description=(
-            "Check if the child has not had chest discomfort, pain, or pressure during exercise"
-        ),
-    )
-
-    heart_test_ordered_yes: BooleanLike = Field(
-        ..., description="Check if a doctor has ever ordered a test for the child's heart"
-    )
-
-    heart_test_ordered_no: BooleanLike = Field(
-        ..., description="Check if a doctor has not ordered a test for the child's heart"
-    )
-
-    unexplained_seizure_disorder_yes: BooleanLike = Field(
-        ...,
-        description="Check if the child has been diagnosed with an unexplained seizure disorder",
-    )
-
-    unexplained_seizure_disorder_no: BooleanLike = Field(
-        ...,
-        description="Check if the child has not been diagnosed with an unexplained seizure disorder",
-    )
-
-    exercise_induced_asthma_not_controlled_yes: BooleanLike = Field(
-        ...,
-        description=(
-            "Check if the child has exercise-induced asthma that is not well controlled "
+            "Indicate if the child has exercise-induced asthma that is not well controlled "
             "with medication"
         ),
     )
 
-    exercise_induced_asthma_not_controlled_no: BooleanLike = Field(
-        ...,
-        description=(
-            "Check if the child does not have exercise-induced asthma that is poorly controlled"
-        ),
-    )
-
-    explain_yes_answers_cardiac_history: str = Field(
+    explain_yes_answers_here_patient_history: str = Field(
         default="",
         description=(
-            "Provide details for any 'Yes' answers in the cardiac history questions .If you "
+            "Provide details for any 'Yes' answers in the patient history section .If you "
             'cannot fill this, write "N/A". If this field should not be filled by you '
             "(for example, it belongs to another person or office), leave it blank (empty "
             'string "").'
@@ -127,106 +87,54 @@ class PatientHistoryQuestions(BaseModel):
 
 
 class COVID19(BaseModel):
-    """COVID-19 history, exposure, and vaccination details"""
+    """COVID-19 history, exposure, vaccination, and related complications"""
 
-    covid_diagnosed_yes: BooleanLike = Field(
-        ..., description="Check if the child has been diagnosed with COVID-19"
+    has_your_child_been_diagnosed_with_covid_19: BooleanLike = Field(
+        ..., description="Indicate if the child has ever been diagnosed with COVID-19"
     )
 
-    covid_diagnosed_no: BooleanLike = Field(
-        ..., description="Check if the child has not been diagnosed with COVID-19"
-    )
-
-    still_having_covid_symptoms_yes: BooleanLike = Field(
+    if_yes_is_your_child_still_having_symptoms_from_their_covid_19_infection: BooleanLike = Field(
         default="",
+        description="If the child had COVID-19, indicate if they are still experiencing symptoms",
+    )
+
+    was_your_child_hospitalized_as_a_result_for_complications_of_covid_19: BooleanLike = Field(
+        ..., description="Indicate if the child was hospitalized due to COVID-19 complications"
+    )
+
+    has_your_child_been_diagnosed_with_multi_inflammatory_syndrome_in_children_mis_c: BooleanLike = Field(
+        ..., description="Indicate if the child has been diagnosed with MIS-C"
+    )
+
+    did_your_child_have_any_special_tests_ordered_for_their_heart_or_lungs_or_were_referred_to_a_heart_specialist_cardiologist_to_be_cleared_to_return_to_sports: BooleanLike = Field(
+        ...,
         description=(
-            "Check if the child is still experiencing symptoms from a prior COVID-19 infection"
-        ),
-    )
-
-    still_having_covid_symptoms_no: BooleanLike = Field(
-        default="",
-        description=(
-            "Check if the child is no longer experiencing symptoms from a prior COVID-19 infection"
-        ),
-    )
-
-    hospitalized_for_covid_yes: BooleanLike = Field(
-        default="",
-        description="Check if the child was hospitalized due to complications of COVID-19",
-    )
-
-    hospitalized_for_covid_no: BooleanLike = Field(
-        default="",
-        description="Check if the child was not hospitalized due to complications of COVID-19",
-    )
-
-    mis_c_diagnosis_yes: BooleanLike = Field(
-        default="", description="Check if the child has been diagnosed with MIS-C"
-    )
-
-    mis_c_diagnosis_no: BooleanLike = Field(
-        default="", description="Check if the child has not been diagnosed with MIS-C"
-    )
-
-    special_heart_lung_tests_yes: BooleanLike = Field(
-        default="",
-        description=(
-            "Check if special heart or lung tests were ordered or the child was referred to "
-            "a cardiologist to return to sports"
-        ),
-    )
-
-    special_heart_lung_tests_no: BooleanLike = Field(
-        default="",
-        description=(
-            "Check if no special heart or lung tests were ordered and the child was not "
+            "Indicate if special heart or lung tests were ordered or if the child was "
             "referred to a cardiologist to return to sports"
         ),
     )
 
-    returned_to_full_sports_yes: BooleanLike = Field(
-        default="", description="Check if the child has returned to full participation in sports"
+    has_your_child_returned_back_to_full_participation_in_sports: BooleanLike = Field(
+        ..., description="Indicate if the child has resumed full sports participation"
     )
 
-    returned_to_full_sports_no: BooleanLike = Field(
-        default="",
-        description="Check if the child has not returned to full participation in sports",
-    )
-
-    covid_exposure_past_3_months_yes: BooleanLike = Field(
-        default="",
+    has_your_child_had_direct_or_known_exposure_to_someone_diagnosed_with_covid_19_in_the_past_3_months: BooleanLike = Field(
+        ...,
         description=(
-            "Check if the child has had direct or known exposure to a COVID-19 case in the "
-            "past 3 months"
+            "Indicate if the child has had direct or known exposure to a COVID-19 case in "
+            "the last 3 months"
         ),
     )
 
-    covid_exposure_past_3_months_no: BooleanLike = Field(
-        default="",
-        description=(
-            "Check if the child has not had direct or known exposure to a COVID-19 case in "
-            "the past 3 months"
-        ),
+    was_your_child_tested_for_covid_19: BooleanLike = Field(
+        default="", description="Indicate if the child was tested for COVID-19"
     )
 
-    covid_tested_yes: BooleanLike = Field(
-        default="", description="Check if the child was tested for COVID-19"
+    did_your_child_receive_the_covid_19_vaccine: BooleanLike = Field(
+        default="", description="Indicate if the child has received a COVID-19 vaccination"
     )
 
-    covid_tested_no: BooleanLike = Field(
-        default="", description="Check if the child was not tested for COVID-19"
-    )
-
-    covid_vaccine_received_yes: BooleanLike = Field(
-        default="", description="Check if the child received a COVID-19 vaccine"
-    )
-
-    covid_vaccine_received_no: BooleanLike = Field(
-        default="", description="Check if the child did not receive a COVID-19 vaccine"
-    )
-
-    vaccine_manufacturer: str = Field(
+    what_was_the_manufacturer_of_the_vaccine: str = Field(
         default="",
         description=(
             "Name of the COVID-19 vaccine manufacturer .If you cannot fill this, write "
@@ -235,18 +143,20 @@ class COVID19(BaseModel):
         ),
     )
 
-    date_of_vaccination_first_dose: str = Field(
-        default="", description="Date of the first COVID-19 vaccine dose"
-    )  # YYYY-MM-DD format
-
-    date_of_vaccination_second_dose: str = Field(
-        default="", description="Date of the second COVID-19 vaccine dose, if applicable"
-    )  # YYYY-MM-DD format
-
-    explain_yes_answers_covid_section: str = Field(
+    date_of_vaccinations: str = Field(
         default="",
         description=(
-            "Provide details for any 'Yes' answers in the COVID-19 questions .If you cannot "
+            "Date or dates when the COVID-19 vaccine doses were administered .If you cannot "
+            'fill this, write "N/A". If this field should not be filled by you (for '
+            "example, it belongs to another person or office), leave it blank (empty string "
+            '"").'
+        ),
+    )
+
+    explain_yes_answers_here_covid_19: str = Field(
+        default="",
+        description=(
+            "Provide details for any 'Yes' answers in the COVID-19 section .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'

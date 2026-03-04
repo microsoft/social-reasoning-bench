@@ -15,12 +15,12 @@ BooleanLike = Literal["true", "false", "N/A", ""]
 class ProjectInformation(BaseModel):
     """General project and customer details"""
 
-    date: str = Field(..., description="Date the order form is completed")  # YYYY-MM-DD format
+    date: str = Field(..., description="Date this form is completed")  # YYYY-MM-DD format
 
     customer: str = Field(
         ...,
         description=(
-            'Customer or company name .If you cannot fill this, write "N/A". If this '
+            'Customer name or company .If you cannot fill this, write "N/A". If this '
             "field should not be filled by you (for example, it belongs to another person "
             'or office), leave it blank (empty string "").'
         ),
@@ -36,93 +36,77 @@ class ProjectInformation(BaseModel):
     )
 
     type: str = Field(
-        ...,
+        default="",
         description=(
-            'Fixture or order type designation .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
+            "Type or description of the order or project .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     qty: Union[float, Literal["N/A", ""]] = Field(
-        ..., description="Quantity of fixtures or poles ordered"
+        ..., description="Quantity of fixtures or items requested"
     )
 
 
-class OrderCodes(BaseModel):
-    """Fixture and pole order coding"""
+class FixtureOrderCode(BaseModel):
+    """Configuration for the Olivio Grande RGBW fixture"""
 
-    fixture_order_code_olgr: str = Field(
+    fixture_order_code_position_1: Literal["OLGR", "N/A", ""] = Field(
+        ..., description="First segment of fixture order code (series)"
+    )
+
+    fixture_order_code_position_2: Literal["N13", "M50", "W80", "N/A", ""] = Field(
         ...,
+        description="Second segment of fixture order code (optics: narrow, medium, or wide beam)",
+    )
+
+    fixture_order_code_position_3: Literal["U", "T1", "N/A", ""] = Field(
+        ..., description="Third segment of fixture order code (mounting type)"
+    )
+
+    fixture_order_code_position_4: Literal["L50", "N/A", ""] = Field(
+        ..., description="Fourth segment of fixture order code (light engine / wattage)"
+    )
+
+    fixture_order_code_position_5: Literal["RGBW", "N/A", ""] = Field(
+        ..., description="Fifth segment of fixture order code (CCT / color configuration)"
+    )
+
+
+class PoleOrderCode(BaseModel):
+    """Configuration for the pole (series, height, finish, options)"""
+
+    pole_order_code_series: str = Field(
+        default="",
         description=(
-            "Complete OLGR fixture order code including all option segments .If you cannot "
+            "Pole series identifier (first segment of pole order code) .If you cannot fill "
+            'this, write "N/A". If this field should not be filled by you (for example, '
+            'it belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    pole_order_code_height: str = Field(
+        default="",
+        description=(
+            "Pole height (second segment of pole order code) .If you cannot fill this, "
+            'write "N/A". If this field should not be filled by you (for example, it '
+            'belongs to another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    pole_order_code_finish: Literal["WH", "BK", "BL", "BZ", "SV", "SP", "N/A", ""] = Field(
+        default="", description="Pole finish (third segment of pole order code)"
+    )
+
+    pole_order_code_options: str = Field(
+        default="",
+        description=(
+            "Additional pole options (fourth segment of pole order code) .If you cannot "
             'fill this, write "N/A". If this field should not be filled by you (for '
             "example, it belongs to another person or office), leave it blank (empty string "
             '"").'
         ),
-    )
-
-    pole_order_code: str = Field(
-        default="",
-        description=(
-            "Complete pole order code including all option segments, if poles are ordered "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
-        ),
-    )
-
-
-class FixtureConfiguration(BaseModel):
-    """Technical configuration and options for the Olivio Grande RGBW fixture"""
-
-    optics_n13_narrow_13_beam: BooleanLike = Field(
-        default="", description="Select if N13 narrow 13° beam optic is required"
-    )
-
-    optics_m50_medium_50_beam: BooleanLike = Field(
-        default="", description="Select if M50 medium 50° beam optic is required"
-    )
-
-    optics_w80_wide_80_beam: BooleanLike = Field(
-        default="", description="Select if W80 wide 80° beam optic is required"
-    )
-
-    mounting_u_universal_surface_mount: BooleanLike = Field(
-        default="", description="Select if U universal surface mount is required"
-    )
-
-    mounting_t1_single_pole_top: BooleanLike = Field(
-        default="", description="Select if T1 single pole top mounting is required"
-    )
-
-    light_engine_l50_50w_max: BooleanLike = Field(
-        default="", description="Select if L50 50W max light engine is required"
-    )
-
-    cct_rgbw_red_green_blue_white: BooleanLike = Field(
-        default="",
-        description="Select if RGBW (red, green, blue, white) color configuration is required",
-    )
-
-    finish_wh_white: BooleanLike = Field(default="", description="Select WH white finish")
-
-    finish_bk_black: BooleanLike = Field(default="", description="Select BK black finish")
-
-    finish_bl_semi_matte_black: BooleanLike = Field(
-        default="", description="Select BL semi-matte black finish"
-    )
-
-    finish_bz_bronze: BooleanLike = Field(default="", description="Select BZ bronze finish")
-
-    finish_sv_silver: BooleanLike = Field(default="", description="Select SV silver finish")
-
-    finish_sp_specify_premium_color: BooleanLike = Field(
-        default="", description="Select SP to specify a custom premium color finish"
-    )
-
-    voltage_unv_120v_277v: BooleanLike = Field(
-        default="", description="Select UNV universal voltage (120V-277V)"
     )
 
 
@@ -132,47 +116,52 @@ class ProductModifications(BaseModel):
     product_modifications_line_1: str = Field(
         default="",
         description=(
-            "First line for listing requested product modifications .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "First line of requested product modifications .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     product_modifications_line_2: str = Field(
         default="",
         description=(
-            "Second line for listing requested product modifications .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Second line of requested product modifications .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
     product_modifications_line_3: str = Field(
         default="",
         description=(
-            "Third line for listing requested product modifications .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
+            "Third line of requested product modifications .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
+        ),
+    )
+
+    product_modifications_line_4: str = Field(
+        default="",
+        description=(
+            "Fourth line of requested product modifications .If you cannot fill this, write "
+            '"N/A". If this field should not be filled by you (for example, it belongs to '
+            'another person or office), leave it blank (empty string "").'
         ),
     )
 
 
 class Approvals(BaseModel):
-    """Approval sign-off and date"""
+    """Approval checkbox and date"""
 
-    approvals: str = Field(
+    approvals: BooleanLike = Field(
         default="",
         description=(
-            "Name, title, or indication of person or department providing approval .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
+            "Indicates whether the product modifications or order have been approved "
+            "(checkbox in blank box)"
         ),
     )
 
-    date_approvals_section: str = Field(
-        default="", description="Date of approval"
-    )  # YYYY-MM-DD format
+    approvals_date: str = Field(default="", description="Date of approval")  # YYYY-MM-DD format
 
 
 class OlivioGrandeRgbwUniversalMount(BaseModel):
@@ -184,7 +173,7 @@ class OlivioGrandeRgbwUniversalMount(BaseModel):
     """
 
     project_information: ProjectInformation = Field(..., description="Project Information")
-    order_codes: OrderCodes = Field(..., description="Order Codes")
-    fixture_configuration: FixtureConfiguration = Field(..., description="Fixture Configuration")
+    fixture_order_code: FixtureOrderCode = Field(..., description="Fixture Order Code")
+    pole_order_code: PoleOrderCode = Field(..., description="Pole Order Code")
     product_modifications: ProductModifications = Field(..., description="Product Modifications")
     approvals: Approvals = Field(..., description="Approvals")
