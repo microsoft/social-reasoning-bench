@@ -11,6 +11,7 @@ Produces two figures:
   2. eval_bars.png   — Grouped horizontal bar charts by category
 """
 
+import argparse
 import json
 import math
 import os
@@ -42,8 +43,8 @@ def load_summary(path: str) -> dict:
 
 
 def model_label(s: dict) -> str:
-    """Extract a short model name from the agent_model field."""
-    raw = s.get("agent_model", "unknown")
+    """Extract a short model name from the agent_model or assistant_model field."""
+    raw = s.get("agent_model") or s.get("assistant_model", "unknown")
     # Take the last segment (e.g. 'openai/microsoft/Fara-7B' -> 'Fara-7B')
     return raw.split("/")[-1]
 
@@ -51,14 +52,24 @@ def model_label(s: dict) -> str:
 def extract_metrics(s: dict) -> dict:
     """Pull all metrics we need from a summary dict."""
     total = s.get("evaluated_forms", 1) or 1
-    ci_tasks = s.get("tasks_with_ci_violations", 0)
+    is_interactive = s.get("execution_mode") == "interactive"
+
+    if is_interactive:
+        # Use conversational privacy metrics for interactive runs
+        conv_leakage_count = s.get("conversation_leakage_count", 0)
+        leakage_rate = (conv_leakage_count / total) * 100
+        ci_tasks = s.get("tasks_with_conversation_ci_violations", 0)
+    else:
+        leakage_rate = s.get("leakage_rate", 0) * 100
+        ci_tasks = s.get("tasks_with_ci_violations", 0)
+
     return {
         "n": total,
         # Task completion
         "f1": s.get("avg_f1_score", 0) * 100,
         "perfect_rate": s.get("perfect_forms_rate", 0) * 100,
         # Privacy
-        "leakage_rate": s.get("leakage_rate", 0) * 100,
+        "leakage_rate": leakage_rate,
         "ci_violation_pct": (ci_tasks / total) * 100 if total else 0,
         # Due diligence
         "dd_accuracy": s.get("avg_masked_field_accuracy", 0) * 100,
@@ -113,7 +124,7 @@ def draw_radar(ax, models: list[str], metrics: list[dict], colors: list[str]):
         ax.fill(angles, vals, alpha=0.08, color=colors[i])
 
 
-def save_radar(models, metrics, colors, outpath="eval_radar.png"):
+def save_radar(models, metrics, colors, outpath="eval_radar.png", title="Form Filling Evaluation"):
     fig, ax = plt.subplots(figsize=(7, 7), subplot_kw=dict(polar=True))
     fig.patch.set_facecolor("white")
     draw_radar(ax, models, metrics, colors)
@@ -126,7 +137,7 @@ def save_radar(models, metrics, colors, outpath="eval_radar.png"):
         fancybox=True,
     )
     fig.suptitle(
-        "Performance in One-shot Form Filling with Base Prompt",
+        title,
         fontsize=14,
         fontweight="bold",
         y=0.98,
@@ -255,7 +266,7 @@ def draw_metric_bars(ax, metric_def, models, metrics_list, colors):
     ax.grid(axis="x", color="#f0f0f0", linewidth=0.6)
 
 
-def save_bars(models, metrics_list, colors, outpath="eval_bars.png"):
+def save_bars(models, metrics_list, colors, outpath="eval_bars.png", title="Form Filling Evaluation"):
     # Layout: 4 rows (categories), each row has 1 or 2 columns
     total_subplots = sum(len(c["metrics"]) for c in CATEGORIES)
     fig = plt.figure(figsize=(13, 3.0 * len(CATEGORIES)), facecolor="white")
@@ -301,7 +312,7 @@ def save_bars(models, metrics_list, colors, outpath="eval_bars.png"):
     )
 
     fig.suptitle(
-        "Performance in One-shot Form Filling with Base Prompt",
+        title,
         fontsize=14,
         fontweight="bold",
         y=1.04,
@@ -319,16 +330,19 @@ def save_bars(models, metrics_list, colors, outpath="eval_bars.png"):
 
 # ── Main ───────────────────────────────────────────────────────────────
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python plot_eval.py summary1.json summary2.json ...")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Generate evaluation comparison charts from summary.json files.")
+    parser.add_argument("summaries", nargs="+", help="Paths to summary.json files")
+    parser.add_argument("--title", default="Form Filling Evaluation", help="Chart title")
+    parser.add_argument("--prefix", default="eval", help="Output filename prefix")
+    parser.add_argument("--labels", default=None, help="Comma-separated custom labels (overrides model names)")
+    args = parser.parse_args()
 
-    paths = sys.argv[1:]
+    custom_labels = args.labels.split(",") if args.labels else None
     models, metrics_list, colors = [], [], []
 
-    for i, p in enumerate(paths):
+    for i, p in enumerate(args.summaries):
         s = load_summary(p)
-        name = model_label(s)
+        name = custom_labels[i] if custom_labels and i < len(custom_labels) else model_label(s)
         m = extract_metrics(s)
         models.append(name)
         metrics_list.append(m)
@@ -338,8 +352,8 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     print()
-    save_radar(models, metrics_list, colors, outpath=os.path.join(script_dir, "eval_radar.png"))
-    save_bars(models, metrics_list, colors, outpath=os.path.join(script_dir, "eval_bars.png"))
+    save_radar(models, metrics_list, colors, outpath=os.path.join(script_dir, f"{args.prefix}_radar.png"), title=args.title)
+    save_bars(models, metrics_list, colors, outpath=os.path.join(script_dir, f"{args.prefix}_bars.png"), title=args.title)
     print("\nDone!")
 
 
