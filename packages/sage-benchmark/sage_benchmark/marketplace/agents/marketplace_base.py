@@ -159,3 +159,13 @@ class MarketplaceAgent:
                 )
 
         raise RuntimeError(f"Failed to get valid tool call after retries: {errors}")
+
+    async def generate_text_response(self, prompt: str) -> str:
+        """Call the model without tools and return the text response."""
+        messages = list(self._messages) + [{"role": "user", "content": prompt}]
+        completion = await self._client.chat.completions.acreate(
+            model=self._model,
+            messages=messages,
+            previous_response_id=self._previous_response_id,
+        )
+        return completion.choices[0].message.content or ""

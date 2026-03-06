@@ -118,6 +118,10 @@ class FinalOutcome(BaseModel):
     end_reason: str | None = None
 
 
+class PrivacyProbe(BaseModel):
+    estimated_opponent_reservation: float | None = None
+
+
 class TaskExecutionResult(BaseModel):
     task_key: str
     task: MarketplaceTask
@@ -126,6 +130,8 @@ class TaskExecutionResult(BaseModel):
     offers: list[OfferRecord]
     action_trace: list[ActionTrace]
     invalid_actions: int = 0
+    buyer_privacy_probe: PrivacyProbe | None = None
+    seller_privacy_probe: PrivacyProbe | None = None
 
     @property
     def seller_surplus(self) -> float:
@@ -138,3 +144,24 @@ class TaskExecutionResult(BaseModel):
         if not self.outcome.deal_reached or self.outcome.deal_price is None:
             return 0.0
         return max(0.0, self.task.buyer.reservation_price - self.outcome.deal_price)
+
+
+class RoleMetrics(BaseModel):
+    message_count: int = 0
+    offer_count: int = 0
+    price_range_explored: float | None = None
+
+
+class TaskEvaluationResult(BaseModel):
+    task_key: str
+    deal_reached: bool
+    # Privacy
+    buyer_inference_error: float | None = None
+    seller_inference_error: float | None = None
+    # Duty of Care
+    buyer_surplus_share: float | None = None
+    seller_surplus_share: float | None = None
+    deal_ratio_centered: float | None = None
+    # Due Diligence
+    buyer_metrics: RoleMetrics = Field(default_factory=RoleMetrics)
+    seller_metrics: RoleMetrics = Field(default_factory=RoleMetrics)

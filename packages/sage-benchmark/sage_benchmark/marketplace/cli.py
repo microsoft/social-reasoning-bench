@@ -5,10 +5,10 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
-from statistics import mean
 
 from sage_llm import ModelClient
 
+from .evaluation import evaluate_task
 from .loader import load_tasks
 from .runner import run_tasks
 from .types import TaskExecutionResult
@@ -50,25 +50,20 @@ def parse_args() -> argparse.Namespace:
         default="outputs/marketplace",
         help="Directory to write execution results",
     )
+    parser.add_argument(
+        "--reasoning-effort",
+        default=None,
+        help="Reasoning effort for models (e.g. 'low', 'medium', 'high', or integer budget)",
+    )
     return parser.parse_args()
 
 
 def _compute_summary(results: list[TaskExecutionResult]) -> dict:
-    deal_results = [
-        r for r in results if r.outcome.deal_reached and r.outcome.deal_price is not None
-    ]
-    midpoint_abs_deltas: list[float] = []
-    for r in results:
-        if r.outcome.deal_reached and r.outcome.deal_price is not None:
-            midpoint = (r.task.buyer.reservation_price + r.task.seller.reservation_price) / 2.0
-            midpoint_abs_deltas.append(abs(r.outcome.deal_price - midpoint))
-
+    deal_count = sum(1 for r in results if r.outcome.deal_reached)
     return {
         "task_count": len(results),
-        "deals_reached": len(deal_results),
-        "deal_rate": (len(deal_results) / len(results)) if results else 0.0,
-        # MVP fairness/duty-of-care proxy: closeness to midpoint of reservation prices.
-        "avg_abs_midpoint_price_delta": mean(midpoint_abs_deltas) if midpoint_abs_deltas else None,
+        "deals_reached": deal_count,
+        "deal_rate": (deal_count / len(results)) if results else 0.0,
     }
 
 
@@ -88,8 +83,21 @@ def main() -> None:
         f"tasks={len(tasks)} buyer_model={buyer_model} seller_model={seller_model} "
         f"max_steps_per_turn={args.max_steps_per_turn}"
     )
-    buyer_client = ModelClient(base_url=args.buyer_base_url or args.base_url)
-    seller_client = ModelClient(base_url=args.seller_base_url or args.base_url)
+    reasoning_effort: str | int = "none"
+    if args.reasoning_effort is not None:
+        try:
+            reasoning_effort = int(args.reasoning_effort)
+        except ValueError:
+            reasoning_effort = args.reasoning_effort
+
+    buyer_client = ModelClient(
+        base_url=args.buyer_base_url or args.base_url,
+        reasoning_effort=reasoning_effort,
+    )
+    seller_client = ModelClient(
+        base_url=args.seller_base_url or args.base_url,
+        reasoning_effort=reasoning_effort,
+    )
 
     def _print_task_done(r: TaskExecutionResult) -> None:
         print(
@@ -109,23 +117,27 @@ def main() -> None:
         )
     )
 
+    evaluations = [evaluate_task(r) for r in results]
+
     run_dir = Path(args.output_dir) / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     run_dir.mkdir(parents=True, exist_ok=True)
-    out_path = run_dir / "executions.json"
+    out_path = run_dir / "results.json"
     summary = _compute_summary(results)
 
     payload = {
         "task_count": len(results),
         "summary": summary,
-        "results": [r.model_dump(mode="json") for r in results],
+        "results": [
+            {
+                "execution": r.model_dump(mode="json"),
+                "evaluation": e.model_dump(mode="json"),
+            }
+            for r, e in zip(results, evaluations)
+        ],
     }
     out_path.write_text(json.dumps(payload, indent=2))
 
     print("Marketplace experiment finished.")
     print(f"Loaded {len(tasks)} task(s)")
     print(f"Saved results to {out_path}")
-    print(
-        "Summary: "
-        f"deal_rate={summary['deal_rate']:.1%} "
-        f"avg_abs_midpoint_price_delta={summary['avg_abs_midpoint_price_delta']}"
-    )
+    print(f"Summary: deal_rate={summary['deal_rate']:.1%}")
