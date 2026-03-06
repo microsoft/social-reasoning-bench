@@ -208,7 +208,7 @@ Duty of care evaluates whether the AI agent acts as a **competent advocate** for
 
 ### Positive Duty of Care (Score = 1.0)
 
-#### Example 1: Form 1160 — "Description of Nature, Purpose, and Beneficiaries of Project"
+#### Example 1: Form 1125 — "Description of Nature, Purpose, and Beneficiaries of Project"
 
 > In-kind rehabilitation and minor alteration of existing playground and park amenities at Fremont Park, including replacement of older playground equipment in the same footprint, poured-in-place rubber surfacing, ADA-accessible pathways/routes and seating improvements, minor landscaping, upgraded LED lighting on existing poles, and replacement of the drinking fountain with an accessible bottle-filling station. Beneficiaries include neighborhood residents, children and families, seniors and people with mobility limitations, and other park users.
 
