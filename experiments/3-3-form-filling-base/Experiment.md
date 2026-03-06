@@ -7,7 +7,7 @@ This experiment evaluates LLM performance on form filling using a base (unoptimi
 | Mode | Description | Models Tested |
 |---|---|---|
 | **One-shot** | Single-pass form filling, no follow-up interaction | GPT-4.1, GPT-5.1, GPT-5.2 |
-| **Interactive** | Multi-turn with a basic interviewer (GPT-5.1) | GPT-4.1, GPT-5.1 |
+| **Interactive** | Multi-turn with a basic interviewer (GPT-5.1) | GPT-4.1, GPT-5.1, GPT-5.2 |
 | **Detailed-Interactive** | Multi-turn with a detailed interviewer (GPT-5.1) | GPT-4.1, GPT-5.1, GPT-5.2 |
 | **GUI** | Browser-based form interaction via vLLM | Fara-7B |
 
@@ -39,6 +39,7 @@ uv run --group azure sync.py download form_filling_base/oneshot-gpt5.1 /<mydir>
 uv run --group azure sync.py download form_filling_base/oneshot-gpt5.2 /<mydir>
 uv run --group azure sync.py download form_filling_base/interactive-gpt4.1 /<mydir>
 uv run --group azure sync.py download form_filling_base/interactive-gpt5.1 /<mydir>
+uv run --group azure sync.py download form_filling_base/interactive-gpt5.2 /<mydir>
 uv run --group azure sync.py download form_filling_base/detail-interactive-gpt4.1 /<mydir>
 uv run --group azure sync.py download form_filling_base/detail-interactive-gpt5.1 /<mydir>
 uv run --group azure sync.py download form_filling_base/detail-interactive-gpt5.2 /<mydir>
@@ -76,68 +77,8 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 
 #### 1.1 One-shot
 
-![Radar Chart](oneshot_cross_model_radar.png)
-![Bar Charts](oneshot_cross_model_bars.png)
-
-##### GPT-5.2 (n=104)
-
-| Category | Metric | Value |
-|---|---|---|
-| **Task Completion** | Avg Precision | 86.39% |
-| | Avg Recall | 81.00% |
-| | Avg F1 Score | 83.23% |
-| | Perfect Forms (F1=1.0) | 2/104 (1.9%) |
-| **Privacy** | Avg Privacy Score | 93.12% |
-| | Leakage Rate | 30/104 (28.8%) |
-| | CI Violations (tasks) | 9/104 |
-| **Due Diligence** | Masked Field Accuracy | 38.89% |
-| | Ask-User F1 | 32.98% |
-| **Duty of Care** | Avg Score | 0.72 |
-
-##### GPT-5.1 (n=112)
-
-| Category | Metric | Value |
-|---|---|---|
-| **Task Completion** | Avg Precision | 84.07% |
-| | Avg Recall | 79.96% |
-| | Avg F1 Score | 81.52% |
-| | Perfect Forms (F1=1.0) | 5/112 (4.5%) |
-| **Privacy** | Avg Privacy Score | 83.41% |
-| | Leakage Rate | 60/112 (53.6%) |
-| | CI Violations (tasks) | 21/112 |
-| **Due Diligence** | Masked Field Accuracy | 27.72% |
-| | Ask-User F1 | 15.36% |
-| **Duty of Care** | Avg Score | 0.63 |
-
-##### GPT-4.1 (n=99)
-
-| Category | Metric | Value |
-|---|---|---|
-| **Task Completion** | Avg Precision | 79.17% |
-| | Avg Recall | 78.19% |
-| | Avg F1 Score | 78.46% |
-| | Perfect Forms (F1=1.0) | 4/99 (4.0%) |
-| **Privacy** | Avg Privacy Score | 89.83% |
-| | Leakage Rate | 38/99 (38.4%) |
-| | CI Violations (tasks) | 12/99 |
-| **Due Diligence** | Masked Field Accuracy | 23.43% |
-| | Ask-User F1 | 0.00% |
-| **Duty of Care** | Avg Score | 0.63 |
-
-##### Fara-7B (n=29, GUI mode)
-
-| Category | Metric | Value |
-|---|---|---|
-| **Task Completion** | Avg Precision | 51.05% |
-| | Avg Recall | 46.32% |
-| | Avg F1 Score | 46.70% |
-| | Perfect Forms (F1=1.0) | 0/29 (0.0%) |
-| **Privacy** | Avg Privacy Score | 100.00% |
-| | Leakage Rate | 0/29 (0.0%) |
-| | CI Violations (tasks) | 2/29 |
-| **Due Diligence** | Masked Field Accuracy | 0.00% |
-| | Ask-User F1 | 0.00% |
-| **Duty of Care** | Avg Score | 0.77 |
+<img src="oneshot_cross_model_radar.png" alt="Radar Chart" width="450">
+<img src="oneshot_cross_model_bars.png" alt="Bar Charts" width="450">
 
 ##### One-shot Cross-Model Summary
 
@@ -156,49 +97,19 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 
 > Privacy metrics below use **conversational privacy** (leakage during the dialogue with the interviewer).
 
-![Radar Chart](interactive_cross_model_radar.png)
-![Bar Charts](interactive_cross_model_bars.png)
-
-##### GPT-4.1 (n=116)
-
-| Category | Metric | Value |
-|---|---|---|
-| **Task Completion** | Avg Precision | 81.69% |
-| | Avg Recall | 75.73% |
-| | Avg F1 Score | 78.15% |
-| | Perfect Forms (F1=1.0) | 7/116 (6.0%) |
-| **Conv. Privacy** | Avg Privacy Score | 92.82% |
-| | Leakage Rate | 42/116 (36.2%) |
-| | CI Violations (tasks) | 15/116 |
-| **Due Diligence** | Masked Field Accuracy | 17.40% |
-| | Ask-User F1 | 4.60% |
-| **Duty of Care** | Avg Score | 0.74 |
-
-##### GPT-5.1 (n=116)
-
-| Category | Metric | Value |
-|---|---|---|
-| **Task Completion** | Avg Precision | 81.56% |
-| | Avg Recall | 74.63% |
-| | Avg F1 Score | 77.32% |
-| | Perfect Forms (F1=1.0) | 3/116 (2.6%) |
-| **Conv. Privacy** | Avg Privacy Score | 88.12% |
-| | Leakage Rate | 58/116 (50.0%) |
-| | CI Violations (tasks) | 11/116 |
-| **Due Diligence** | Masked Field Accuracy | 9.50% |
-| | Ask-User F1 | 1.44% |
-| **Duty of Care** | Avg Score | 0.72 |
+<img src="interactive_cross_model_radar.png" alt="Radar Chart" width="450">
+<img src="interactive_cross_model_bars.png" alt="Bar Charts" width="450">
 
 ##### Interactive Cross-Model Summary
 
-| Metric | GPT-4.1 | GPT-5.1 |
-|---|---|---|
-| Avg F1 Score | **78.15%** | 77.32% |
-| Conv. Leakage Rate | **36.2%** | 50.0% |
-| Conv. CI Violation Rate | **12.9%** | 9.5% |
-| Masked Field Accuracy | **17.40%** | 9.50% |
-| Ask-User F1 | **4.60%** | 1.44% |
-| Duty of Care Score | **0.74** | 0.72 |
+| Metric | GPT-5.2 | GPT-4.1 | GPT-5.1 |
+|---|---|---|---|
+| Avg F1 Score | **82.43%** | 78.15% | 77.32% |
+| Conv. Leakage Rate | **29.8%** | 36.2% | 50.0% |
+| Conv. CI Violation Rate | 14.9% | 12.9% | **9.5%** |
+| Masked Field Accuracy | **39.21%** | 17.40% | 9.50% |
+| Ask-User F1 | **25.18%** | 4.60% | 1.44% |
+| Duty of Care Score | **0.74** | **0.74** | 0.72 |
 
 ---
 
@@ -206,53 +117,8 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 
 > Privacy metrics below use **conversational privacy** (leakage during the dialogue with the detailed interviewer).
 
-![Radar Chart](detail_cross_model_radar.png)
-![Bar Charts](detail_cross_model_bars.png)
-
-##### GPT-5.2 (n=113)
-
-| Category | Metric | Value |
-|---|---|---|
-| **Task Completion** | Avg Precision | 85.38% |
-| | Avg Recall | 80.33% |
-| | Avg F1 Score | 82.28% |
-| | Perfect Forms (F1=1.0) | 7/113 (6.2%) |
-| **Conv. Privacy** | Avg Privacy Score | 86.39% |
-| | Leakage Rate | 57/113 (50.4%) |
-| | CI Violations (tasks) | 20/113 |
-| **Due Diligence** | Masked Field Accuracy | 38.63% |
-| | Ask-User F1 | 22.22% |
-| **Duty of Care** | Avg Score | 0.65 |
-
-##### GPT-5.1 (n=116)
-
-| Category | Metric | Value |
-|---|---|---|
-| **Task Completion** | Avg Precision | 80.78% |
-| | Avg Recall | 74.94% |
-| | Avg F1 Score | 77.07% |
-| | Perfect Forms (F1=1.0) | 4/116 (3.4%) |
-| **Conv. Privacy** | Avg Privacy Score | 68.57% |
-| | Leakage Rate | 92/116 (79.3%) |
-| | CI Violations (tasks) | 33/116 |
-| **Due Diligence** | Masked Field Accuracy | 11.65% |
-| | Ask-User F1 | 0.00% |
-| **Duty of Care** | Avg Score | 0.62 |
-
-##### GPT-4.1 (n=116)
-
-| Category | Metric | Value |
-|---|---|---|
-| **Task Completion** | Avg Precision | 78.56% |
-| | Avg Recall | 75.24% |
-| | Avg F1 Score | 76.30% |
-| | Perfect Forms (F1=1.0) | 8/116 (6.9%) |
-| **Conv. Privacy** | Avg Privacy Score | 83.77% |
-| | Leakage Rate | 78/116 (67.2%) |
-| | CI Violations (tasks) | 25/116 |
-| **Due Diligence** | Masked Field Accuracy | 15.83% |
-| | Ask-User F1 | 4.28% |
-| **Duty of Care** | Avg Score | 0.72 |
+<img src="detail_cross_model_radar.png" alt="Radar Chart" width="450">
+<img src="detail_cross_model_bars.png" alt="Bar Charts" width="450">
 
 ##### Detailed-Interactive Cross-Model Summary
 
@@ -271,8 +137,8 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 
 #### 2.1 GPT-4.1
 
-![Radar Chart](gpt41_cross_modality_radar.png)
-![Bar Charts](gpt41_cross_modality_bars.png)
+<img src="gpt41_cross_modality_radar.png" alt="Radar Chart" width="450">
+<img src="gpt41_cross_modality_bars.png" alt="Bar Charts" width="450">
 
 | Metric | One-shot (n=99) | Interactive (n=116) | Detail-Interactive (n=116) |
 |---|---|---|---|
@@ -280,7 +146,6 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 | Avg Recall | **78.19%** | 75.73% | 75.24% |
 | Avg F1 Score | **78.46%** | 78.15% | 76.30% |
 | Perfect Forms | 4.0% | **6.0%** | **6.9%** |
-| Privacy Score | **89.83%** | 92.82%* | 83.77%* |
 | Leakage Rate | **38.4%** | 36.2%* | 67.2%* |
 | CI Violation Rate | **12.1%** | 12.9%* | 21.6%* |
 | Masked Field Accuracy | **23.43%** | 17.40% | 15.83% |
@@ -293,8 +158,8 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 
 #### 2.2 GPT-5.1
 
-![Radar Chart](gpt51_cross_modality_radar.png)
-![Bar Charts](gpt51_cross_modality_bars.png)
+<img src="gpt51_cross_modality_radar.png" alt="Radar Chart" width="450">
+<img src="gpt51_cross_modality_bars.png" alt="Bar Charts" width="450">
 
 | Metric | One-shot (n=112) | Interactive (n=116) | Detail-Interactive (n=116) |
 |---|---|---|---|
@@ -302,7 +167,6 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 | Avg Recall | **79.96%** | 74.63% | 74.94% |
 | Avg F1 Score | **81.52%** | 77.32% | 77.07% |
 | Perfect Forms | **4.5%** | 2.6% | 3.4% |
-| Privacy Score | 83.41% | 88.12%* | 68.57%* |
 | Leakage Rate | **53.6%** | 50.0%* | 79.3%* |
 | CI Violation Rate | **18.8%** | 9.5%* | 28.4%* |
 | Masked Field Accuracy | **27.72%** | 9.50% | 11.65% |
@@ -315,23 +179,20 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 
 #### 2.3 GPT-5.2
 
-> Note: Interactive results are not available for GPT-5.2.
+<img src="gpt52_cross_modality_radar.png" alt="Radar Chart" width="450">
+<img src="gpt52_cross_modality_bars.png" alt="Bar Charts" width="450">
 
-![Radar Chart](gpt52_cross_modality_radar.png)
-![Bar Charts](gpt52_cross_modality_bars.png)
-
-| Metric | One-shot (n=104) | Detail-Interactive (n=113) |
-|---|---|---|
-| Avg Precision | **86.39%** | 85.38% |
-| Avg Recall | **81.00%** | 80.33% |
-| Avg F1 Score | **83.23%** | 82.28% |
-| Perfect Forms | 1.9% | **6.2%** |
-| Privacy Score | **93.12%** | 86.39%* |
-| Leakage Rate | **28.8%** | 50.4%* |
-| CI Violation Rate | **8.7%** | 17.7%* |
-| Masked Field Accuracy | **38.89%** | 38.63% |
-| Ask-User F1 | **32.98%** | 22.22% |
-| Duty of Care Score | **0.72** | 0.65 |
+| Metric | One-shot (n=104) | Interactive (n=114) | Detail-Interactive (n=113) |
+|---|---|---|---|
+| Avg Precision | **86.39%** | 85.14% | 85.38% |
+| Avg Recall | **81.00%** | 80.73% | 80.33% |
+| Avg F1 Score | **83.23%** | 82.43% | 82.28% |
+| Perfect Forms | 1.9% | 5.3% | **6.2%** |
+| Leakage Rate | **28.8%** | 29.8%* | 50.4%* |
+| CI Violation Rate | **8.7%** | 14.9%* | 17.7%* |
+| Masked Field Accuracy | **38.89%** | 39.21% | 38.63% |
+| Ask-User F1 | **32.98%** | 25.18% | 22.22% |
+| Duty of Care Score | 0.72 | **0.74** | 0.65 |
 
 \* Conversational privacy metrics
 
@@ -421,7 +282,8 @@ The agent over-shares conflict, personal complications, and criticisms of the fi
 ## Key Takeaways
 
 ### Cross-Model Findings
-- **GPT-5.2 consistently leads** across all modalities in task completion (F1: 83.23% one-shot, 82.28% detailed-interactive) and due diligence (masked field accuracy ~39% across modes).
+- **GPT-5.2 consistently leads** across all modalities in task completion (F1: 83.23% one-shot, 82.43% interactive, 82.28% detailed-interactive) and due diligence (masked field accuracy ~39% across modes).
+- **GPT-5.2 dominates interactive mode**, outperforming GPT-4.1 and GPT-5.1 in F1 (+4.3pp), leakage rate (29.8% vs 36.2%/50.0%), and due diligence (ask-user F1: 25.18% vs 4.60%/1.44%).
 - **GPT-5.1 has the worst privacy** among API models across all modalities, with the highest leakage rates (53.6% one-shot, 50.0% interactive, 79.3% detailed-interactive).
 - **GPT-4.1 shows moderate performance** but never uses ask-user in one-shot mode (F1=0%). It gains this capability slightly in interactive modes.
 - **Fara-7B** (GUI, one-shot only) has low task completion (46.70% F1) but zero leakage, likely because it struggles to fill fields rather than exhibiting deliberate privacy-preserving behavior.
@@ -429,6 +291,7 @@ The agent over-shares conflict, personal complications, and criticisms of the fi
 ### Cross-Modality Findings
 - **One-shot generally yields the best task completion** for all models. Interactive modes do not improve F1 scores — likely because the multi-turn format introduces noise and the base prompt is not optimized for interactive dialogue.
 - **Conversational privacy degrades significantly in detailed-interactive mode.** The detailed interviewer elicits more information, leading to higher leakage rates (e.g., GPT-5.1: 53.6% one-shot → 79.3% detailed-interactive). The more conversational turns, the more opportunities for leakage.
-- **Due diligence (masked field accuracy) drops in interactive modes** for all models, suggesting the base prompt does not effectively leverage the interactive format for clarification.
+- **GPT-5.2 maintains strong privacy in interactive mode** (29.8% leakage), nearly matching its one-shot performance (28.8%), unlike other models that show significant degradation.
+- **Due diligence (masked field accuracy) drops in interactive modes** for most models, but GPT-5.2 is an exception — maintaining ~39% accuracy across all modes.
 - **Duty of care improves in interactive modes** across models, possibly because the conversational format encourages more responsible behavior.
 - **GPT-5.2 is most robust across modalities**, maintaining high F1 and low leakage rates relative to other models regardless of execution mode.
