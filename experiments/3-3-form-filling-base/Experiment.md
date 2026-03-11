@@ -6,9 +6,9 @@ This experiment evaluates LLM performance on form filling using a base (unoptimi
 
 | Mode | Description | Models Tested |
 |---|---|---|
-| **One-shot** | Single-pass form filling, no follow-up interaction | GPT-4.1, GPT-5.1, GPT-5.2 |
-| **Interactive** | Multi-turn with a basic interviewer (GPT-5.1) | GPT-4.1, GPT-5.1, GPT-5.2 |
-| **Detailed-Interactive** | Multi-turn with a detailed interviewer (GPT-5.1) | GPT-4.1, GPT-5.1, GPT-5.2 |
+| **One-shot** | Single-pass form filling, no follow-up interaction | GPT-4.1, GPT-5.1, GPT-5.2, Qwen3.5-9B |
+| **Interactive** | Multi-turn with a basic interviewer (GPT-5.1) | GPT-4.1, GPT-5.1, GPT-5.2, Qwen3.5-9B |
+| **Detailed-Interactive** | Multi-turn with a detailed interviewer (GPT-5.1) | GPT-4.1, GPT-5.1, GPT-5.2, Qwen3.5-9B |
 | **GUI** | Browser-based form interaction via vLLM | Fara-7B |
 
 All models are judged by GPT-5.1. In interactive modes, GPT-5.1 serves as the interviewer.
@@ -82,14 +82,14 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 
 ##### One-shot Cross-Model Summary
 
-| Metric | GPT-5.2 | GPT-5.1 | GPT-4.1 | Fara-7B |
-|---|---|---|---|---|
-| Avg F1 Score | **83.23%** | 81.52% | 78.46% | 46.70% |
-| Leakage Rate | **28.8%** | 53.6% | 38.4% | 0.0% |
-| CI Violation Rate | **8.7%** | 18.8% | 12.1% | 6.9% |
-| Masked Field Accuracy | **38.89%** | 27.72% | 23.43% | 0.00% |
-| Ask-User F1 | **32.98%** | 15.36% | 0.00% | 0.00% |
-| Duty of Care Score | **0.72** | 0.63 | 0.63 | 0.77 |
+| Metric | GPT-5.2 | GPT-5.1 | GPT-4.1 | Qwen3.5-9B | Fara-7B |
+|---|---|---|---|---|---|
+| Avg F1 Score | **83.23%** | 81.52% | 78.46% | 77.87% | 46.70% |
+| Leakage Rate | **28.8%** | 53.6% | 38.4% | 50.0% | 0.0% |
+| CI Violation Rate | **8.7%** | 18.8% | 12.1% | 21.4% | 6.9% |
+| Masked Field Accuracy | **38.89%** | 27.72% | 23.43% | 27.10% | 0.00% |
+| Ask-User F1 | **32.98%** | 15.36% | 0.00% | 13.49% | 0.00% |
+| Duty of Care Score | **0.72** | 0.63 | 0.63 | 0.63 | 0.77 |
 
 ---
 
@@ -102,14 +102,14 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 
 ##### Interactive Cross-Model Summary
 
-| Metric | GPT-5.2 | GPT-4.1 | GPT-5.1 |
-|---|---|---|---|
-| Avg F1 Score | **82.43%** | 78.15% | 77.32% |
-| Conv. Leakage Rate | **29.8%** | 36.2% | 50.0% |
-| Conv. CI Violation Rate | 14.9% | 12.9% | **9.5%** |
-| Masked Field Accuracy | **39.21%** | 17.40% | 9.50% |
-| Ask-User F1 | **25.18%** | 4.60% | 1.44% |
-| Duty of Care Score | **0.74** | **0.74** | 0.72 |
+| Metric | GPT-5.2 | GPT-4.1 | GPT-5.1 | Qwen3.5-9B |
+|---|---|---|---|---|
+| Avg F1 Score | **82.43%** | 78.15% | 77.32% | 74.33% |
+| Conv. Leakage Rate | **29.8%** | 36.2% | 50.0% | 64.3% |
+| Conv. CI Violation Rate | 14.9% | 12.9% | **9.5%** | 24.3% |
+| Masked Field Accuracy | **39.21%** | 17.40% | 9.50% | 18.74% |
+| Ask-User F1 | **25.18%** | 4.60% | 1.44% | 11.19% |
+| Duty of Care Score | **0.74** | **0.74** | 0.72 | 0.61 |
 
 ---
 
@@ -122,14 +122,14 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 
 ##### Detailed-Interactive Cross-Model Summary
 
-| Metric | GPT-5.2 | GPT-5.1 | GPT-4.1 |
-|---|---|---|---|
-| Avg F1 Score | **82.28%** | 77.07% | 76.30% |
-| Conv. Leakage Rate | **50.4%** | 79.3% | 67.2% |
-| Conv. CI Violation Rate | 17.7% | 28.4% | **21.6%** |
-| Masked Field Accuracy | **38.63%** | 11.65% | 15.83% |
-| Ask-User F1 | **22.22%** | 0.00% | 4.28% |
-| Duty of Care Score | 0.65 | 0.62 | **0.72** |
+| Metric | GPT-5.2 | GPT-5.1 | GPT-4.1 | Qwen3.5-9B |
+|---|---|---|---|---|
+| Avg F1 Score | **82.28%** | 77.07% | 76.30% | 73.90% |
+| Conv. Leakage Rate | **50.4%** | 79.3% | 67.2% | 81.0% |
+| Conv. CI Violation Rate | 17.7% | 28.4% | **21.6%** | 32.8% |
+| Masked Field Accuracy | **38.63%** | 11.65% | 15.83% | 23.13% |
+| Ask-User F1 | **22.22%** | 0.00% | 4.28% | 16.35% |
+| Duty of Care Score | 0.65 | 0.62 | **0.72** | 0.60 |
 
 ---
 
@@ -193,6 +193,27 @@ Plots are saved to `experiments/3-3-form-filling-base/`.
 | Masked Field Accuracy | **38.89%** | 39.21% | 38.63% |
 | Ask-User F1 | **32.98%** | 25.18% | 22.22% |
 | Duty of Care Score | 0.72 | **0.74** | 0.65 |
+
+\* Conversational privacy metrics
+
+---
+
+#### 2.4 Qwen3.5-9B
+
+<img src="qwen9b_cross_modality_radar.png" alt="Radar Chart" width="450">
+<img src="qwen9b_cross_modality_bars.png" alt="Bar Charts" width="450">
+
+| Metric | One-shot (n=84) | Interactive (n=115) | Detail-Interactive (n=116) |
+|---|---|---|---|
+| Avg Precision | **82.61%** | 80.07% | 78.09% |
+| Avg Recall | **75.56%** | 72.03% | 71.71% |
+| Avg F1 Score | **77.87%** | 74.33% | 73.90% |
+| Perfect Forms | **3.6%** | 1.7% | 0.9% |
+| Leakage Rate | **50.0%** | 64.3%* | 81.0%* |
+| CI Violation Rate | **21.4%** | 24.3%* | 32.8%* |
+| Masked Field Accuracy | **27.10%** | 18.74% | 23.13% |
+| Ask-User F1 | 13.49% | 11.19% | **16.35%** |
+| Duty of Care Score | **0.63** | 0.61 | 0.60 |
 
 \* Conversational privacy metrics
 

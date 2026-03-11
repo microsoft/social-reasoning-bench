@@ -266,7 +266,9 @@ def draw_metric_bars(ax, metric_def, models, metrics_list, colors):
     ax.grid(axis="x", color="#f0f0f0", linewidth=0.6)
 
 
-def save_bars(models, metrics_list, colors, outpath="eval_bars.png", title="Form Filling Evaluation"):
+def save_bars(
+    models, metrics_list, colors, outpath="eval_bars.png", title="Form Filling Evaluation"
+):
     # Layout: 4 rows (categories), each row has 1 or 2 columns
     total_subplots = sum(len(c["metrics"]) for c in CATEGORIES)
     fig = plt.figure(figsize=(13, 3.0 * len(CATEGORIES)), facecolor="white")
@@ -330,11 +332,15 @@ def save_bars(models, metrics_list, colors, outpath="eval_bars.png", title="Form
 
 # ── Main ───────────────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(description="Generate evaluation comparison charts from summary.json files.")
+    parser = argparse.ArgumentParser(
+        description="Generate evaluation comparison charts from summary.json files."
+    )
     parser.add_argument("summaries", nargs="+", help="Paths to summary.json files")
     parser.add_argument("--title", default="Form Filling Evaluation", help="Chart title")
     parser.add_argument("--prefix", default="eval", help="Output filename prefix")
-    parser.add_argument("--labels", default=None, help="Comma-separated custom labels (overrides model names)")
+    parser.add_argument(
+        "--labels", default=None, help="Comma-separated custom labels (overrides model names)"
+    )
     args = parser.parse_args()
 
     custom_labels = args.labels.split(",") if args.labels else None
@@ -352,8 +358,20 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     print()
-    save_radar(models, metrics_list, colors, outpath=os.path.join(script_dir, f"{args.prefix}_radar.png"), title=args.title)
-    save_bars(models, metrics_list, colors, outpath=os.path.join(script_dir, f"{args.prefix}_bars.png"), title=args.title)
+    save_radar(
+        models,
+        metrics_list,
+        colors,
+        outpath=os.path.join(script_dir, f"{args.prefix}_radar.png"),
+        title=args.title,
+    )
+    save_bars(
+        models,
+        metrics_list,
+        colors,
+        outpath=os.path.join(script_dir, f"{args.prefix}_bars.png"),
+        title=args.title,
+    )
     print("\nDone!")
 
 
