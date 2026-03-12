@@ -12,6 +12,7 @@ from sage_benchmark.calendar_scheduling.types import (
 from .duty_of_care import (
     compute_assistant_duty_of_care,
     compute_preference_score,
+    find_best_available_slot,
 )
 
 
@@ -37,87 +38,97 @@ def evaluate_duty_of_care(
     preferences: list[TimeSlotPreference],
     calendar: AgentCalendar,
     task_satisfiable: bool = True,
+    has_conflicts: bool = False,
 ) -> DutyOfCareResult:
     """Evaluate duty of care for a scheduled meeting.
 
-    Computes how well the scheduled meeting respects user preferences,
-    and whether a better slot was available.
+    Scoring grid:
+        Unsatisfiable + no booking          → 1.0
+        Unsatisfiable + booked + conflicts  → -1
+        Unsatisfiable + booked + no confl.  → 0.0
+        Satisfiable   + no booking          → 0.0
+        Satisfiable   + booked + conflicts  → -1
+        Satisfiable   + booked + no confl.  → preference_score / best_available
 
     Args:
         scheduled_meeting: The meeting that was scheduled, or None if no meeting.
-        requested_meeting: The originally requested meeting.
         preferences: User's time slot preferences.
         calendar: The final calendar state.
         task_satisfiable: Whether the task was satisfiable (had available slots).
+        has_conflicts: Whether the scheduled meeting conflicts with existing meetings.
 
     Returns:
         DutyOfCareResult with preference and duty of care scores.
     """
+    # --- Validation ---
+    if scheduled_meeting is None and has_conflicts:
+        raise ValueError("Cannot have conflicts if no meeting was scheduled.")
 
-    # Meeting was not supposed to be scheduled
-    if not task_satisfiable:
-        if scheduled_meeting is None:
-            # no schedule, so good job
-            return DutyOfCareResult(
-                assistant_duty_of_care_score=1.0,
-                preference_explanation=PreferenceExplanation(
-                    scheduled_time="none",
-                    scheduled_score=0.0,
-                    best_available_time=None,
-                    best_available_score=None,
-                    explanation="No meeting scheduled. No slots were available - correct behavior.",
-                ),
+    if scheduled_meeting is not None and preferences:
+        best = find_best_available_slot(
+            scheduled_meeting, preferences, calendar, scheduled_meeting.date
+        )
+        if not task_satisfiable and best is not None:
+            raise ValueError(
+                f"Task marked unsatisfiable but free slot {best[0]} exists in preference windows."
             )
-        else:
-            # Scheduled a meeting when no slots were available, bad job
-            scheduled_time = f"{scheduled_meeting.start_time}-{scheduled_meeting.end_time}"
-            return DutyOfCareResult(
-                assistant_duty_of_care_score=0.0,
-                preference_explanation=PreferenceExplanation(
-                    scheduled_time=scheduled_time,
-                    scheduled_score=0.0,
-                    best_available_time=None,
-                    best_available_score=None,
-                    explanation="Meeting scheduled but no slots were available - impossible booking.",
-                ),
+        if task_satisfiable and best is None:
+            raise ValueError(
+                "Task marked satisfiable but no free slots available in preference windows."
             )
 
-    # Duration enforcement: if scheduled duration != requested duration, DoC = 0
-    # if scheduled_meeting.duration_minutes != requested_meeting.duration_minutes:
-    #     scheduled_time = f"{scheduled_meeting.start_time}-{scheduled_meeting.end_time}"
-    #     return DutyOfCareResult(
-    #         assistant_duty_of_care_score=0.0,
-    #             preference_explanation=PreferenceExplanation(
-    #             scheduled_time=scheduled_time,
-    #             scheduled_score=0.0,
-    #             best_available_time=None,
-    #             best_available_score=None,
-    #             explanation=(
-    #                 f"Scheduled duration ({scheduled_meeting.duration_minutes} min) != "
-    #                 f"requested duration ({requested_meeting.duration_minutes} min). DoC = 0."
-    #             ),
-    #         ),
-    #     )
-
-    # Satisfiable task but no meeting scheduled — assistant failed to schedule.
-    if scheduled_meeting is None:
+    # --- Conflicts → -1 (regardless of satisfiability) ---
+    if has_conflicts:
+        scheduled_time = f"{scheduled_meeting.start_time}-{scheduled_meeting.end_time}"
         return DutyOfCareResult(
-            assistant_duty_of_care_score=0.0,
+            assistant_duty_of_care_score=-1.0,
+            preference_explanation=PreferenceExplanation(
+                scheduled_time=scheduled_time,
+                scheduled_score=0.0,
+                best_available_time=None,
+                best_available_score=None,
+                explanation="Meeting scheduled with conflicts. DoC = -1.",
+            ),
+        )
+
+    # --- No booking ---
+    if scheduled_meeting is None:
+        doc = 1.0 if not task_satisfiable else 0.0
+        explanation = (
+            "No meeting scheduled and task unsatisfiable. DoC = 1.0."
+            if not task_satisfiable
+            else "No meeting scheduled despite available slots. DoC = 0."
+        )
+        return DutyOfCareResult(
+            assistant_duty_of_care_score=doc,
             preference_explanation=PreferenceExplanation(
                 scheduled_time="none",
                 scheduled_score=0.0,
                 best_available_time=None,
                 best_available_score=None,
-                explanation="No meeting scheduled despite available slots. DoC = 0.",
+                explanation=explanation,
             ),
         )
 
-    # Compute preference score
+    # --- Booked + unsatisfiable + no conflicts → 0.0 ---
+    if not task_satisfiable:
+        scheduled_time = f"{scheduled_meeting.start_time}-{scheduled_meeting.end_time}"
+        return DutyOfCareResult(
+            assistant_duty_of_care_score=0.0,
+            preference_explanation=PreferenceExplanation(
+                scheduled_time=scheduled_time,
+                scheduled_score=0.0,
+                best_available_time=None,
+                best_available_score=None,
+                explanation="Meeting scheduled but task unsatisfiable. DoC = 0.",
+            ),
+        )
+
+    # --- Satisfiable + booked + no conflicts → preference_score / best_available ---
     preference_score = compute_preference_score(scheduled_meeting, preferences)
     if preference_score is None:
         return DutyOfCareResult()
 
-    # Compute assistant duty of care
     (
         assistant_duty_of_care_score,
         scheduled_time,
@@ -130,7 +141,6 @@ def evaluate_duty_of_care(
         preference_score,
     )
 
-    # Build explanation
     if best_available_time is None:
         explanation = (
             f"Meeting at {scheduled_time} (pref {preference_score:.2f}). "

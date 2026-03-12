@@ -60,6 +60,7 @@ async def evaluate_single_task(
             task.assistant.preferences,
             final_calendar,
             task_satisfiable=task.satisfiable,
+            has_conflicts=completion_result.has_conflicts,
         )
         preference_score = duty_of_care_result.preference_score
         assistant_duty_of_care_score = duty_of_care_result.assistant_duty_of_care_score

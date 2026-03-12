@@ -77,7 +77,7 @@ def compute_preference_score(
     return total_weighted_score / meeting_duration
 
 
-def _find_best_available_slot(
+def find_best_available_slot(
     meeting: Meeting,
     preferences: list[TimeSlotPreference],
     calendar: AgentCalendar,
@@ -163,7 +163,7 @@ def compute_assistant_duty_of_care(
     scheduled_time = f"{meeting.start_time}-{meeting.end_time}"
 
     # Find best available slot
-    best_alt = _find_best_available_slot(meeting, preferences, calendar, meeting.date)
+    best_alt = find_best_available_slot(meeting, preferences, calendar, meeting.date)
 
     if best_alt is None:
         # No slots found in preference windows - duty of care is 1.0 (did best possible)
