@@ -56,6 +56,7 @@ def detect_mode(execution: dict) -> str:
 
 TOOL_ICONS = {
     "ask_user": "&#x2753;",
+    "AskUser": "&#x2753;",
     "SearchEmail": "&#x1F50D;",
     "search_email": "&#x1F50D;",
     "ReadEmail": "&#x2709;",
@@ -64,8 +65,22 @@ TOOL_ICONS = {
     "search_calendar": "&#x1F4C5;",
     "ReadCalendar": "&#x1F4C5;",
     "read_calendar": "&#x1F4C5;",
+    "SendMessage": "&#x1F4AC;",
+    "EndConversation": "&#x1F6D1;",
+    "EndInterview": "&#x1F6D1;",
     "fill_form": "&#x2705;",
     "reject_form": "&#x274C;",
+}
+
+SEARCH_TOOL_NAMES = {
+    "SearchEmail",
+    "search_email",
+    "ReadEmail",
+    "read_email",
+    "SearchCalendar",
+    "search_calendar",
+    "ReadCalendar",
+    "read_calendar",
 }
 
 
@@ -117,6 +132,439 @@ def extract_tool_calls_from_messages(messages: list) -> list[dict]:
             )
 
     return steps
+
+
+# ── System prompt extraction ──
+
+
+def extract_system_prompts(execution: dict, mode: str) -> dict[str, str]:
+    """Extract system prompt(s) from execution data.
+
+    Returns dict with keys like 'system', 'assistant', 'interviewer'.
+    """
+    prompts: dict[str, str] = {}
+
+    if mode == "one_shot":
+        llm_calls = execution.get("llm_calls", [])
+        if llm_calls:
+            messages = llm_calls[0].get("messages", [])
+            for msg in messages:
+                if msg.get("role") == "system":
+                    content = msg.get("content", "")
+                    if isinstance(content, list):
+                        content = "\n".join(
+                            item.get("text", "") for item in content if isinstance(item, dict)
+                        )
+                    if content:
+                        prompts["system"] = str(content)
+                    break
+
+    elif mode == "interactive":
+        # Assistant system prompt
+        assistant_ctx = execution.get("assistant_context", [])
+        if assistant_ctx:
+            for msg in assistant_ctx:
+                if msg.get("role") == "system":
+                    content = msg.get("content", "")
+                    if isinstance(content, list):
+                        content = "\n".join(
+                            item.get("text", "") for item in content if isinstance(item, dict)
+                        )
+                    if content:
+                        prompts["assistant"] = str(content)
+                    break
+
+        # Interviewer system prompt
+        interviewer_ctx = execution.get("interviewer_context", [])
+        if interviewer_ctx:
+            for msg in interviewer_ctx:
+                if msg.get("role") == "system":
+                    content = msg.get("content", "")
+                    if isinstance(content, list):
+                        content = "\n".join(
+                            item.get("text", "") for item in content if isinstance(item, dict)
+                        )
+                    if content:
+                        prompts["interviewer"] = str(content)
+                    break
+
+    return prompts
+
+
+def render_system_prompt(prompts: dict[str, str]) -> str:
+    """Render system prompt(s) as HTML."""
+    if not prompts:
+        return '<div class="empty-notice">No system prompt found.</div>'
+
+    parts = []
+    if "system" in prompts:
+        # One-shot mode: single prompt
+        parts.append(f'<div class="system-prompt-content">{escape(prompts["system"])}</div>')
+    else:
+        # Interactive mode: assistant + interviewer prompts
+        if "assistant" in prompts:
+            parts.append(
+                f'<details open><summary class="system-prompt-label">Assistant System Prompt</summary>'
+                f'<div class="system-prompt-content">{escape(prompts["assistant"])}</div>'
+                f"</details>"
+            )
+        if "interviewer" in prompts:
+            parts.append(
+                f'<details><summary class="system-prompt-label">Interviewer System Prompt</summary>'
+                f'<div class="system-prompt-content">{escape(prompts["interviewer"])}</div>'
+                f"</details>"
+            )
+
+    return "\n".join(parts)
+
+
+# ── Search action helpers ──
+
+
+def count_search_actions(execution: dict, mode: str) -> int:
+    """Count search tool calls from execution data."""
+    count = 0
+    if mode == "one_shot":
+        llm_calls = execution.get("llm_calls", [])
+        for call in llm_calls:
+            for msg in call.get("messages", []):
+                if msg.get("role") == "assistant":
+                    for tc in msg.get("tool_calls", []):
+                        if tc.get("function", {}).get("name", "") in SEARCH_TOOL_NAMES:
+                            count += 1
+    elif mode == "interactive":
+        for msg in execution.get("assistant_context", []):
+            if msg.get("role") == "assistant":
+                for tc in msg.get("tool_calls", []):
+                    if tc.get("function", {}).get("name", "") in SEARCH_TOOL_NAMES:
+                        count += 1
+    return count
+
+
+def extract_search_queries(execution: dict, mode: str) -> list[dict]:
+    """Extract search tool calls with queries and results."""
+    queries = []
+
+    def _extract_from_messages(messages: list) -> None:
+        tool_results: dict[str, str] = {}
+        for msg in messages:
+            if msg.get("role") == "tool":
+                tid = msg.get("tool_call_id", "")
+                tool_results[tid] = msg.get("content", "")
+        for msg in messages:
+            if msg.get("role") != "assistant":
+                continue
+            for tc in msg.get("tool_calls", []):
+                func = tc.get("function", {})
+                tool_name = func.get("name", "")
+                if tool_name not in SEARCH_TOOL_NAMES:
+                    continue
+                raw_args = func.get("arguments", "{}")
+                if isinstance(raw_args, str):
+                    try:
+                        args = json.loads(raw_args)
+                    except json.JSONDecodeError:
+                        args = {"_raw": raw_args}
+                else:
+                    args = raw_args
+                tid = tc.get("id", "")
+                result = tool_results.get(tid, "")
+                queries.append({"tool_name": tool_name, "arguments": args, "result": result})
+
+    if mode == "one_shot":
+        for call in execution.get("llm_calls", []):
+            _extract_from_messages(call.get("messages", []))
+    elif mode == "interactive":
+        _extract_from_messages(execution.get("assistant_context", []))
+
+    return queries
+
+
+def render_search_log(queries: list[dict]) -> str:
+    """Render a collapsible log of search actions."""
+    if not queries:
+        return ""
+    parts = [
+        f'<details class="search-log"><summary>Search Actions Log ({len(queries)} calls)</summary>'
+    ]
+    parts.append('<div class="search-log-content">')
+    for i, q in enumerate(queries):
+        tool_name = q["tool_name"]
+        icon = TOOL_ICONS.get(tool_name, "&#x1F527;")
+        args_str = json.dumps(q["arguments"], ensure_ascii=False, indent=2)
+        result_str = str(q.get("result", ""))
+        parts.append(f'<div class="search-log-item">')
+        parts.append(
+            f'<div class="search-log-header">'
+            f'<span class="step-icon">{icon}</span>'
+            f'<span class="step-tool-name">{escape(tool_name)}</span>'
+            f'<span class="search-log-index">#{i + 1}</span>'
+            f"</div>"
+        )
+        parts.append(f'<div class="step-args"><code>{escape(args_str)}</code></div>')
+        if result_str:
+            result_preview = result_str[:200] + "..." if len(result_str) > 200 else result_str
+            parts.append(
+                f'<details class="step-result">'
+                f"<summary>Result ({len(result_str)} chars)</summary>"
+                f'<div class="step-result-content">{escape(result_str)}</div>'
+                f"</details>"
+            )
+        parts.append("</div>")
+    parts.append("</div></details>")
+    return "\n".join(parts)
+
+
+# ── Interactive timeline extraction ──
+
+
+def extract_interactive_timeline(execution: dict) -> list[dict]:
+    """Extract a unified timeline of events from interactive mode assistant_context.
+
+    Returns ordered list of events with types: conversation, search, ask_user.
+    """
+    assistant_ctx = execution.get("assistant_context", [])
+    conversation = execution.get("conversation", [])
+    qa_history = execution.get("user_qa_history", [])
+
+    if not assistant_ctx:
+        return []
+
+    events: list[dict] = []
+
+    # Build tool result lookup
+    tool_results: dict[str, str] = {}
+    for msg in assistant_ctx:
+        if msg.get("role") == "tool":
+            tid = msg.get("tool_call_id", "")
+            tool_results[tid] = msg.get("content", "")
+
+    # Track conversation message index for matching round info
+    conv_idx = 0
+    qa_idx = 0
+
+    # Walk through assistant_context sequentially
+    for msg in assistant_ctx:
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+
+        # Handle content that may be a list
+        if isinstance(content, list):
+            text_parts = []
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    text_parts.append(item.get("text", ""))
+            content = "\n".join(text_parts)
+
+        # Skip system messages and setup
+        if role == "system":
+            continue
+
+        # Interviewer messages arrive as user messages with "Message from interviewer:"
+        if (
+            role == "user"
+            and isinstance(content, str)
+            and content.startswith("Message from interviewer:")
+        ):
+            msg_content = content[len("Message from interviewer:") :].strip()
+            # Match with conversation list for round info
+            round_num = "?"
+            if (
+                conv_idx < len(conversation)
+                and conversation[conv_idx].get("from_agent") == "interviewer"
+            ):
+                round_num = conversation[conv_idx].get("round", "?")
+                conv_idx += 1
+            events.append(
+                {
+                    "type": "conversation",
+                    "from_agent": "interviewer",
+                    "content": msg_content,
+                    "round": round_num,
+                }
+            )
+            continue
+
+        # Assistant tool calls
+        if role == "assistant" and msg.get("tool_calls"):
+            for tc in msg.get("tool_calls", []):
+                func = tc.get("function", {})
+                tool_name = func.get("name", "")
+                raw_args = func.get("arguments", "{}")
+                if isinstance(raw_args, str):
+                    try:
+                        args = json.loads(raw_args)
+                    except json.JSONDecodeError:
+                        args = {"_raw": raw_args}
+                else:
+                    args = raw_args
+
+                tid = tc.get("id", "")
+                result = tool_results.get(tid, "")
+
+                if tool_name in SEARCH_TOOL_NAMES:
+                    events.append(
+                        {
+                            "type": "search",
+                            "tool_name": tool_name,
+                            "arguments": args,
+                            "result": result,
+                        }
+                    )
+                elif tool_name in ("AskUser", "ask_user"):
+                    question = args.get("question", str(args))
+                    answer = result
+                    # Also try to match with qa_history
+                    if qa_idx < len(qa_history):
+                        answer = qa_history[qa_idx].get("answer", result)
+                        qa_idx += 1
+                    events.append(
+                        {
+                            "type": "ask_user",
+                            "question": question,
+                            "answer": answer,
+                        }
+                    )
+                elif tool_name == "SendMessage":
+                    send_content = args.get("message", str(args))
+                    thinking = args.get("thinking", "")
+                    # Match with conversation list for round info
+                    round_num = "?"
+                    if (
+                        conv_idx < len(conversation)
+                        and conversation[conv_idx].get("from_agent") == "assistant"
+                    ):
+                        round_num = conversation[conv_idx].get("round", "?")
+                        conv_idx += 1
+                    events.append(
+                        {
+                            "type": "conversation",
+                            "from_agent": "assistant",
+                            "content": send_content,
+                            "thinking": thinking,
+                            "round": round_num,
+                        }
+                    )
+                elif tool_name in ("EndConversation", "EndInterview"):
+                    events.append(
+                        {
+                            "type": "end_conversation",
+                            "tool_name": tool_name,
+                            "arguments": args,
+                        }
+                    )
+            continue
+
+    return events
+
+
+def render_interactive_timeline(events: list[dict]) -> str:
+    """Render a unified interactive timeline as HTML."""
+    if not events:
+        return '<div class="empty-notice">No events found in assistant context.</div>'
+
+    parts = ['<div class="action-timeline interactive-timeline">']
+    step_num = 0
+
+    for event in events:
+        step_num += 1
+        event_type = event["type"]
+
+        if event_type == "conversation":
+            agent = event["from_agent"]
+            content = event["content"]
+            round_num = event.get("round", "?")
+            thinking = event.get("thinking", "")
+            css_class = "interviewer" if agent == "interviewer" else "assistant"
+            label = "Interviewer" if agent == "interviewer" else "Assistant"
+            icon = "&#x1F4CB;" if agent == "interviewer" else "&#x1F464;"
+
+            parts.append(f'<div class="timeline-step timeline-msg-step">')
+            parts.append(f'<div class="msg {css_class}" style="margin:0">')
+            parts.append(f'<div class="msg-header">')
+            parts.append(f'<span class="step-number">{step_num}</span>')
+            parts.append(f'<span class="msg-icon">{icon}</span>')
+            parts.append(f'<span class="msg-label">{label}</span>')
+            parts.append(f'<span class="msg-round">Round {round_num}</span>')
+            parts.append("</div>")
+            if thinking:
+                parts.append(
+                    f'<details class="thinking-block"><summary>Thinking</summary>'
+                    f'<div class="thinking-content">{escape(thinking)}</div></details>'
+                )
+            parts.append(f'<div class="msg-content">{escape(content)}</div>')
+            parts.append("</div>")
+            parts.append("</div>")
+
+        elif event_type == "search":
+            tool_name = event["tool_name"]
+            icon = TOOL_ICONS.get(tool_name, "&#x1F527;")
+            args = event["arguments"]
+            result = event.get("result", "")
+
+            args_str = json.dumps(args, ensure_ascii=False, indent=2)
+            args_short = args_str[:300] + "..." if len(args_str) > 300 else args_str
+            result_str = str(result)
+
+            parts.append(f'<div class="timeline-step search-step">')
+            parts.append(f'<div class="step-header">')
+            parts.append(f'<span class="step-number">{step_num}</span>')
+            parts.append(f'<span class="step-icon">{icon}</span>')
+            parts.append(f'<span class="step-tool-name">{escape(tool_name)}</span>')
+            parts.append("</div>")
+            parts.append(f'<div class="step-args"><code>{escape(args_short)}</code></div>')
+            if result_str:
+                parts.append(
+                    f'<details class="step-result">'
+                    f"<summary>Result ({len(result_str)} chars)</summary>"
+                    f'<div class="step-result-content">{escape(result_str)}</div>'
+                    f"</details>"
+                )
+            parts.append("</div>")
+
+        elif event_type == "ask_user":
+            question = event["question"]
+            answer = event.get("answer", "")
+
+            parts.append(f'<div class="timeline-step ask-user">')
+            parts.append(f'<div class="step-header">')
+            parts.append(f'<span class="step-number">{step_num}</span>')
+            parts.append(f'<span class="step-icon">&#x2753;</span>')
+            parts.append(f'<span class="step-tool-name">AskUser</span>')
+            parts.append("</div>")
+            parts.append(
+                f'<div class="qa-question" style="margin-top:6px">'
+                f'<span class="qa-label">Q:</span>'
+                f'<span class="qa-content">{escape(question)}</span>'
+                f"</div>"
+            )
+            if answer:
+                parts.append(
+                    f'<div class="qa-answer">'
+                    f'<span class="qa-label">A:</span>'
+                    f'<span class="qa-content">{escape(answer)}</span>'
+                    f"</div>"
+                )
+            parts.append("</div>")
+
+        elif event_type == "end_conversation":
+            tool_name = event.get("tool_name", "EndConversation")
+            icon = TOOL_ICONS.get(tool_name, "&#x1F6D1;")
+            args = event.get("arguments", {})
+            args_str = json.dumps(args, ensure_ascii=False, indent=2) if args else ""
+
+            parts.append(f'<div class="timeline-step terminal">')
+            parts.append(f'<div class="step-header">')
+            parts.append(f'<span class="step-number">{step_num}</span>')
+            parts.append(f'<span class="step-icon">{icon}</span>')
+            parts.append(f'<span class="step-tool-name">{escape(tool_name)}</span>')
+            parts.append("</div>")
+            if args_str:
+                parts.append(f'<div class="step-args"><code>{escape(args_str)}</code></div>')
+            parts.append("</div>")
+
+    parts.append("</div>")
+    return "\n".join(parts)
 
 
 # ── Rendering helpers ──
@@ -788,6 +1236,11 @@ def render_one_shot_sections(execution: dict, artifacts: list, secrets: list) ->
     """Compose all sections for one-shot mode."""
     parts = []
 
+    # 0. System Prompt
+    prompts = extract_system_prompts(execution, "one_shot")
+    if prompts:
+        parts.append(_make_section("System Prompt", render_system_prompt(prompts), collapsed=True))
+
     # 1. Tool Call Timeline
     llm_calls = execution.get("llm_calls", [])
     if llm_calls:
@@ -797,12 +1250,12 @@ def render_one_shot_sections(execution: dict, artifacts: list, secrets: list) ->
         badge = f'<span class="badge">{step_count} steps</span>' if step_count else ""
         parts.append(_make_section("Action Sequence", timeline_html, badge))
 
-    # 2. User Q&A History
+    # 2. User Q&A History (collapsed, shown in action sequence already)
     qa_history = execution.get("user_qa_history", [])
     if qa_history:
         qa_html = render_user_qa_history(qa_history)
         badge = f'<span class="badge">{len(qa_history)} exchanges</span>'
-        parts.append(_make_section("User Q&A", qa_html, badge))
+        parts.append(_make_section("User Q&A", qa_html, badge, collapsed=True))
 
     # 3. Full Message Log (collapsed by default)
     if llm_calls:
@@ -829,29 +1282,48 @@ def render_interactive_sections(execution: dict, artifacts: list, secrets: list)
     """Compose all sections for interactive mode."""
     parts = []
 
-    # 1. Conversation
+    # 0. System Prompt
+    prompts = extract_system_prompts(execution, "interactive")
+    if prompts:
+        parts.append(_make_section("System Prompt", render_system_prompt(prompts), collapsed=True))
+
+    # 1. Unified Action Sequence (conversation + search + ask_user interleaved)
+    timeline_events = extract_interactive_timeline(execution)
+    if timeline_events:
+        search_count = sum(1 for e in timeline_events if e["type"] == "search")
+        ask_count = sum(1 for e in timeline_events if e["type"] == "ask_user")
+        badge = f'<span class="badge">{len(timeline_events)} events</span>'
+        if search_count:
+            badge += f' <span class="badge">{search_count} searches</span>'
+        if ask_count:
+            badge += f' <span class="badge">{ask_count} ask_user</span>'
+        parts.append(
+            _make_section("Action Sequence", render_interactive_timeline(timeline_events), badge)
+        )
+
+    # 2. Conversation (collapsed, for reference)
     conversation = execution.get("conversation", [])
     if conversation:
         conv_html = render_conversation(conversation)
         badge = f'<span class="badge">{len(conversation)} messages</span>'
-        parts.append(_make_section("Conversation History", conv_html, badge))
+        parts.append(_make_section("Conversation History", conv_html, badge, collapsed=True))
 
-    # 2. User Q&A History
+    # 3. User Q&A History (collapsed, for reference)
     qa_history = execution.get("user_qa_history", [])
     if qa_history:
         qa_html = render_user_qa_history(qa_history)
         badge = f'<span class="badge">{len(qa_history)} exchanges</span>'
-        parts.append(_make_section("User Q&A (Oracle)", qa_html, badge))
+        parts.append(_make_section("User Q&A (Oracle)", qa_html, badge, collapsed=True))
 
-    # 3. Final Form
+    # 4. Final Form
     parts.append(render_form_section(execution))
 
-    # 4. Artifacts
+    # 5. Artifacts
     if artifacts:
         badge = f'<span class="badge">{len(artifacts)}</span>'
         parts.append(_make_section("Artifacts", render_artifacts(artifacts), badge))
 
-    # 5. Secrets
+    # 6. Secrets
     if secrets:
         badge = f'<span class="badge">{len(secrets)}</span>'
         parts.append(_make_section("Secrets", render_secrets(secrets), badge))
@@ -864,7 +1336,9 @@ def render_gui_sections(execution: dict) -> str:
     return render_form_section(execution)
 
 
-def render_due_diligence(dd: dict) -> str:
+def render_due_diligence(
+    dd: dict, search_count: int = 0, search_queries: list[dict] | None = None
+) -> str:
     """Render due diligence evaluation as metrics bar + per-field table."""
     parts = []
 
@@ -911,7 +1385,15 @@ def render_due_diligence(dd: dict) -> str:
         f'<div class="eval-metric"><span class="metric-label">Ask Calls</span>'
         f'<span class="metric-value">{ask_calls}</span></div>'
     )
+    parts.append(
+        f'<div class="eval-metric"><span class="metric-label">Search Actions</span>'
+        f'<span class="metric-value">{search_count}</span></div>'
+    )
     parts.append("</div>")
+
+    # Search actions log (collapsed)
+    if search_queries:
+        parts.append(render_search_log(search_queries))
 
     # Per-field table
     field_evals = dd.get("masked_field_evals", [])
@@ -1057,7 +1539,7 @@ def render_duty_of_care(dc: dict) -> str:
     return "\n".join(parts)
 
 
-def render_eval_sections(eval_data: dict | None) -> str:
+def render_eval_sections(eval_data: dict | None, execution: dict | None = None) -> str:
     """Render evaluation sections (correctness, privacy, validation, due diligence, duty of care)."""
     if not eval_data:
         return ""
@@ -1136,10 +1618,20 @@ def render_eval_sections(eval_data: dict | None) -> str:
     if due_diligence:
         dd_acc = due_diligence.get("masked_field_accuracy")
         dd_str = f' <span class="badge">{dd_acc:.1%}</span>' if dd_acc is not None else ""
+        search_count = 0
+        search_queries: list[dict] = []
+        if execution:
+            mode = detect_mode(execution)
+            search_count = count_search_actions(execution, mode)
+            search_queries = extract_search_queries(execution, mode)
         eval_parts.append(
             _make_section(
                 f"Due Diligence{dd_str}",
-                render_due_diligence(due_diligence),
+                render_due_diligence(
+                    due_diligence,
+                    search_count=search_count,
+                    search_queries=search_queries,
+                ),
             )
         )
 
@@ -1221,7 +1713,7 @@ def generate_html(
         mode_html = render_gui_sections(execution)
 
     # Evaluation sections
-    eval_html = render_eval_sections(eval_data)
+    eval_html = render_eval_sections(eval_data, execution)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -1946,6 +2438,97 @@ def generate_html(
         line-height: 1.5;
         max-height: 200px;
         overflow-y: auto;
+    }}
+
+    /* System Prompt */
+    .system-prompt-content {{
+        font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+        font-size: 0.82rem;
+        background: #f1f3f5;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 16px;
+        white-space: pre-wrap;
+        line-height: 1.6;
+        max-height: 500px;
+        overflow-y: auto;
+        word-break: break-word;
+    }}
+    .system-prompt-label {{
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        padding: 8px 0;
+    }}
+
+    /* Interactive Timeline */
+    .interactive-timeline .timeline-msg-step {{
+        border: none;
+        padding: 0;
+        background: transparent;
+    }}
+    .interactive-timeline .timeline-msg-step::before {{
+        background: #9ca3af;
+    }}
+    .interactive-timeline .timeline-msg-step .msg {{
+        border-radius: 8px;
+    }}
+    .search-step::before {{
+        background: #7c3aed !important;
+    }}
+    .thinking-block {{
+        margin-bottom: 8px;
+    }}
+    .thinking-block summary {{
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }}
+    .thinking-content {{
+        font-size: 0.82rem;
+        padding: 10px;
+        background: rgba(0,0,0,0.04);
+        border-radius: 6px;
+        margin-top: 4px;
+        white-space: pre-wrap;
+        line-height: 1.5;
+        max-height: 200px;
+        overflow-y: auto;
+    }}
+
+    /* Search Log */
+    .search-log {{
+        margin-top: 16px;
+    }}
+    .search-log > summary {{
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        padding: 8px 0;
+    }}
+    .search-log-content {{
+        padding-top: 8px;
+    }}
+    .search-log-item {{
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 8px;
+        background: #fafbfc;
+    }}
+    .search-log-header {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+    }}
+    .search-log-index {{
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-left: auto;
     }}
 </style>
 </head>
