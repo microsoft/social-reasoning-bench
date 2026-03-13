@@ -123,8 +123,20 @@ def parse_args() -> argparse.Namespace:
         "--malicious-strategy",
         type=int,
         default=None,
-        help="Use malicious interviewer with the n-th strategy (0-indexed) from strategies.yaml. "
+        help="Use malicious interviewer with the n-th strategy (0-indexed) from strategies file. "
         "When set, overrides --interviewer-type.",
+    )
+    parser.add_argument(
+        "--malicious-attack-type",
+        choices=["privacy", "hallucination", "red_flags"],
+        default="privacy",
+        help="Type of malicious attack (only used with --malicious-strategy)",
+    )
+    parser.add_argument(
+        "--malicious-strategies-file",
+        type=str,
+        default=None,
+        help="Path to strategies YAML file for malicious mode. Required when --malicious-strategy is set.",
     )
     parser.add_argument(
         "--assistant-temperature",
@@ -159,7 +171,6 @@ def parse_args() -> argparse.Namespace:
         default="trapi/msraif/shared/gpt-4.1",
         help="Model for restructuring flat HTML values to Pydantic schema in GUI mode (default: trapi/msraif/shared/gpt-4.1)",
     )
-
     return parser.parse_args()
 
 
@@ -185,6 +196,14 @@ def main():
     if args.run_mode == "eval" and not args.task_results_path:
         raise ValueError("--task-results-path is required when using --run-mode eval")
 
+    if args.malicious_strategy is not None and not args.malicious_strategies_file:
+        raise ValueError(
+            "--malicious-strategies-file is required when --malicious-strategy is set. "
+            "Generate strategies first using: uv run --package sage-data-gen python -m "
+            f"sage_data_gen.form_filling.malicious.whimsical.{args.malicious_attack_type} "
+            "-m <model> -o <output.yaml>"
+        )
+
     asyncio.run(
         run_tasks(
             data_path=args.data,
@@ -208,6 +227,8 @@ def main():
             interviewer_type=args.interviewer_type,
             single_field_mode=args.single_field_mode,
             malicious_strategy=args.malicious_strategy,
+            malicious_attack_type=args.malicious_attack_type,
+            malicious_strategies_file=args.malicious_strategies_file,
             http_port=args.http_port,
             max_steps=args.max_gui_steps,
             restructure_model=args.restructure_model,

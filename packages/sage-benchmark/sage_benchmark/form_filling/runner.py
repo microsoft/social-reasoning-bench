@@ -19,9 +19,7 @@ from sage_benchmark.form_filling.evaluation import (
     evaluate_task as evaluate_one_shot_task,
 )
 from sage_benchmark.form_filling.gui import (
-    run_single_task as run_gui_task,
-)
-from sage_benchmark.form_filling.gui import (
+    run_single_fara_task,
     start_http_server,
 )
 from sage_benchmark.form_filling.interactive import run_single_task as run_interactive_task
@@ -124,6 +122,8 @@ async def run_tasks(
     interviewer_type: str = "base",
     single_field_mode: bool = False,
     malicious_strategy: int | None = None,
+    malicious_attack_type: str = "privacy",
+    malicious_strategies_file: str | None = None,
     http_port: int = 8080,
     max_steps: int = 30,
     restructure_model: str | None = None,
@@ -154,6 +154,8 @@ async def run_tasks(
         interviewer_type: Type of interviewer prompt ("base" or "detail")
         single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
+        malicious_attack_type: Type of malicious attack ("privacy", "hallucination", "red_flags")
+        malicious_strategies_file: Path to strategies YAML file for malicious mode
         http_port: HTTP server port for serving HTML forms (gui mode only)
         max_steps: Maximum interaction steps per form (gui mode only)
         restructure_model: Model for restructuring flat values to schema (gui mode, defaults to judge_model)
@@ -260,6 +262,8 @@ async def run_tasks(
             prompt_type=prompt_type,
             interviewer_type=interviewer_type,
             malicious_strategy=malicious_strategy,
+            malicious_attack_type=malicious_attack_type,
+            malicious_strategies_file=malicious_strategies_file,
             interviewer_reasoning_effort=interviewer_reasoning_effort,
             assistant_reasoning_effort=assistant_reasoning_effort,
             judge_reasoning_effort=judge_reasoning_effort,
@@ -590,7 +594,7 @@ async def _run_gui_mode(
                         oracle_client,
                         judge_model,
                     )
-                    result = await run_gui_task(
+                    result = await run_single_fara_task(
                         task=task,
                         task_index=idx,
                         client=agent_client,
@@ -600,9 +604,9 @@ async def _run_gui_mode(
                         browser=browser,
                         http_port=http_port,
                         data_path=abs_data_dir,
+                        oracle_user=oracle_user,
                         prompt_type=prompt_type,
                         max_steps=max_steps,
-                        oracle_user=oracle_user,
                         file_system=file_system,
                     )
                     execution_results.append(result)
@@ -723,12 +727,14 @@ async def _run_interactive_mode(
     prompt_type: str,
     interviewer_type: str,
     malicious_strategy: int | None,
-    interviewer_reasoning_effort: str | None,
-    assistant_reasoning_effort: str | None,
-    judge_reasoning_effort: str | None,
-    task_results_file: Path | None,
-    eval_results_file: Path | None,
-    summary_file: Path | None,
+    malicious_attack_type: str = "privacy",
+    malicious_strategies_file: str | None = None,
+    interviewer_reasoning_effort: str | None = None,
+    assistant_reasoning_effort: str | None = None,
+    judge_reasoning_effort: str | None = None,
+    task_results_file: Path | None = None,
+    eval_results_file: Path | None = None,
+    summary_file: Path | None = None,
     base_url: str | None = None,
     single_field_mode: bool = False,
     temperature: float | None = None,
@@ -781,6 +787,8 @@ async def _run_interactive_mode(
                     interviewer_type,
                     single_field_mode,
                     malicious_strategy,
+                    malicious_attack_type=malicious_attack_type,
+                    malicious_strategies_file=malicious_strategies_file,
                     temperature=temperature,
                     oracle_user=OracleUser(
                         task.unmasked_ground_truth or {},

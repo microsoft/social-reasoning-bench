@@ -141,6 +141,9 @@ async def execute_action(page, action: dict):
     if act == "left_click":
         x, y = action["coordinate"]
         await page.mouse.click(x, y)
+    elif act == "double_click":
+        x, y = action["coordinate"]
+        await page.mouse.dblclick(x, y)
     elif act == "type":
         text = action["text"]
         coord = action.get("coordinate")
@@ -160,6 +163,13 @@ async def execute_action(page, action: dict):
     elif act == "mouse_move":
         x, y = action["coordinate"]
         await page.mouse.move(x, y)
+    elif act == "drag":
+        sx, sy = action["start_coordinate"]
+        ex, ey = action["end_coordinate"]
+        await page.mouse.move(sx, sy)
+        await page.mouse.down()
+        await page.mouse.move(ex, ey)
+        await page.mouse.up()
     elif act == "visit_url":
         await page.goto(action["url"], wait_until="domcontentloaded")
     elif act == "web_search":
@@ -291,7 +301,7 @@ Instructions:
 FILE_SYSTEM_TOOL_NAMES = {"search_email", "read_email", "search_calendar", "read_calendar"}
 
 
-async def run_vision_agent_on_form(
+async def run_fara_agent_on_form(
     client: ModelClient,
     model: str,
     browser,
@@ -431,7 +441,7 @@ async def run_vision_agent_on_form(
 # ── Single task execution (matches one_shot.py pattern) ──
 
 
-async def run_single_task(
+async def run_single_fara_task(
     task: FormTask,
     task_index: int,
     client: ModelClient,
@@ -492,7 +502,7 @@ async def run_single_task(
 
     try:
         # Run the vision agent
-        result = await run_vision_agent_on_form(
+        result = await run_fara_agent_on_form(
             client,
             model,
             browser,

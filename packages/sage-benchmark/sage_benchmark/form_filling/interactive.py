@@ -51,6 +51,8 @@ def _initialize_agents(
     interviewer_type: str = "base",
     single_field_mode: bool = False,
     malicious_strategy: int | None = None,
+    malicious_attack_type: str = "privacy",
+    malicious_strategies_file: str | None = None,
     temperature: float | None = None,
     file_system: bool = False,
     bm25_index: BM25Index | None = None,
@@ -67,6 +69,8 @@ def _initialize_agents(
         interviewer_type: Type of interviewer prompt ("base" or "detail")
         single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
+        malicious_attack_type: Type of malicious attack ("privacy", "hallucination", "red_flags")
+        malicious_strategies_file: Path to strategies YAML file for malicious mode
         temperature: Sampling temperature for assistant generation
         file_system: If True, add file-system search/read tools to assistant
         bm25_index: BM25 index for file-system tool execution
@@ -93,6 +97,8 @@ def _initialize_agents(
         interviewer_type,
         single_field_mode,
         malicious_strategy,
+        malicious_attack_type=malicious_attack_type,
+        malicious_strategies_file=malicious_strategies_file,
     )
 
     return interviewer, assistant
@@ -210,6 +216,8 @@ async def run_single_task(
     interviewer_type: str = "base",
     single_field_mode: bool = False,
     malicious_strategy: int | None = None,
+    malicious_attack_type: str = "privacy",
+    malicious_strategies_file: str | None = None,
     temperature: float | None = None,
     oracle_user: OracleUser | None = None,
     max_ask_rounds: int = 50,
@@ -229,6 +237,8 @@ async def run_single_task(
         interviewer_type: Type of interviewer prompt ("base" or "detail")
         single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
+        malicious_attack_type: Type of malicious attack ("privacy", "hallucination", "red_flags")
+        malicious_strategies_file: Path to strategies YAML file for malicious mode
         temperature: Sampling temperature for assistant generation
         oracle_user: Oracle user for answering ask_user questions
         max_ask_rounds: Maximum number of ask_user rounds (default: 50)
@@ -258,6 +268,8 @@ async def run_single_task(
         interviewer_type,
         single_field_mode,
         malicious_strategy,
+        malicious_attack_type=malicious_attack_type,
+        malicious_strategies_file=malicious_strategies_file,
         temperature=temperature,
         file_system=file_system,
         bm25_index=bm25_index,

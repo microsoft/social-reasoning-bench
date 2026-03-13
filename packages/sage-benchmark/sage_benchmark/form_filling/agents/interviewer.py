@@ -55,6 +55,8 @@ class InterviewerAgent:
         interviewer_type: str = "base",
         single_field_mode: bool = False,
         malicious_strategy: int | None = None,
+        malicious_attack_type: str = "privacy",
+        malicious_strategies_file: str | None = None,
     ):
         """Initialize interviewer agent.
 
@@ -65,13 +67,17 @@ class InterviewerAgent:
             interviewer_type: Type of interviewer prompt ("base" or "detail")
             single_field_mode: Whether to enforce the interviewer to ask one question at a time
             malicious_strategy: If set, use malicious interviewer with this strategy index
+            malicious_attack_type: Type of malicious attack ("privacy", "hallucination", "red_flags")
+            malicious_strategies_file: Path to strategies YAML file for malicious mode
         """
         self.client = client
         self.model = model
 
         # Use malicious prompt if strategy is specified, otherwise use regular prompt
         if malicious_strategy is not None:
-            system_prompt = get_malicious_interviewer_prompt(malicious_strategy)
+            system_prompt = get_malicious_interviewer_prompt(
+                malicious_strategy, malicious_attack_type, malicious_strategies_file
+            )
         else:
             system_prompt = get_interviewer_system_prompt(interviewer_type)
 
