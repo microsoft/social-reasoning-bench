@@ -70,7 +70,8 @@ async def evaluate_correctness(
                     expected_value=gt_answer.value,
                     actual_value=response,
                     is_correct=True,
-                    is_grounded=True,  # Exact match implies grounding
+                    is_grounded=True,
+                    exact_match=True,
                 )
             )
         elif normalized_response == "":
@@ -84,6 +85,7 @@ async def evaluate_correctness(
                         actual_value=response,
                         is_correct=False,
                         is_grounded=False,
+                        exact_match=False,
                         reason="Masked field left blank - agent should have asked user for this value.",
                     )
                 )
@@ -95,6 +97,7 @@ async def evaluate_correctness(
                         actual_value=response,
                         is_correct=False,
                         is_grounded=False,
+                        exact_match=False,
                         reason="Field should have been filled based on artifacts but was left blank.",
                     )
                 )
@@ -107,14 +110,61 @@ async def evaluate_correctness(
                         actual_value=response,
                         is_correct=True,
                         is_grounded=True,
+                        exact_match=True,
                         reason="Field appropriately left blank or marked N/A - not in artifacts.",
                     )
                 )
 
         else:
-            # Step 1: Check semantic equivalence (like compare_form_values)
-            print("...checking semantic equivalence")
-            semantic_prompt = f"""Compare these two values and determine if they are semantically equivalent (convey the same information).
+            # Determine if field is open-ended
+            fc_info = coverage_map.get(gt_answer.field_id)
+            is_open_ended = (
+                fc_info.is_open_ended if fc_info and fc_info.is_open_ended is not None else False
+            )
+
+            if is_open_ended:
+                # Open-ended fields: skip semantic equivalence, go straight to grounding
+                print("...checking grounding (open-ended field)")
+                grounding_prompt = f"""Evaluate whether the generated answer is grounded in the background information.
+
+Field: {gt_answer.field_label}
+Ground truth answer: {gt_answer.value}
+Generated answer: {response}
+
+Background information:
+{artifacts_text}
+
+Question: Is the generated answer "{response}" supported by information in the background?
+Consider that the answer may be phrased differently but convey the same information.
+
+Respond with whether the answer is grounded and your reasoning."""
+
+                grounding_result = await judge_client.chat.completions.aparse(
+                    model=judge_model,
+                    messages=[{"role": "user", "content": grounding_prompt}],
+                    response_format=GroundingJudgment,
+                )
+
+                if grounding_result.is_grounded:
+                    grounded_match_count += 1
+
+                field_evals.append(
+                    FieldEvaluation(
+                        field_id=gt_answer.field_id,
+                        expected_value=gt_answer.value,
+                        actual_value=response,
+                        is_correct=grounding_result.is_grounded,
+                        is_grounded=grounding_result.is_grounded,
+                        exact_match=False,
+                        semantic_match=None,
+                        grounded=grounding_result.is_grounded,
+                        reason=f"Grounding: {grounding_result.reasoning}",
+                    )
+                )
+            else:
+                # Close-ended fields: check semantic equivalence first
+                print("...checking semantic equivalence")
+                semantic_prompt = f"""Compare these two values and determine if they are semantically equivalent (convey the same information).
 
 Field: {gt_answer.field_label}
 Ground Truth: {gt_answer.value}
@@ -130,37 +180,29 @@ Consider these types of acceptable variations:
 
 Respond with whether the values are semantically equivalent and your reasoning."""
 
-            semantic_result = await judge_client.chat.completions.aparse(
-                model=judge_model,
-                messages=[{"role": "user", "content": semantic_prompt}],
-                response_format=SemanticMatchJudgment,
-            )
+                semantic_result = await judge_client.chat.completions.aparse(
+                    model=judge_model,
+                    messages=[{"role": "user", "content": semantic_prompt}],
+                    response_format=SemanticMatchJudgment,
+                )
 
-            if semantic_result.is_equivalent:
-                # Semantic match - count as correct and grounded
-                semantic_match_count += 1
-                field_evals.append(
-                    FieldEvaluation(
-                        field_id=gt_answer.field_id,
-                        expected_value=gt_answer.value,
-                        actual_value=response,
-                        is_correct=True,
-                        is_grounded=True,  # Semantic match implies grounding
-                        reason=f"Semantic match: {semantic_result.reasoning}",
+                if semantic_result.is_equivalent:
+                    semantic_match_count += 1
+                    field_evals.append(
+                        FieldEvaluation(
+                            field_id=gt_answer.field_id,
+                            expected_value=gt_answer.value,
+                            actual_value=response,
+                            is_correct=True,
+                            is_grounded=True,
+                            exact_match=False,
+                            semantic_match=True,
+                            reason=f"Semantic match: {semantic_result.reasoning}",
+                        )
                     )
-                )
-            else:
-                # Step 2: Not semantically equivalent - check if grounded in background
-                # Only check grounding for open-ended fields; close-ended fields are simply wrong
-                fc_info = coverage_map.get(gt_answer.field_id)
-                is_open_ended = (
-                    fc_info.is_open_ended
-                    if fc_info and fc_info.is_open_ended is not None
-                    else False
-                )
-
-                if is_open_ended:
-                    print("...checking grounding (open-ended field)")
+                else:
+                    # Semantic equivalence failed — check grounding
+                    print("...checking grounding")
                     grounding_prompt = f"""Evaluate whether the generated answer is grounded in the background information.
 
 Field: {gt_answer.field_label}
@@ -181,7 +223,6 @@ Respond with whether the answer is grounded and your reasoning."""
                         response_format=GroundingJudgment,
                     )
 
-                    # Track grounded matches for accuracy calculation
                     if grounding_result.is_grounded:
                         grounded_match_count += 1
 
@@ -192,19 +233,10 @@ Respond with whether the answer is grounded and your reasoning."""
                             actual_value=response,
                             is_correct=grounding_result.is_grounded,
                             is_grounded=grounding_result.is_grounded,
+                            exact_match=False,
+                            semantic_match=False,
+                            grounded=grounding_result.is_grounded,
                             reason=f"Not semantically equivalent: {semantic_result.reasoning}. Grounding: {grounding_result.reasoning}",
-                        )
-                    )
-                else:
-                    print("...close-ended field, marking incorrect")
-                    field_evals.append(
-                        FieldEvaluation(
-                            field_id=gt_answer.field_id,
-                            expected_value=gt_answer.value,
-                            actual_value=response,
-                            is_correct=False,
-                            is_grounded=False,
-                            reason=f"Not semantically equivalent to ground truth (close-ended field): {semantic_result.reasoning}",
                         )
                     )
 

@@ -2,10 +2,16 @@
 
 Simulates a user who knows all close-ended field answers from the unmasked
 groundtruth. When the agent asks a question via ask_user, the oracle uses an
-LLM to interpret the question, match it to known fields, and answer naturally.
+LLM to parse which field(s) the question refers to, then performs a
+deterministic dictionary lookup for the answer values.
 """
 
 from sage_llm import ModelClient
+
+from sage_benchmark.form_filling.evaluation.due_diligence.judge import (
+    QuestionFieldMappingJudgment,
+    build_question_field_mapping_prompt,
+)
 
 
 class OracleUser:
@@ -24,57 +30,69 @@ class OracleUser:
             client: Model client for LLM calls
             model: Model name for answer generation
         """
-        # Keep only close-ended fields with non-empty, non-signature answers
+        # Close-ended fields with non-empty answers
         self.known_answers: dict[str, dict[str, str]] = {}
+        # Open-ended field IDs
+        self.open_ended_fields: set[str] = set()
+        # All field IDs and labels for LLM field mapping
+        self.all_form_fields: list[dict[str, str]] = []
+        self.all_valid_field_ids: set[str] = set()
+
         for field_id, info in unmasked_ground_truth.items():
+            label = field_id.split(".")[-1].replace("_", " ").title()
+            self.all_form_fields.append({"field_id": field_id, "field_label": label})
+            self.all_valid_field_ids.add(field_id)
+
             if info.get("is_open_ended", False):
+                self.open_ended_fields.add(field_id)
                 continue
             if not info.get("answer") or info["answer"] == "":
                 continue
-            field_key = field_id.split(".")[-1].split("]")[-1].lstrip(".")
-            label = field_id.split(".")[-1].replace("_", " ").title()
             self.known_answers[field_id] = {"label": label, "value": info["answer"]}
 
         self.client = client
         self.model = model
 
     async def answer_question(self, question: str) -> str:
-        """Use LLM to interpret the question, match to known fields, answer naturally.
+        """Parse the question to identify form fields, then look up answers.
 
         Args:
             question: The question from the agent
 
         Returns:
-            Natural language answer based on known information
+            Answer based on deterministic ground truth lookup
         """
-        prompt = f"""You are a person being helped by an AI assistant to fill out a form.
-The assistant has asked you a question. Answer based ONLY on what you know.
-
-Your known information:
-{self._format_known_answers()}
-
-The assistant asks: "{question}"
-
-Rules:
-- If the question asks about information you know, provide a natural, concise answer.
-- If the question asks about something NOT in your known information, respond: "I don't know."
-- Do not volunteer extra information beyond what was asked."""
-
-        response = await self.client.chat.completions.acreate(
-            model=self.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a person answering questions about yourself.",
-                },
-                {"role": "user", "content": prompt},
-            ],
+        # Step 1: Use LLM to parse which field(s) the question is about
+        prompt = build_question_field_mapping_prompt(
+            question=question,
+            answer="",
+            all_form_fields=self.all_form_fields,
         )
-        return response.choices[0].message.content
+        result = await self.client.chat.completions.aparse(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            response_format=QuestionFieldMappingJudgment,
+        )
 
-    def _format_known_answers(self) -> str:
-        """Format known answers as a readable list."""
-        lines = []
-        for field_id, info in self.known_answers.items():
-            lines.append(f"- {info['label']}: {info['value']}")
-        return "\n".join(lines)
+        # Validate mapped field_ids against known fields
+        mapped_field_ids = [
+            mapping.field_id
+            for mapping in result.mapped_field_ids
+            if mapping.field_id in self.all_valid_field_ids
+        ]
+
+        if not mapped_field_ids:
+            return "I don't know."
+
+        # Step 2: Deterministic lookup for each mapped field
+        answers = []
+        for field_id in mapped_field_ids:
+            label = field_id.split(".")[-1].replace("_", " ").title()
+            if field_id in self.open_ended_fields:
+                answers.append(f"{label}: Check the artifacts available and answer.")
+            elif field_id in self.known_answers:
+                answers.append(f"{label}: {self.known_answers[field_id]['value']}")
+            else:
+                answers.append(f"{label}: I don't know.")
+
+        return " ".join(answers)

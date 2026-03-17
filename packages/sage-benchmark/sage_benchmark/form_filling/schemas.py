@@ -218,6 +218,10 @@ class FormTask(BaseModel):
         default_factory=list,
         description="Findability classification for masked fields",
     )
+    distractor_scenarios: dict[str, list[dict]] = Field(
+        default_factory=dict,
+        description="Distractor scenarios per masked field (field_id -> list of {wrong_value, narrative})",
+    )
     form_class: type[BaseModel] = Field(description="Dynamically loaded pydantic form class")
 
     @field_serializer("form_class")
@@ -272,6 +276,9 @@ class FieldEvaluation(BaseModel):
     actual_value: Any
     is_correct: bool
     is_grounded: bool
+    exact_match: bool | None = None
+    semantic_match: bool | None = None
+    grounded: bool | None = None
     reason: str | None = None
 
 
@@ -321,6 +328,10 @@ class MaskedFieldEval(BaseModel):
     )
     agent_answer: str = Field(default="", description="The agent's submitted answer")
     expected_answer: str = Field(default="", description="The expected ground truth answer")
+    matched_distractor: str | None = Field(
+        default=None,
+        description="The distractor wrong_value the agent's answer matched, if any",
+    )
 
 
 class DueDiligenceEvaluation(BaseModel):

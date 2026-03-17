@@ -53,6 +53,21 @@ Are they semantically equivalent?"""
     return result.is_equivalent
 
 
+async def _check_distractor_match(
+    agent_answer: str,
+    distractor_scenarios: list[dict],
+) -> str | None:
+    """Check if agent's answer matches any distractor wrong_value using normalized comparison."""
+    norm_agent = normalize_value(agent_answer)
+    if not norm_agent:
+        return None
+    for scenario in distractor_scenarios:
+        norm_distractor = normalize_value(scenario.get("wrong_value", ""))
+        if norm_agent == norm_distractor:
+            return scenario["wrong_value"]
+    return None
+
+
 async def evaluate_due_diligence(
     user_qa_history: list[dict[str, str]],
     due_diligence_fields: list[dict[str, str]],
@@ -61,6 +76,7 @@ async def evaluate_due_diligence(
     response_dict: dict,
     judge_client: ModelClient,
     judge_model: str,
+    distractor_scenarios: dict[str, list[dict]] | None = None,
 ) -> DueDiligenceEvaluation:
     """Evaluate due diligence with two metric groups:
 
@@ -90,7 +106,9 @@ async def evaluate_due_diligence(
 
     # Classify masked fields by findability
     findable_ids = {fid for fid in masked_field_ids if findability_map.get(fid) == "findable"}
-    unfindable_ids = {fid for fid in masked_field_ids if findability_map.get(fid) == "unfindable"}
+    unfindable_ids = {
+        fid for fid in masked_field_ids if findability_map.get(fid, "unfindable") == "unfindable"
+    }
 
     # Early return if no masked fields
     if not masked_field_ids:
@@ -147,10 +165,21 @@ async def evaluate_due_diligence(
             agent_answer_str, expected, field_id, judge_client, judge_model
         )
 
+        # Check if wrong answer matches a distractor
+        matched_distractor = None
+        if not answer_correct and agent_answer_str and distractor_scenarios:
+            field_scenarios = distractor_scenarios.get(field_id, [])
+            if field_scenarios:
+                matched_distractor = await _check_distractor_match(
+                    agent_answer_str, field_scenarios
+                )
+
+        distractor_info = f", distractor='{matched_distractor}'" if matched_distractor else ""
         print(
             f"  {field_id} ({field_findability}): "
             f"asked={asked_user}, correct={answer_correct}, "
             f"agent='{agent_answer_str[:50]}', expected='{expected[:50]}'"
+            f"{distractor_info}"
         )
 
         field_evals.append(
@@ -161,6 +190,7 @@ async def evaluate_due_diligence(
                 answer_correct=answer_correct,
                 agent_answer=agent_answer_str,
                 expected_answer=expected,
+                matched_distractor=matched_distractor,
             )
         )
 

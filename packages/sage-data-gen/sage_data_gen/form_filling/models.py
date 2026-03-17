@@ -432,3 +432,35 @@ class BM25ValidationResult(BaseModel):
 
     field_validations: List[BM25FieldValidation]
     overall_pass_rate: float
+
+
+class DistractorScenario(BaseModel):
+    """A single plausible-but-wrong value with a grounding narrative.
+
+    Generated once per distractor scenario before any artifacts are written,
+    so the LLM has a concrete wrong value to anchor on rather than inventing
+    wrongness freely.
+    """
+
+    wrong_value: str = Field(
+        ...,
+        description="A plausible but incorrect value for the field. "
+        "Same type/format as the correct value, clearly distinct from it.",
+    )
+    narrative: str = Field(
+        ...,
+        description="1-3 sentences explaining why this wrong value exists in the "
+        "persona's life, where it would naturally appear, and when it was relevant.",
+    )
+
+
+class DistractorScenarios(BaseModel):
+    """All distractor scenarios for a single masked field."""
+
+    scenarios: List[DistractorScenario]
+
+
+class FieldDistractorScenarios(BaseModel):
+    """All distractor scenarios for all masked fields."""
+
+    fields: dict[str, list[DistractorScenario]]

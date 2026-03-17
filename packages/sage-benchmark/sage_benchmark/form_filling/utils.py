@@ -162,4 +162,5 @@ def reconstruct_task_execution_result(exec_data: dict, task):
         ),
         llm_calls=[LLMCallLog.model_validate(call) for call in exec_data["llm_calls"]],
         success=exec_data["success"],
+        user_qa_history=exec_data.get("user_qa_history", []),
     )

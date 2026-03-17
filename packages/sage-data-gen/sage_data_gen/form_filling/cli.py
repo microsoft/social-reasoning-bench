@@ -74,6 +74,18 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Generate file system artifacts (emails/calendar) for search-based evaluation.",
     )
+    parser.add_argument(
+        "--filesystem-distractor-scenarios",
+        type=int,
+        default=None,
+        help="Number of distinct wrong-value scenarios per masked field (default: 3).",
+    )
+    parser.add_argument(
+        "--filesystem-artifacts-per-scenario",
+        type=int,
+        default=None,
+        help="Number of artifacts per distractor scenario (default: 3).",
+    )
 
     args = parser.parse_args(argv)
 
@@ -93,6 +105,10 @@ def main(argv: list[str] | None = None) -> None:
         config_kwargs["skip_html"] = True
     if args.filesystem:
         config_kwargs["filesystem_mode"] = True
+    if args.filesystem_distractor_scenarios is not None:
+        config_kwargs["filesystem_distractor_scenarios"] = args.filesystem_distractor_scenarios
+    if args.filesystem_artifacts_per_scenario is not None:
+        config_kwargs["filesystem_artifacts_per_scenario"] = args.filesystem_artifacts_per_scenario
 
     config = FormFillingConfig(**config_kwargs)
 

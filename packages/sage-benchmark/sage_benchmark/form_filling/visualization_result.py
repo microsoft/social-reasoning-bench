@@ -1013,6 +1013,10 @@ def render_correctness(correctness: dict) -> str:
         f'<div class="eval-metric"><span class="metric-label">Semantic</span>'
         f'<span class="metric-value">{semantic}/{total}</span></div>'
     )
+    score_items.append(
+        f'<div class="eval-metric"><span class="metric-label">Grounded</span>'
+        f'<span class="metric-value">{grounded}/{total}</span></div>'
+    )
     if filled_by_agent is not None and should_fill is not None:
         score_items.append(
             f'<div class="eval-metric"><span class="metric-label">Filled/Expected</span>'
@@ -1027,41 +1031,45 @@ def render_correctness(correctness: dict) -> str:
         parts.append('<table class="eval-table">')
         parts.append(
             "<thead><tr><th>Field</th><th>Expected</th><th>Actual</th>"
-            "<th>Correct</th><th>Grounded</th><th>Reason</th></tr></thead>"
+            "<th>EM</th><th>Semantic</th><th>Grounded</th><th>Correct</th><th>Reason</th></tr></thead>"
         )
         parts.append("<tbody>")
         for fe in field_evals:
             field_id = fe.get("field_id", "")
             expected = escape(str(fe.get("expected_value", "")))
             actual = escape(str(fe.get("actual_value", "")))
-            is_correct = fe.get("is_correct", False)
-            is_grounded = fe.get("is_grounded", False)
+            em = fe.get("exact_match")
+            sem = fe.get("semantic_match")
+            grd = fe.get("grounded")
             reason = fe.get("reason") or ""
 
+            def _tier_icon(val):
+                if val is None:
+                    return '<span class="eval-na">&mdash;</span>'
+                return (
+                    '<span class="eval-pass">&#10003;</span>'
+                    if val
+                    else '<span class="eval-fail">&#10007;</span>'
+                )
+
+            # A field is correct if any tier passes
+            is_correct = any(v is True for v in (em, sem, grd))
             correct_icon = (
                 '<span class="eval-pass">&#10003;</span>'
                 if is_correct
                 else '<span class="eval-fail">&#10007;</span>'
             )
-            grounded_icon = (
-                '<span class="eval-pass">&#10003;</span>'
-                if is_grounded
-                else '<span class="eval-fail">&#10007;</span>'
-            )
-
-            # Truncate long values for the table
-            expected_short = expected[:120] + "..." if len(expected) > 120 else expected
-            actual_short = actual
-            reason_short = escape(reason[:200] + "...") if len(reason) > 200 else escape(reason)
 
             row_class = "eval-row-pass" if is_correct else "eval-row-fail"
             parts.append(f'<tr class="{row_class}">')
             parts.append(f'<td class="field-id-cell"><code>{escape(field_id)}</code></td>')
-            parts.append(f'<td class="eval-val-cell" title="{expected}">{expected_short}</td>')
-            parts.append(f'<td class="eval-val-cell" title="{actual}">{actual_short}</td>')
+            parts.append(f'<td class="eval-val-cell">{expected}</td>')
+            parts.append(f'<td class="eval-val-cell">{actual}</td>')
+            parts.append(f'<td class="eval-icon-cell">{_tier_icon(em)}</td>')
+            parts.append(f'<td class="eval-icon-cell">{_tier_icon(sem)}</td>')
+            parts.append(f'<td class="eval-icon-cell">{_tier_icon(grd)}</td>')
             parts.append(f'<td class="eval-icon-cell">{correct_icon}</td>')
-            parts.append(f'<td class="eval-icon-cell">{grounded_icon}</td>')
-            parts.append(f'<td class="eval-reason-cell">{reason_short}</td>')
+            parts.append(f'<td class="eval-reason-cell">{escape(reason)}</td>')
             parts.append("</tr>")
         parts.append("</tbody></table>")
 
@@ -1389,6 +1397,26 @@ def render_due_diligence(
         f'<div class="eval-metric"><span class="metric-label">Search Actions</span>'
         f'<span class="metric-value">{search_count}</span></div>'
     )
+
+    # Count distractor matches vs hallucinations among wrong answers
+    field_evals_list = dd.get("masked_field_evals", [])
+    wrong_answers = [
+        fe
+        for fe in field_evals_list
+        if not fe.get("answer_correct", True) and fe.get("agent_answer", "")
+    ]
+    distractor_matches = sum(1 for fe in wrong_answers if fe.get("matched_distractor"))
+    hallucinations = len(wrong_answers) - distractor_matches
+    if wrong_answers:
+        parts.append(
+            f'<div class="eval-metric"><span class="metric-label">Distracted</span>'
+            f'<span class="metric-value">{distractor_matches}</span></div>'
+        )
+        parts.append(
+            f'<div class="eval-metric"><span class="metric-label">Hallucinated</span>'
+            f'<span class="metric-value">{hallucinations}</span></div>'
+        )
+
     parts.append("</div>")
 
     # Search actions log (collapsed)
@@ -1401,7 +1429,7 @@ def render_due_diligence(
         parts.append('<table class="eval-table">')
         parts.append(
             "<thead><tr><th>Field</th><th>Findability</th><th>Asked User</th>"
-            "<th>Correct</th><th>Agent Answer</th><th>Expected</th></tr></thead>"
+            "<th>Correct</th><th>Distractor?</th><th>Agent Answer</th><th>Expected</th></tr></thead>"
         )
         parts.append("<tbody>")
         for fe in field_evals:
@@ -1435,6 +1463,19 @@ def render_due_diligence(
             )
             parts.append(f'<td class="eval-icon-cell">{asked_icon}</td>')
             parts.append(f'<td class="eval-icon-cell">{correct_icon}</td>')
+
+            # Distractor column
+            matched = fe.get("matched_distractor")
+            if correct:
+                distractor_cell = '<span style="color:#999">—</span>'
+            elif not fe.get("agent_answer", ""):
+                distractor_cell = '<span style="color:#999">empty</span>'
+            elif matched:
+                distractor_cell = f'<span class="eval-warn" title="Matched distractor: {escape(matched)}">distractor: {escape(matched)}</span>'
+            else:
+                distractor_cell = '<span class="eval-fail">hallucination</span>'
+            parts.append(f'<td class="eval-val-cell">{distractor_cell}</td>')
+
             parts.append(f'<td class="eval-val-cell" title="{agent_ans}">{agent_short}</td>')
             parts.append(f'<td class="eval-val-cell" title="{expected}">{expected_short}</td>')
             parts.append("</tr>")
@@ -2246,6 +2287,7 @@ def generate_html(
     }}
     .eval-pass {{ color: var(--success); }}
     .eval-fail {{ color: var(--failure); }}
+    .eval-na {{ color: var(--text-secondary); }}
     .eval-warn {{ color: #d97706; }}
 
     .eval-table {{

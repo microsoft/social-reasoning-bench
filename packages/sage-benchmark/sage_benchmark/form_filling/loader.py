@@ -151,6 +151,13 @@ def load_single_form_task(task_dir: Path) -> FormTask:
                 )
             )
 
+    # Load distractor scenarios (if present)
+    distractor_scenarios: dict[str, list[dict]] = {}
+    distractor_path = task_dir / "distractor_scenarios.json"
+    if distractor_path.exists():
+        with open(distractor_path, encoding="utf-8") as f:
+            distractor_scenarios = json.load(f)
+
     # Extract form purpose and recipient from form_summary (used for duty of care evaluation)
     form_summary = task_json.get("secrets", {}).get("form_summary", {})
     form_purpose = form_summary.get("form_purpose", "")
@@ -174,6 +181,7 @@ def load_single_form_task(task_dir: Path) -> FormTask:
         form_class=form_class,
         filesystem_artifacts=filesystem_artifacts,
         findability=findability_info,
+        distractor_scenarios=distractor_scenarios,
     )
 
 

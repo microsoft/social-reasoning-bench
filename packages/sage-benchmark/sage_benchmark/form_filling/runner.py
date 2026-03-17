@@ -452,7 +452,13 @@ async def _run_one_shot_mode(
 
             # Run eval batch in parallel
             eval_tasks = [
-                evaluate_one_shot_task(exec_result, exec_result.task, judge_client, judge_model)
+                evaluate_one_shot_task(
+                    exec_result,
+                    exec_result.task,
+                    judge_client,
+                    judge_model,
+                    file_system=file_system,
+                )
                 for exec_result in batch
             ]
 
@@ -659,7 +665,13 @@ async def _run_gui_mode(
             )
 
             eval_tasks = [
-                evaluate_one_shot_task(exec_result, exec_result.task, judge_client, judge_model)
+                evaluate_one_shot_task(
+                    exec_result,
+                    exec_result.task,
+                    judge_client,
+                    judge_model,
+                    file_system=file_system,
+                )
                 for exec_result in eval_batch
             ]
 
@@ -853,7 +865,9 @@ async def _run_interactive_mode(
             print(f"Evaluating batch {batch_start // batch_size + 1}...")
 
             eval_tasks = [
-                evaluate_interactive_task(exec_result, judge_client, judge_model)
+                evaluate_interactive_task(
+                    exec_result, judge_client, judge_model, file_system=file_system
+                )
                 for exec_result in batch
             ]
 

@@ -31,4 +31,8 @@ class FormFillingConfig(BaseModel):
     filesystem_artifacts_per_field: int = (
         10  # 1 answer + 9 distractors (findable) or 10 distractors (unfindable)
     )
+    filesystem_distractor_scenarios: int = (
+        3  # Number of distinct wrong-value scenarios per masked field
+    )
+    filesystem_artifacts_per_scenario: int = 3  # Number of artifacts per distractor scenario
     bm25_top_k: int = 3

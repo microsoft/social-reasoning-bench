@@ -302,7 +302,7 @@ def generate_form_task(
         fs_data = {}
         if config.filesystem_mode:
             print(f"\n[Stage FS] Generating file system artifacts...")
-            fs_artifacts, fs_findability = generate_filesystem_artifacts(
+            fs_artifacts, fs_findability, fs_distractor_scenarios = generate_filesystem_artifacts(
                 persona=persona,
                 ground_truth=ground_truth_answers,
                 masked_fields=masked_fields,
@@ -341,10 +341,23 @@ def generate_form_task(
                 f"  Saved bm25_validation.json (pass rate: {bm25_validation.overall_pass_rate:.1%})"
             )
 
+            # Save distractor_scenarios.json
+            scenarios_dump = {
+                field_id: [s.model_dump() for s in scenarios]
+                for field_id, scenarios in fs_distractor_scenarios.items()
+            }
+            scenarios_path = task_dir / "distractor_scenarios.json"
+            scenarios_path.write_text(
+                json.dumps(scenarios_dump, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            print(f"  Saved distractor_scenarios.json ({len(scenarios_dump)} fields)")
+
             fs_data = {
                 "filesystem_artifacts": fs_artifacts.model_dump(),
                 "findability": fs_findability.model_dump(),
                 "bm25_validation": bm25_validation.model_dump(),
+                "distractor_scenarios": scenarios_dump,
             }
 
         # Build and save task.json

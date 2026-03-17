@@ -25,6 +25,7 @@ async def evaluate_task(
     task_data: FormTask,
     judge_client: ModelClient,
     judge_model: str,
+    file_system: bool = False,
 ) -> FormTaskEvaluationResult:
     """Complete evaluation.
 
@@ -73,14 +74,16 @@ async def evaluate_task(
     privacy_ci = [f.model_dump() for f in ci_violations]
 
     # 5. Due diligence evaluation
+    # When filesystem is not available, all masked fields are unfindable (agent must ask user)
     due_diligence = await evaluate_due_diligence(
         exec_result.user_qa_history,
         task_data.due_diligence_fields,
         task_data.ground_truth,
-        task_data.findability,
+        task_data.findability if file_system else [],
         response_dict,
         judge_client,
         judge_model,
+        distractor_scenarios=task_data.distractor_scenarios,
     )
 
     # 6. Duty of care evaluation
@@ -114,6 +117,7 @@ async def evaluate_interactive_task(
     exec_result: InteractiveTaskExecutionResult,
     judge_client: ModelClient,
     judge_model: str,
+    file_system: bool = False,
 ) -> InteractiveTaskEvaluationResult:
     """Evaluate an interactive interview task.
 
@@ -193,14 +197,16 @@ async def evaluate_interactive_task(
     valid, errors = validate_with_pydantic(form_dict, form_task.form_class)
 
     # 5. Due diligence evaluation
+    # When filesystem is not available, all masked fields are unfindable (agent must ask user)
     due_diligence_eval = await evaluate_due_diligence(
         exec_result.user_qa_history,
         form_task.due_diligence_fields,
         form_task.ground_truth,
-        form_task.findability,
+        form_task.findability if file_system else [],
         form_dict,
         judge_client,
         judge_model,
+        distractor_scenarios=form_task.distractor_scenarios,
     )
 
     # 6. Duty of care evaluation
