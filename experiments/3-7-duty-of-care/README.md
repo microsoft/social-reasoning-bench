@@ -130,3 +130,12 @@ uv run sagebench calendar \
 ```bash
 uv run python experiments/3-7-duty-of-care/plot.py
 ```
+
+## Download results
+
+```bash
+uv run --group azure python sync.py download 3-7-duty-of-care/validation outputs/calendar_scheduling/3-7-duty-of-care/validation
+
+# Plot from downloaded results
+uv run python experiments/3-7-duty-of-care/plot.py
+```
