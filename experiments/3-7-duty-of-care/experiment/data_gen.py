@@ -30,14 +30,27 @@ EXPERIMENT_DIR = Path(__file__).parent.parent
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Generate validation data for double-booking")
     p.add_argument("--input", required=True, help="Base tasks YAML (e.g. large.yaml)")
-    p.add_argument("--strategies-dir", type=Path, default=EXPERIMENT_DIR / "data/strategies/duty-of-care",
-                   help="Dir of raw strategy YAMLs")
-    p.add_argument("--output-dir", type=Path, default=EXPERIMENT_DIR / "data/validation-duty-of-care",
-                   help="Dir to write strategy-injected task YAML")
-    p.add_argument("--force-strategy", type=str, default=None,
-                   help="Override winner (e.g. strategy_40)")
-    p.add_argument("--assistant-model", type=str, default=None,
-                   help="Model name to look up per-model screening results (e.g. phyagi/gpt-4.1)")
+    p.add_argument(
+        "--strategies-dir",
+        type=Path,
+        default=EXPERIMENT_DIR / "data/strategies/duty-of-care",
+        help="Dir of raw strategy YAMLs",
+    )
+    p.add_argument(
+        "--output-dir",
+        type=Path,
+        default=EXPERIMENT_DIR / "data/validation-duty-of-care",
+        help="Dir to write strategy-injected task YAML",
+    )
+    p.add_argument(
+        "--force-strategy", type=str, default=None, help="Override winner (e.g. strategy_40)"
+    )
+    p.add_argument(
+        "--assistant-model",
+        type=str,
+        default=None,
+        help="Model name to look up per-model screening results (e.g. phyagi/gpt-4.1)",
+    )
     return p.parse_args()
 
 
@@ -51,7 +64,9 @@ async def main() -> None:
         slug = args.assistant_model.split("/")[-1]
         results_path = EXPERIMENT_DIR / "results" / f"screening_results_{slug}.json"
         if not results_path.exists():
-            raise FileNotFoundError(f"No screening results at {results_path}. Run screen.py for {args.assistant_model} first.")
+            raise FileNotFoundError(
+                f"No screening results at {results_path}. Run screen.py for {args.assistant_model} first."
+            )
         winner = json.loads(results_path.read_text())["winner"]
     else:
         raise ValueError("Provide --assistant-model or --force-strategy.")

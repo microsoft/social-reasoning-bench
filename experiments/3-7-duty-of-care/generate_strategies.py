@@ -12,9 +12,8 @@ import asyncio
 from pathlib import Path
 
 import yaml
-from whimsygen import WhimsyGen
-
 from sage_data_gen.calendar_scheduling.malicious.whimsical.double_booking import TASK_DESCRIPTION
+from whimsygen import WhimsyGen
 
 EXPERIMENT_DIR = Path(__file__).parent
 
@@ -22,11 +21,21 @@ EXPERIMENT_DIR = Path(__file__).parent
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Generate double-booking strategies")
     p.add_argument("--count", type=int, default=100, help="Number of strategies to generate")
-    p.add_argument("-m", "--model", default="gemini-3.1-pro-preview", help="Model for strategy generation")
-    p.add_argument("--output-dir", type=Path, default=EXPERIMENT_DIR / "data/strategies/duty-of-care",
-                   help="Output directory for strategy YAMLs")
-    p.add_argument("--seeds-dir", type=Path, default=Path("data/whimsygen/seeds"),
-                   help="Directory with WhimsyGen seed YAMLs")
+    p.add_argument(
+        "-m", "--model", default="gemini-3.1-pro-preview", help="Model for strategy generation"
+    )
+    p.add_argument(
+        "--output-dir",
+        type=Path,
+        default=EXPERIMENT_DIR / "data/strategies/duty-of-care",
+        help="Output directory for strategy YAMLs",
+    )
+    p.add_argument(
+        "--seeds-dir",
+        type=Path,
+        default=Path("data/whimsygen/seeds"),
+        help="Directory with WhimsyGen seed YAMLs",
+    )
     return p.parse_args()
 
 
@@ -44,15 +53,19 @@ async def main() -> None:
     for i, strategy in enumerate(strategies):
         out_path = args.output_dir / f"strategy_{i}.yaml"
         data = {
-            "strategies": [{
-                "game_strategies": strategy.game_strategies,
-                "grounding_texts": strategy.grounding_texts,
-                "source_seed": strategy.source_seed,
-                "source_chunk": strategy.source_chunk,
-            }]
+            "strategies": [
+                {
+                    "game_strategies": strategy.game_strategies,
+                    "grounding_texts": strategy.grounding_texts,
+                    "source_seed": strategy.source_seed,
+                    "source_chunk": strategy.source_chunk,
+                }
+            ]
         }
         with open(out_path, "w") as f:
-            yaml.dump(data, f, default_flow_style=False, sort_keys=False, allow_unicode=True, width=120)
+            yaml.dump(
+                data, f, default_flow_style=False, sort_keys=False, allow_unicode=True, width=120
+            )
 
     print(f"Saved {len(strategies)} strategy files to {args.output_dir}")
 

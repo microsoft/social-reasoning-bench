@@ -26,9 +26,7 @@ def parse_instruction_metadata(instruction: str) -> dict[str, str]:
     )
     match = re.search(pattern, instruction)
     if not match:
-        raise ValueError(
-            f"Could not parse requestor instruction: {instruction[:200]}"
-        )
+        raise ValueError(f"Could not parse requestor instruction: {instruction[:200]}")
     return {"name": match.group(1), "company": match.group(2), "role": match.group(3)}
 
 

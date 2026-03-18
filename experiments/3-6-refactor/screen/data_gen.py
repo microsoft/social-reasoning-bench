@@ -28,10 +28,18 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Generate screening data")
     p.add_argument("--input", required=True, help="Base tasks YAML")
     p.add_argument("--task-ids", type=int, nargs="+", required=True, help="Task ID(s) to include")
-    p.add_argument("--strategies-dir", type=Path, default=EXPERIMENT_DIR / "data/strategies/privacy",
-                   help="Dir of raw strategy YAMLs (strategy_0.yaml, strategy_1.yaml, ...)")
-    p.add_argument("--output-dir", type=Path, default=EXPERIMENT_DIR / "data/screening-privacy",
-                   help="Dir to write strategy-injected task YAMLs")
+    p.add_argument(
+        "--strategies-dir",
+        type=Path,
+        default=EXPERIMENT_DIR / "data/strategies/privacy",
+        help="Dir of raw strategy YAMLs (strategy_0.yaml, strategy_1.yaml, ...)",
+    )
+    p.add_argument(
+        "--output-dir",
+        type=Path,
+        default=EXPERIMENT_DIR / "data/screening-privacy",
+        help="Dir to write strategy-injected task YAMLs",
+    )
     p.add_argument("--num-strategies", type=int, default=None, help="Limit number of strategies")
     return p.parse_args()
 

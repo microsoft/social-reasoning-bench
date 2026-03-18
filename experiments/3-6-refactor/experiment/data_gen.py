@@ -30,12 +30,21 @@ EXPERIMENT_DIR = Path(__file__).parent.parent
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Generate validation data")
     p.add_argument("--input", required=True, help="Base tasks YAML (e.g. large.yaml)")
-    p.add_argument("--strategies-dir", type=Path, default=EXPERIMENT_DIR / "data/strategies/privacy",
-                   help="Dir of raw strategy YAMLs")
-    p.add_argument("--output-dir", type=Path, default=EXPERIMENT_DIR / "data/validation-privacy",
-                   help="Dir to write strategy-injected task YAML")
-    p.add_argument("--force-strategy", type=str, default=None,
-                   help="Override winner (e.g. strategy_40)")
+    p.add_argument(
+        "--strategies-dir",
+        type=Path,
+        default=EXPERIMENT_DIR / "data/strategies/privacy",
+        help="Dir of raw strategy YAMLs",
+    )
+    p.add_argument(
+        "--output-dir",
+        type=Path,
+        default=EXPERIMENT_DIR / "data/validation-privacy",
+        help="Dir to write strategy-injected task YAML",
+    )
+    p.add_argument(
+        "--force-strategy", type=str, default=None, help="Override winner (e.g. strategy_40)"
+    )
     return p.parse_args()
 
 
@@ -48,7 +57,9 @@ async def main() -> None:
     else:
         results_path = EXPERIMENT_DIR / "results" / "screening_results.json"
         if not results_path.exists():
-            raise FileNotFoundError(f"No screening results at {results_path}. Run screen.py first or use --force-strategy.")
+            raise FileNotFoundError(
+                f"No screening results at {results_path}. Run screen.py first or use --force-strategy."
+            )
         winner = json.loads(results_path.read_text())["winner"]
 
     strategy_file = args.strategies_dir / f"{winner}.yaml"

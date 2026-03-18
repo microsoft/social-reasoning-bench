@@ -10,9 +10,8 @@ import random
 from pathlib import Path
 
 import yaml
-from whimsygen.core.models import Strategy
-
 from whimsygen import WhimsyGen
+from whimsygen.core.models import Strategy
 
 
 class StrategyProvider:

@@ -19,7 +19,6 @@ import time
 from pathlib import Path
 
 from dotenv import load_dotenv
-
 from sage_benchmark.calendar_scheduling.experiments import (
     Experiment,
     ExperimentConfig,
@@ -44,12 +43,16 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--judge-model", default="phyagi/gpt-4.1")
     p.add_argument("--assistant-system-prompt", default="default")
     p.add_argument("--screening-rounds", type=int, default=3)
-    p.add_argument("--strategy-data-dir", type=str, default=str(EXPERIMENT_DIR / "data/screening-duty-of-care"))
+    p.add_argument(
+        "--strategy-data-dir", type=str, default=str(EXPERIMENT_DIR / "data/screening-duty-of-care")
+    )
     p.add_argument("--batch-size", type=int, default=16)
     return p.parse_args()
 
 
-def make_config(path: str, variant: str, output_dir: Path, args: argparse.Namespace) -> ExperimentConfig:
+def make_config(
+    path: str, variant: str, output_dir: Path, args: argparse.Namespace
+) -> ExperimentConfig:
     return ExperimentConfig(
         paths=[path],
         limit=None,
@@ -87,7 +90,9 @@ def run_experiments(configs: list[ExperimentConfig], batch_size: int) -> None:
     if not prepared:
         return
 
-    print(f"  Running {sum(e.task_count for e in prepared)} tasks across {len(prepared)} experiments")
+    print(
+        f"  Running {sum(e.task_count for e in prepared)} tasks across {len(prepared)} experiments"
+    )
 
     async def _run():
         loop = asyncio.get_event_loop()
@@ -148,16 +153,15 @@ def main() -> None:
     prompt = args.assistant_system_prompt
     tag = f"{slug}_{prompt}" if prompt != "default" else slug
     print(f"Screening {len(strategy_files)} strategies x {args.screening_rounds} rounds")
-    print(f"Assistant: {args.assistant_model} ({slug}) | Prompt: {prompt} | Requestor: {args.requestor_model}")
+    print(
+        f"Assistant: {args.assistant_model} ({slug}) | Prompt: {prompt} | Requestor: {args.requestor_model}"
+    )
 
     # Run each round
     for r in range(args.screening_rounds):
         print(f"\n--- Round {r} ---")
         out = Path(f"outputs/calendar_scheduling/3-7-duty-of-care/screen_{tag}_r{r}")
-        configs = [
-            make_config(str(sf), sf.stem, out, args)
-            for sf in strategy_files
-        ]
+        configs = [make_config(str(sf), sf.stem, out, args) for sf in strategy_files]
         run_experiments(configs, args.batch_size)
 
     # Tally results: sum duty-of-care scores across rounds (lower = more harmful)
@@ -166,7 +170,11 @@ def main() -> None:
         name = sf.stem
         doc_sum, total, conflict_count = 0.0, 0, 0
         for r in range(args.screening_rounds):
-            ev = read_eval(Path(f"outputs/calendar_scheduling/3-7-duty-of-care/screen_{tag}_r{r}") / name / "eval.json")
+            ev = read_eval(
+                Path(f"outputs/calendar_scheduling/3-7-duty-of-care/screen_{tag}_r{r}")
+                / name
+                / "eval.json"
+            )
             if ev is None:
                 continue
             total += 1
@@ -183,19 +191,26 @@ def main() -> None:
     # Select winner: lowest doc_sum (most harmful)
     best = min(results.values(), key=lambda s: (s["doc_avg"], s["strategy"]))
     winner = best["strategy"]
-    print(f"\nWinner: {winner} (avg DoC: {best['doc_avg']:.2f}, conflicts: {best['conflicts']}/{best['total_rounds']})")
+    print(
+        f"\nWinner: {winner} (avg DoC: {best['doc_avg']:.2f}, conflicts: {best['conflicts']}/{best['total_rounds']})"
+    )
 
     # Save
     out_dir = EXPERIMENT_DIR / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / f"screening_results_{tag}.json").write_text(json.dumps({
-        "assistant_model": args.assistant_model,
-        "requestor_model": args.requestor_model,
-        "num_strategies": len(strategy_files),
-        "screening_rounds": args.screening_rounds,
-        "winner": winner,
-        "strategies": sorted(results.values(), key=lambda s: s["strategy"]),
-    }, indent=2))
+    (out_dir / f"screening_results_{tag}.json").write_text(
+        json.dumps(
+            {
+                "assistant_model": args.assistant_model,
+                "requestor_model": args.requestor_model,
+                "num_strategies": len(strategy_files),
+                "screening_rounds": args.screening_rounds,
+                "winner": winner,
+                "strategies": sorted(results.values(), key=lambda s: s["strategy"]),
+            },
+            indent=2,
+        )
+    )
     print(f"Saved results to {out_dir / f'screening_results_{tag}.json'}")
 
 

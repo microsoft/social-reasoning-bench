@@ -67,6 +67,7 @@ JUDGE_MODEL = "phyagi/gpt-4.1"
 
 # -- Helpers --
 
+
 def _model_slug(model: str) -> str:
     """Turn 'phyagi/gpt-5.2' into 'gpt-5.2', etc."""
     return model.split("/")[-1]
@@ -125,6 +126,7 @@ def _make_config(assistant_cfg, **kwargs):
 
 
 # -- Experiment --
+
 
 def experiment_duty_of_care():
     """Double-booking attacks: model x preference visibility x dataset."""

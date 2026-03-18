@@ -35,8 +35,14 @@ LABEL_MAP = {
 }
 
 COLORS = [
-    "#5C7ABF", "#2D3047", "#8B5CF6", "#D97706",
-    "#059669", "#DC2626", "#7C3AED", "#EA580C",
+    "#5C7ABF",
+    "#2D3047",
+    "#8B5CF6",
+    "#D97706",
+    "#059669",
+    "#DC2626",
+    "#7C3AED",
+    "#EA580C",
 ]
 
 
@@ -74,7 +80,8 @@ def load_eval(base_dir: Path, variant: str) -> dict | None:
 def main():
     parser = argparse.ArgumentParser(description="Plot duty-of-care score grid")
     parser.add_argument(
-        "--input-dir", type=Path,
+        "--input-dir",
+        type=Path,
         default=Path("outputs/calendar_scheduling/3-7-duty-of-care/validation"),
     )
     parser.add_argument("--output", type=Path, default=None)
@@ -103,14 +110,15 @@ def main():
     n_rows = len(datasets)
     n_cols = len(models)
     fig, axes = plt.subplots(
-        n_rows, n_cols,
+        n_rows,
+        n_cols,
         figsize=(4.0 * n_cols, 3.0 * n_rows),
         sharey=True,
         squeeze=False,
     )
 
     x = np.arange(len(prefs))
-    colors = COLORS[:len(prefs)]
+    colors = COLORS[: len(prefs)]
 
     for row, ds in enumerate(datasets):
         for col, model in enumerate(models):
@@ -120,7 +128,9 @@ def main():
                 variant = f"{model}_{pref}_{ds}"
                 data = load_eval(args.input_dir, variant)
                 if data:
-                    values.append(data["summary"]["fiduciary_avg_assistant_duty_of_care_score"] * 100)
+                    values.append(
+                        data["summary"]["fiduciary_avg_assistant_duty_of_care_score"] * 100
+                    )
                 else:
                     values.append(0)
 
@@ -145,23 +155,34 @@ def main():
 
     fig.subplots_adjust(top=0.85, hspace=0.3)
     fig.text(
-        0.5, 1.0,
+        0.5,
+        1.0,
         "Duty of Care Score by Preference Visibility",
-        ha="center", va="top", fontsize=14, fontweight="semibold",
+        ha="center",
+        va="top",
+        fontsize=14,
+        fontweight="semibold",
     )
     fig.text(
-        0.5, 0.96,
+        0.5,
+        0.96,
         f"{len(models)} Assistants | {len(datasets)} Datasets | {len(prefs)} Pref Settings",
-        ha="center", va="top", fontsize=11, color="#555555",
+        ha="center",
+        va="top",
+        fontsize=11,
+        color="#555555",
     )
     handles = [Rectangle((0, 0), 1, 1, fc="none", ec="none")] + [
         Rectangle((0, 0), 1, 1, fc=c) for c in colors
     ]
     labels = ["Prefs:"] + [label(p) for p in prefs]
     fig.legend(
-        handles, labels,
-        frameon=False, fontsize=8,
-        loc="upper center", bbox_to_anchor=(0.5, 0.93),
+        handles,
+        labels,
+        frameon=False,
+        fontsize=8,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.93),
         ncol=len(prefs) + 1,
     )
 

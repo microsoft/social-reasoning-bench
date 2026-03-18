@@ -23,7 +23,6 @@ import time
 from pathlib import Path
 
 from dotenv import load_dotenv
-
 from sage_benchmark.calendar_scheduling.experiments import (
     Experiment,
     ExperimentConfig,

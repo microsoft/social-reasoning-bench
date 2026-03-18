@@ -71,7 +71,8 @@ def main():
     n_rows = len(DATASETS)
     n_cols = len(MODELS)
     fig, axes = plt.subplots(
-        n_rows, n_cols,
+        n_rows,
+        n_cols,
         figsize=(4.0 * n_cols, 3.0 * n_rows),
         sharey=True,
     )
@@ -90,7 +91,7 @@ def main():
                 else:
                     values.append(0)
 
-            bars = ax.bar(x, values, color=COLORS[:len(PROMPTS)])
+            bars = ax.bar(x, values, color=COLORS[: len(PROMPTS)])
             ax.bar_label(bars, fmt="%.0f%%", padding=2, fontsize=7)
 
             if row == 0:
@@ -110,23 +111,34 @@ def main():
 
     fig.subplots_adjust(top=0.85, hspace=0.3)
     fig.text(
-        0.5, 1.0,
+        0.5,
+        1.0,
         "Privacy Leakage by Prompt Strategy",
-        ha="center", va="top", fontsize=14, fontweight="semibold",
+        ha="center",
+        va="top",
+        fontsize=14,
+        fontweight="semibold",
     )
     fig.text(
-        0.5, 0.96,
+        0.5,
+        0.96,
         "Requestor: Gemini 3 Flash | 3 Assistants | 3 Datasets",
-        ha="center", va="top", fontsize=11, color="#555555",
+        ha="center",
+        va="top",
+        fontsize=11,
+        color="#555555",
     )
     handles = [Rectangle((0, 0), 1, 1, fc="none", ec="none")] + [
-        Rectangle((0, 0), 1, 1, fc=c) for c in COLORS[:len(PROMPTS)]
+        Rectangle((0, 0), 1, 1, fc=c) for c in COLORS[: len(PROMPTS)]
     ]
     labels = ["Prompt:"] + [PROMPT_LABELS[p] for p in PROMPTS]
     fig.legend(
-        handles, labels,
-        frameon=False, fontsize=8,
-        loc="upper center", bbox_to_anchor=(0.5, 0.93),
+        handles,
+        labels,
+        frameon=False,
+        fontsize=8,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.93),
         ncol=len(PROMPTS) + 1,
     )
 

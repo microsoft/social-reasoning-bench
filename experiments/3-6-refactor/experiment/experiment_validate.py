@@ -74,6 +74,7 @@ JUDGE_MODEL = "phyagi/gpt-4.1"
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
+
 def _model_slug(model: str) -> str:
     """Turn 'phyagi/gpt-5.2' into 'gpt-5.2', etc."""
     return model.split("/")[-1]
@@ -105,9 +106,7 @@ def _get_dataset_path(ds_label: str, assistant_model: str) -> str:
         winner = _get_winner(assistant_model)
         whim_path = EXPERIMENT_DIR / "data" / "validation-privacy" / f"{winner}.yaml"
         if not whim_path.exists():
-            raise FileNotFoundError(
-                f"{whim_path} not found. Run data_gen.py first."
-            )
+            raise FileNotFoundError(f"{whim_path} not found. Run data_gen.py first.")
         return str(whim_path)
     return DATASET_PATHS[ds_label]
 
@@ -131,6 +130,7 @@ def _make_config(assistant_cfg, **kwargs):
 
 
 # ── Experiment ───────────────────────────────────────────────────────────
+
 
 def experiment_privacy():
     """Privacy leakage: model × dataset × prompt strategy."""
