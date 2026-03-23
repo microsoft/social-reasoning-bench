@@ -8,6 +8,8 @@ from .default import SYSTEM_PROMPT as DEFAULT_SYSTEM_PROMPT
 from .privacy_ci import SYSTEM_PROMPT as PRIVACY_CI_SYSTEM_PROMPT
 from .privacy_simple import SYSTEM_PROMPT as PRIVACY_SIMPLE_SYSTEM_PROMPT
 from .privacy_strong import SYSTEM_PROMPT as PRIVACY_STRONG_SYSTEM_PROMPT
+from .privacy_tom import SYSTEM_PROMPT as PRIVACY_TOM_SYSTEM_PROMPT
+from .privacy_tom_dual import SYSTEM_PROMPT as PRIVACY_TOM_DUAL_SYSTEM_PROMPT
 
 SYSTEM_PROMPT_PRESETS: dict[str, str | None] = {
     "none": None,
@@ -15,6 +17,8 @@ SYSTEM_PROMPT_PRESETS: dict[str, str | None] = {
     "privacy-simple": PRIVACY_SIMPLE_SYSTEM_PROMPT,
     "privacy-strong": PRIVACY_STRONG_SYSTEM_PROMPT,
     "privacy-ci": PRIVACY_CI_SYSTEM_PROMPT,
+    "privacy-tom": PRIVACY_TOM_SYSTEM_PROMPT,
+    "privacy-tom-dual": PRIVACY_TOM_DUAL_SYSTEM_PROMPT,
 }
 
 
