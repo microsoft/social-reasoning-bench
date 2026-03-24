@@ -12,13 +12,18 @@ from sage_benchmark.form_filling.environment.actions import FILE_SYSTEM_TOOLS
 from sage_benchmark.form_filling.environment.bm25_index import BM25Index
 from sage_benchmark.form_filling.prompts import (
     ACTION_PROMPT,
+    BASE_THINKING_PROMPT,
     FILE_SYSTEM_ACTION_PROMPT,
     FILE_SYSTEM_THINKING_PROMPT,
+    ONE_SHOT_SOCIAL_REASONING_SUFFIX,
+    PRIVACY_AWARE_SUFFIX,
+    PRIVACY_CI_SUFFIX,
+    PRIVACY_EXPLAINED_SUFFIX,
+    SOCIAL_REASONING_PRIVACY_COMPLEMENT_INSTRUCTION,
     construct_file_system_system_prompt,
     construct_system_prompt,
     construct_user_request,
     format_artifacts_as_context,
-    get_thinking_prompt,
 )
 from sage_benchmark.form_filling.schemas import (
     FormFillingAction,
@@ -96,6 +101,8 @@ async def run_single_task(
     oracle_user: OracleUser | None = None,
     max_ask_rounds: int = 50,
     file_system: bool = False,
+    social_reasoning: bool = False,
+    use_privacy_example: bool = False,
 ) -> TaskExecutionResult:
     """Execute form filling using tool-based approach.
 
@@ -109,6 +116,7 @@ async def run_single_task(
         oracle_user: Oracle user for answering ask_user questions
         max_ask_rounds: Maximum number of ask_user rounds (default: 50)
         file_system: If True, use file-system mode with search/read tools instead of artifacts in context
+        social_reasoning: If True, append social reasoning guidance to the thinking prompt
 
     Returns:
         Task execution result with success status and action taken
@@ -130,11 +138,23 @@ async def run_single_task(
     # Construct prompt using the unified function
     prompt = construct_prompt_for_task(task_data, file_system=file_system)
 
-    # Get the thinking prompt based on prompt type (includes privacy guidance)
+    # Get the thinking prompt based on mode, then append privacy suffix
     if file_system:
         thinking_prompt = FILE_SYSTEM_THINKING_PROMPT
     else:
-        thinking_prompt = get_thinking_prompt(prompt_type)
+        thinking_prompt = BASE_THINKING_PROMPT
+
+    # Append privacy suffix based on prompt_type (applies to both modes)
+    if prompt_type == "privacy_aware":
+        thinking_prompt += PRIVACY_AWARE_SUFFIX
+    elif prompt_type == "privacy_explained":
+        thinking_prompt += PRIVACY_EXPLAINED_SUFFIX
+    elif prompt_type == "privacy_ci":
+        thinking_prompt += PRIVACY_CI_SUFFIX
+    if social_reasoning:
+        thinking_prompt += ONE_SHOT_SOCIAL_REASONING_SUFFIX
+        if use_privacy_example:
+            thinking_prompt += SOCIAL_REASONING_PRIVACY_COMPLEMENT_INSTRUCTION
     thinking_prompt += ASK_USER_THINKING_SUFFIX
 
     # Step 1: Let the agent think through the task (no tools)

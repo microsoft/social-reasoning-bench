@@ -57,21 +57,27 @@ class InterviewerAgent:
         malicious_strategy: int | None = None,
         malicious_attack_type: str = "privacy",
         malicious_strategies_file: str | None = None,
+        form_fill_client: ModelClient | None = None,
+        form_fill_model: str | None = None,
     ):
         """Initialize interviewer agent.
 
         Args:
-            client: Model client for LLM calls
-            model: Model name to use
+            client: Model client for LLM calls during the interview
+            model: Model name for the interview conversation
             form_context: Formatted context describing the form to fill with questions
             interviewer_type: Type of interviewer prompt ("base" or "detail")
             single_field_mode: Whether to enforce the interviewer to ask one question at a time
             malicious_strategy: If set, use malicious interviewer with this strategy index
             malicious_attack_type: Type of malicious attack ("privacy", "hallucination", "red_flags")
             malicious_strategies_file: Path to strategies YAML file for malicious mode
+            form_fill_client: Separate client for form filling (defaults to interview client)
+            form_fill_model: Separate model for form filling (defaults to interview model)
         """
         self.client = client
         self.model = model
+        self.form_fill_client = form_fill_client or client
+        self.form_fill_model = form_fill_model or model
 
         # Use malicious prompt if strategy is specified, otherwise use regular prompt
         if malicious_strategy is not None:
@@ -155,8 +161,8 @@ Here is the form you need to fill out:
             },
         ]
 
-        response = await self.client.chat.completions.acreate(
-            model=self.model,
+        response = await self.form_fill_client.chat.completions.acreate(
+            model=self.form_fill_model,
             messages=self.messages,
             tools=submit_tool,
             tool_choice="required",

@@ -106,6 +106,7 @@ async def run_tasks(
     model_name: str,
     judge_model: str,
     interviewer_model: str | None = None,
+    interviewer_form_fill_model: str | None = None,
     base_url: str | None = None,
     output_dir: str | None = None,
     limit: int | None = None,
@@ -129,6 +130,8 @@ async def run_tasks(
     restructure_model: str | None = None,
     temperature: float | None = None,
     file_system: bool = False,
+    social_reasoning: bool = False,
+    use_privacy_example: bool = False,
 ):
     """Run the complete form filling benchmark with async parallelization.
 
@@ -161,6 +164,7 @@ async def run_tasks(
         restructure_model: Model for restructuring flat values to schema (gui mode, defaults to judge_model)
         temperature: Sampling temperature for assistant/form-filler generation
         file_system: If True, use file-system mode (search/read tools instead of artifacts in context)
+        social_reasoning: If True, enable ToM-augmented social reasoning for assistant
 
     Returns:
         Dictionary with benchmark results
@@ -227,6 +231,8 @@ async def run_tasks(
             summary_file=summary_file,
             temperature=temperature,
             file_system=file_system,
+            social_reasoning=social_reasoning,
+            use_privacy_example=use_privacy_example,
         )
     elif execution_mode == "gui":
         result = await _run_gui_mode(
@@ -253,6 +259,7 @@ async def run_tasks(
             tasks=tasks,
             assistant_model=model_name,
             interviewer_model=interviewer_model,
+            interviewer_form_fill_model=interviewer_form_fill_model,
             judge_model=judge_model,
             run_mode=run_mode,
             task_results_path=task_results_path,
@@ -274,6 +281,8 @@ async def run_tasks(
             single_field_mode=single_field_mode,
             temperature=temperature,
             file_system=file_system,
+            social_reasoning=social_reasoning,
+            use_privacy_example=use_privacy_example,
         )
 
     return result
@@ -296,6 +305,8 @@ async def _run_one_shot_mode(
     summary_file: Path | None,
     temperature: float | None = None,
     file_system: bool = False,
+    social_reasoning: bool = False,
+    use_privacy_example: bool = False,
 ):
     """Run one-shot mode (structured output)."""
     execution_results: list[TaskExecutionResult] = []
@@ -358,6 +369,8 @@ async def _run_one_shot_mode(
                         judge_model,
                     ),
                     file_system=file_system,
+                    social_reasoning=social_reasoning,
+                    use_privacy_example=use_privacy_example,
                 )
                 for idx, task in enumerate(batch, start=batch_start)
             ]
@@ -730,6 +743,7 @@ async def _run_interactive_mode(
     tasks: list[FormTask],
     assistant_model: str,
     interviewer_model: str,
+    interviewer_form_fill_model: str | None,
     judge_model: str,
     run_mode: Literal["all", "tasks", "eval"],
     task_results_path: str | None,
@@ -751,6 +765,8 @@ async def _run_interactive_mode(
     single_field_mode: bool = False,
     temperature: float | None = None,
     file_system: bool = False,
+    social_reasoning: bool = False,
+    use_privacy_example: bool = False,
 ):
     """Run interactive mode (interview Q&A)."""
     execution_results: list[InteractiveTaskExecutionResult] = []
@@ -770,6 +786,9 @@ async def _run_interactive_mode(
         )
         # Create oracle user client (always, to detect unnecessary user queries)
         oracle_client = ModelClient()
+        # Separate form-fill client if a different model is specified
+        form_fill_client = ModelClient() if interviewer_form_fill_model else None
+        effective_form_fill_model = interviewer_form_fill_model or None
 
         print(f"\n{'=' * 60}")
         print(f"Running {len(tasks)} tasks in interactive mode (batches of {batch_size})")
@@ -802,12 +821,16 @@ async def _run_interactive_mode(
                     malicious_attack_type=malicious_attack_type,
                     malicious_strategies_file=malicious_strategies_file,
                     temperature=temperature,
+                    form_fill_client=form_fill_client,
+                    form_fill_model=effective_form_fill_model,
                     oracle_user=OracleUser(
                         task.unmasked_ground_truth or {},
                         oracle_client,
                         judge_model,
                     ),
                     file_system=file_system,
+                    social_reasoning=social_reasoning,
+                    use_privacy_example=use_privacy_example,
                 )
                 for idx, task in enumerate(batch, start=batch_start)
             ]

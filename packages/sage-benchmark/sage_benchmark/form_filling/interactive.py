@@ -56,6 +56,10 @@ def _initialize_agents(
     temperature: float | None = None,
     file_system: bool = False,
     bm25_index: BM25Index | None = None,
+    social_reasoning: bool = False,
+    use_privacy_example: bool = False,
+    form_fill_client: ModelClient | None = None,
+    form_fill_model: str | None = None,
 ) -> tuple[InterviewerAgent, AssistantAgent]:
     """Initialize interviewer and assistant agents for a task.
 
@@ -74,6 +78,9 @@ def _initialize_agents(
         temperature: Sampling temperature for assistant generation
         file_system: If True, add file-system search/read tools to assistant
         bm25_index: BM25 index for file-system tool execution
+        social_reasoning: If True, enable ToM-augmented social reasoning for assistant
+        form_fill_client: Separate client for form filling (defaults to interviewer client)
+        form_fill_model: Separate model for form filling (defaults to interviewer model)
 
     Returns:
         Tuple of (InterviewerAgent, AssistantAgent)
@@ -87,6 +94,8 @@ def _initialize_agents(
         temperature=temperature,
         file_system=file_system,
         bm25_index=bm25_index,
+        social_reasoning=social_reasoning,
+        use_privacy_example=use_privacy_example,
     )
 
     form_info = get_form_as_string(task)
@@ -99,6 +108,8 @@ def _initialize_agents(
         malicious_strategy,
         malicious_attack_type=malicious_attack_type,
         malicious_strategies_file=malicious_strategies_file,
+        form_fill_client=form_fill_client,
+        form_fill_model=form_fill_model,
     )
 
     return interviewer, assistant
@@ -222,6 +233,10 @@ async def run_single_task(
     oracle_user: OracleUser | None = None,
     max_ask_rounds: int = 50,
     file_system: bool = False,
+    social_reasoning: bool = False,
+    use_privacy_example: bool = False,
+    form_fill_client: ModelClient | None = None,
+    form_fill_model: str | None = None,
 ) -> InteractiveTaskExecutionResult:
     """Execute a single interactive interview task.
 
@@ -243,6 +258,7 @@ async def run_single_task(
         oracle_user: Oracle user for answering ask_user questions
         max_ask_rounds: Maximum number of ask_user rounds (default: 50)
         file_system: If True, use file-system mode with search/read tools
+        social_reasoning: If True, enable ToM-augmented social reasoning for assistant
 
     Returns:
         InteractiveTaskExecutionResult with conversation and form submission
@@ -273,6 +289,10 @@ async def run_single_task(
         temperature=temperature,
         file_system=file_system,
         bm25_index=bm25_index,
+        social_reasoning=social_reasoning,
+        use_privacy_example=use_privacy_example,
+        form_fill_client=form_fill_client,
+        form_fill_model=form_fill_model,
     )
 
     try:

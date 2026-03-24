@@ -30,6 +30,12 @@ def parse_args() -> argparse.Namespace:
         "--interviewer-model",
         help="Model for interviewer agent (interactive mode only)",
     )
+    parser.add_argument(
+        "--interviewer-form-fill-model",
+        default=None,
+        help="Separate model for the form-filling step after the interview (defaults to --interviewer-model). "
+        "Useful when the interviewer model doesn't support constrained decoding.",
+    )
 
     # Common arguments
     parser.add_argument(
@@ -151,6 +157,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable file-system mode: agent uses search/read tools instead of receiving artifacts in context",
     )
+    parser.add_argument(
+        "--social-reasoning",
+        action="store_true",
+        help="Enable social reasoning for assistant agent (ToM-augmented in interactive mode, recipient-perspective in one-shot mode)",
+    )
+    parser.add_argument(
+        "--use-privacy-example",
+        action="store_true",
+        help="Append privacy/sensitive information examples to the social reasoning prompt (requires --social-reasoning)",
+    )
 
     # GUI mode specific arguments
     parser.add_argument(
@@ -210,6 +226,7 @@ def main():
             execution_mode=args.execution_mode,
             model_name=args.assistant_model,
             interviewer_model=args.interviewer_model,
+            interviewer_form_fill_model=args.interviewer_form_fill_model,
             judge_model=args.judge_model,
             base_url=args.base_url,
             output_dir=args.output_dir,
@@ -234,6 +251,8 @@ def main():
             restructure_model=args.restructure_model,
             temperature=args.assistant_temperature,
             file_system=args.file_system,
+            social_reasoning=args.social_reasoning,
+            use_privacy_example=args.use_privacy_example,
         )
     )
 

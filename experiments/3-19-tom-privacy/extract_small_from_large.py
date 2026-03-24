@@ -13,7 +13,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-SRC_DIR = REPO_ROOT / "outputs/calendar_scheduling/3-18-final-calendar-doc-privacy/privacy/validation"
+SRC_DIR = (
+    REPO_ROOT / "outputs/calendar_scheduling/3-18-final-calendar-doc-privacy/privacy/validation"
+)
 DST_DIR = REPO_ROOT / "outputs/calendar_scheduling/3-18-tom-privacy/validation"
 
 VARIANTS = [
@@ -38,16 +40,20 @@ def recompute_summary(results: list) -> dict:
     failed = [r for r in results if not r.get("is_eval_valid", True)]
     eval_errors = [r for r in results if r.get("eval_error") is not None]
 
-    task_successes = sum(1 for r in results if r.get("appropriately_scheduled_or_notscheduled", False))
+    task_successes = sum(
+        1 for r in results if r.get("appropriately_scheduled_or_notscheduled", False)
+    )
     task_conflicts = sum(1 for r in results if r.get("has_conflicts", False))
     task_illegal_moves = sum(1 for r in results if len(r.get("illegal_moves", [])) > 0)
     task_missing_meetings = sum(
-        1 for r in results
+        1
+        for r in results
         if r.get("scheduled_meeting_found", True) is False
         and r.get("task_satisfiable", True) is True
     )
     task_unwanted_meetings = sum(
-        1 for r in results
+        1
+        for r in results
         if r.get("scheduled_meeting_found", False) is True
         and r.get("task_satisfiable", False) is False
     )
@@ -63,27 +69,44 @@ def recompute_summary(results: list) -> dict:
     fiduciary_avg_preference_score = sum(pref_scores) / len(pref_scores) if pref_scores else 0.0
     fiduciary_tasks_with_preferences = len(pref_scores)
 
-    doc_scores = [r["assistant_duty_of_care_score"] for r in results if r.get("assistant_duty_of_care_score") is not None]
+    doc_scores = [
+        r["assistant_duty_of_care_score"]
+        for r in results
+        if r.get("assistant_duty_of_care_score") is not None
+    ]
     fiduciary_avg_doc_score = sum(doc_scores) / len(doc_scores) if doc_scores else 0.0
 
-    suboptimal_doc = [
-        entry for entry in _get_suboptimal_doc_entries(results)
-    ]
+    suboptimal_doc = [entry for entry in _get_suboptimal_doc_entries(results)]
 
     # Duration error
-    dur_errors = [r["scheduled_duration_error"] for r in results if r.get("scheduled_duration_error") is not None]
-    fiduciary_avg_scheduled_duration_error = sum(dur_errors) / len(dur_errors) if dur_errors else 0.0
+    dur_errors = [
+        r["scheduled_duration_error"]
+        for r in results
+        if r.get("scheduled_duration_error") is not None
+    ]
+    fiduciary_avg_scheduled_duration_error = (
+        sum(dur_errors) / len(dur_errors) if dur_errors else 0.0
+    )
 
     # Due diligence
-    msg_counts = [r["due_diligence_message_count"] for r in results if r.get("due_diligence_message_count") is not None]
-    pref_mentions = [r["due_diligence_preference_mention_count"] for r in results if r.get("due_diligence_preference_mention_count") is not None]
-    proposal_counts = [r["due_diligence_proposal_count"] for r in results if r.get("due_diligence_proposal_count") is not None]
+    msg_counts = [
+        r["due_diligence_message_count"]
+        for r in results
+        if r.get("due_diligence_message_count") is not None
+    ]
+    pref_mentions = [
+        r["due_diligence_preference_mention_count"]
+        for r in results
+        if r.get("due_diligence_preference_mention_count") is not None
+    ]
+    proposal_counts = [
+        r["due_diligence_proposal_count"]
+        for r in results
+        if r.get("due_diligence_proposal_count") is not None
+    ]
 
     # Max rounds
-    tasks_hit_max = sum(
-        1 for r in results
-        if r.get("execution", {}).get("hit_max_rounds", False)
-    )
+    tasks_hit_max = sum(1 for r in results if r.get("execution", {}).get("hit_max_rounds", False))
 
     summary = {
         "total_tasks": total,
@@ -108,8 +131,12 @@ def recompute_summary(results: list) -> dict:
         "fiduciary_suboptimal_assistant_duty_of_care": suboptimal_doc,
         "fiduciary_avg_scheduled_duration_error": fiduciary_avg_scheduled_duration_error,
         "due_diligence_avg_message_count": sum(msg_counts) / len(msg_counts) if msg_counts else 0.0,
-        "due_diligence_avg_preference_mention_count": sum(pref_mentions) / len(pref_mentions) if pref_mentions else 0.0,
-        "due_diligence_avg_proposal_count": sum(proposal_counts) / len(proposal_counts) if proposal_counts else 0.0,
+        "due_diligence_avg_preference_mention_count": sum(pref_mentions) / len(pref_mentions)
+        if pref_mentions
+        else 0.0,
+        "due_diligence_avg_proposal_count": sum(proposal_counts) / len(proposal_counts)
+        if proposal_counts
+        else 0.0,
     }
     return summary
 
@@ -159,10 +186,7 @@ def process_variant(variant: str) -> None:
         data = json.load(f)
 
     # Filter results to small subset
-    filtered = [
-        r for r in data["results"]
-        if r["execution"]["task"]["id"] in SMALL_TASK_IDS
-    ]
+    filtered = [r for r in data["results"] if r["execution"]["task"]["id"] in SMALL_TASK_IDS]
 
     print(f"  {variant}: {len(data['results'])} -> {len(filtered)} tasks")
 
@@ -186,8 +210,10 @@ def process_variant(variant: str) -> None:
         json.dump(output, f, indent=2)
 
     print(f"  -> Saved to {dst_path}")
-    print(f"     privacy_leakage_rate: {new_summary['privacy_leakage_rate']:.4f} "
-          f"(was {data['summary']['privacy_leakage_rate']:.4f})")
+    print(
+        f"     privacy_leakage_rate: {new_summary['privacy_leakage_rate']:.4f} "
+        f"(was {data['summary']['privacy_leakage_rate']:.4f})"
+    )
 
 
 def main():
