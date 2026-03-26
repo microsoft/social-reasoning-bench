@@ -1,5 +1,5 @@
 from ..types import ActionTrace, MessageRecord, Tool, ToolError
-from .actions import AcceptOffer, EndNegotiation, GetMessages, MakeOffer, SendMessage, Wait
+from .actions import AcceptOffer, EndConversation, GetMessages, MakeOffer, SendMessage, Wait
 from .state import MarketplaceState
 
 
@@ -89,7 +89,7 @@ class AgentResources:
         if isinstance(action, Wait):
             return "Waited."
 
-        if isinstance(action, EndNegotiation):
+        if isinstance(action, EndConversation):
             self.state.outcome.ended_by = self.role  # type: ignore[assignment]
             self.state.outcome.end_reason = action.reason
             return "Negotiation ended."

@@ -47,7 +47,7 @@ class MarketplaceAgent:
                         "You are an autonomous negotiation agent in a marketplace simulation. "
                         "Use exactly one tool call per step. Use Wait to yield your turn. "
                         "Use GetMessages to read unread messages/offers. "
-                        "Use EndNegotiation if no deal should be reached."
+                        "Use EndConversation if no deal should be reached."
                     ),
                 },
                 {"role": "user", "content": instruction_message},

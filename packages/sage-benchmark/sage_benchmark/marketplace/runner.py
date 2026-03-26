@@ -10,7 +10,7 @@ from sage_benchmark.shared.executors import TaskPoolExecutor
 from sage_benchmark.shared.logging import BenchmarkLogger
 
 from .agents import BuyerAgent, MarketplaceAgent, SellerAgent
-from .environment import AgentResources, EndNegotiation, MarketplaceEnvironment, Wait
+from .environment import AgentResources, EndConversation, MarketplaceEnvironment, Wait
 from .environment.resources import execute_with_trace
 from .evaluation import evaluate_task, evaluate_task_with_privacy
 from .types import (
@@ -56,7 +56,7 @@ async def _run_agent_turn(
     max_steps: int,
     action_trace: list[ActionTrace | dict],
 ) -> tuple[int, bool]:
-    """Run one agent turn until Wait, EndNegotiation, or max_steps."""
+    """Run one agent turn until Wait, EndConversation, or max_steps."""
     invalid_actions = 0
     for _ in range(max_steps):
         try:
@@ -82,7 +82,7 @@ async def _run_agent_turn(
 
         if isinstance(action, Wait):
             return invalid_actions, False
-        if isinstance(action, EndNegotiation) and ok:
+        if isinstance(action, EndConversation) and ok:
             return invalid_actions, True
         if resources.state.outcome.deal_reached:
             return invalid_actions, True

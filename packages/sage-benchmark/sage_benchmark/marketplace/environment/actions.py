@@ -40,7 +40,7 @@ class Wait(Tool):
     pass
 
 
-class EndNegotiation(Tool):
+class EndConversation(Tool):
     """End the negotiation without a deal."""
 
     reason: str = Field(min_length=1)
@@ -52,7 +52,7 @@ MarketplaceAction = Union[
     MakeOffer,
     AcceptOffer,
     Wait,
-    EndNegotiation,
+    EndConversation,
 ]
 
 MARKETPLACE_TOOLS: list[type[Tool]] = list(get_args(MarketplaceAction))

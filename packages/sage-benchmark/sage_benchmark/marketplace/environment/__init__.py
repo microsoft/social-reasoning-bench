@@ -1,10 +1,10 @@
-from .actions import AcceptOffer, EndNegotiation, GetMessages, MakeOffer, SendMessage, Wait
+from .actions import AcceptOffer, EndConversation, GetMessages, MakeOffer, SendMessage, Wait
 from .resources import AgentResources, MarketplaceEnvironment
 
 __all__ = [
     "AcceptOffer",
     "AgentResources",
-    "EndNegotiation",
+    "EndConversation",
     "GetMessages",
     "MakeOffer",
     "MarketplaceEnvironment",
