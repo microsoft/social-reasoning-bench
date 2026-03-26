@@ -95,7 +95,7 @@ Note: J and K both touch marketplace but different files (`runner.py`+`cli.py` v
 | Agent | PR Title | Tasks | Key Files | Deps | Est. |
 |:-----:|----------|-------|-----------|:----:|:----:|
 | L | **Marketplace checkpoint + resume + run-mode** | 3.2, 3.6 | NEW `mkt/checkpoints/`, `mkt/runner.py`, `mkt/cli.py` | J | M |
-| M | **Form-filling checkpoint + resume + logger** | 3.3, 3.4 (ff part) | NEW `ff/checkpoints/`, `ff/runner.py` | F | M |
+| M | **Form-filling checkpoint + resume + logger + coupled exec+eval** | 3.3, 3.4 (ff part) | NEW `ff/checkpoints/`, `ff/runner.py` | F | M |
 | N | **Integrate shared Tool base class** | 5.1 (integrate) | `cal/types.py`, `mkt/types.py`, `ff/environment/actions.py` | D, E, F | S |
 | O | **Integrate shared Agent base class** | 5.2 (integrate) | `cal/agents/calendar_base.py`, `mkt/agents/marketplace_base.py`, `ff/agents/assistant.py` | D, F | M |
 
