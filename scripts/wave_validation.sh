@@ -89,8 +89,8 @@ uv run sagebench forms \
   --assistant-model "$MODEL" \
   --interviewer-model "$MODEL" \
   --judge-model "$JUDGE_MODEL" \
-  --limit 1 \
-  --batch-size 1 \
+  --limit 2 \
+  --batch-size 2 \
   --max-rounds 10 \
   --file-system \
   --output-dir "$REPORT_DIR/benchmark/form_filling" \
