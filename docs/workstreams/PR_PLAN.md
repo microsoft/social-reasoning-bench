@@ -65,9 +65,9 @@ Agent E0 only touches `gen/` files — no overlap with A–D which touch `bench/
 
 | Agent | PR Title | Tasks | Key Files | Deps | Est. |
 |:-----:|----------|-------|-----------|:----:|:----:|
-| E | **Marketplace satisfiability + malicious + DoC reframe** | 1.3, 1.4 (mkt part) | `mkt/types.py`, `mkt/evaluation.py` | B | M |
+| E | **Marketplace satisfiability + malicious + DoC malicious-aware** | 1.3, 1.4a (mkt part) | `mkt/types.py`, `mkt/evaluation.py` | B | M |
 | F | **Form-filling consolidation + toolspace overhaul** — consolidate to interactive mode only (delete `one_shot.py`, `gui.py`, `gui_prompt.py`, `qwen_helpers/`), remove AskUser + OracleUser, consolidate Search/Read tools to SearchFiles/ReadFile, rename reject_form → EndConversation, split prompts. Remove `--execution-mode` flag, one-shot schemas, one-shot evaluator. | 1.5, 2.1 (ff part), 2.2, 2.4, 5.7, 5.8, 5.9 | DELETE `ff/one_shot.py`, `ff/gui.py`, `ff/gui_prompt.py`, `ff/qwen_helpers/`, `ff/agents/oracle_user.py`. MODIFY `ff/interactive.py`, `ff/agents/assistant.py`, `ff/environment/actions.py`, `ff/environment/bm25_index.py`, `ff/evaluation/evaluator.py`, `ff/evaluation/due_diligence/evaluate.py`, `ff/schemas.py`, `ff/prompts.py`, `ff/runner.py`, `ff/cli.py` | A | XL |
-| G | **Calendar DoC malicious fix + DD refocus** | 1.4 (cal part), 1.6 (cal part) | `cal/evaluation/duty_of_care/evaluate.py`, `cal/evaluation/evaluator.py`, `cal/evaluation/due_diligence/judge.py` | C | S |
+| G | **Calendar DoC malicious-aware + DD refocus** | 1.4a (cal part), 1.6 (cal part) | `cal/evaluation/duty_of_care/evaluate.py`, `cal/evaluation/evaluator.py`, `cal/evaluation/due_diligence/judge.py` | C | S |
 
 No file overlaps between E, F, G.
 
@@ -79,7 +79,7 @@ No file overlaps between E, F, G.
 
 | Agent | PR Title | Tasks | Key Files | Deps | Est. |
 |:-----:|----------|-------|-----------|:----:|:----:|
-| H | **Align DoC actual/best for form-filling** | 1.4 (ff part) | `ff/evaluation/duty_of_care/evaluate.py`, `ff/evaluation/evaluator.py` | F | S |
+| H | **Form-filling DoC malicious-aware** | 1.4a (ff part) | `ff/evaluation/duty_of_care/evaluate.py`, `ff/evaluation/evaluator.py` | F | S |
 | I | **Align DD on unit-of-work (mkt + ff)** | 1.6 (mkt + ff parts) | `mkt/evaluation.py`, `ff/evaluation/due_diligence/evaluate.py` | E, F | S |
 | J | **Marketplace infra: parallel + logger** | 3.1, 3.4 (mkt part) | `mkt/runner.py`, `mkt/cli.py` | E | M |
 | K | **Marketplace toolspace: EndConversation rename** | 2.1 (mkt part) | `mkt/environment/actions.py` | E | S |
@@ -199,3 +199,13 @@ This minimizes merge conflicts (propose PRs touch minimal files) and lets review
 | BenchmarkLogger | Already done in calendar | Wave 3 (J) — marketplace, Wave 4 (M) — form-filling |
 | Structured output | Already done in calendar | Wave 5 (P) — marketplace |
 | Error handling | Already done in calendar | Wave 5 (Q) — marketplace + form-filling |
+
+---
+
+## Deferred — Needs More Discussion
+
+These tasks are out of scope for v0.1.0 and deferred to a future release.
+
+| Task | Description | Why deferred |
+|------|-------------|-------------|
+| 1.4b | **Align DoC on actual/best framework** — reframe marketplace `deal_ratio_centered` as `1.0 - |centered|`, redesign form-filling DoC rubric to fit actual/best | Domain-specific DoC metrics need more discussion before redesign. Malicious-awareness (1.4a) ships now; the conceptual reframe is deferred. |
