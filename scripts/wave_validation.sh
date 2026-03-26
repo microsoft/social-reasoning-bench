@@ -105,7 +105,6 @@ uv run sagebench forms \
   --limit 2 \
   --batch-size 2 \
   --max-rounds 10 \
-  --file-system \
   --output-dir "$REPORT_DIR/benchmark/form_filling" \
   2>&1 | tee "$REPORT_DIR/benchmark_formfilling.log" | tail -5
 echo ""
