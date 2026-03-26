@@ -113,78 +113,97 @@ print(f"  WAVE VALIDATION REPORT")
 print(f"  {report_dir.name}")
 print(f"{'='*60}\n")
 
-# Calendar results
+# Aligned metrics: Task Completion, Privacy Leakage, Duty of Care, Due Diligence
+# (not all benchmarks support all metrics yet — report what's available)
+
+def fmt(val, pct=False):
+    if val is None: return "—"
+    return f"{val:.0%}" if pct else f"{val:.2f}"
+
+# ── Calendar ──
 cal_files = list(report_dir.glob("benchmark/calendar/**/eval.json"))
 if cal_files:
     with open(cal_files[0]) as f:
         cal = json.load(f)
-    summary = cal.get("summary", {})
+    s = cal.get("summary", {})
     print("CALENDAR:")
-    print(f"  Tasks: {summary.get('total_tasks', '?')}")
-    print(f"  Valid: {summary.get('valid_tasks', '?')}")
-    print(f"  Success rate: {summary.get('task_success_rate', '?')}")
-    print(f"  Avg leakage: {summary.get('privacy_avg_leakage_rate', '?')}")
-    print(f"  Avg DoC: {summary.get('fiduciary_avg_assistant_duty_of_care_score', '?')}")
-    print()
+    print(f"  Tasks: {s.get('valid_tasks', '?')}/{s.get('total_tasks', '?')}")
+    print(f"  Task completion:  {fmt(s.get('task_success_rate'), pct=True)}")
+    print(f"  Privacy leakage:  {fmt(s.get('privacy_avg_leakage_rate'), pct=True)}")
+    print(f"  Duty of care:     {fmt(s.get('fiduciary_avg_assistant_duty_of_care_score'), pct=True)}")
+    dd_msg = s.get('due_diligence_avg_message_count')
+    dd_prop = s.get('due_diligence_avg_proposal_count')
+    print(f"  Due diligence:    msgs={fmt(dd_msg)} proposals={fmt(dd_prop)}")
 else:
     print("CALENDAR: No eval.json found")
-    # Try finding any json
-    cal_jsons = list(report_dir.glob("benchmark/calendar/**/*.json"))
-    if cal_jsons:
-        print(f"  Found: {[str(p.relative_to(report_dir)) for p in cal_jsons]}")
-    print()
+print()
 
-# Marketplace results
+# ── Marketplace ──
 mkt_files = list(report_dir.glob("benchmark/marketplace/**/results.json"))
 if mkt_files:
     with open(mkt_files[0]) as f:
         mkt = json.load(f)
-    summary = mkt.get("summary", {})
-    print("MARKETPLACE:")
-    print(f"  Tasks: {summary.get('task_count', '?')}")
-    print(f"  Deal rate: {summary.get('deal_rate', '?')}")
-    # Check for leakage scores
+    s = mkt.get("summary", {})
     results = mkt.get("results", [])
-    if results:
-        evals = [r.get("evaluation", {}) for r in results]
-        buyer_leak = [e.get("buyer_leakage_score") for e in evals if e.get("buyer_leakage_score") is not None]
-        seller_leak = [e.get("seller_leakage_score") for e in evals if e.get("seller_leakage_score") is not None]
-        if buyer_leak:
-            print(f"  Avg buyer leakage: {sum(buyer_leak)/len(buyer_leak):.2f}")
-            print(f"  Avg seller leakage: {sum(seller_leak)/len(seller_leak):.2f}")
-        else:
-            print(f"  Leakage scores: not present (no --judge-model?)")
-    print()
+    evals = [r.get("evaluation", {}) for r in results]
+    print("MARKETPLACE:")
+    print(f"  Tasks: {s.get('task_count', '?')}")
+    print(f"  Task completion:  deal_rate={fmt(s.get('deal_rate'), pct=True)}")
+    # Privacy
+    buyer_leak = [e.get("buyer_leakage_score") for e in evals if e.get("buyer_leakage_score") is not None]
+    seller_leak = [e.get("seller_leakage_score") for e in evals if e.get("seller_leakage_score") is not None]
+    if buyer_leak:
+        print(f"  Privacy leakage:  buyer={fmt(sum(buyer_leak)/len(buyer_leak))} seller={fmt(sum(seller_leak)/len(seller_leak))}")
+    else:
+        print(f"  Privacy leakage:  — (no --judge-model)")
+    # DoC
+    doc_vals = [e.get("deal_ratio_centered") for e in evals if e.get("deal_ratio_centered") is not None]
+    if doc_vals:
+        print(f"  Duty of care:     avg deal_ratio_centered={fmt(sum(doc_vals)/len(doc_vals))}")
+    else:
+        print(f"  Duty of care:     — (no deals or no ZOPA)")
+    # DD
+    offer_counts = [e.get("buyer_metrics", {}).get("offer_count", 0) + e.get("seller_metrics", {}).get("offer_count", 0) for e in evals]
+    if offer_counts:
+        print(f"  Due diligence:    avg total offers={fmt(sum(offer_counts)/len(offer_counts))}")
 else:
     print("MARKETPLACE: No results.json found")
-    mkt_jsons = list(report_dir.glob("benchmark/marketplace/**/*.json"))
-    if mkt_jsons:
-        print(f"  Found: {[str(p.relative_to(report_dir)) for p in mkt_jsons]}")
-    print()
+print()
 
-# Form-filling results
+# ── Form-Filling ──
 ff_files = list(report_dir.glob("benchmark/form_filling/**/eval_results.json"))
 if ff_files:
     with open(ff_files[0]) as f:
         ff = json.load(f)
     if isinstance(ff, list) and ff:
+        # Handle nested 'evaluation' key (interactive mode)
+        def get_eval(r):
+            return r.get("evaluation", r)
+        evs = [get_eval(r) for r in ff]
         print("FORM-FILLING:")
-        print(f"  Tasks evaluated: {len(ff)}")
-        correctness = [r.get("correctness", {}).get("accuracy") for r in ff if r.get("correctness", {}).get("accuracy") is not None]
-        privacy = [r.get("form_privacy", r.get("privacy", {})).get("privacy_score") for r in ff if r.get("form_privacy", r.get("privacy", {})).get("privacy_score") is not None]
-        if correctness:
-            print(f"  Avg correctness: {sum(correctness)/len(correctness):.2f}")
-        if privacy:
-            print(f"  Avg privacy: {sum(privacy)/len(privacy):.2f}")
+        print(f"  Tasks: {len(ff)}")
+        # Task completion (correctness)
+        acc = [e.get("correctness", {}).get("accuracy") for e in evs if e.get("correctness", {}).get("accuracy") is not None]
+        print(f"  Task completion:  accuracy={fmt(sum(acc)/len(acc)) if acc else '—'}")
+        # Privacy
+        fp = [e.get("form_privacy", e.get("privacy", {})).get("privacy_score") for e in evs]
+        fp = [x for x in fp if x is not None]
+        cp = [e.get("conversation_privacy", {}).get("privacy_score") for e in evs]
+        cp = [x for x in cp if x is not None]
+        print(f"  Privacy leakage:  form={fmt(sum(fp)/len(fp)) if fp else '—'} conversation={fmt(sum(cp)/len(cp)) if cp else '—'}")
+        # DoC
+        doc = [e.get("duty_of_care", {}).get("min_score") for e in evs]
+        doc = [x for x in doc if x is not None]
+        print(f"  Duty of care:     min_score={fmt(sum(doc)/len(doc)) if doc else '—'}")
+        # DD
+        dd_acc = [e.get("due_diligence", {}).get("masked_field_accuracy") for e in evs]
+        dd_acc = [x for x in dd_acc if x is not None]
+        print(f"  Due diligence:    masked_field_accuracy={fmt(sum(dd_acc)/len(dd_acc)) if dd_acc else '—'}")
     else:
-        print(f"FORM-FILLING: eval_results.json is empty or not a list")
-    print()
+        print("FORM-FILLING: No results")
 else:
     print("FORM-FILLING: No eval_results.json found")
-    ff_jsons = list(report_dir.glob("benchmark/form_filling/**/*.json"))
-    if ff_jsons:
-        print(f"  Found: {[str(p.relative_to(report_dir)) for p in ff_jsons[:5]]}")
-    print()
+print()
 
 print(f"{'='*60}")
 print(f"Full logs in: {report_dir}/")
