@@ -47,9 +47,22 @@ uv run sagegen marketplace \
   2>&1 | tee "$REPORT_DIR/datagen_marketplace.log" | tail -3
 echo ""
 
-echo "[3/3] Form-filling data-gen (skipped — uses existing tasks)"
-# Form-filling generates per-form, not batch. Use existing small set.
-FF_DATA="data/form-filling/tasks"
+echo "[3/3] Form-filling data-gen (2 forms)..."
+GEN_FF_DIR="$REPORT_DIR/datagen/form_filling/tasks"
+# Pick 2 source images from existing tasks
+FF_IMAGES=($(ls data/form-filling/tasks/*/image_*.png 2>/dev/null | head -2))
+for img in "${FF_IMAGES[@]}"; do
+  form_name=$(basename "$(dirname "$img")")
+  echo "  Generating from $form_name..."
+  uv run --package sage-data-gen sagegen form-filling \
+    --image "$img" \
+    --output-dir "$GEN_FF_DIR" \
+    --filesystem \
+    --no-html \
+    --mask-fields 3 \
+    2>&1 | tee -a "$REPORT_DIR/datagen_formfilling.log" | tail -1
+done
+FF_DATA="$GEN_FF_DIR"
 echo ""
 
 # ─────────────────────────────────────────────
