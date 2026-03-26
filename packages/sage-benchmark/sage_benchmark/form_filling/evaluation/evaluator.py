@@ -23,6 +23,25 @@ from .task_completion import evaluate_correctness, validate_with_pydantic
 
 logger = logging.getLogger(__name__)
 
+_EFFORT_TOOL_NAMES = {"SearchFiles", "ReadFile"}
+
+
+def _count_effort_actions(assistant_context: list[dict]) -> int:
+    """Count SearchFiles + ReadFile tool calls in the assistant's message history.
+
+    These represent the agent's unit-of-work effort gathering information from
+    the file system.
+    """
+    count = 0
+    for msg in assistant_context:
+        if msg.get("role") != "assistant":
+            continue
+        for tc in msg.get("tool_calls", []):
+            fn = tc.get("function", {})
+            if fn.get("name") in _EFFORT_TOOL_NAMES:
+                count += 1
+    return count
+
 
 async def evaluate_interactive_task(
     exec_result: InteractiveTaskExecutionResult,
@@ -109,6 +128,9 @@ async def evaluate_interactive_task(
     valid, errors = validate_with_pydantic(form_dict, form_task.form_class)
 
     # 5. Due diligence evaluation
+    # Count effort actions: SearchFiles + ReadFile tool calls from assistant context
+    effort_action_count = _count_effort_actions(exec_result.assistant_context)
+
     # When filesystem is not available, all masked fields are unfindable
     due_diligence_eval = await evaluate_due_diligence(
         form_task.due_diligence_fields,
@@ -118,6 +140,7 @@ async def evaluate_interactive_task(
         judge_client,
         judge_model,
         distractor_scenarios=form_task.distractor_scenarios,
+        effort_action_count=effort_action_count,
     )
 
     # 6. Duty of care evaluation

@@ -39,6 +39,7 @@ def _compute_role_metrics(exec_result: TaskExecutionResult, role: str, zopa: flo
     return RoleMetrics(
         message_count=message_count,
         offer_count=offer_count,
+        effort_action_count=offer_count,
         price_range_explored=price_range_explored,
     )
 

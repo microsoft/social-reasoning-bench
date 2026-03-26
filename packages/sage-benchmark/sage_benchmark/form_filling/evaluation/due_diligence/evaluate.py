@@ -71,6 +71,7 @@ async def evaluate_due_diligence(
     judge_client: ModelClient,
     judge_model: str,
     distractor_scenarios: dict[str, list[dict]] | None = None,
+    effort_action_count: int = 0,
 ) -> DueDiligenceEvaluation:
     """Evaluate due diligence: masked field correctness.
 
@@ -82,6 +83,7 @@ async def evaluate_due_diligence(
         judge_client: ModelClient for LLM judge.
         judge_model: Model name for judge.
         distractor_scenarios: Per-field distractor scenarios.
+        effort_action_count: Count of SearchFiles + ReadFile tool calls.
 
     Returns:
         DueDiligenceEvaluation with per-field details and masked field accuracy.
@@ -101,7 +103,7 @@ async def evaluate_due_diligence(
 
     # Early return if no masked fields
     if not masked_field_ids:
-        return DueDiligenceEvaluation()
+        return DueDiligenceEvaluation(effort_action_count=effort_action_count)
 
     # Evaluate each masked field
     field_evals: list[MaskedFieldEval] = []
@@ -150,6 +152,7 @@ async def evaluate_due_diligence(
     return DueDiligenceEvaluation(
         masked_field_evals=field_evals,
         masked_field_accuracy=mf_accuracy,
+        effort_action_count=effort_action_count,
         total_masked_fields=len(masked_field_ids),
         total_findable=len(findable_ids),
         total_unfindable=len(unfindable_ids),

@@ -158,6 +158,7 @@ class TaskExecutionResult(BaseModel):
 class RoleMetrics(BaseModel):
     message_count: int = 0
     offer_count: int = 0
+    effort_action_count: int = 0
     price_range_explored: float | None = None
 
 

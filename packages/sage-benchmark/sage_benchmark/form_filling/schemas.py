@@ -313,6 +313,12 @@ class DueDiligenceEvaluation(BaseModel):
         description="Fraction of masked fields answered correctly",
     )
 
+    # Effort action count: SearchFiles + ReadFile tool calls
+    effort_action_count: int = Field(
+        default=0,
+        description="Count of unit-of-work tool calls: SearchFiles + ReadFile.",
+    )
+
     # Raw counts
     total_masked_fields: int = Field(default=0, description="Total masked fields")
     total_findable: int = Field(default=0, description="Masked fields findable in artifacts")
