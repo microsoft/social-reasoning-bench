@@ -57,7 +57,7 @@ Agent D creates the shared `Tool` and `Agent` base classes as **new files only**
 
 Agent E0 only touches `gen/` files — no overlap with A–D which touch `bench/` files.
 
-**Merge all 5 → proceed to Wave 2.**
+**Merge all 5 → run inter-wave validation → comment on release PR → proceed to Wave 2.**
 
 ---
 
@@ -71,7 +71,7 @@ Agent E0 only touches `gen/` files — no overlap with A–D which touch `bench/
 
 No file overlaps between E, F, G.
 
-**Merge all 3 → proceed to Wave 3.**
+**Merge all 3 → run inter-wave validation → comment on release PR → proceed to Wave 3.**
 
 ---
 
@@ -86,7 +86,7 @@ No file overlaps between E, F, G.
 
 Note: J and K both touch marketplace but different files (`runner.py`+`cli.py` vs `actions.py`).
 
-**Merge all 4 → proceed to Wave 4.**
+**Merge all 4 → run inter-wave validation → comment on release PR → proceed to Wave 4.**
 
 ---
 
@@ -101,7 +101,7 @@ Note: J and K both touch marketplace but different files (`runner.py`+`cli.py` v
 
 N touches types/actions files; O touches agent files. No overlap. L touches mkt runner/cli; M touches ff runner. No overlap.
 
-**Merge all 4 → proceed to Wave 5.**
+**Merge all 4 → run inter-wave validation → comment on release PR → proceed to Wave 5.**
 
 ---
 
@@ -116,7 +116,7 @@ N touches types/actions files; O touches agent files. No overlap. L touches mkt 
 
 Same pattern as Wave 1 Agent D: Agent S creates the shared prompts module as new files without integrating into CLIs.
 
-**Merge all 4 → proceed to Wave 6.**
+**Merge all 4 → run inter-wave validation → comment on release PR → proceed to Wave 6.**
 
 ---
 
@@ -131,7 +131,7 @@ T touches all CLIs (must be serial — one agent). U creates only new files. No 
 
 Remaining audits (5.8 qwen, 5.9 GUI) are decision items, not code PRs.
 
-**Merge → done.**
+**Merge → run final validation → comment on release PR → mark release PR ready for review.**
 
 ---
 
@@ -161,6 +161,22 @@ Wave 5:  Q(errors+trace) R(shared ckpt)    P(mkt output)  S(shared prompts)
                                                 ↓                 ↓
 Wave 6:                                    T(CLI flags)    U(dashboard)
 ```
+
+## Inter-Wave Validation
+
+After merging all PRs in a wave:
+
+1. Pull `release/v0.1.0`
+2. Run `poe fix-all` and `poe check-all` — commit any formatting fixes
+3. Run `./scripts/wave_validation.sh <wave_number>` — generates small datasets, runs all three benchmarks, produces a report
+4. Fix any issues found (document in Wave Validation Findings below)
+5. Comment on the release PR ([#374](https://github.com/microsoft/sage/pull/374)) with:
+   - Summary of what changed in this wave
+   - Validation report output
+   - Any issues found and fixed
+6. Proceed to next wave
+
+---
 
 ## Key Pattern: Propose → Integrate
 
@@ -199,6 +215,22 @@ This minimizes merge conflicts (propose PRs touch minimal files) and lets review
 | BenchmarkLogger | Already done in calendar | Wave 3 (J) — marketplace, Wave 4 (M) — form-filling |
 | Structured output | Already done in calendar | Wave 5 (P) — marketplace |
 | Error handling | Already done in calendar | Wave 5 (Q) — marketplace + form-filling |
+
+---
+
+## Wave Validation Findings
+
+Issues discovered during between-wave validation runs.
+
+### Wave 1
+
+1. **Calendar artifact removal was incomplete in `sage-data-gen`** — Agent C removed artifacts from `sage-benchmark` but the `sage-data-gen` package still imported the deleted types:
+   - `sage_data_gen/calendar_scheduling/cli.py` imported `generate_artifacts` at top level → removed import + `--generate-artifacts` CLI flag + pipeline step + config field
+   - `sage_data_gen/calendar_scheduling/validate.py` imported `load_artifacts` → removed import + artifact validation logic + `artifacts_path` parameter
+   - `sage_data_gen/calendar_scheduling/generate_artifacts.py` still exists but is no longer imported — can be cleaned up later
+   - **Lesson:** When removing features from `sage-benchmark`, always check `sage-data-gen` for cross-package imports.
+
+2. **Calendar CLI requires `--explicit-cot`** — validation script failed because `sagebench calendar` requires `--explicit-cot {true,false}` when not resuming. This is a non-obvious required flag (should arguably have a default). Added `--explicit-cot false` to the validation script. Tracked in 4.6 (Explicit CoT standardization).
 
 ---
 

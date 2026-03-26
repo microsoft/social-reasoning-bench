@@ -64,6 +64,7 @@ uv run sagebench calendar \
   --judge-model "$JUDGE_MODEL" \
   --assistant-system-prompt default \
   --expose-preferences true \
+  --explicit-cot false \
   --limit 2 \
   --batch-size 2 \
   --output-dir "$REPORT_DIR/benchmark/calendar" \
