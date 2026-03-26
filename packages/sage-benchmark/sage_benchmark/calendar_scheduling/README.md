@@ -168,7 +168,6 @@ See [sage-data-gen](../../../sage-data-gen/README.md).
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--assistant-system-prompt-file` | None | Path to custom system prompt file |
-| `--artifacts` | None | Path to artifacts JSON to inject into assistant context |
 
 ### Output and Logging
 

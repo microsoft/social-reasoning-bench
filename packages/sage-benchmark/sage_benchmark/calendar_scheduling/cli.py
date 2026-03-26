@@ -245,13 +245,6 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help="Number of judge votes for majority voting in leakage detection (default: 3)",
     )
 
-    # Artifacts option
-    parser.add_argument(
-        "--artifacts",
-        default=None,
-        help="Path to artifacts JSON file to inject into assistant context",
-    )
-
     # System prompt options
     parser.add_argument(
         "--assistant-system-prompt",

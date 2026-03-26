@@ -78,7 +78,6 @@ class RunConfig(BaseModel):
     )
 
     # Other options
-    artifacts: str | None = Field(default=None, description="Path to artifacts JSON file")
     expose_preferences: bool | None = Field(
         default=None, description="Expose preferences to assistant"
     )
@@ -137,7 +136,6 @@ class RunConfig(BaseModel):
             explicit_cot=args.explicit_cot,
             assistant_explicit_cot=args.assistant_explicit_cot,
             requestor_explicit_cot=args.requestor_explicit_cot,
-            artifacts=args.artifacts,
             expose_preferences=args.expose_preferences,
             judge_votes=getattr(args, "judge_votes", 3),
             output_dir=getattr(args, "output_dir", None),
@@ -149,7 +147,7 @@ class RunConfig(BaseModel):
 
         Used for re-evaluation where the original config is not available,
         only the metadata stored in eval.json. Fields not present in metadata
-        (base_urls, api_versions, max_steps_per_turn, artifacts) get defaults.
+        (base_urls, api_versions, max_steps_per_turn) get defaults.
 
         Args:
             metadata: Benchmark metadata from a completed run

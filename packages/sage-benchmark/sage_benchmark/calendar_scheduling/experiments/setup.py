@@ -7,9 +7,9 @@ from sage_llm import ModelClient
 
 from ..agents.assistant import get_system_prompt
 from ..checkpoints import RunConfig
-from ..loader import load_artifacts, load_tasks
+from ..loader import load_tasks
 from ..run_paths import RunPaths
-from ..types import Artifact, KeyedCalendarTask
+from ..types import KeyedCalendarTask
 
 logger = logging.getLogger(__name__)
 
@@ -35,26 +35,19 @@ def create_run_paths(config: ExperimentConfig) -> RunPaths:
 def load_experiment_tasks(
     paths: list[str],
     limit: int | None = None,
-    artifacts_path: str | None = None,
-) -> tuple[list[KeyedCalendarTask], dict[str, str], dict[int, list[Artifact]] | None]:
-    """Load tasks and optionally artifacts.
+) -> tuple[list[KeyedCalendarTask], dict[str, str]]:
+    """Load tasks from YAML files.
 
     Args:
         paths: YAML files or directories containing task definitions
         limit: Optional limit on number of tasks
-        artifacts_path: Optional path to artifacts JSON
 
     Returns:
-        Tuple of (tasks_with_keys, file_hashes, artifacts_by_task)
+        Tuple of (tasks_with_keys, file_hashes)
     """
     loaded = load_tasks(paths, limit=limit)
 
-    artifacts_by_task = None
-    if artifacts_path:
-        logger.info(f"Loading artifacts from {artifacts_path}...")
-        artifacts_by_task = load_artifacts(artifacts_path)
-
-    return loaded.all_tasks, loaded.file_hashes, artifacts_by_task
+    return loaded.all_tasks, loaded.file_hashes
 
 
 def create_assistant_client(config: ExperimentConfig) -> ModelClient:

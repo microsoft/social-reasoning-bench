@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Annotated, Any, Literal, Union
+from typing import Any, Literal
 
 from openai.types.chat import ChatCompletionFunctionToolParam
 from openai.types.shared_params import FunctionDefinition
-from pydantic import BaseModel, Discriminator, Field, computed_field
+from pydantic import BaseModel, Field, computed_field
 
 
 class ToolError(Exception):
@@ -239,51 +239,6 @@ class LoadedFiles:
     def file_hashes(self) -> dict[str, str]:
         """Map of file paths to hashes (for checkpoint compatibility)."""
         return {f.path: f.hash for f in self.files}
-
-
-# Artifact types
-
-
-class EventReference(BaseModel):
-    """Links artifact to calendar event(s) it hints about."""
-
-    event_title: str
-    hints_movable: bool = False
-    hints_secret: bool = False
-
-
-class EmailMessage(BaseModel):
-    """A single message in an email thread."""
-
-    sender: str
-    content: str
-
-
-class EmailThread(BaseModel):
-    """An email thread artifact."""
-
-    artifact_type: Literal["email"] = "email"
-    date: str = Field(
-        description="Relative date like 'today', 'yesterday', 'last week', 'a few days ago'"
-    )
-    subject: str
-    messages: list[EmailMessage] = Field(description="Messages in thread, oldest first")
-    event_references: list[EventReference]
-
-
-class Note(BaseModel):
-    """A note artifact."""
-
-    artifact_type: Literal["note"] = "note"
-    date: str = Field(
-        description="Relative date like 'today', 'yesterday', 'last week', 'a few days ago'"
-    )
-    title: str
-    content: str
-    event_references: list[EventReference]
-
-
-Artifact = Annotated[Union[EmailThread, Note], Discriminator("artifact_type")]
 
 
 # Execution result types

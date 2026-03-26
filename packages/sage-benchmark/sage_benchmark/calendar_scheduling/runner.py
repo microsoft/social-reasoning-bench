@@ -23,7 +23,6 @@ from .environment import (
 )
 from .environment.actions import EndConversation, RequestMeeting, Wait
 from .types import (
-    Artifact,
     CalendarTask,
     Meeting,
     TaskExecutionResult,
@@ -213,7 +212,6 @@ async def run_single_task(
     requestor_client: ModelClient,
     max_rounds: int,
     max_steps_per_turn: int,
-    artifacts: list[Artifact] | None,
     system_prompt: str | None,
     assistant_explicit_cot: bool,
     requestor_explicit_cot: bool,
@@ -232,7 +230,6 @@ async def run_single_task(
         requestor_client: ModelClient for the requestor
         max_rounds: Maximum number of conversation rounds
         max_steps_per_turn: Maximum tool calls per turn
-        artifacts: Optional list of artifacts to provide context to assistant
         system_prompt: Optional system prompt for the assistant agent
         assistant_explicit_cot: Whether to use explicit CoT for assistant
         requestor_explicit_cot: Whether to use explicit CoT for requestor
@@ -284,7 +281,6 @@ async def run_single_task(
         model_client=assistant_client,
         assistant=task.assistant,
         allowed_contacts=[requestor_email],
-        artifacts=artifacts,
         system_prompt=system_prompt,
         explicit_cot=assistant_explicit_cot,
         expose_preferences=expose_preferences,

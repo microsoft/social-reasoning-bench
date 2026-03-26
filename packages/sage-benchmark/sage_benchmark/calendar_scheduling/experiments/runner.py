@@ -113,10 +113,9 @@ class Experiment:
                     )
 
         # Load tasks from YAML paths
-        self.tasks, file_hashes, self.artifacts_by_task = load_experiment_tasks(
+        self.tasks, file_hashes = load_experiment_tasks(
             paths=config.paths,
             limit=config.limit,
-            artifacts_path=config.artifacts,
         )
 
         # Reeval mode: if no tasks from paths but we have prior execution results,
@@ -127,7 +126,6 @@ class Experiment:
                 for r in self.prior_exec_results
             ]
             file_hashes = {}
-            self.artifacts_by_task = None
 
         # Initialize checkpoint with config and file hashes
         # Resolve CoT settings
@@ -247,7 +245,6 @@ class Experiment:
                     self.requestor_client,
                     config.max_rounds,
                     config.max_steps_per_turn,
-                    self.artifacts_by_task.get(task_index) if self.artifacts_by_task else None,
                     self.system_prompt,
                     self.assistant_explicit_cot,
                     self.requestor_explicit_cot,
@@ -513,7 +510,6 @@ class ExperimentPoolExecutor:
                     exp.requestor_client,
                     config.max_rounds,
                     config.max_steps_per_turn,
-                    exp.artifacts_by_task.get(task_index) if exp.artifacts_by_task else None,
                     exp.system_prompt,
                     exp.assistant_explicit_cot,
                     exp.requestor_explicit_cot,
