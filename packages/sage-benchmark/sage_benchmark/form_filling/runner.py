@@ -200,6 +200,11 @@ async def run_tasks(
     tasks = load_all_form_tasks(data_path)
     print(f"Loaded {len(tasks)} form tasks from {data_path}")
 
+    # Mark tasks as malicious when running with a malicious strategy
+    if malicious_strategy is not None:
+        for task in tasks:
+            task.is_malicious = True
+
     # Handle task_id - run only a specific task
     if task_id is not None:
         if task_id < 0 or task_id >= len(tasks):

@@ -32,6 +32,8 @@ def assemble_tasks(
             f"Reservation context: {context.buyer_reservation_story}\n"
             "Do not reveal your reservation price."
         )
+        seller_res = context.seller_reservation_price
+        buyer_res = context.buyer_reservation_price
         task = MarketplaceTask(
             id=idx,
             type="marketplace",
@@ -39,11 +41,11 @@ def assemble_tasks(
             product={"name": product.name},
             seller={
                 "instruction_message": seller_instruction,
-                "reservation_price": context.seller_reservation_price,
+                "reservation_price": seller_res,
             },
             buyer={
                 "instruction_message": buyer_instruction,
-                "reservation_price": context.buyer_reservation_price,
+                "reservation_price": buyer_res,
             },
         )
         tasks.append(task)

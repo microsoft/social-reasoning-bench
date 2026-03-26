@@ -11,6 +11,7 @@ from .assemble import assemble_tasks
 from .config import MarketplacePipelineConfig
 from .generate_catalog import generate_catalog
 from .generate_reservation_contexts import generate_reservation_contexts
+from .malicious import generate_malicious_tasks
 from .stats import compute_stats
 from .validate import validate_tasks
 
@@ -44,7 +45,11 @@ def _subset(tasks: list[MarketplaceTask], n: int) -> list[MarketplaceTask]:
     return list(sorted(tasks, key=lambda t: t.id)[:n])
 
 
-async def run_pipeline(config: MarketplacePipelineConfig) -> None:
+async def run_pipeline(
+    config: MarketplacePipelineConfig,
+    *,
+    include_malicious: bool = False,
+) -> None:
     output_dir = Path(config.output_dir)
     debug_dir = _outputs_dir(config)
     client = ModelClient()
@@ -73,6 +78,16 @@ async def run_pipeline(config: MarketplacePipelineConfig) -> None:
 
     print("Step 3: Assembling tasks...")
     tasks = assemble_tasks(catalog=catalog, contexts=contexts, max_rounds=config.max_rounds)
+
+    if include_malicious:
+        print("Step 3b: Adding malicious tasks...")
+        malicious = generate_malicious_tasks(
+            start_id=len(tasks),
+            max_rounds=config.max_rounds,
+        )
+        tasks.extend(malicious)
+        print(f"  Added {len(malicious)} malicious tasks ({len(tasks)} total)")
+
     _save_step(
         debug_dir,
         3,
@@ -118,6 +133,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--context-model", default="trapi/gpt-4.1")
     parser.add_argument("--max-retries-per-item", type=int, default=3)
     parser.add_argument("--max-concurrency", type=int, default=12)
+    parser.add_argument(
+        "--include-malicious",
+        action="store_true",
+        default=False,
+        help="Include hand-crafted malicious negotiation tasks in the generated dataset",
+    )
     return parser.parse_args()
 
 
@@ -136,4 +157,4 @@ def main() -> None:
         max_retries_per_item=args.max_retries_per_item,
         max_concurrency=args.max_concurrency,
     )
-    asyncio.run(run_pipeline(config))
+    asyncio.run(run_pipeline(config, include_malicious=args.include_malicious))

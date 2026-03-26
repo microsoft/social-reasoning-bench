@@ -208,6 +208,10 @@ class FormTask(BaseModel):
         default="",
         description="Who will read this form and their relationship to the applicant",
     )
+    is_malicious: bool = Field(
+        default=False,
+        description="Whether this task uses a malicious interviewer strategy",
+    )
 
     # File system fields (optional, populated when filesystem data is available)
     filesystem_artifacts: list[FileSystemArtifactData] = Field(

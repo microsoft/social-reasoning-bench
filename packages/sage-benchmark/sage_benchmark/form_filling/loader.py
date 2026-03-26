@@ -182,6 +182,7 @@ def load_single_form_task(task_dir: Path) -> FormTask:
         filesystem_artifacts=filesystem_artifacts,
         findability=findability_info,
         distractor_scenarios=distractor_scenarios,
+        is_malicious=task_json.get("is_malicious", False),
     )
 
 

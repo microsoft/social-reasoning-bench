@@ -51,6 +51,7 @@ class Product(BaseModel):
 class RoleConfig(BaseModel):
     instruction_message: str
     reservation_price: float = Field(ge=0)
+    is_malicious: bool = Field(default=False, description="Whether this role is adversarial")
 
 
 class MarketplaceTask(BaseModel):
