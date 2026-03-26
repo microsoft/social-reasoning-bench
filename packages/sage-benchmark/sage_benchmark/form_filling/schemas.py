@@ -233,42 +233,6 @@ class FormTask(BaseModel):
         return form_class.__name__
 
 
-# --- Execution Schemas ---
-
-
-class FormFillingAction(BaseModel):
-    """The action taken by the model."""
-
-    action_type: Literal["fill", "reject"]
-    fill_responses: dict[str, Any] | None = None
-    reject_reason: str | None = None
-
-
-class LLMCallLog(BaseModel):
-    """Log entry for a single LLM call attempt."""
-
-    timestamp: datetime
-    attempt_number: int
-    messages: list[dict[str, Any]]
-    raw_response: str | None
-    parsed_action: FormFillingAction | None
-    error: str | None = None
-
-
-class TaskExecutionResult(BaseModel):
-    """Result of executing a single task."""
-
-    task_index: int
-    task: FormTask
-    action: FormFillingAction | None
-    llm_calls: list[LLMCallLog]
-    success: bool
-    error_message: str | None = None
-    user_qa_history: list[dict[str, str]] = Field(
-        default_factory=list, description="ask_user Q&A exchanges"
-    )
-
-
 # --- Evaluation Schemas ---
 
 
@@ -326,7 +290,6 @@ class MaskedFieldEval(BaseModel):
     findability: Literal["findable", "unfindable"] = Field(
         description="Whether the field's answer is findable in filesystem artifacts"
     )
-    asked_user: bool = Field(description="Whether the agent asked the user about this field")
     answer_correct: bool = Field(
         description="Whether the agent's submitted answer matches the expected value"
     )
@@ -339,44 +302,21 @@ class MaskedFieldEval(BaseModel):
 
 
 class DueDiligenceEvaluation(BaseModel):
-    """Due diligence evaluation with two metric groups:
-    (1) masked field answer correctness, (2) ask-user appropriateness."""
+    """Due diligence evaluation: masked field answer correctness."""
 
     # Per-field details
     masked_field_evals: list[MaskedFieldEval] = Field(default_factory=list)
 
-    # Group 1: Masked field answer correctness
+    # Masked field answer correctness
     masked_field_accuracy: float = Field(
         default=0.0,
         description="Fraction of masked fields answered correctly",
-    )
-
-    # Group 2: Ask-user appropriateness
-    # TP=asked unfindable, FP=asked findable, FN=unfindable not asked
-    ask_user_precision: float = Field(
-        default=0.0,
-        description="Of ask_user calls mapped to masked fields, fraction targeting unfindable fields",
-    )
-    ask_user_recall: float = Field(
-        default=0.0,
-        description="Of unfindable fields, fraction the agent asked about",
-    )
-    ask_user_f1: float = Field(
-        default=0.0,
-        description="Harmonic mean of ask-user precision and recall",
     )
 
     # Raw counts
     total_masked_fields: int = Field(default=0, description="Total masked fields")
     total_findable: int = Field(default=0, description="Masked fields findable in artifacts")
     total_unfindable: int = Field(default=0, description="Masked fields not in any artifact")
-    total_ask_user_calls: int = Field(
-        default=0, description="Number of ask_user() tool calls made by the agent"
-    )
-    question_field_mappings: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="Per-question mapping details: which form fields each question covers",
-    )
 
 
 class DutyOfCareFieldEvaluation(BaseModel):
@@ -419,22 +359,6 @@ class DutyOfCareEvaluation(BaseModel):
     )
 
 
-class FormTaskEvaluationResult(BaseModel):
-    """Complete evaluation result for a form task."""
-
-    task_index: int
-    task: FormTask
-    correctness: CorrectnessEvaluation
-    privacy: SecretLeakageEvaluation
-    privacy_ci: list[dict[str, Any]] = Field(
-        default_factory=list, description="CI violation flows from privacy evaluation"
-    )
-    due_diligence: DueDiligenceEvaluation
-    duty_of_care: DutyOfCareEvaluation
-    pydantic_validation_passed: bool
-    pydantic_validation_errors: list[str] = Field(default_factory=list)
-
-
 # --- Interactive Mode Schemas ---
 
 
@@ -475,9 +399,6 @@ class InteractiveTaskExecutionResult(BaseModel):
     )
     assistant_context: list[dict[str, Any]] = Field(
         default_factory=list, description="Assistant agent's message history"
-    )
-    user_qa_history: list[dict[str, str]] = Field(
-        default_factory=list, description="ask_user Q&A exchanges"
     )
 
 

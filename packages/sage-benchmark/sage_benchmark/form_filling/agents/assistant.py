@@ -98,29 +98,6 @@ def _build_tools(social_reasoning: bool) -> list:
                 "parameters": EndConversationParams.model_json_schema(),
             },
         },
-        {
-            "type": "function",
-            "function": {
-                "name": "AskUser",
-                "description": (
-                    "Ask the user about fields in the form. "
-                    "Use this when you don't have enough information in the artifacts to fill a field. "
-                    "Do NOT ask about fields that you cannot fill out (e.g. signature fields) "
-                    "or fields that are meant to be filled by other parties "
-                    "(e.g. official use only, reviewer comments)."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "question": {
-                            "type": "string",
-                            "description": "Question about one or more fields in the form",
-                        }
-                    },
-                    "required": ["question"],
-                },
-            },
-        },
     ]  # end _build_tools return
 
 
@@ -139,7 +116,6 @@ class AssistantAgent:
         artifacts: list,
         prompt_type: str = "base",
         temperature: float | None = None,
-        file_system: bool = False,
         bm25_index: BM25Index | None = None,
         social_reasoning: bool = False,
         use_privacy_example: bool = False,
@@ -153,7 +129,6 @@ class AssistantAgent:
             artifacts: List of ArtifactData objects
             prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained")
             temperature: Sampling temperature for generation
-            file_system: If True, add file-system search/read tools
             bm25_index: BM25 index for file-system tool execution
             social_reasoning: If True, use ToM-augmented SendMessage schema and track
                               intent history across turns
@@ -172,14 +147,11 @@ class AssistantAgent:
         # Build tools list
         self.tools = _build_tools(social_reasoning)
 
-        # Add file system tools if in file-system mode
-        if file_system:
-            for tool_cls in FILE_SYSTEM_TOOLS:
-                self.tools.append(tool_cls.get_openai_function_tool_param())
+        # Add file system tools (always enabled)
+        for tool_cls in FILE_SYSTEM_TOOLS:
+            self.tools.append(tool_cls.get_openai_function_tool_param())
 
-        system_prompt = construct_interactive_system_prompt(
-            persona, prompt_type, file_system=file_system
-        )
+        system_prompt = construct_interactive_system_prompt(persona, prompt_type)
         artifacts_context = format_artifacts_as_context(artifacts)
 
         instruction = INTERACTIVE_INSTRUCTION
@@ -197,10 +169,10 @@ class AssistantAgent:
     async def generate_action(self) -> tuple[str, dict]:
         """Generate the next action. Returns (tool_name, arguments).
 
-        File-system tool calls (SearchEmail, ReadEmail, SearchCalendar, ReadCalendar)
-        are handled internally: the tool is executed, the result is appended to the
-        message history, and another LLM call is made. Only "terminal" actions
-        (SendMessage, EndConversation, AskUser) are returned to the caller.
+        File-system tool calls (SearchFiles, ReadFile) are handled internally:
+        the tool is executed, the result is appended to the message history,
+        and another LLM call is made. Only "terminal" actions
+        (SendMessage, EndConversation) are returned to the caller.
         """
         gen_kwargs: dict = {}
         if self.temperature is not None:

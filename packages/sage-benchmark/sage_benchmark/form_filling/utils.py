@@ -8,12 +8,6 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from sage_benchmark.form_filling.schemas import (
-    FormFillingAction,
-    LLMCallLog,
-    TaskExecutionResult,
-)
-
 
 def get_nested_value(data: dict, field_path: str) -> Any:
     """Extract value from nested dict using dot notation.
@@ -137,30 +131,3 @@ def import_form_model_from_file(model_path: str | Path) -> tuple[str, type[BaseM
     """
     module = import_form_module(model_path)
     return get_main_form_class(module)
-
-
-def reconstruct_task_execution_result(exec_data: dict, task):
-    """Reconstruct TaskExecutionResult from saved JSON data.
-
-    This is needed because the serialized task contains form_class as a string,
-    but we need the actual class object. We use the provided task (freshly loaded)
-    which has the actual form_class.
-
-    Args:
-        exec_data: The execution data from task_results.json
-        task: A freshly loaded FormTask with the actual form_class
-
-    Returns:
-        TaskExecutionResult with proper form_class
-    """
-
-    return TaskExecutionResult(
-        task_index=exec_data["task_index"],
-        task=task,  # Use loaded task with actual form_class
-        action=(
-            FormFillingAction.model_validate(exec_data["action"]) if exec_data["action"] else None
-        ),
-        llm_calls=[LLMCallLog.model_validate(call) for call in exec_data["llm_calls"]],
-        success=exec_data["success"],
-        user_qa_history=exec_data.get("user_qa_history", []),
-    )

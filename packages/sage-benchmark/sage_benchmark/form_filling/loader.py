@@ -110,8 +110,8 @@ def load_single_form_task(task_dir: Path) -> FormTask:
     # Load due_diligence_fields from task.json
     due_diligence_fields = task_json["due_diligence_fields"]
 
-    # Load unmasked_ground_truth.json (if present, for oracle user)
-    # Fall back to ground_truth.json so OracleUser always has data
+    # Load unmasked_ground_truth.json (if present)
+    # Fall back to ground_truth.json for unmasked ground truth
     unmasked_gt_path = task_dir / "unmasked_ground_truth.json"
     if unmasked_gt_path.exists():
         with open(unmasked_gt_path, encoding="utf-8") as f:

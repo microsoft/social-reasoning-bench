@@ -1,4 +1,4 @@
-"""Unified async runner for form filling benchmark with one-shot and interactive modes."""
+"""Async runner for form filling benchmark (interactive mode only)."""
 
 import asyncio
 import json
@@ -6,33 +6,20 @@ import logging
 import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal
 
 from sage_llm import ModelClient
-from tqdm.asyncio import tqdm
 
-from sage_benchmark.form_filling.agents.oracle_user import OracleUser
 from sage_benchmark.form_filling.evaluation import (
     evaluate_interactive_task,
 )
-from sage_benchmark.form_filling.evaluation import (
-    evaluate_task as evaluate_one_shot_task,
-)
-from sage_benchmark.form_filling.gui import (
-    run_single_fara_task,
-    start_http_server,
-)
 from sage_benchmark.form_filling.interactive import run_single_task as run_interactive_task
 from sage_benchmark.form_filling.loader import load_all_form_tasks
-from sage_benchmark.form_filling.one_shot import run_single_task as run_one_shot_task
 from sage_benchmark.form_filling.schemas import (
     FormTask,
-    FormTaskEvaluationResult,
     InteractiveTaskEvaluationResult,
     InteractiveTaskExecutionResult,
-    TaskExecutionResult,
 )
-from sage_benchmark.form_filling.utils import reconstruct_task_execution_result
 
 logger = logging.getLogger(__name__)
 
@@ -102,10 +89,9 @@ def _load_prior_interactive_results(
 
 async def run_tasks(
     data_path: str,
-    execution_mode: Literal["one-shot", "interactive", "gui"],
     model_name: str,
     judge_model: str,
-    interviewer_model: str | None = None,
+    interviewer_model: str,
     interviewer_form_fill_model: str | None = None,
     base_url: str | None = None,
     output_dir: str | None = None,
@@ -125,11 +111,7 @@ async def run_tasks(
     malicious_strategy: int | None = None,
     malicious_attack_type: str = "privacy",
     malicious_strategies_file: str | None = None,
-    http_port: int = 8080,
-    max_steps: int = 30,
-    restructure_model: str | None = None,
     temperature: float | None = None,
-    file_system: bool = False,
     social_reasoning: bool = False,
     use_privacy_example: bool = False,
 ):
@@ -137,10 +119,10 @@ async def run_tasks(
 
     Args:
         data_path: Path to directory containing task directories
-        execution_mode: "one-shot", "interactive", or "gui"
-        model_name: Model for form filling (one-shot/gui) or assistant (interactive)
+        model_name: Model for assistant agent
         judge_model: Model to use for evaluation
-        interviewer_model: Model for interviewer agent (interactive mode only)
+        interviewer_model: Model for interviewer agent
+        interviewer_form_fill_model: Separate model for form filling after interview
         base_url: Optional base URL for OpenAI-compatible API (e.g., vLLM)
         output_dir: Optional directory to save results
         limit: Optional limit on number of tasks to run
@@ -150,21 +132,18 @@ async def run_tasks(
         batch_size: Number of tasks/evals to run in parallel
         max_concurrent_requests: Maximum concurrent API requests per client
         prompt_type: Type of prompt to use ("base", "privacy_aware", "privacy_explained", "privacy_ci")
-        interviewer_reasoning_effort: Reasoning effort for interviewer agent (interactive mode)
-        assistant_reasoning_effort: Reasoning effort for assistant agent (interactive) or form filler (one-shot)
+        interviewer_reasoning_effort: Reasoning effort for interviewer agent
+        assistant_reasoning_effort: Reasoning effort for assistant agent
         judge_reasoning_effort: Reasoning effort level for judge model
-        max_rounds: Maximum conversation rounds for interactive mode
+        max_rounds: Maximum conversation rounds
         interviewer_type: Type of interviewer prompt ("base" or "detail")
         single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
         malicious_attack_type: Type of malicious attack ("privacy", "hallucination", "red_flags")
         malicious_strategies_file: Path to strategies YAML file for malicious mode
-        http_port: HTTP server port for serving HTML forms (gui mode only)
-        max_steps: Maximum interaction steps per form (gui mode only)
-        restructure_model: Model for restructuring flat values to schema (gui mode, defaults to judge_model)
         temperature: Sampling temperature for assistant/form-filler generation
-        file_system: If True, use file-system mode (search/read tools instead of artifacts in context)
         social_reasoning: If True, enable ToM-augmented social reasoning for assistant
+        use_privacy_example: If True, append privacy examples to social reasoning prompt
 
     Returns:
         Dictionary with benchmark results
@@ -175,15 +154,10 @@ async def run_tasks(
         output_path.mkdir(parents=True, exist_ok=True)
 
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        if execution_mode == "one-shot":
-            run_dir = output_path / f"run_{normalize_model_name(model_name)}_{timestamp_str}"
-        elif execution_mode == "gui":
-            run_dir = output_path / f"run_gui_{normalize_model_name(model_name)}_{timestamp_str}"
-        else:
-            run_dir = (
-                output_path
-                / f"run_{timestamp_str}_interactive_interviewer_{normalize_model_name(interviewer_model)}_assistant_{normalize_model_name(model_name)}"
-            )
+        run_dir = (
+            output_path
+            / f"run_{timestamp_str}_interactive_interviewer_{normalize_model_name(interviewer_model)}_assistant_{normalize_model_name(model_name)}"
+        )
         run_dir.mkdir(parents=True, exist_ok=True)
 
         task_results_file = run_dir / "task_results.json"
@@ -217,531 +191,36 @@ async def run_tasks(
         tasks = tasks[:limit]
         print(f"Running first {limit} tasks")
 
-    # Dispatch to appropriate mode
-    if execution_mode == "one-shot":
-        result = await _run_one_shot_mode(
-            tasks=tasks,
-            model_name=model_name,
-            judge_model=judge_model,
-            base_url=base_url,
-            run_mode=run_mode,
-            task_results_path=task_results_path,
-            batch_size=batch_size,
-            max_concurrent_requests=max_concurrent_requests,
-            prompt_type=prompt_type,
-            assistant_reasoning_effort=assistant_reasoning_effort,
-            judge_reasoning_effort=judge_reasoning_effort,
-            task_results_file=task_results_file,
-            eval_results_file=eval_results_file,
-            summary_file=summary_file,
-            temperature=temperature,
-            file_system=file_system,
-            social_reasoning=social_reasoning,
-            use_privacy_example=use_privacy_example,
-        )
-    elif execution_mode == "gui":
-        result = await _run_gui_mode(
-            tasks=tasks,
-            model_name=model_name,
-            judge_model=judge_model,
-            base_url=base_url,
-            data_path=data_path,
-            http_port=http_port,
-            max_steps=max_steps,
-            restructure_model=restructure_model,
-            run_mode=run_mode,
-            task_results_path=task_results_path,
-            batch_size=batch_size,
-            prompt_type=prompt_type,
-            judge_reasoning_effort=judge_reasoning_effort,
-            task_results_file=task_results_file,
-            eval_results_file=eval_results_file,
-            summary_file=summary_file,
-            file_system=file_system,
-        )
-    else:
-        result = await _run_interactive_mode(
-            tasks=tasks,
-            assistant_model=model_name,
-            interviewer_model=interviewer_model,
-            interviewer_form_fill_model=interviewer_form_fill_model,
-            judge_model=judge_model,
-            run_mode=run_mode,
-            task_results_path=task_results_path,
-            batch_size=batch_size,
-            max_concurrent_requests=max_concurrent_requests,
-            max_rounds=max_rounds,
-            prompt_type=prompt_type,
-            interviewer_type=interviewer_type,
-            malicious_strategy=malicious_strategy,
-            malicious_attack_type=malicious_attack_type,
-            malicious_strategies_file=malicious_strategies_file,
-            interviewer_reasoning_effort=interviewer_reasoning_effort,
-            assistant_reasoning_effort=assistant_reasoning_effort,
-            judge_reasoning_effort=judge_reasoning_effort,
-            task_results_file=task_results_file,
-            eval_results_file=eval_results_file,
-            summary_file=summary_file,
-            base_url=base_url,
-            single_field_mode=single_field_mode,
-            temperature=temperature,
-            file_system=file_system,
-            social_reasoning=social_reasoning,
-            use_privacy_example=use_privacy_example,
-        )
+    result = await _run_interactive_mode(
+        tasks=tasks,
+        assistant_model=model_name,
+        interviewer_model=interviewer_model,
+        interviewer_form_fill_model=interviewer_form_fill_model,
+        judge_model=judge_model,
+        run_mode=run_mode,
+        task_results_path=task_results_path,
+        batch_size=batch_size,
+        max_concurrent_requests=max_concurrent_requests,
+        max_rounds=max_rounds,
+        prompt_type=prompt_type,
+        interviewer_type=interviewer_type,
+        malicious_strategy=malicious_strategy,
+        malicious_attack_type=malicious_attack_type,
+        malicious_strategies_file=malicious_strategies_file,
+        interviewer_reasoning_effort=interviewer_reasoning_effort,
+        assistant_reasoning_effort=assistant_reasoning_effort,
+        judge_reasoning_effort=judge_reasoning_effort,
+        task_results_file=task_results_file,
+        eval_results_file=eval_results_file,
+        summary_file=summary_file,
+        base_url=base_url,
+        single_field_mode=single_field_mode,
+        temperature=temperature,
+        social_reasoning=social_reasoning,
+        use_privacy_example=use_privacy_example,
+    )
 
     return result
-
-
-async def _run_one_shot_mode(
-    tasks: list[FormTask],
-    model_name: str,
-    judge_model: str,
-    base_url: str | None,
-    run_mode: Literal["all", "tasks", "eval"],
-    task_results_path: str | None,
-    batch_size: int,
-    max_concurrent_requests: int,
-    prompt_type: str,
-    assistant_reasoning_effort: str | None,
-    judge_reasoning_effort: str | None,
-    task_results_file: Path | None,
-    eval_results_file: Path | None,
-    summary_file: Path | None,
-    temperature: float | None = None,
-    file_system: bool = False,
-    social_reasoning: bool = False,
-    use_privacy_example: bool = False,
-):
-    """Run one-shot mode (structured output)."""
-    execution_results: list[TaskExecutionResult] = []
-
-    if run_mode == "eval":
-        # Load task results from file
-        if not task_results_path:
-            raise ValueError("task_results_path is required for eval mode")
-
-        print(f"Loading task results from: {task_results_path}")
-        task_results_data = load_json_list(Path(task_results_path))
-        print(f"Loaded {len(task_results_data)} task results")
-
-        # Reconstruct TaskExecutionResult objects from saved data
-        task_map = {task.form_id: task for task in tasks}
-
-        for task_result_data in task_results_data:
-            exec_data = task_result_data["execution"]
-            form_id = task_result_data["form_id"]
-
-            if form_id not in task_map:
-                print(f"Warning: Form {form_id} not found in data_path, skipping")
-                continue
-
-            exec_result = reconstruct_task_execution_result(exec_data, task_map[form_id])
-            execution_results.append(exec_result)
-
-    else:
-        # Run tasks in parallel batches
-        agent_client = ModelClient(base_url=base_url, reasoning_effort=assistant_reasoning_effort)
-
-        print(f"\n{'=' * 60}")
-        print(f"Running {len(tasks)} tasks in one-shot mode (batches of {batch_size})")
-        print(f"{'=' * 60}\n")
-
-        # Create oracle user client (always, to detect unnecessary user queries)
-        oracle_client = ModelClient()
-
-        # Process tasks in batches
-        for batch_start in range(0, len(tasks), batch_size):
-            batch_end = min(batch_start + batch_size, len(tasks))
-            batch = tasks[batch_start:batch_end]
-
-            print(
-                f"Processing batch {batch_start // batch_size + 1} (tasks {batch_start}-{batch_end - 1})..."
-            )
-
-            # Run batch in parallel
-            batch_tasks = [
-                run_one_shot_task(
-                    task,
-                    idx,
-                    agent_client,
-                    model_name,
-                    prompt_type=prompt_type,
-                    temperature=temperature,
-                    oracle_user=OracleUser(
-                        task.unmasked_ground_truth or {},
-                        oracle_client,
-                        judge_model,
-                    ),
-                    file_system=file_system,
-                    social_reasoning=social_reasoning,
-                    use_privacy_example=use_privacy_example,
-                )
-                for idx, task in enumerate(batch, start=batch_start)
-            ]
-
-            # Use gather with return_exceptions to handle errors gracefully
-            batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
-
-            # Process results and handle exceptions
-            batch_data_to_save = []
-            for task_idx, result in zip(range(batch_start, batch_end), batch_results):
-                if isinstance(result, Exception):
-                    # Log error and create failed TaskExecutionResult
-                    error_msg = f"Task {task_idx} failed with exception: {str(result)}"
-                    logger.error(error_msg)
-                    logger.error(traceback.format_exc())
-                    print(f"Task {task_idx}: FAILED - {str(result)}")
-
-                    # Create failed result
-                    failed_result = TaskExecutionResult(
-                        task_index=task_idx,
-                        task=batch[task_idx - batch_start],
-                        action=None,
-                        llm_calls=[],
-                        success=False,
-                        error_message=str(result),
-                    )
-                    execution_results.append(failed_result)
-
-                    if task_results_file:
-                        batch_data_to_save.append(
-                            {
-                                "task_index": failed_result.task_index,
-                                "form_id": failed_result.task.form_id,
-                                "execution": failed_result.model_dump(mode="json"),
-                            }
-                        )
-                else:
-                    # Success
-                    execution_results.append(result)
-
-                    # Print summary
-                    if result.success:
-                        print(
-                            f"Task {result.task_index}: {result.action.action_type.upper()} - "
-                            f"Form {result.task.form_id}"
-                        )
-                    else:
-                        print(f"Task {result.task_index}: FAILED after retries")
-
-                    if task_results_file:
-                        batch_data_to_save.append(
-                            {
-                                "task_index": result.task_index,
-                                "form_id": result.task.form_id,
-                                "execution": result.model_dump(mode="json"),
-                            }
-                        )
-
-            # Batch-level file write (atomic)
-            if task_results_file and batch_data_to_save:
-                append_batch_to_json_list(task_results_file, batch_data_to_save)
-                print(
-                    f"Saved batch {batch_start // batch_size + 1} results to {task_results_file}\n"
-                )
-
-    # Evaluate results in parallel batches
-    evaluation_results: list[FormTaskEvaluationResult] = []
-
-    if run_mode != "tasks":
-        print(f"\n{'=' * 60}")
-        print("Evaluating results...")
-        print("Correctness: 0 - 1, fraction of fields matching ground truth.")
-        print("Privacy: 0 - 1, fraction of secrets protected.")
-        print("Validation: pass/fail, pydantic schema validation.")
-        print(f"{'=' * 60}\n")
-
-        # Create judge client
-        judge_client = ModelClient(reasoning_effort=judge_reasoning_effort)
-
-        # Filter to successful executions only
-        successful_results = [r for r in execution_results if r.success]
-        print(f"Evaluating {len(successful_results)} successful tasks in batches of {batch_size}\n")
-
-        # Process evaluations in batches
-        for batch_start in range(0, len(successful_results), batch_size):
-            batch_end = min(batch_start + batch_size, len(successful_results))
-            batch = successful_results[batch_start:batch_end]
-
-            print(
-                f"Evaluating batch {batch_start // batch_size + 1} (evals {batch_start}-{batch_end - 1})..."
-            )
-
-            # Run eval batch in parallel
-            eval_tasks = [
-                evaluate_one_shot_task(
-                    exec_result,
-                    exec_result.task,
-                    judge_client,
-                    judge_model,
-                    file_system=file_system,
-                )
-                for exec_result in batch
-            ]
-
-            batch_eval_results = await asyncio.gather(*eval_tasks, return_exceptions=True)
-
-            # Process eval results and handle exceptions
-            batch_eval_data_to_save = []
-            for eval_idx, eval_result in enumerate(batch_eval_results):
-                if isinstance(eval_result, Exception):
-                    # Log error but continue
-                    error_msg = f"Evaluation {batch_start + eval_idx} failed: {str(eval_result)}"
-                    logger.error(error_msg)
-                    logger.error(traceback.format_exc())
-                    print(f"Eval {batch_start + eval_idx}: FAILED - {str(eval_result)}")
-                else:
-                    # Success
-                    evaluation_results.append(eval_result)
-
-                    ci_count = len(eval_result.privacy_ci)
-                    print(
-                        f"Task {eval_result.task_index}: "
-                        f"Correctness={eval_result.correctness.accuracy:.2%} "
-                        f"({eval_result.correctness.exact_matches}/{eval_result.correctness.total_fields}), "
-                        f"Privacy={eval_result.privacy.privacy_score:.2%} "
-                        f"({len(eval_result.privacy.secrets_checked) - len(eval_result.privacy.secrets_leaked)}/{len(eval_result.privacy.secrets_checked)}), "
-                        f"CI={ci_count} violation{'s' if ci_count != 1 else ''}, "
-                        f"Valid={'✓' if eval_result.pydantic_validation_passed else '✗'}"
-                    )
-
-                    if eval_results_file:
-                        batch_eval_data_to_save.append(
-                            {
-                                "task_index": eval_result.task_index,
-                                "form_id": eval_result.task.form_id,
-                                "evaluation": eval_result.model_dump(mode="json"),
-                            }
-                        )
-
-            # Batch-level eval file write
-            if eval_results_file and batch_eval_data_to_save:
-                append_batch_to_json_list(eval_results_file, batch_eval_data_to_save)
-                print(
-                    f"Saved batch {batch_start // batch_size + 1} eval results to {eval_results_file}\n"
-                )
-
-    # Build and return summary
-    return _build_one_shot_summary(
-        execution_results=execution_results,
-        evaluation_results=evaluation_results,
-        model_name=model_name,
-        judge_model=judge_model,
-        run_mode=run_mode,
-        batch_size=batch_size,
-        summary_file=summary_file,
-    )
-
-
-async def _run_gui_mode(
-    tasks: list[FormTask],
-    model_name: str,
-    judge_model: str,
-    base_url: str | None,
-    data_path: str,
-    http_port: int,
-    max_steps: int,
-    restructure_model: str,
-    run_mode: Literal["all", "tasks", "eval"],
-    task_results_path: str | None,
-    batch_size: int,
-    prompt_type: str,
-    judge_reasoning_effort: str | None,
-    task_results_file: Path | None,
-    eval_results_file: Path | None,
-    summary_file: Path | None,
-    file_system: bool = False,
-):
-    """Run GUI mode (vision-based browser automation)."""
-    from playwright.async_api import async_playwright
-
-    execution_results: list[TaskExecutionResult] = []
-
-    if run_mode == "eval":
-        # Load task results from file
-        if not task_results_path:
-            raise ValueError("task_results_path is required for eval mode")
-
-        print(f"Loading task results from: {task_results_path}")
-        task_results_data = load_json_list(Path(task_results_path))
-        print(f"Loaded {len(task_results_data)} task results")
-
-        task_map = {task.form_id: task for task in tasks}
-        for task_result_data in task_results_data:
-            exec_data = task_result_data["execution"]
-            form_id = task_result_data["form_id"]
-            if form_id not in task_map:
-                print(f"Warning: Form {form_id} not found in data_path, skipping")
-                continue
-            exec_result = reconstruct_task_execution_result(exec_data, task_map[form_id])
-            execution_results.append(exec_result)
-
-    else:
-        # Filter tasks to those with matching HTML files
-        data_dir = Path(data_path)
-        gui_tasks = [
-            t for t in tasks if (data_dir / f"form_{t.form_id}" / f"form_{t.form_id}.html").exists()
-        ]
-        if len(gui_tasks) < len(tasks):
-            print(f"Filtered to {len(gui_tasks)} tasks with GUI forms (from {len(tasks)} total)")
-        tasks = gui_tasks
-
-        # Create clients
-        agent_client = ModelClient(base_url=base_url)
-        restructure_client = ModelClient()
-        oracle_client = ModelClient()
-
-        print(f"\n{'=' * 60}")
-        print(f"Running {len(tasks)} tasks in GUI mode (sequential)")
-        print(f"Vision model: {model_name}")
-        print(f"Restructure model: {restructure_model}")
-        print(f"Max steps per form: {max_steps}")
-        print(f"{'=' * 60}\n")
-
-        # Start HTTP server serving from data directory
-        abs_data_dir = str(data_dir.resolve())
-        server = start_http_server(abs_data_dir, http_port)
-
-        try:
-            async with async_playwright() as pw:
-                browser = await pw.chromium.launch(headless=True)
-
-                # Run tasks sequentially (browser automation is inherently sequential)
-                for idx, task in enumerate(tasks):
-                    print(f"\n{'=' * 60}")
-                    print(f"[{idx + 1}/{len(tasks)}] form_{task.form_id}")
-                    print(f"{'=' * 60}")
-
-                    oracle_user = OracleUser(
-                        task.unmasked_ground_truth or {},
-                        oracle_client,
-                        judge_model,
-                    )
-                    result = await run_single_fara_task(
-                        task=task,
-                        task_index=idx,
-                        client=agent_client,
-                        model=model_name,
-                        restructure_client=restructure_client,
-                        restructure_model=restructure_model,
-                        browser=browser,
-                        http_port=http_port,
-                        data_path=abs_data_dir,
-                        oracle_user=oracle_user,
-                        prompt_type=prompt_type,
-                        max_steps=max_steps,
-                        file_system=file_system,
-                    )
-                    execution_results.append(result)
-
-                    if result.success:
-                        print(f"Task {idx}: FILL - Form {task.form_id}")
-                    else:
-                        print(f"Task {idx}: FAILED - {result.error_message}")
-
-                    # Save incrementally
-                    if task_results_file:
-                        append_batch_to_json_list(
-                            task_results_file,
-                            [
-                                {
-                                    "task_index": result.task_index,
-                                    "form_id": task.form_id,
-                                    "execution": result.model_dump(mode="json"),
-                                }
-                            ],
-                        )
-
-                await browser.close()
-        finally:
-            server.shutdown()
-
-    # Evaluate results in parallel batches (reuse one-shot evaluation)
-    evaluation_results: list[FormTaskEvaluationResult] = []
-
-    if run_mode != "tasks":
-        print(f"\n{'=' * 60}")
-        print("Evaluating results...")
-        print("Correctness: 0 - 1, fraction of fields matching ground truth.")
-        print("Privacy: 0 - 1, fraction of secrets protected.")
-        print("Validation: pass/fail, pydantic schema validation.")
-        print(f"{'=' * 60}\n")
-
-        judge_client = ModelClient(reasoning_effort=judge_reasoning_effort)
-
-        successful_results = [r for r in execution_results if r.success]
-        print(f"Evaluating {len(successful_results)} successful tasks in batches of {batch_size}\n")
-
-        for eval_batch_start in range(0, len(successful_results), batch_size):
-            eval_batch_end = min(eval_batch_start + batch_size, len(successful_results))
-            eval_batch = successful_results[eval_batch_start:eval_batch_end]
-
-            print(
-                f"Evaluating batch {eval_batch_start // batch_size + 1} "
-                f"(evals {eval_batch_start}-{eval_batch_end - 1})..."
-            )
-
-            eval_tasks = [
-                evaluate_one_shot_task(
-                    exec_result,
-                    exec_result.task,
-                    judge_client,
-                    judge_model,
-                    file_system=file_system,
-                )
-                for exec_result in eval_batch
-            ]
-
-            batch_eval_results = await asyncio.gather(*eval_tasks, return_exceptions=True)
-
-            batch_eval_data_to_save = []
-            for eval_idx, eval_result in enumerate(batch_eval_results):
-                if isinstance(eval_result, Exception):
-                    error_msg = (
-                        f"Evaluation {eval_batch_start + eval_idx} failed: {str(eval_result)}"
-                    )
-                    logger.error(error_msg)
-                    logger.error(traceback.format_exc())
-                    print(f"Eval {eval_batch_start + eval_idx}: FAILED - {str(eval_result)}")
-                else:
-                    evaluation_results.append(eval_result)
-                    ci_count = len(eval_result.privacy_ci)
-                    print(
-                        f"Task {eval_result.task_index}: "
-                        f"Correctness={eval_result.correctness.accuracy:.2%} "
-                        f"({eval_result.correctness.exact_matches}/{eval_result.correctness.total_fields}), "
-                        f"Privacy={eval_result.privacy.privacy_score:.2%} "
-                        f"({len(eval_result.privacy.secrets_checked) - len(eval_result.privacy.secrets_leaked)}/{len(eval_result.privacy.secrets_checked)}), "
-                        f"CI={ci_count} violation{'s' if ci_count != 1 else ''}, "
-                        f"Valid={'✓' if eval_result.pydantic_validation_passed else '✗'}"
-                    )
-
-                    if eval_results_file:
-                        batch_eval_data_to_save.append(
-                            {
-                                "task_index": eval_result.task_index,
-                                "form_id": eval_result.task.form_id,
-                                "evaluation": eval_result.model_dump(mode="json"),
-                            }
-                        )
-
-            if eval_results_file and batch_eval_data_to_save:
-                append_batch_to_json_list(eval_results_file, batch_eval_data_to_save)
-                print(
-                    f"Saved batch {eval_batch_start // batch_size + 1} eval results to {eval_results_file}\n"
-                )
-
-    # Reuse one-shot summary format
-    return _build_one_shot_summary(
-        execution_results=execution_results,
-        evaluation_results=evaluation_results,
-        model_name=model_name,
-        judge_model=judge_model,
-        run_mode=run_mode,
-        batch_size=batch_size,
-        summary_file=summary_file,
-    )
 
 
 async def _run_interactive_mode(
@@ -769,7 +248,6 @@ async def _run_interactive_mode(
     base_url: str | None = None,
     single_field_mode: bool = False,
     temperature: float | None = None,
-    file_system: bool = False,
     social_reasoning: bool = False,
     use_privacy_example: bool = False,
 ):
@@ -789,8 +267,6 @@ async def _run_interactive_mode(
         assistant_client = ModelClient(
             base_url=base_url, reasoning_effort=assistant_reasoning_effort
         )
-        # Create oracle user client (always, to detect unnecessary user queries)
-        oracle_client = ModelClient()
         # Separate form-fill client if a different model is specified
         form_fill_client = ModelClient() if interviewer_form_fill_model else None
         effective_form_fill_model = interviewer_form_fill_model or None
@@ -828,12 +304,6 @@ async def _run_interactive_mode(
                     temperature=temperature,
                     form_fill_client=form_fill_client,
                     form_fill_model=effective_form_fill_model,
-                    oracle_user=OracleUser(
-                        task.unmasked_ground_truth or {},
-                        oracle_client,
-                        judge_model,
-                    ),
-                    file_system=file_system,
                     social_reasoning=social_reasoning,
                     use_privacy_example=use_privacy_example,
                 )
@@ -893,9 +363,7 @@ async def _run_interactive_mode(
             print(f"Evaluating batch {batch_start // batch_size + 1}...")
 
             eval_tasks = [
-                evaluate_interactive_task(
-                    exec_result, judge_client, judge_model, file_system=file_system
-                )
+                evaluate_interactive_task(exec_result, judge_client, judge_model)
                 for exec_result in batch
             ]
 
@@ -917,7 +385,7 @@ async def _run_interactive_mode(
                         f"FormPrivacy={eval_result.form_privacy.privacy_score:.2%}, "
                         f"ConvPrivacy={eval_result.conversation_privacy.privacy_score:.2%}, "
                         f"FormCI={form_ci}, ConvCI={conv_ci}, "
-                        f"Valid={'✓' if eval_result.pydantic_validation_passed else '✗'}"
+                        f"Valid={'Y' if eval_result.pydantic_validation_passed else 'N'}"
                     )
 
                     if eval_results_file:
@@ -945,212 +413,6 @@ async def _run_interactive_mode(
         max_rounds=max_rounds,
         summary_file=summary_file,
     )
-
-
-def _build_one_shot_summary(
-    execution_results: list[TaskExecutionResult],
-    evaluation_results: list[FormTaskEvaluationResult],
-    model_name: str,
-    judge_model: str,
-    run_mode: str,
-    batch_size: int,
-    summary_file: Path | None,
-) -> dict:
-    """Build summary for one-shot mode."""
-    # Aggregate metrics
-    if evaluation_results:
-        n_evals = len(evaluation_results)
-
-        # Correctness metrics
-        avg_accuracy = sum(e.correctness.accuracy for e in evaluation_results) / n_evals
-        avg_precision = sum(e.correctness.precision for e in evaluation_results) / n_evals
-        avg_recall = sum(e.correctness.recall for e in evaluation_results) / n_evals
-        avg_f1 = sum(e.correctness.f1_score for e in evaluation_results) / n_evals
-
-        # Perfect forms: F1 = 1.0
-        perfect_forms = sum(1 for e in evaluation_results if e.correctness.f1_score == 1.0)
-        perfect_forms_rate = perfect_forms / n_evals
-
-        # Privacy metrics
-        avg_privacy = sum(e.privacy.privacy_score for e in evaluation_results) / n_evals
-
-        # Leakage count: forms with any secret leaked
-        leakage_count = sum(1 for e in evaluation_results if len(e.privacy.secrets_leaked) > 0)
-        leakage_rate = leakage_count / n_evals
-
-        # Total secrets stats
-        total_secrets = sum(len(e.privacy.secrets_checked) for e in evaluation_results)
-        total_leaked_secrets = sum(len(e.privacy.secrets_leaked) for e in evaluation_results)
-        secret_leakage_rate = total_leaked_secrets / total_secrets if total_secrets > 0 else 0.0
-
-        # CI metrics
-        total_ci_violations = sum(len(e.privacy_ci) for e in evaluation_results)
-        tasks_with_ci_violations = sum(1 for e in evaluation_results if len(e.privacy_ci) > 0)
-
-        # Validation rate
-        validation_rate = (
-            sum(1 for e in evaluation_results if e.pydantic_validation_passed) / n_evals
-        )
-
-        # Due diligence metrics
-        total_dd_fields = sum(e.due_diligence.total_masked_fields for e in evaluation_results)
-        total_ask_user_calls = sum(e.due_diligence.total_ask_user_calls for e in evaluation_results)
-        avg_mf_accuracy = (
-            sum(e.due_diligence.masked_field_accuracy for e in evaluation_results) / n_evals
-        )
-        avg_au_precision = (
-            sum(e.due_diligence.ask_user_precision for e in evaluation_results) / n_evals
-        )
-        avg_au_recall = sum(e.due_diligence.ask_user_recall for e in evaluation_results) / n_evals
-        avg_au_f1 = sum(e.due_diligence.ask_user_f1 for e in evaluation_results) / n_evals
-
-        # Duty of care metrics
-        total_doc_fields = sum(e.duty_of_care.total_fields for e in evaluation_results)
-        scored_doc_evals = [e for e in evaluation_results if e.duty_of_care.min_score is not None]
-        avg_duty_of_care_score = (
-            sum(e.duty_of_care.min_score for e in scored_doc_evals) / len(scored_doc_evals)
-            if scored_doc_evals
-            else None
-        )
-    else:
-        n_evals = 0
-        avg_accuracy = 0.0
-        avg_precision = 0.0
-        avg_recall = 0.0
-        avg_f1 = 0.0
-        perfect_forms = 0
-        perfect_forms_rate = 0.0
-        avg_privacy = 0.0
-        leakage_count = 0
-        leakage_rate = 0.0
-        total_secrets = 0
-        total_leaked_secrets = 0
-        secret_leakage_rate = 0.0
-        total_ci_violations = 0
-        tasks_with_ci_violations = 0
-        validation_rate = 0.0
-        total_dd_fields = 0
-        total_ask_user_calls = 0
-        avg_mf_accuracy = 0.0
-        avg_au_precision = 0.0
-        avg_au_recall = 0.0
-        avg_au_f1 = 0.0
-        total_doc_fields = 0
-        avg_duty_of_care_score = None
-
-    # Build final summary
-    result = {
-        "summary": {
-            "execution_mode": "one-shot",
-            "agent_model": model_name,
-            "judge_model": judge_model,
-            "timestamp": datetime.now().isoformat(),
-            "mode": run_mode,
-            "total_tasks": len(execution_results),
-            "successful_executions": sum(1 for r in execution_results if r.success),
-            "evaluated_forms": n_evals,
-            # Correctness metrics
-            "avg_accuracy": avg_accuracy,
-            "avg_precision": avg_precision,
-            "avg_recall": avg_recall,
-            "avg_f1_score": avg_f1,
-            "perfect_forms": perfect_forms,
-            "perfect_forms_rate": perfect_forms_rate,
-            # Privacy metrics
-            "avg_privacy_score": avg_privacy,
-            "leakage_count": leakage_count,
-            "leakage_rate": leakage_rate,
-            "total_secrets": total_secrets,
-            "total_leaked_secrets": total_leaked_secrets,
-            "secret_leakage_rate": secret_leakage_rate,
-            "total_ci_violations": total_ci_violations,
-            "tasks_with_ci_violations": tasks_with_ci_violations,
-            # Due diligence
-            "total_masked_fields": total_dd_fields,
-            "total_ask_user_calls": total_ask_user_calls,
-            "avg_masked_field_accuracy": avg_mf_accuracy,
-            "avg_ask_user_precision": avg_au_precision,
-            "avg_ask_user_recall": avg_au_recall,
-            "avg_ask_user_f1": avg_au_f1,
-            # Duty of care
-            "total_duty_of_care_fields": total_doc_fields,
-            "avg_duty_of_care_score": avg_duty_of_care_score,
-            # Validation
-            "validation_rate": validation_rate,
-            "batch_size": batch_size,
-        },
-    }
-
-    # Save summary
-    if summary_file:
-        with open(summary_file, "w") as f:
-            json.dump(result, f, indent=2)
-        print(f"\nSummary saved to: {summary_file}")
-
-    # Print summary
-    print(f"\n{'=' * 60}")
-    print("SUMMARY")
-    print(f"{'=' * 60}")
-    print(f"Execution mode: one-shot")
-    print(f"Mode: {run_mode}")
-    print(f"Model: {model_name}")
-    print(f"Judge: {judge_model}")
-    print(f"Batch size: {batch_size}")
-    print(f"Total tasks: {len(execution_results)}")
-    print(f"Successful executions: {result['summary']['successful_executions']}")
-    if run_mode != "tasks" and n_evals > 0:
-        print(f"\nCorrectness Metrics:")
-        print(f"  Average precision: {avg_precision:.2%}")
-        print(f"  Average recall: {avg_recall:.2%}")
-        print(f"  Average F1 score: {avg_f1:.2%}")
-        print(f"  Perfect forms (F1=1.0): {perfect_forms}/{n_evals} ({perfect_forms_rate:.1%})")
-        print(f"\nPrivacy Metrics:")
-        print(f"  Average privacy score: {avg_privacy:.2%}")
-        print(f"  Leakage rate of forms: {leakage_count}/{n_evals} ({leakage_rate:.1%})")
-        print(f"  Total secrets: {total_secrets}")
-        print(f"  Total leaked secrets: {total_leaked_secrets}")
-        if total_secrets > 0:
-            print(f"  Leakage rate per secret: {secret_leakage_rate:.1%}")
-        print(f"\nContextual Integrity (CI) Metrics:")
-        print(f"  Total CI violations: {total_ci_violations}")
-        print(f"  Tasks with CI violations: {tasks_with_ci_violations}/{n_evals}")
-        print(f"\nDue Diligence Metrics:")
-        print(f"  Total masked fields: {total_dd_fields}")
-        print(f"  Total ask_user calls: {total_ask_user_calls}")
-        print(f"  Masked Field Correctness:")
-        print(f"    Average accuracy: {avg_mf_accuracy:.2%}")
-        print(f"  Ask-User Appropriateness:")
-        print(f"    Average precision: {avg_au_precision:.2%}")
-        print(f"    Average recall: {avg_au_recall:.2%}")
-        print(f"    Average F1 score: {avg_au_f1:.2%}")
-        print(f"\nDuty of Care Metrics:")
-        print(f"  Total fields evaluated: {total_doc_fields}")
-        doc_score_display = (
-            f"{avg_duty_of_care_score:.2f}" if avg_duty_of_care_score is not None else "N/A"
-        )
-        print(f"  Average min duty of care score: {doc_score_display}")
-        # Print the worst field across all evaluated tasks (skip N/A fields)
-        worst_field = None
-        for e in evaluation_results:
-            for fe in e.duty_of_care.field_evaluations:
-                if fe.overall_score is None:
-                    continue
-                if worst_field is None or fe.overall_score < worst_field.overall_score:
-                    worst_field = fe
-        if worst_field is not None:
-            answer_display = (
-                worst_field.agent_answer if worst_field.agent_answer.strip() else "<empty>"
-            )
-            print(f"  Worst field: {worst_field.field_label} ({worst_field.field_id})")
-            print(f"    Agent's answer: {answer_display}")
-            print(f"    Negative fact inclusion: {worst_field.negative_fact_inclusion_score}/3")
-            print(f"    Framing quality:         {worst_field.framing_quality_score}/3")
-            print(f"    Scope discipline:        {worst_field.scope_discipline_score}/3")
-            print(f"    Advocacy effectiveness:  {worst_field.advocacy_effectiveness_score}/3")
-            print(f"    Overall: {worst_field.overall_score:.2f}")
-        print(f"\nValidation rate: {validation_rate:.1%}")
-
-    return result
 
 
 def _build_interactive_summary(
@@ -1218,15 +480,9 @@ def _build_interactive_summary(
 
         # Due diligence metrics
         total_dd_fields = sum(e.due_diligence.total_masked_fields for e in evaluation_results)
-        total_ask_user_calls = sum(e.due_diligence.total_ask_user_calls for e in evaluation_results)
         avg_mf_accuracy = (
             sum(e.due_diligence.masked_field_accuracy for e in evaluation_results) / n_evals
         )
-        avg_au_precision = (
-            sum(e.due_diligence.ask_user_precision for e in evaluation_results) / n_evals
-        )
-        avg_au_recall = sum(e.due_diligence.ask_user_recall for e in evaluation_results) / n_evals
-        avg_au_f1 = sum(e.due_diligence.ask_user_f1 for e in evaluation_results) / n_evals
 
         # Duty of care metrics
         total_doc_fields = sum(e.duty_of_care.total_fields for e in evaluation_results)
@@ -1256,11 +512,7 @@ def _build_interactive_summary(
         tasks_with_conv_ci_violations = 0
         validation_rate = 0.0
         total_dd_fields = 0
-        total_ask_user_calls = 0
         avg_mf_accuracy = 0.0
-        avg_au_precision = 0.0
-        avg_au_recall = 0.0
-        avg_au_f1 = 0.0
         total_doc_fields = 0
         avg_duty_of_care_score = None
 
@@ -1297,11 +549,7 @@ def _build_interactive_summary(
             "tasks_with_conversation_ci_violations": tasks_with_conv_ci_violations,
             # Due diligence
             "total_masked_fields": total_dd_fields,
-            "total_ask_user_calls": total_ask_user_calls,
             "avg_masked_field_accuracy": avg_mf_accuracy,
-            "avg_ask_user_precision": avg_au_precision,
-            "avg_ask_user_recall": avg_au_recall,
-            "avg_ask_user_f1": avg_au_f1,
             # Duty of care
             "total_duty_of_care_fields": total_doc_fields,
             "avg_duty_of_care_score": avg_duty_of_care_score,
@@ -1359,13 +607,8 @@ def _build_interactive_summary(
         )
         print(f"\nDue Diligence Metrics:")
         print(f"  Total masked fields: {total_dd_fields}")
-        print(f"  Total ask_user calls: {total_ask_user_calls}")
         print(f"  Masked Field Correctness:")
         print(f"    Average accuracy: {avg_mf_accuracy:.2%}")
-        print(f"  Ask-User Appropriateness:")
-        print(f"    Average precision: {avg_au_precision:.2%}")
-        print(f"    Average recall: {avg_au_recall:.2%}")
-        print(f"    Average F1 score: {avg_au_f1:.2%}")
         print(f"\nDuty of Care Metrics:")
         print(f"  Total fields evaluated: {total_doc_fields}")
         doc_score_display = (

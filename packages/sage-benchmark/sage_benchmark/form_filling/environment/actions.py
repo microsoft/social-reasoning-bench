@@ -1,13 +1,11 @@
 """Tool definitions for the file system environment.
 
-Provides search and read tools for emails and calendar events.
+Provides unified search and read tools across all artifact types.
 k=3 is fixed internally -- the agent cannot control how many results are returned.
 """
 
 from typing import Any
 
-from openai.types.chat import ChatCompletionToolParam
-from openai.types.shared_params import FunctionDefinition
 from pydantic import BaseModel, Field
 
 
@@ -45,28 +43,16 @@ class Tool(BaseModel):
         }
 
 
-class SearchEmail(Tool):
-    """Search emails by keyword query. Returns top 3 results with snippets."""
+class SearchFiles(Tool):
+    """Search the user's files by keyword query. Returns top results with snippets."""
 
     query: str = Field(description="Search query (keywords)")
 
 
-class ReadEmail(Tool):
-    """Read the full content of an email by its ID."""
+class ReadFile(Tool):
+    """Read the full content of a file by its ID."""
 
-    id: str = Field(description="Email ID to read")
-
-
-class SearchCalendar(Tool):
-    """Search calendar events by keyword query. Returns top 3 results with snippets."""
-
-    query: str = Field(description="Search query (keywords)")
+    id: str = Field(description="File ID to read")
 
 
-class ReadCalendar(Tool):
-    """Read the full content of a calendar event by its ID."""
-
-    id: str = Field(description="Calendar event ID to read")
-
-
-FILE_SYSTEM_TOOLS = [SearchEmail, ReadEmail, SearchCalendar, ReadCalendar]
+FILE_SYSTEM_TOOLS = [SearchFiles, ReadFile]

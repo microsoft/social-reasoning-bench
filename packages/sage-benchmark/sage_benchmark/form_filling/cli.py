@@ -1,4 +1,4 @@
-"""CLI for form filling benchmark supporting one-shot, interactive, and GUI modes."""
+"""CLI for form filling benchmark (interactive mode)."""
 
 import argparse
 import asyncio
@@ -12,23 +12,16 @@ from sage_benchmark.shared.cli_utils import parse_reasoning_effort
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Form filling benchmark")
 
-    # Execution mode
-    parser.add_argument(
-        "--execution-mode",
-        type=str,
-        choices=["one-shot", "interactive", "gui"],
-        default="one-shot",
-        help="Execution mode: 'one-shot' (structured output), 'interactive' (interview Q&A), or 'gui' (browser automation)",
-    )
-
-    # Model configuration - different depending on mode
+    # Model configuration
     parser.add_argument(
         "--assistant-model",
-        help="Model for form filling (one-shot/gui mode) or assistant agent (interactive mode)",
+        required=True,
+        help="Model for assistant agent (interactive mode)",
     )
     parser.add_argument(
         "--interviewer-model",
-        help="Model for interviewer agent (interactive mode only)",
+        required=True,
+        help="Model for interviewer agent (interactive mode)",
     )
     parser.add_argument(
         "--interviewer-form-fill-model",
@@ -79,7 +72,7 @@ def parse_args() -> argparse.Namespace:
         help="Maximum concurrent API requests per client (default: 100)",
     )
 
-    # One-shot mode specific arguments
+    # Prompt type
     parser.add_argument(
         "--prompt-type",
         type=str,
@@ -99,13 +92,13 @@ def parse_args() -> argparse.Namespace:
         "--interviewer-reasoning-effort",
         type=parse_reasoning_effort,
         default=None,
-        help="Reasoning effort for interviewer agent (interactive mode): none/minimal/low/medium/high/xhigh/default, or integer budget tokens",
+        help="Reasoning effort for interviewer agent: none/minimal/low/medium/high/xhigh/default, or integer budget tokens",
     )
     parser.add_argument(
         "--assistant-reasoning-effort",
         type=parse_reasoning_effort,
         default=None,
-        help="Reasoning effort for assistant agent (interactive mode) or form filler (one-shot mode): none/minimal/low/medium/high/xhigh/default, or integer budget tokens",
+        help="Reasoning effort for assistant agent: none/minimal/low/medium/high/xhigh/default, or integer budget tokens",
     )
     parser.add_argument(
         "--judge-reasoning-effort",
@@ -123,7 +116,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--single-field-mode",
         action="store_true",
-        help="If set, interviewer asks only one question per turn (interactive mode only)",
+        help="If set, interviewer asks only one question per turn",
     )
     parser.add_argument(
         "--malicious-strategy",
@@ -144,23 +137,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Path to strategies YAML file for malicious mode. Required when --malicious-strategy is set.",
     )
-    parser.add_argument(
-        "--assistant-temperature",
-        type=float,
-        default=None,
-        help="Sampling temperature for assistant/form-filler generation",
-    )
 
-    # File system mode (orthogonal to execution mode)
-    parser.add_argument(
-        "--file-system",
-        action="store_true",
-        help="Enable file-system mode: agent uses search/read tools instead of receiving artifacts in context",
-    )
     parser.add_argument(
         "--social-reasoning",
         action="store_true",
-        help="Enable social reasoning for assistant agent (ToM-augmented in interactive mode, recipient-perspective in one-shot mode)",
+        help="Enable social reasoning for assistant agent (ToM-augmented)",
     )
     parser.add_argument(
         "--use-privacy-example",
@@ -168,25 +149,6 @@ def parse_args() -> argparse.Namespace:
         help="Append privacy/sensitive information examples to the social reasoning prompt (requires --social-reasoning)",
     )
 
-    # GUI mode specific arguments
-    parser.add_argument(
-        "--http-port",
-        type=int,
-        default=8080,
-        help="HTTP port for serving GUI forms (default: 8080)",
-    )
-    parser.add_argument(
-        "--max-gui-steps",
-        type=int,
-        default=30,
-        help="Maximum interaction steps per form in GUI mode (default: 30)",
-    )
-    parser.add_argument(
-        "--restructure-model",
-        type=str,
-        default="trapi/msraif/shared/gpt-4.1",
-        help="Model for restructuring flat HTML values to Pydantic schema in GUI mode (default: trapi/msraif/shared/gpt-4.1)",
-    )
     return parser.parse_args()
 
 
@@ -195,19 +157,6 @@ def main():
     args = parse_args()
 
     load_dotenv()
-
-    # Validate arguments based on execution mode
-    if args.execution_mode == "one-shot":
-        if not args.assistant_model:
-            raise ValueError("--assistant-model is required for one-shot mode")
-    elif args.execution_mode == "interactive":
-        if not args.assistant_model:
-            raise ValueError("--assistant-model is required for interactive mode")
-        if not args.interviewer_model:
-            raise ValueError("--interviewer-model is required for interactive mode")
-    elif args.execution_mode == "gui":
-        if not args.assistant_model:
-            args.assistant_model = "microsoft/Fara-7B"
 
     if args.run_mode == "eval" and not args.task_results_path:
         raise ValueError("--task-results-path is required when using --run-mode eval")
@@ -223,7 +172,6 @@ def main():
     asyncio.run(
         run_tasks(
             data_path=args.data,
-            execution_mode=args.execution_mode,
             model_name=args.assistant_model,
             interviewer_model=args.interviewer_model,
             interviewer_form_fill_model=args.interviewer_form_fill_model,
@@ -246,11 +194,6 @@ def main():
             malicious_strategy=args.malicious_strategy,
             malicious_attack_type=args.malicious_attack_type,
             malicious_strategies_file=args.malicious_strategies_file,
-            http_port=args.http_port,
-            max_steps=args.max_gui_steps,
-            restructure_model=args.restructure_model,
-            temperature=args.assistant_temperature,
-            file_system=args.file_system,
             social_reasoning=args.social_reasoning,
             use_privacy_example=args.use_privacy_example,
         )
