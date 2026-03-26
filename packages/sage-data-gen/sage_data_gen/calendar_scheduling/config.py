@@ -32,7 +32,3 @@ class PipelineConfig(BaseModel):
         default=42,
         description="Random seed for deterministic preference generation",
     )
-    generate_artifacts: bool = Field(
-        default=False,
-        description="Whether to generate artifacts for the large dataset",
-    )

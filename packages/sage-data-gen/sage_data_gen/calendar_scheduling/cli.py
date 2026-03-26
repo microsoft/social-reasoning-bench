@@ -11,7 +11,6 @@ from sage_llm import ModelClient
 from .archetypes import ARCHETYPES, NUM_ARCHETYPES
 from .assemble import assemble_tasks
 from .config import PipelineConfig
-from .generate_artifacts import generate_artifacts
 from .generate_calendars import (
     create_base_labeled_calendar,
     generate_calendar,
@@ -245,20 +244,7 @@ async def run_pipeline(config: PipelineConfig) -> None:
     print(f"Step 9: Writing {small_path} ({len(small_tasks)} tasks)...")
     write_tasks_yaml(small_tasks, small_path)
 
-    # Step 10 (optional): Generate artifacts
-    if config.generate_artifacts:
-        artifacts_path = output_dir / "large-artifacts.json"
-        print(f"\nStep 10: Generating artifacts for large.yaml -> {artifacts_path}...")
-        await generate_artifacts(
-            tasks_path=str(large_path),
-            output_path=str(artifacts_path),
-            model=config.model,
-            artifacts_per_task=5,
-        )
-    else:
-        print("\nStep 10: Skipping artifact generation (use --generate-artifacts to enable)")
-
-    # Step 11: Validate output
+    # Step 10: Validate output
     print("\nStep 11: Validating output...")
     validate_output(str(large_path))
     validate_output(str(medium_path))
@@ -324,12 +310,6 @@ def parse_args() -> PipelineConfig:
         default=42,
         help="Random seed for deterministic generation (default: 42)",
     )
-    parser.add_argument(
-        "--generate-artifacts",
-        action="store_true",
-        help="Generate artifacts for the large dataset (disabled by default)",
-    )
-
     args = parser.parse_args()
 
     fullness_levels = [int(x) for x in args.fullness_levels.split(",")]
@@ -346,7 +326,6 @@ def parse_args() -> PipelineConfig:
         output_dir=args.output_dir,
         generate_preferences=not args.no_generate_preferences,
         random_seed=args.random_seed,
-        generate_artifacts=args.generate_artifacts,
     )
     if args.labeling_models:
         kwargs["labeling_models"] = [m.strip() for m in args.labeling_models.split(",")]
