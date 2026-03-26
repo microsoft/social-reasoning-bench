@@ -1,15 +1,27 @@
 """Minimal marketplace simulation runner (LLM tool-calling agents)."""
 
+import logging
 import re
 import traceback
-from typing import Callable
 
 from sage_llm import ModelClient
+
+from sage_benchmark.shared.executors import TaskPoolExecutor
+from sage_benchmark.shared.logging import BenchmarkLogger
 
 from .agents import BuyerAgent, MarketplaceAgent, SellerAgent
 from .environment import AgentResources, EndNegotiation, MarketplaceEnvironment, Wait
 from .environment.resources import execute_with_trace
-from .types import ActionTrace, KeyedMarketplaceTask, PrivacyProbe, TaskExecutionResult
+from .evaluation import evaluate_task, evaluate_task_with_privacy
+from .types import (
+    ActionTrace,
+    KeyedMarketplaceTask,
+    PrivacyProbe,
+    TaskEvaluationResult,
+    TaskExecutionResult,
+)
+
+logger = logging.getLogger(__name__)
 
 _PROBE_PROMPT = (
     "The negotiation is over. What is your best estimate of the other party's "
@@ -154,7 +166,7 @@ async def _run_single_task_llm(
     )
 
 
-async def run_tasks(
+async def run_and_evaluate_tasks(
     tasks: list[KeyedMarketplaceTask],
     *,
     buyer_model: str,
@@ -162,11 +174,38 @@ async def run_tasks(
     buyer_client: ModelClient,
     seller_client: ModelClient,
     max_steps_per_turn: int = 3,
-    on_task_complete: Callable[[TaskExecutionResult], None] | None = None,
-) -> list[TaskExecutionResult]:
-    results: list[TaskExecutionResult] = []
-    for task in tasks:
-        result = await _run_single_task_llm(
+    batch_size: int = 50,
+    benchmark_logger: BenchmarkLogger | None = None,
+    judge_model: str | None = None,
+    judge_client: ModelClient | None = None,
+) -> list[tuple[TaskExecutionResult, TaskEvaluationResult]]:
+    """Run and evaluate marketplace tasks in a single pass via TaskPoolExecutor.
+
+    Each task is executed then immediately evaluated before the next task starts,
+    avoiding a drain-and-restart between execution and evaluation phases.
+
+    Args:
+        tasks: List of marketplace tasks to execute.
+        buyer_model: Model name for the buyer agent.
+        seller_model: Model name for the seller agent.
+        buyer_client: ModelClient for the buyer agent.
+        seller_client: ModelClient for the seller agent.
+        max_steps_per_turn: Maximum tool calls per agent turn.
+        batch_size: Maximum number of concurrent tasks.
+        benchmark_logger: Optional logger for progress tracking.
+        judge_model: Model name for LLM-based privacy judge (None = skip).
+        judge_client: ModelClient for the judge.
+
+    Returns:
+        List of (TaskExecutionResult, TaskEvaluationResult) tuples.
+    """
+
+    async def _run_and_evaluate_single(
+        task: KeyedMarketplaceTask,
+    ) -> tuple[TaskExecutionResult, TaskEvaluationResult]:
+        """Execute a single task then immediately evaluate it."""
+        # Execute
+        exec_result = await _run_single_task_llm(
             task,
             buyer_model=buyer_model,
             seller_model=seller_model,
@@ -174,7 +213,36 @@ async def run_tasks(
             seller_client=seller_client,
             max_steps_per_turn=max_steps_per_turn,
         )
-        results.append(result)
-        if on_task_complete:
-            on_task_complete(result)
+        # Evaluate (coupled — no drain between phases)
+        if judge_model and judge_client:
+            eval_result = await evaluate_task_with_privacy(exec_result, judge_model, judge_client)
+        else:
+            eval_result = evaluate_task(exec_result)
+        return exec_result, eval_result
+
+    if benchmark_logger:
+        benchmark_logger.on_phase_start("run+evaluate", len(tasks))
+
+    def on_complete(result: tuple[TaskExecutionResult, TaskEvaluationResult]) -> None:
+        exec_result, _ = result
+        if benchmark_logger:
+            benchmark_logger.on_task_complete(exec_result.task.id, success=True)
+
+    def on_error(error: Exception) -> None:
+        if benchmark_logger:
+            benchmark_logger.on_task_complete(0, success=False, error=str(error))
+
+    executor = TaskPoolExecutor(
+        batch_size=batch_size,
+        on_task_complete=on_complete,
+        on_task_error=on_error,
+        task_logger=logger,
+    )
+
+    results = await executor.run(_run_and_evaluate_single(task) for task in tasks)
+
+    if benchmark_logger:
+        failed = len(tasks) - len(results)
+        benchmark_logger.on_phase_complete("run+evaluate", len(results), failed)
+
     return results

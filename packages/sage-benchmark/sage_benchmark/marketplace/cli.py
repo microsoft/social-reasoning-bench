@@ -3,15 +3,19 @@
 import argparse
 import asyncio
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 
 from sage_llm import ModelClient
 
-from .evaluation import evaluate_task, evaluate_task_with_privacy
+from sage_benchmark.shared.logging import create_benchmark_logger
+
 from .loader import load_tasks
-from .runner import run_tasks
+from .runner import run_and_evaluate_tasks
 from .types import TaskExecutionResult
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -65,6 +69,18 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Reasoning effort for models (e.g. 'low', 'medium', 'high', or integer budget)",
     )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=50,
+        help="Number of tasks to run in parallel (default: 50)",
+    )
+    parser.add_argument(
+        "--logger",
+        default="progress",
+        choices=["verbose", "progress", "quiet"],
+        help="Logging style: verbose, progress (default, tqdm bar), quiet (minimal)",
+    )
     return parser.parse_args()
 
 
@@ -87,11 +103,21 @@ async def _run_and_evaluate(args: argparse.Namespace) -> None:
     seller_model = args.seller_model or args.model
     if not buyer_model or not seller_model:
         raise ValueError("Requires --model or both --buyer-model and --seller-model")
-    print(
+
+    benchmark_logger = create_benchmark_logger(args.logger)
+
+    benchmark_logger.log_message(
+        logging.INFO,
         "Starting marketplace experiment: "
-        f"tasks={len(tasks)} buyer_model={buyer_model} seller_model={seller_model} "
-        f"max_steps_per_turn={args.max_steps_per_turn}"
+        "tasks=%d buyer_model=%s seller_model=%s "
+        "max_steps_per_turn=%d batch_size=%d",
+        len(tasks),
+        buyer_model,
+        seller_model,
+        args.max_steps_per_turn,
+        args.batch_size,
     )
+
     reasoning_effort: str | int = "none"
     if args.reasoning_effort is not None:
         try:
@@ -108,34 +134,32 @@ async def _run_and_evaluate(args: argparse.Namespace) -> None:
         reasoning_effort=reasoning_effort,
     )
 
-    def _print_task_done(r: TaskExecutionResult) -> None:
-        print(
-            f"Finished task {r.task.id}: deal={r.outcome.deal_reached} "
-            f"price={r.outcome.deal_price} invalid_actions={r.invalid_actions}"
-        )
-
-    results = await run_tasks(
-        tasks,
-        buyer_model=buyer_model,
-        seller_model=seller_model,
-        buyer_client=buyer_client,
-        seller_client=seller_client,
-        max_steps_per_turn=args.max_steps_per_turn,
-        on_task_complete=_print_task_done,
-    )
-
-    # Evaluate: use LLM-based leakage judge if --judge-model is provided
+    # Set up judge client if --judge-model provided (enables LLM-based leakage evaluation)
     judge_model = args.judge_model
+    judge_client = None
     if judge_model:
         judge_client = ModelClient(
             base_url=args.judge_base_url or args.base_url,
         )
-        print(f"Running privacy leakage evaluation with judge_model={judge_model}")
-        evaluations = [
-            await evaluate_task_with_privacy(r, judge_model, judge_client) for r in results
-        ]
-    else:
-        evaluations = [evaluate_task(r) for r in results]
+
+    # Run execution + evaluation coupled together in a single TaskPoolExecutor
+    # (no drain between phases — each task is executed then immediately evaluated)
+    with benchmark_logger:
+        paired_results = await run_and_evaluate_tasks(
+            tasks,
+            buyer_model=buyer_model,
+            seller_model=seller_model,
+            buyer_client=buyer_client,
+            seller_client=seller_client,
+            max_steps_per_turn=args.max_steps_per_turn,
+            batch_size=args.batch_size,
+            benchmark_logger=benchmark_logger,
+            judge_model=judge_model,
+            judge_client=judge_client,
+        )
+
+    results = [r for r, _ in paired_results]
+    evaluations = [e for _, e in paired_results]
 
     run_dir = Path(args.output_dir) / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     run_dir.mkdir(parents=True, exist_ok=True)
