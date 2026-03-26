@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 class DueDiligenceResult(BaseModel):
     """Result of evaluating due diligence for a task."""
 
+    effort_action_count: int = Field(
+        description="Count of unit-of-work tool calls: RequestMeeting + ReplyMeeting(COUNTER)"
+    )
     message_count: int = Field(description="Number of emails sent by the assistant")
     preference_mention_count: int = Field(
         description="Number of assistant outgoing emails that mention time preferences"
@@ -100,9 +103,12 @@ async def evaluate_due_diligence(
                     if judgement.mentions_preference:
                         preference_mention_count += 1
 
-    # --- Sub-metric 3: Proposal count (deterministic + LLM judge) ---
-    formal_proposal_count = _count_formal_proposals(execution_result)
+    # --- Sub-metric 3: Effort action count (deterministic) ---
+    # Counts RequestMeeting + ReplyMeeting(COUNTER) — the unit-of-work tool calls
+    effort_action_count = _count_formal_proposals(execution_result)
 
+    # --- Sub-metric 4: Proposal count (deterministic + LLM judge) ---
+    # Includes effort actions plus text-based proposals in SendEmail bodies
     text_proposal_count = 0
     send_email_bodies = _extract_send_email_bodies(execution_result)
     for body in send_email_bodies:
@@ -111,9 +117,10 @@ async def evaluate_due_diligence(
             if judgement.contains_proposal:
                 text_proposal_count += 1
 
-    proposal_count = formal_proposal_count + text_proposal_count
+    proposal_count = effort_action_count + text_proposal_count
 
     return DueDiligenceResult(
+        effort_action_count=effort_action_count,
         message_count=message_count,
         preference_mention_count=preference_mention_count,
         proposal_count=proposal_count,

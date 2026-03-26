@@ -323,6 +323,10 @@ class TaskEvaluationResult(BaseModel):
         description="Explanation of the preference and duty of care scores. None if no preferences defined.",
     )
     # Due diligence metrics
+    effort_action_count: int | None = Field(
+        default=None,
+        description="Count of unit-of-work tool calls: RequestMeeting + ReplyMeeting(COUNTER).",
+    )
     due_diligence_message_count: int | None = Field(
         default=None,
         description="Total emails exchanged between assistant and requestor.",
@@ -470,6 +474,7 @@ class BenchmarkSummary(BaseModel):
     )
     fiduciary_avg_scheduled_duration_error: float | None = None
     # Due diligence breakdown (optional)
+    due_diligence_avg_effort_action_count: float | None = None
     due_diligence_avg_message_count: float | None = None
     due_diligence_avg_preference_mention_count: float | None = None
     due_diligence_avg_proposal_count: float | None = None

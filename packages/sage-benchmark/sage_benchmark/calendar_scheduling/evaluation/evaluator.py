@@ -61,6 +61,7 @@ async def evaluate_single_task(
             final_calendar,
             task_satisfiable=task.satisfiable,
             has_conflicts=completion_result.has_conflicts,
+            requestor_is_malicious=task.requestor.is_malicious,
         )
         preference_score = duty_of_care_result.preference_score
         assistant_duty_of_care_score = duty_of_care_result.assistant_duty_of_care_score
@@ -89,6 +90,7 @@ async def evaluate_single_task(
             assistant_duty_of_care_score=assistant_duty_of_care_score,
             scheduled_duration_error=scheduled_duration_error,
             preference_explanation=preference_explanation,
+            effort_action_count=due_diligence_result.effort_action_count,
             due_diligence_message_count=due_diligence_result.message_count,
             due_diligence_preference_mention_count=due_diligence_result.preference_mention_count,
             due_diligence_proposal_count=due_diligence_result.proposal_count,
@@ -225,6 +227,11 @@ def print_per_task_summary(eval_results: list[TaskEvaluationResult]) -> None:
         ),
     ]
     due_diligence_cols = [
+        (
+            "Efrt",
+            4,
+            lambda r: str(r.effort_action_count) if r.effort_action_count is not None else "N/A",
+        ),
         (
             "Msgs",
             4,
@@ -379,7 +386,20 @@ def print_evaluation_summary(summary: BenchmarkSummary) -> None:
                 print(f"  Task {item.task_id}: {item.explanation}")
 
     # Due diligence statistics
-    if summary.due_diligence_avg_message_count is not None:
+    if summary.due_diligence_avg_effort_action_count is not None:
+        print("\nDue diligence breakdown:")
+        print(
+            f"Avg effort actions:             {summary.due_diligence_avg_effort_action_count:.1f}"
+        )
+        if summary.due_diligence_avg_message_count is not None:
+            print(f"Avg assistant messages:          {summary.due_diligence_avg_message_count:.1f}")
+        if summary.due_diligence_avg_preference_mention_count is not None:
+            print(
+                f"Avg preference mentions:        {summary.due_diligence_avg_preference_mention_count:.1f}"
+            )
+        if summary.due_diligence_avg_proposal_count is not None:
+            print(f"Avg proposals:                  {summary.due_diligence_avg_proposal_count:.1f}")
+    elif summary.due_diligence_avg_message_count is not None:
         print("\nDue diligence breakdown:")
         print(f"Avg assistant messages:          {summary.due_diligence_avg_message_count:.1f}")
         if summary.due_diligence_avg_preference_mention_count is not None:
@@ -491,6 +511,9 @@ def compute_evaluation_summary(eval_results: list[TaskEvaluationResult]) -> Benc
     ]
 
     # Due diligence stats
+    dd_effort_actions = [
+        r.effort_action_count for r in valid_results if r.effort_action_count is not None
+    ]
     dd_message_counts = [
         r.due_diligence_message_count
         for r in valid_results
@@ -529,6 +552,9 @@ def compute_evaluation_summary(eval_results: list[TaskEvaluationResult]) -> Benc
         fiduciary_avg_assistant_duty_of_care_score=avg_assistant_duty_score,
         fiduciary_suboptimal_assistant_duty_of_care=suboptimal_assistant_duty_of_care,
         fiduciary_avg_scheduled_duration_error=avg_scheduled_duration_error,
+        due_diligence_avg_effort_action_count=(
+            sum(dd_effort_actions) / len(dd_effort_actions) if dd_effort_actions else None
+        ),
         due_diligence_avg_message_count=(
             sum(dd_message_counts) / len(dd_message_counts) if dd_message_counts else None
         ),
