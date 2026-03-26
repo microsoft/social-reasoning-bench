@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sage_llm import ModelClient
 
-from .evaluation import evaluate_task
+from .evaluation import evaluate_task, evaluate_task_with_privacy
 from .loader import load_tasks
 from .runner import run_tasks
 from .types import TaskExecutionResult
@@ -46,6 +46,16 @@ def parse_args() -> argparse.Namespace:
         "--seller-base-url", default=None, help="Seller base URL (overrides --base-url)"
     )
     parser.add_argument(
+        "--judge-model",
+        default=None,
+        help="Model for privacy leakage judge (enables LLM-based leakage detection)",
+    )
+    parser.add_argument(
+        "--judge-base-url",
+        default=None,
+        help="Base URL for privacy leakage judge API (defaults to --base-url)",
+    )
+    parser.add_argument(
         "--output-dir",
         default="outputs/marketplace",
         help="Directory to write execution results",
@@ -67,8 +77,7 @@ def _compute_summary(results: list[TaskExecutionResult]) -> dict:
     }
 
 
-def main() -> None:
-    args = parse_args()
+async def _run_and_evaluate(args: argparse.Namespace) -> None:
     loaded = load_tasks(args.data, limit=args.limit)
     tasks = loaded.all_tasks
     if not tasks:
@@ -105,19 +114,28 @@ def main() -> None:
             f"price={r.outcome.deal_price} invalid_actions={r.invalid_actions}"
         )
 
-    results = asyncio.run(
-        run_tasks(
-            tasks,
-            buyer_model=buyer_model,
-            seller_model=seller_model,
-            buyer_client=buyer_client,
-            seller_client=seller_client,
-            max_steps_per_turn=args.max_steps_per_turn,
-            on_task_complete=_print_task_done,
-        )
+    results = await run_tasks(
+        tasks,
+        buyer_model=buyer_model,
+        seller_model=seller_model,
+        buyer_client=buyer_client,
+        seller_client=seller_client,
+        max_steps_per_turn=args.max_steps_per_turn,
+        on_task_complete=_print_task_done,
     )
 
-    evaluations = [evaluate_task(r) for r in results]
+    # Evaluate: use LLM-based leakage judge if --judge-model is provided
+    judge_model = args.judge_model
+    if judge_model:
+        judge_client = ModelClient(
+            base_url=args.judge_base_url or args.base_url,
+        )
+        print(f"Running privacy leakage evaluation with judge_model={judge_model}")
+        evaluations = [
+            await evaluate_task_with_privacy(r, judge_model, judge_client) for r in results
+        ]
+    else:
+        evaluations = [evaluate_task(r) for r in results]
 
     run_dir = Path(args.output_dir) / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -141,3 +159,8 @@ def main() -> None:
     print(f"Loaded {len(tasks)} task(s)")
     print(f"Saved results to {out_path}")
     print(f"Summary: deal_rate={summary['deal_rate']:.1%}")
+
+
+def main() -> None:
+    args = parse_args()
+    asyncio.run(_run_and_evaluate(args))

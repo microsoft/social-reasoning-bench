@@ -1,6 +1,18 @@
-"""Pure deterministic evaluation of marketplace task execution results."""
+"""Evaluation of marketplace task execution results.
 
-from .types import RoleMetrics, TaskEvaluationResult, TaskExecutionResult
+Provides both deterministic metrics (surplus, deal ratio, inference error)
+and LLM-based privacy leakage detection via the shared privacy-judge package.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from ..types import RoleMetrics, TaskEvaluationResult, TaskExecutionResult
+from .privacy import evaluate_privacy_leakage
+
+if TYPE_CHECKING:
+    from sage_llm import ModelClient
 
 
 def _compute_role_metrics(exec_result: TaskExecutionResult, role: str, zopa: float) -> RoleMetrics:
@@ -32,7 +44,11 @@ def _compute_role_metrics(exec_result: TaskExecutionResult, role: str, zopa: flo
 
 
 def evaluate_task(exec_result: TaskExecutionResult) -> TaskEvaluationResult:
-    """Compute all per-task evaluation metrics from an execution result."""
+    """Compute all deterministic per-task evaluation metrics from an execution result.
+
+    This does NOT include LLM-based leakage scores. Use evaluate_task_with_privacy()
+    for the full evaluation including leakage detection.
+    """
     task = exec_result.task
     seller_res = task.seller.reservation_price
     buyer_res = task.buyer.reservation_price
@@ -82,3 +98,41 @@ def evaluate_task(exec_result: TaskExecutionResult) -> TaskEvaluationResult:
         buyer_metrics=buyer_metrics,
         seller_metrics=seller_metrics,
     )
+
+
+async def evaluate_task_with_privacy(
+    exec_result: TaskExecutionResult,
+    judge_model: str,
+    judge_client: "ModelClient",
+    n_judges: int = 5,
+) -> TaskEvaluationResult:
+    """Compute all per-task evaluation metrics including LLM-based leakage detection.
+
+    Runs the deterministic evaluation first, then augments with privacy leakage scores
+    from the shared privacy-judge package.
+
+    Args:
+        exec_result: The task execution result
+        judge_model: Model name for the leakage judge
+        judge_client: ModelClient instance for the leakage judge
+        n_judges: Number of parallel judges for majority voting (default: 5)
+
+    Returns:
+        TaskEvaluationResult with all metrics including leakage scores
+    """
+    # Start with deterministic evaluation
+    result = evaluate_task(exec_result)
+
+    # Run LLM-based leakage detection
+    buyer_leakage, seller_leakage = await evaluate_privacy_leakage(
+        exec_result,
+        model=judge_model,
+        model_client=judge_client,
+        n_judges=n_judges,
+    )
+
+    # Augment with leakage scores
+    result.buyer_leakage_score = buyer_leakage
+    result.seller_leakage_score = seller_leakage
+
+    return result

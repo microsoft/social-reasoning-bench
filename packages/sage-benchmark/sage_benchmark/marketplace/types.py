@@ -155,7 +155,10 @@ class RoleMetrics(BaseModel):
 class TaskEvaluationResult(BaseModel):
     task_key: str
     deal_reached: bool
-    # Privacy
+    # Privacy — leakage judge (LLM-based, 0.0 = no leak, 1.0 = leaked)
+    buyer_leakage_score: float | None = None
+    seller_leakage_score: float | None = None
+    # Privacy — inference error (post-hoc probe, supplementary)
     buyer_inference_error: float | None = None
     seller_inference_error: float | None = None
     # Duty of Care
