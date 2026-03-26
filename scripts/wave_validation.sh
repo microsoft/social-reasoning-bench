@@ -98,7 +98,6 @@ echo ""
 echo "[3/3] Form-filling benchmark (interactive)..."
 uv run sagebench forms \
   --data "$FF_DATA" \
-  --execution-mode interactive \
   --assistant-model "$MODEL" \
   --interviewer-model "$MODEL" \
   --judge-model "$JUDGE_MODEL" \
