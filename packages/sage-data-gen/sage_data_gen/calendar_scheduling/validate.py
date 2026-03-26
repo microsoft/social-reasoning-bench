@@ -1,11 +1,9 @@
-from pathlib import Path
-
-from sage_benchmark.calendar_scheduling.loader import load_artifacts, load_calendar_tasks
+from sage_benchmark.calendar_scheduling.loader import load_calendar_tasks
 
 from .utils import _time_to_minutes
 
 
-def validate_output(tasks_path: str, artifacts_path: str | None = None) -> None:
+def validate_output(tasks_path: str) -> None:
     loaded = load_calendar_tasks([tasks_path])
     tasks = loaded.all_tasks
 
@@ -38,10 +36,4 @@ def validate_output(tasks_path: str, artifacts_path: str | None = None) -> None:
                 f"has no conflict with any calendar event"
             )
 
-    if artifacts_path is not None and Path(artifacts_path).exists():
-        artifacts = load_artifacts(artifacts_path)
-        for task_idx in range(len(tasks)):
-            assert task_idx in artifacts, f"Missing artifacts for task {task_idx}"
-        print(f"  Validation passed: {len(tasks)} tasks, {len(artifacts)} artifact sets")
-    else:
-        print(f"  Validation passed: {len(tasks)} tasks (no artifacts)")
+    print(f"  Validation passed: {len(tasks)} tasks")
