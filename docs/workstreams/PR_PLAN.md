@@ -232,6 +232,12 @@ Issues discovered during between-wave validation runs.
 
 2. **Calendar CLI requires `--explicit-cot`** — validation script failed because `sagebench calendar` requires `--explicit-cot {true,false}` when not resuming. This is a non-obvious required flag (should arguably have a default). Added `--explicit-cot false` to the validation script. Tracked in 4.6 (Explicit CoT standardization).
 
+### Wave 2
+
+3. **Validation script needed `--file-system` and `--execution-mode interactive` removed** — both flags were eliminated by Agent F's consolidation. Validation script must be updated after each wave that removes CLI flags.
+
+4. **`file_system` removal required 3 review rounds** — Agent F initially hardcoded `file_system=True` instead of removing the parameter entirely. Reviewer caught it twice. **Lesson:** When removing a feature flag, grep for ALL references and eliminate the parameter from the entire call chain, not just the entrypoint.
+
 ---
 
 ## Deferred — Needs More Discussion
