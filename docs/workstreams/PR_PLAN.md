@@ -90,22 +90,33 @@ Note: J and K both touch marketplace but different files (`runner.py`+`cli.py` v
 
 ---
 
-## Wave 4 — Checkpoint + shared integration (4 agents)
+## Wave 4 — Checkpoint + resume (2 agents)
 
 | Agent | PR Title | Tasks | Key Files | Deps | Est. |
 |:-----:|----------|-------|-----------|:----:|:----:|
 | L | **Marketplace checkpoint + resume + run-mode** | 3.2, 3.6 | NEW `mkt/checkpoints/`, `mkt/runner.py`, `mkt/cli.py` | J | M |
 | M | **Form-filling checkpoint + resume + logger + coupled exec+eval** | 3.3, 3.4 (ff part) | NEW `ff/checkpoints/`, `ff/runner.py` | F | M |
-| N | **Integrate shared Tool base class** | 5.1 (integrate) | `cal/types.py`, `mkt/types.py`, `ff/environment/actions.py` | D, E, F | S |
-| O | **Integrate shared Agent base class** | 5.2 (integrate) | `cal/agents/calendar_base.py`, `mkt/agents/marketplace_base.py`, `ff/agents/assistant.py` | D, F | M |
 
-N touches types/actions files; O touches agent files. No overlap. L touches mkt runner/cli; M touches ff runner. No overlap.
+L touches mkt runner/cli; M touches ff runner. No overlap.
 
-**Merge all 4 → run inter-wave validation → comment on release PR → proceed to Wave 5.**
+**Merge all 2 → run inter-wave validation → comment on release PR → proceed to Wave 5.**
 
 ---
 
-## Wave 5 — Output, resilience, shared modules (4 agents)
+## Wave 5 — Shared integration (2 agents)
+
+| Agent | PR Title | Tasks | Key Files | Deps | Est. |
+|:-----:|----------|-------|-----------|:----:|:----:|
+| N | **Integrate shared Tool base class** | 5.1 (integrate) | `cal/types.py`, `mkt/types.py`, `ff/environment/actions.py` | D, L | S |
+| O | **Integrate shared Agent base class** | 5.2 (integrate) | `cal/agents/calendar_base.py`, `mkt/agents/marketplace_base.py`, `ff/agents/assistant.py` | D, M | M |
+
+N touches types/actions files; O touches agent files. No overlap.
+
+**Merge all 2 → run inter-wave validation → comment on release PR → proceed to Wave 6.**
+
+---
+
+## Wave 6 — Output, resilience, shared modules (4 agents)
 
 | Agent | PR Title | Tasks | Key Files | Deps | Est. |
 |:-----:|----------|-------|-----------|:----:|:----:|
@@ -116,11 +127,11 @@ N touches types/actions files; O touches agent files. No overlap. L touches mkt 
 
 Same pattern as Wave 1 Agent D: Agent S creates the shared prompts module as new files without integrating into CLIs.
 
-**Merge all 4 → run inter-wave validation → comment on release PR → proceed to Wave 6.**
+**Merge all 4 → run inter-wave validation → comment on release PR → proceed to Wave 7.**
 
 ---
 
-## Wave 6 — Final integration (2 agents)
+## Wave 7 — Final integration (2 agents)
 
 | Agent | PR Title | Tasks | Key Files | Deps | Est. |
 |:-----:|----------|-------|-----------|:----:|:----:|
@@ -128,8 +139,6 @@ Same pattern as Wave 1 Agent D: Agent S creates the shared prompts module as new
 | U | **Shared metric dashboard** | 5.6 | NEW `shared/dashboard/` | I, P | L |
 
 T touches all CLIs (must be serial — one agent). U creates only new files. No overlap.
-
-Remaining audits (5.8 qwen, 5.9 GUI) are decision items, not code PRs.
 
 **Merge → run final validation → comment on release PR → mark release PR ready for review.**
 
@@ -139,8 +148,8 @@ Remaining audits (5.8 qwen, 5.9 GUI) are decision items, not code PRs.
 
 | Metric | Value |
 |--------|:-----:|
-| Total waves | 6 |
-| Total PRs | 22 |
+| Total waves | 7 |
+| Total PRs | 23 |
 | Max parallel agents | 5 |
 | Tasks covered | All tasks from WS1–WS6 |
 | Release branch | `release/v0.1.0` (draft PR → main) |
