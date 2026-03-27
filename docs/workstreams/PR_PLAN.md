@@ -152,12 +152,14 @@ N touches types/actions files; O touches agent files. No overlap.
 
 | Agent | PR Title | Tasks | Key Files | Deps | Est. |
 |:-----:|----------|-------|-----------|:----:|:----:|
-| P | **Marketplace structured output + per-task summary** | 3.5, 3.7 | `mkt/types.py`, `mkt/cli.py`, NEW `mkt/evaluation_summary.py` | L | S |
+| P | **Marketplace structured output + per-task summary** | 3.5, 3.7 | `mkt/types.py`, `mkt/cli.py`, NEW `mkt/evaluation_summary.py` | L | M |
+| P2 | **Form-filling structured output + per-task summary** | 3.5 (ff), 3.7 (ff) | `ff/schemas.py`, `ff/runner.py`, NEW `ff/evaluation_summary.py` | M | M |
 | Q | **Error handling + LLM tracing (mkt + ff)** | 5.3, 5.4 | `mkt/runner.py`, `ff/runner.py`, `ff/cli.py` | L, M | S |
-| R | **Generalize checkpoints to shared module** | 5.5 | NEW `shared/checkpoints/`, `cal/checkpoints/*` | L, M | M |
 | S | **Create shared privacy prompt levels (define only)** | 4.1 (module) | NEW `shared/prompts/`, per-benchmark prompt wrapper files | F | M |
 
-Same pattern as Wave 1 Agent D: Agent S creates the shared prompts module as new files without integrating into CLIs.
+R (shared checkpoints) already done in Wave 4.1. Agent S creates the shared prompts module as new files without integrating into CLIs.
+
+P and P2 touch different benchmark packages. Q touches runner files (may conflict with P/P2 if they also modify runner — check carefully).
 
 **Merge all 4 → run inter-wave validation → comment on release PR → proceed to Wave 7.**
 
