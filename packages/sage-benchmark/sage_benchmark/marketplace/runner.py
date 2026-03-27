@@ -1,8 +1,12 @@
 """Minimal marketplace simulation runner (LLM tool-calling agents)."""
 
+from __future__ import annotations
+
+import asyncio
 import logging
 import re
 import traceback
+from typing import TYPE_CHECKING
 
 from sage_llm import ModelClient
 
@@ -20,6 +24,9 @@ from .types import (
     TaskEvaluationResult,
     TaskExecutionResult,
 )
+
+if TYPE_CHECKING:
+    from .checkpoints import CheckpointManager
 
 logger = logging.getLogger(__name__)
 
@@ -178,14 +185,22 @@ async def run_and_evaluate_tasks(
     benchmark_logger: BenchmarkLogger | None = None,
     judge_model: str | None = None,
     judge_client: ModelClient | None = None,
-) -> list[tuple[TaskExecutionResult, TaskEvaluationResult]]:
+    skip_exec_keys: set[str] | None = None,
+    skip_eval_keys: set[str] | None = None,
+    prior_exec_results: list[TaskExecutionResult] | None = None,
+    checkpoint_mgr: CheckpointManager | None = None,
+    cancel_event: asyncio.Event | None = None,
+) -> list[tuple[TaskExecutionResult, TaskEvaluationResult | None]]:
     """Run and evaluate marketplace tasks in a single pass via TaskPoolExecutor.
 
-    Each task is executed then immediately evaluated before the next task starts,
-    avoiding a drain-and-restart between execution and evaluation phases.
+    Mode is controlled by the skip sets (checked independently):
+      - Neither skipped: exec + eval (normal)
+      - Skip exec only: reuse prior exec, still eval (reeval)
+      - Skip eval only: exec, skip eval (exec-only)
+      - Both skipped: skip entirely (fully done resume)
 
     Args:
-        tasks: List of marketplace tasks to execute.
+        tasks: List of marketplace tasks to process.
         buyer_model: Model name for the buyer agent.
         seller_model: Model name for the seller agent.
         buyer_client: ModelClient for the buyer agent.
@@ -195,35 +210,79 @@ async def run_and_evaluate_tasks(
         benchmark_logger: Optional logger for progress tracking.
         judge_model: Model name for LLM-based privacy judge (None = skip).
         judge_client: ModelClient for the judge.
+        skip_exec_keys: Task keys whose execution should be reused from prior results.
+        skip_eval_keys: Task keys whose evaluation is already done (skip eval).
+        prior_exec_results: Prior execution results for reuse when task_key is in skip_exec_keys.
+        checkpoint_mgr: Optional checkpoint manager for saving progress.
+        cancel_event: Optional event for cooperative cancellation.
 
     Returns:
-        List of (TaskExecutionResult, TaskEvaluationResult) tuples.
+        List of (TaskExecutionResult, TaskEvaluationResult | None) tuples for newly processed tasks.
     """
+    _skip_exec_keys = skip_exec_keys or set()
+    _skip_eval_keys = skip_eval_keys or set()
+
+    # Build lookup for prior exec results (for reuse when skipping execution)
+    prior_exec_by_key: dict[str, TaskExecutionResult] = {}
+    if prior_exec_results:
+        prior_exec_by_key = {r.task_key: r for r in prior_exec_results}
 
     async def _run_and_evaluate_single(
         task: KeyedMarketplaceTask,
-    ) -> tuple[TaskExecutionResult, TaskEvaluationResult]:
-        """Execute a single task then immediately evaluate it."""
-        # Execute
-        exec_result = await _run_single_task_llm(
-            task,
-            buyer_model=buyer_model,
-            seller_model=seller_model,
-            buyer_client=buyer_client,
-            seller_client=seller_client,
-            max_steps_per_turn=max_steps_per_turn,
-        )
-        # Evaluate (coupled — no drain between phases)
+    ) -> tuple[TaskExecutionResult, TaskEvaluationResult | None]:
+        """Execute a single task (if needed) then evaluate it (if needed)."""
+        # Exec: skip or run
+        if task.task_key in _skip_exec_keys:
+            exec_result = prior_exec_by_key.get(task.task_key)
+            if exec_result is None:
+                raise RuntimeError(
+                    f"Task {task.task_key} in skip_exec_keys but no prior exec result"
+                )
+        else:
+            # Execute
+            exec_result = await _run_single_task_llm(
+                task,
+                buyer_model=buyer_model,
+                seller_model=seller_model,
+                buyer_client=buyer_client,
+                seller_client=seller_client,
+                max_steps_per_turn=max_steps_per_turn,
+            )
+            if checkpoint_mgr:
+                checkpoint_mgr.add_execution_result(exec_result)
+
+        # Skip evaluation if cancelled -- eval can happen on resume
+        if cancel_event and cancel_event.is_set():
+            raise asyncio.CancelledError("Skipping evaluation due to cancellation")
+
+        # Eval: skip or run (independent of exec)
+        if task.task_key in _skip_eval_keys:
+            return exec_result, None
+
+        # Evaluate
         if judge_model and judge_client:
             eval_result = await evaluate_task_with_privacy(exec_result, judge_model, judge_client)
         else:
             eval_result = evaluate_task(exec_result)
+
+        # Save evaluation to checkpoint
+        if checkpoint_mgr:
+            checkpoint_mgr.add_evaluation_result(eval_result)
+
         return exec_result, eval_result
 
-    if benchmark_logger:
-        benchmark_logger.on_phase_start("run+evaluate", len(tasks))
+    # Count tasks that need work (skip only where BOTH exec and eval are done)
+    pending_count = sum(
+        1 for t in tasks if not (t.task_key in _skip_exec_keys and t.task_key in _skip_eval_keys)
+    )
+    skipped = len(tasks) - pending_count
+    if skipped > 0:
+        logger.info("Skipping %d fully-completed tasks, %d remaining", skipped, pending_count)
 
-    def on_complete(result: tuple[TaskExecutionResult, TaskEvaluationResult]) -> None:
+    if benchmark_logger:
+        benchmark_logger.on_phase_start("run+evaluate", pending_count)
+
+    def on_complete(result: tuple[TaskExecutionResult, TaskEvaluationResult | None]) -> None:
         exec_result, _ = result
         if benchmark_logger:
             benchmark_logger.on_task_complete(exec_result.task.id, success=True)
@@ -237,12 +296,20 @@ async def run_and_evaluate_tasks(
         on_task_complete=on_complete,
         on_task_error=on_error,
         task_logger=logger,
+        cancel_event=cancel_event,
     )
 
-    results = await executor.run(_run_and_evaluate_single(task) for task in tasks)
+    # Generator skips tasks where BOTH exec and eval are done
+    def generate_tasks():
+        for task in tasks:
+            if task.task_key in _skip_exec_keys and task.task_key in _skip_eval_keys:
+                continue
+            yield _run_and_evaluate_single(task)
+
+    results = await executor.run(generate_tasks())
 
     if benchmark_logger:
-        failed = len(tasks) - len(results)
+        failed = pending_count - len(results)
         benchmark_logger.on_phase_complete("run+evaluate", len(results), failed)
 
     return results
