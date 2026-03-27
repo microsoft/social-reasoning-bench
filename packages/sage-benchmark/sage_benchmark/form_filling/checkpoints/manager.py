@@ -16,6 +16,11 @@ class CheckpointManager(
     _data_cls = CheckpointData
 
     @staticmethod
+    def _get_exec_task_key(result: InteractiveTaskExecutionResult) -> str:
+        """Extract task key from an execution result."""
+        return result.form_id
+
+    @staticmethod
     def _get_eval_task_key(result: InteractiveTaskEvaluationResult) -> str:
         """Extract task key from an evaluation result."""
         return result.form_id

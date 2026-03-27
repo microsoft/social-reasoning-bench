@@ -101,7 +101,7 @@ class BaseCheckpointManager(Generic[TExec, TEval, TData]):
             return
 
         self._data.execution_results.append(result)
-        task_key: str = result.task_key  # type: ignore[attr-defined]
+        task_key = self._get_exec_task_key(result)
         self._data.completed_task_keys.append(task_key)
         self._completed_task_keys.add(task_key)
         self.save()
@@ -150,6 +150,15 @@ class BaseCheckpointManager(Generic[TExec, TEval, TData]):
     # ------------------------------------------------------------------
     # Hook for subclasses
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _get_exec_task_key(result: TExec) -> str:  # type: ignore[type-var]
+        """Extract the task key from an execution result.
+
+        Override in subclasses when the execution result stores the key
+        under a different attribute (e.g. ``result.form_id``).
+        """
+        return result.task_key  # type: ignore[attr-defined, return-value]
 
     @staticmethod
     def _get_eval_task_key(result: TEval) -> str:  # type: ignore[type-var]
