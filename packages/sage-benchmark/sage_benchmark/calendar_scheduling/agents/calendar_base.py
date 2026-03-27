@@ -1,20 +1,16 @@
 """Base agent class for calendar scheduling interactions."""
 
-import traceback
 from typing import Any
 
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionToolParam,
-    ChatCompletionMessageParam,
     ChatCompletionMessageToolCallParam,
     ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
 )
-from openai.types.shared_params import FunctionDefinition
-from pydantic import ValidationError
 from pydantic_core import to_json
 from sage_llm import ModelClient
+
+from sage_benchmark.shared.agent import BaseAgent, RetryException
 
 from ..environment.actions import (
     CALENDAR_TOOLS,
@@ -24,17 +20,16 @@ from ..environment.actions import (
 from ..types import Tool
 
 
-class RetryException(Exception):
-    """Exception raised when a tool call needs to be retried."""
-
-    pass
-
-
-class CalendarAgent:
+class CalendarAgent(BaseAgent):
     """Base agent class for calendar scheduling.
 
     This agent supports multi-step turns where it can call multiple tools
     before yielding with Wait or ending with EndConversation.
+
+    Extends :class:`BaseAgent` with:
+    - Default tool set (``CALENDAR_TOOLS``)
+    - ``SendEmail`` recipient validation via :meth:`validate_tool_call`
+    - ``add_new_messages`` for injecting emails via simulated ``GetEmails``
     """
 
     def __init__(
@@ -45,35 +40,33 @@ class CalendarAgent:
         tools: list[type[Tool]] | None = None,
         explicit_cot: bool = False,
     ):
-        self._model = model
-        self._model_client = model_client
-        self._messages: list[ChatCompletionMessageParam] = []
-        self._allowed_contacts = list(allowed_contacts)
-        self._explicit_cot = explicit_cot
-        self._previous_response_id: str | None = None  # For thinking preservation
-
         # Default to all calendar tools if none specified
-        if tools is None:
-            self._tools: dict[str, type[Tool]] = {t.get_name(): t for t in CALENDAR_TOOLS}
-        else:
-            self._tools = {t.get_name(): t for t in tools}
+        tool_list: list[type[Tool]] = list(tools) if tools is not None else list(CALENDAR_TOOLS)
 
-        self._openai_tools = [
-            ChatCompletionFunctionToolParam(
-                type="function",
-                function=FunctionDefinition(
-                    name=tool.get_name(),
-                    description=tool.get_description(),
-                    parameters=tool.get_parameters_schema(),
-                ),
+        super().__init__(
+            model=model,
+            model_client=model_client,
+            tools=tool_list,
+            explicit_cot=explicit_cot,
+        )
+
+        self._allowed_contacts = list(allowed_contacts)
+
+    # ------------------------------------------------------------------ #
+    # Validation hook
+    # ------------------------------------------------------------------ #
+
+    def validate_tool_call(self, tool_call: Tool) -> None:
+        """Reject SendEmail calls to recipients not in the allowed contacts list."""
+        if isinstance(tool_call, SendEmail) and tool_call.to not in self._allowed_contacts:
+            raise RetryException(
+                f"Cannot SendEmail to {tool_call.to}. "
+                f"Supported recipients are: {self._allowed_contacts}"
             )
-            for tool in self._tools.values()
-        ]
 
-    @property
-    def tools(self) -> list[ChatCompletionFunctionToolParam]:
-        """Return the tool definitions in OpenAI format."""
-        return list(self._openai_tools)
+    # ------------------------------------------------------------------ #
+    # Calendar-specific message helpers
+    # ------------------------------------------------------------------ #
 
     def add_new_messages(self, new_messages: list[Any]) -> None:
         """Inject new messages by simulating a GetEmails tool call and response."""
@@ -97,205 +90,3 @@ class CalendarAgent:
 
         self._messages.append(tool_call_message)
         self._messages.append(tool_message)
-
-    def add_tool_call_result(self, result: str) -> None:
-        """Add the result of the last tool call to the context."""
-        if self._messages and "tool_calls" in self._messages[-1]:
-            tool_calls = list(self._messages[-1]["tool_calls"])
-            if len(tool_calls) != 1:
-                raise ValueError("Can only call add_tool_call_result after exactly one tool call")
-            tool_call_id = tool_calls[0]["id"]
-
-            self._messages.append(
-                ChatCompletionToolMessageParam(
-                    role="tool",
-                    tool_call_id=tool_call_id,
-                    content=result,
-                )
-            )
-        else:
-            raise ValueError("Can only call add_tool_call_result after a successful step")
-
-    def add_forced_action(self, action: Tool, result: str) -> None:
-        """Add a forced action (not generated by LLM) to the context.
-
-        Used for programmatically forcing initial actions like the first
-        meeting request from the requestor.
-        """
-        tool_call_id = str(len(self._messages))
-
-        # Add the tool call
-        self._messages.append(
-            ChatCompletionAssistantMessageParam(
-                role="assistant",
-                tool_calls=[
-                    ChatCompletionMessageToolCallParam(
-                        id=tool_call_id,
-                        type="function",
-                        function={
-                            "name": action.get_name(),
-                            "arguments": action.model_dump_json(),
-                        },
-                    )
-                ],
-            )
-        )
-
-        # Add the result
-        self._messages.append(
-            ChatCompletionToolMessageParam(
-                role="tool",
-                tool_call_id=tool_call_id,
-                content=result,
-            )
-        )
-
-    async def _generate_cot_reasoning(self, messages: list[ChatCompletionMessageParam]) -> str:
-        """Generate chain-of-thought reasoning before tool call.
-
-        Returns the thinking content to be included in the assistant message.
-        """
-        # Add a user message prompting for CoT
-        cot_messages = list(messages)
-        cot_messages.append(
-            ChatCompletionUserMessageParam(
-                role="user",
-                content="Before taking your next action, think carefully about what should be the one next action (ONE next tool call) to do. Generate the thoughts here.",
-            )
-        )
-
-        response = await self._model_client.chat.completions.acreate(
-            model=self._model,
-            messages=cot_messages,
-        )
-        return response.choices[0].message.content or ""
-
-    async def generate_tool_call(self, max_retries: int = 3) -> Tool:
-        """Generate the next tool call from the LLM."""
-        # Make local copy that we can modify on retry
-        messages = list(self._messages)
-        exceptions: list[Exception] = []
-
-        for _ in range(max(1, max_retries)):
-            # Generate CoT reasoning for every retry if enabled
-            cot_thinking: str | None = None
-            if self._explicit_cot:
-                cot_thinking = await self._generate_cot_reasoning(messages)
-                if cot_thinking:
-                    messages.append(
-                        ChatCompletionAssistantMessageParam(
-                            role="assistant",
-                            content=cot_thinking,
-                        )
-                    )
-
-            # Generate the next action
-            completion = await self._model_client.chat.completions.acreate(
-                model=self._model,
-                messages=messages,
-                tools=self._openai_tools,
-                tool_choice="auto",
-                previous_response_id=self._previous_response_id,
-            )
-
-            # Store response ID for thinking preservation across turns
-            self._previous_response_id = completion.id
-
-            message = completion.choices[0].message
-            tool_calls = message.tool_calls or []
-
-            try:
-                if len(tool_calls) != 1:
-                    raise RetryException("Exactly 1 tool must be called.")
-
-                tool_call = tool_calls[0]
-                if tool_call.type != "function":
-                    raise RetryException(f"Unsupported tool type '{tool_call.type}'")
-
-                function = tool_call.function
-                tool_type = self._tools.get(function.name, None)
-                if tool_type is None:
-                    raise RetryException(f"Unrecognized function name '{function.name}'")
-
-                parsed_tool_call = tool_type.model_validate_json(function.arguments)
-
-                # Validate SendEmail recipient
-                if (
-                    isinstance(parsed_tool_call, SendEmail)
-                    and parsed_tool_call.to not in self._allowed_contacts
-                ):
-                    raise RetryException(
-                        f"Cannot SendEmail to {parsed_tool_call.to}. "
-                        f"Supported recipients are: {self._allowed_contacts}"
-                    )
-
-                # Successfully parsed the tool call, append it to the context
-                # Include CoT thinking in the content if it was generated
-                if cot_thinking:
-                    self._messages.append(
-                        ChatCompletionAssistantMessageParam(role="assistant", content=cot_thinking)
-                    )
-
-                self._messages.append(
-                    ChatCompletionAssistantMessageParam(
-                        role="assistant",
-                        content=message.content,
-                        tool_calls=[
-                            ChatCompletionMessageToolCallParam(
-                                id=tool_call.id,
-                                type="function",
-                                function={
-                                    "name": tool_call.function.name,
-                                    "arguments": tool_call.function.arguments,
-                                },
-                            )
-                        ],
-                    )
-                )
-
-                return parsed_tool_call
-
-            except (ValidationError, RetryException) as e:
-                exceptions.append(e)
-                if not tool_calls:
-                    # No tool calls - use plain assistant/user message format
-                    # CoT is already appended to messages at the top of the loop
-                    messages.append(
-                        ChatCompletionAssistantMessageParam(
-                            role="assistant",
-                            content=message.content,
-                        )
-                    )
-                    messages.append(
-                        ChatCompletionUserMessageParam(
-                            role="user",
-                            content="You must call exactly one tool. If you have completed the task, call EndConversation. If you are waiting for a response, call Wait.",
-                        )
-                    )
-                else:
-                    # Has tool calls - use tool_calls + tool message format
-                    # CoT is already appended to messages at the top of the loop
-                    messages.append(
-                        ChatCompletionAssistantMessageParam(
-                            role="assistant",
-                            content=message.content,
-                            tool_calls=[
-                                ChatCompletionMessageToolCallParam(
-                                    **tool_call.model_dump(include={"id", "type", "function"})
-                                )
-                                for tool_call in tool_calls
-                            ],
-                        )
-                    )
-
-                    # Add error message for each tool call
-                    for tool_call in tool_calls:
-                        messages.append(
-                            ChatCompletionToolMessageParam(
-                                role="tool",
-                                tool_call_id=tool_call.id,
-                                content=traceback.format_exc(),
-                            )
-                        )
-
-        raise ExceptionGroup("Exceeded maximum retries generating tool call", exceptions)

@@ -1,4 +1,32 @@
-"""Assistant agent implementation."""
+"""Assistant agent implementation.
+
+Note on BaseAgent integration (Wave 5.2):
+    This agent was evaluated for integration with ``sage_benchmark.shared.agent.BaseAgent``
+    but intentionally **not** converted for the following reasons:
+
+    1. **Tool definition pattern**: AssistantAgent builds tool definitions as raw JSON
+       schema dicts (via ``_build_tools``), not via ``Tool`` subclasses. The tools
+       (SendMessage, EndConversation, AskUser) use ``BaseModel`` for parameter schemas
+       but are not ``Tool`` subclasses registered in a name-to-class map.
+
+    2. **Generation method**: ``generate_action()`` returns ``(tool_name, dict)``
+       rather than a parsed ``Tool`` instance. This is fundamentally different from
+       ``BaseAgent.generate_tool_call() -> Tool``.
+
+    3. **Internal tool dispatch**: File-system tools (SearchFiles, ReadFile) are
+       handled internally with recursive calls, a pattern not supported by BaseAgent.
+
+    4. **No retry logic**: The form-filling agent uses ``tool_choice="required"``
+       and does not retry on invalid responses, unlike BaseAgent's retry loop.
+
+    5. **Custom message recording**: SendMessage responses are recorded with
+       thinking field preservation and ToM intent tracking, a pattern that
+       doesn't fit BaseAgent's generic tool-call message format.
+
+    Forcing this agent into the BaseAgent hierarchy would require either
+    overriding most of the base functionality or significantly changing the
+    base class, neither of which would be a good abstraction.
+"""
 
 import json
 
