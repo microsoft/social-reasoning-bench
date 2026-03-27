@@ -1,14 +1,14 @@
 """Checkpoint data model for resumable marketplace benchmark runs."""
 
-from datetime import datetime
+from pydantic import Field
 
-from pydantic import BaseModel, Field
+from sage_benchmark.shared.checkpoints import BaseCheckpointData
 
 from ..types import TaskEvaluationResult, TaskExecutionResult
 from .run_config import RunConfig
 
 
-class CheckpointData(BaseModel):
+class CheckpointData(BaseCheckpointData[TaskExecutionResult, TaskEvaluationResult]):
     """Checkpoint state for resumable marketplace benchmark runs."""
 
     config: RunConfig | None = Field(
@@ -19,28 +19,4 @@ class CheckpointData(BaseModel):
     source_file_hashes: dict[str, str] = Field(
         default_factory=dict,
         description="Map of source filename to sha256 hash",
-    )
-    execution_results: list[TaskExecutionResult] = Field(
-        default_factory=list,
-        description="Completed execution results",
-    )
-    evaluation_results: list[TaskEvaluationResult] = Field(
-        default_factory=list,
-        description="Completed evaluation results",
-    )
-    completed_task_keys: list[str] = Field(
-        default_factory=list,
-        description="Task keys that have completed execution",
-    )
-    completed_eval_keys: list[str] = Field(
-        default_factory=list,
-        description="Task keys that have completed evaluation",
-    )
-    last_updated: str = Field(
-        default_factory=lambda: datetime.now().isoformat(),
-        description="ISO timestamp of last update",
-    )
-    interrupted: bool = Field(
-        default=False,
-        description="Whether the run was interrupted",
     )
