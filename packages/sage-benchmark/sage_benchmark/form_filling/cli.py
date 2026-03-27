@@ -2,11 +2,21 @@
 
 import argparse
 import asyncio
+import json
+import logging
+import signal
+from pathlib import Path
 
 from dotenv import load_dotenv
 
+from sage_benchmark.form_filling.checkpoints import CheckpointManager
+from sage_benchmark.form_filling.loader import load_all_form_tasks
 from sage_benchmark.form_filling.runner import run_tasks
+from sage_benchmark.form_filling.schemas import InteractiveTaskExecutionResult
 from sage_benchmark.shared.cli_utils import parse_reasoning_effort
+from sage_benchmark.shared.logging import create_benchmark_logger
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,13 +61,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--run-mode",
-        choices=["all", "tasks", "eval"],
+        choices=["all", "eval"],
         default="all",
-        help="Run mode: 'all' (tasks + eval), 'tasks' (skip eval), 'eval' (load tasks and eval)",
+        help="Run mode: 'all' (execute + evaluate), 'eval' (re-evaluate with prior exec results)",
     )
     parser.add_argument(
         "--task-results-path",
-        help="Path to task_results.json file (required for eval run-mode)",
+        help="Path to task_results.json file (required for --run-mode eval)",
     )
     parser.add_argument(
         "--batch-size",
@@ -157,7 +167,60 @@ def parse_args() -> argparse.Namespace:
         help="Append privacy/sensitive information examples to the social reasoning prompt (requires --social-reasoning)",
     )
 
+    # Logging style
+    parser.add_argument(
+        "--logger",
+        default="progress",
+        choices=["verbose", "progress", "quiet"],
+        help="Logging style: verbose, progress (default, tqdm bar), quiet (minimal)",
+    )
+
+    # Resume / checkpoint
+    parser.add_argument(
+        "--resume",
+        nargs="?",
+        const=True,
+        default=None,
+        help="Resume from checkpoint. Optionally specify the checkpoint JSON path.",
+    )
+
     return parser.parse_args()
+
+
+def _load_prior_exec_results(
+    task_results_path: str, data_path: str
+) -> list[InteractiveTaskExecutionResult]:
+    """Load execution results from a prior run's task_results.json file.
+
+    Args:
+        task_results_path: Path to task_results.json from a prior run
+        data_path: Path to task data directory (for reconstructing FormTask objects)
+
+    Returns:
+        List of InteractiveTaskExecutionResult from the prior run
+    """
+    logger.info("Loading task results from: %s", task_results_path)
+    with open(task_results_path) as f:
+        task_results_data = json.load(f)
+
+    tasks = load_all_form_tasks(data_path)
+    task_map = {task.form_id: task for task in tasks}
+
+    execution_results: list[InteractiveTaskExecutionResult] = []
+    for task_result_data in task_results_data:
+        exec_data = task_result_data["execution"]
+        form_id = task_result_data["form_id"]
+
+        if form_id not in task_map:
+            logger.warning("Form %s not found, skipping", form_id)
+            continue
+
+        exec_result = InteractiveTaskExecutionResult.model_validate(
+            {**exec_data, "task": task_map[form_id], "form_id": form_id}
+        )
+        execution_results.append(exec_result)
+
+    return execution_results
 
 
 def main():
@@ -165,6 +228,9 @@ def main():
     args = parse_args()
 
     load_dotenv()
+
+    # Configure logging
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     if args.run_mode == "eval" and not args.task_results_path:
         raise ValueError("--task-results-path is required when using --run-mode eval")
@@ -177,35 +243,134 @@ def main():
             "-m <model> -o <output.yaml>"
         )
 
-    asyncio.run(
-        run_tasks(
-            data_path=args.data,
-            model_name=args.assistant_model,
-            interviewer_model=args.interviewer_model,
-            interviewer_form_fill_model=args.interviewer_form_fill_model,
-            judge_model=args.judge_model,
-            base_url=args.base_url,
-            output_dir=args.output_dir,
-            limit=args.limit,
-            task_id=args.id,
-            run_mode=args.run_mode,
-            task_results_path=args.task_results_path,
-            batch_size=args.batch_size,
-            max_concurrent_requests=args.max_concurrent_requests,
-            prompt_type=args.prompt_type,
-            interviewer_reasoning_effort=args.interviewer_reasoning_effort,
-            assistant_reasoning_effort=args.assistant_reasoning_effort,
-            judge_reasoning_effort=args.judge_reasoning_effort,
-            max_rounds=args.max_rounds,
-            interviewer_type=args.interviewer_type,
-            single_field_mode=args.single_field_mode,
-            malicious_strategy=args.malicious_strategy,
-            malicious_attack_type=args.malicious_attack_type,
-            malicious_strategies_file=args.malicious_strategies_file,
-            social_reasoning=args.social_reasoning,
-            use_privacy_example=args.use_privacy_example,
+    # Create benchmark logger
+    benchmark_logger = create_benchmark_logger(args.logger)
+
+    # Handle checkpoint/resume
+    checkpoint_mgr: CheckpointManager | None = None
+    skip_exec_keys: set[str] = set()
+    skip_eval_keys: set[str] = set()
+    prior_exec_results: list[InteractiveTaskExecutionResult] = []
+
+    if args.run_mode == "eval":
+        # Re-evaluate mode: load prior exec results, skip all execution
+        prior_exec_results = _load_prior_exec_results(args.task_results_path, args.data)
+        skip_exec_keys = {r.form_id for r in prior_exec_results}
+        # skip_eval_keys stays empty -> re-evaluate all
+        logger.info(
+            "Eval mode: loaded %d prior exec results, will re-evaluate all",
+            len(prior_exec_results),
         )
-    )
+
+    elif args.resume is not None:
+        # Resume mode: skip tasks that are fully done (exec + eval)
+        if isinstance(args.resume, str):
+            checkpoint_path = Path(args.resume)
+            if checkpoint_path.is_dir():
+                checkpoint_path = checkpoint_path / "checkpoint.json"
+        else:
+            # --resume without a path: look in output_dir
+            checkpoint_path = Path(args.output_dir) / "checkpoint.json"
+
+        checkpoint_mgr = CheckpointManager(checkpoint_path)
+        existing = checkpoint_mgr.load()
+
+        if existing is not None:
+            completed_exec = checkpoint_mgr.get_completed_task_keys()
+            completed_eval = checkpoint_mgr.get_completed_eval_keys()
+
+            # Tasks with both exec + eval done: skip entirely
+            skip_eval_keys = completed_exec & completed_eval
+
+            # Tasks with exec done but not eval: reuse exec, re-evaluate
+            exec_only_keys = completed_exec - completed_eval
+            if exec_only_keys:
+                skip_exec_keys = exec_only_keys
+                prior_exec_results = [
+                    r for r in checkpoint_mgr.get_execution_results() if r.form_id in exec_only_keys
+                ]
+
+            logger.info(
+                "Resuming: %d fully done (skip), %d exec-only (re-eval), %d remaining",
+                len(skip_eval_keys),
+                len(exec_only_keys),
+                -1,  # placeholder; actual count computed in runner
+            )
+        else:
+            raise ValueError(
+                f"No checkpoint found at {checkpoint_path}. "
+                "Drop the --resume flag to start a new run."
+            )
+    else:
+        # New run - create checkpoint in output_dir for incremental saves
+        output_path = Path(args.output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        checkpoint_path = output_path / "checkpoint.json"
+        checkpoint_mgr = CheckpointManager(checkpoint_path)
+        checkpoint_mgr.initialize()
+
+    # Set up SIGINT handler for graceful interruption
+    loop = asyncio.new_event_loop()
+
+    def sigint_handler():
+        logger.warning("Interrupt received, saving checkpoint...")
+        if checkpoint_mgr is not None:
+            checkpoint_mgr.set_interrupted(True)
+        # Remove handler so second Ctrl+C forces exit
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.remove_signal_handler(sig)
+            except (ValueError, RuntimeError):
+                pass
+
+    async def _run():
+        # Install signal handlers within the running loop
+        running_loop = asyncio.get_event_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            running_loop.add_signal_handler(sig, sigint_handler)
+
+        try:
+            with benchmark_logger:
+                return await run_tasks(
+                    data_path=args.data,
+                    model_name=args.assistant_model,
+                    interviewer_model=args.interviewer_model,
+                    interviewer_form_fill_model=args.interviewer_form_fill_model,
+                    judge_model=args.judge_model,
+                    base_url=args.base_url,
+                    output_dir=args.output_dir,
+                    limit=args.limit,
+                    task_id=args.id,
+                    batch_size=args.batch_size,
+                    max_concurrent_requests=args.max_concurrent_requests,
+                    prompt_type=args.prompt_type,
+                    interviewer_reasoning_effort=args.interviewer_reasoning_effort,
+                    assistant_reasoning_effort=args.assistant_reasoning_effort,
+                    judge_reasoning_effort=args.judge_reasoning_effort,
+                    max_rounds=args.max_rounds,
+                    interviewer_type=args.interviewer_type,
+                    single_field_mode=args.single_field_mode,
+                    malicious_strategy=args.malicious_strategy,
+                    malicious_attack_type=args.malicious_attack_type,
+                    malicious_strategies_file=args.malicious_strategies_file,
+                    social_reasoning=args.social_reasoning,
+                    use_privacy_example=args.use_privacy_example,
+                    benchmark_logger=benchmark_logger,
+                    checkpoint_mgr=checkpoint_mgr,
+                    skip_exec_keys=skip_exec_keys,
+                    skip_eval_keys=skip_eval_keys,
+                    prior_exec_results=prior_exec_results,
+                )
+        finally:
+            # Remove signal handlers
+            running_loop = asyncio.get_event_loop()
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                try:
+                    running_loop.remove_signal_handler(sig)
+                except (ValueError, RuntimeError):
+                    pass
+
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":

@@ -1,15 +1,17 @@
-"""Async runner for form filling benchmark (interactive mode only)."""
+"""Async runner for form filling benchmark (interactive mode only).
 
-import asyncio
+Supports coupled execution+evaluation, checkpoint/resume, and BenchmarkLogger.
+"""
+
 import json
 import logging
 import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
 
 from sage_llm import ModelClient
 
+from sage_benchmark.form_filling.checkpoints import CheckpointManager
 from sage_benchmark.form_filling.evaluation import (
     evaluate_interactive_task,
 )
@@ -20,6 +22,7 @@ from sage_benchmark.form_filling.schemas import (
     InteractiveTaskEvaluationResult,
     InteractiveTaskExecutionResult,
 )
+from sage_benchmark.shared.logging import BenchmarkLogger, VerboseLogger
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +38,7 @@ def normalize_model_name(name: str) -> str:
 
 
 def append_batch_to_json_list(path: Path, items: list[dict]):
-    """Atomically append multiple items to JSON array.
+    """Append multiple items to a JSON array file.
 
     Args:
         path: Path to JSON file
@@ -53,40 +56,6 @@ def append_batch_to_json_list(path: Path, items: list[dict]):
         json.dump(data, f, indent=2)
 
 
-def load_json_list(path: Path) -> list[dict]:
-    """Load JSON array from file."""
-    with open(path) as f:
-        return json.load(f)
-
-
-def _load_prior_interactive_results(
-    task_results_path: str, tasks: list[FormTask]
-) -> list[InteractiveTaskExecutionResult]:
-    """Load results from prior interactive run from file."""
-    print(f"Loading task results from: {task_results_path}")
-    task_results_data = load_json_list(Path(task_results_path))
-
-    # Reconstruct InteractiveTaskExecutionResult objects
-    task_map = {task.form_id: task for task in tasks}
-
-    execution_results: list[InteractiveTaskExecutionResult] = []
-
-    for task_result_data in task_results_data:
-        exec_data = task_result_data["execution"]
-        form_id = task_result_data["form_id"]
-
-        if form_id not in task_map:
-            print(f"Warning: Form {form_id} not found, skipping")
-            continue
-
-        exec_result = InteractiveTaskExecutionResult.model_validate(
-            {**exec_data, "task": task_map[form_id], "form_id": form_id}
-        )
-        execution_results.append(exec_result)
-
-    return execution_results
-
-
 async def run_tasks(
     data_path: str,
     model_name: str,
@@ -97,8 +66,6 @@ async def run_tasks(
     output_dir: str | None = None,
     limit: int | None = None,
     task_id: int | None = None,
-    run_mode: Literal["all", "tasks", "eval"] = "all",
-    task_results_path: str | None = None,
     batch_size: int = 10,
     max_concurrent_requests: int = 10,
     prompt_type: str = "base",
@@ -114,8 +81,18 @@ async def run_tasks(
     temperature: float | None = None,
     social_reasoning: bool = False,
     use_privacy_example: bool = False,
+    benchmark_logger: BenchmarkLogger | None = None,
+    checkpoint_mgr: CheckpointManager | None = None,
+    skip_exec_keys: set[str] | None = None,
+    skip_eval_keys: set[str] | None = None,
+    prior_exec_results: list[InteractiveTaskExecutionResult] | None = None,
 ):
-    """Run the complete form filling benchmark with async parallelization.
+    """Run the complete form filling benchmark with coupled execution+evaluation.
+
+    Uses a single code path controlled by skip sets (matching calendar pattern):
+    - Normal run: both skip sets empty -> execute + evaluate everything
+    - Resume: skip sets populated from checkpoint -> skip completed work
+    - Re-eval: skip_exec_keys = ALL keys, skip_eval_keys = empty -> re-evaluate all
 
     Args:
         data_path: Path to directory containing task directories
@@ -127,11 +104,9 @@ async def run_tasks(
         output_dir: Optional directory to save results
         limit: Optional limit on number of tasks to run
         task_id: Optional specific task index to run (0-based)
-        run_mode: Run mode - 'all' (tasks + eval), 'tasks', or 'eval'
-        task_results_path: Path to task_results.json (required for eval mode)
         batch_size: Number of tasks/evals to run in parallel
         max_concurrent_requests: Maximum concurrent API requests per client
-        prompt_type: Type of prompt to use ("base", "privacy_aware", "privacy_explained", "privacy_ci")
+        prompt_type: Type of prompt to use
         interviewer_reasoning_effort: Reasoning effort for interviewer agent
         assistant_reasoning_effort: Reasoning effort for assistant agent
         judge_reasoning_effort: Reasoning effort level for judge model
@@ -139,15 +114,29 @@ async def run_tasks(
         interviewer_type: Type of interviewer prompt ("base" or "detail")
         single_field_mode: If True, interviewer asks only one question per turn
         malicious_strategy: If set, use malicious interviewer with this strategy index
-        malicious_attack_type: Type of malicious attack ("privacy", "hallucination", "red_flags")
+        malicious_attack_type: Type of malicious attack
         malicious_strategies_file: Path to strategies YAML file for malicious mode
         temperature: Sampling temperature for assistant/form-filler generation
         social_reasoning: If True, enable ToM-augmented social reasoning for assistant
         use_privacy_example: If True, append privacy examples to social reasoning prompt
+        benchmark_logger: Logger for progress output (defaults to VerboseLogger)
+        checkpoint_mgr: Checkpoint manager for saving progress
+        skip_exec_keys: Set of task keys (form_ids) to skip execution for (reuse prior)
+        skip_eval_keys: Set of task keys (form_ids) to skip entirely
+        prior_exec_results: Prior execution results to reuse when skipping execution
 
     Returns:
         Dictionary with benchmark results
     """
+    if benchmark_logger is None:
+        benchmark_logger = VerboseLogger()
+    if skip_exec_keys is None:
+        skip_exec_keys = set()
+    if skip_eval_keys is None:
+        skip_eval_keys = set()
+    if prior_exec_results is None:
+        prior_exec_results = []
+
     # Create run directory
     if output_dir:
         output_path = Path(output_dir)
@@ -163,7 +152,7 @@ async def run_tasks(
         task_results_file = run_dir / "task_results.json"
         eval_results_file = run_dir / "eval_results.json"
         summary_file = run_dir / "summary.json"
-        print(f"Run directory: {run_dir}")
+        benchmark_logger.log_message(logging.INFO, "Run directory: %s", run_dir)
     else:
         run_dir = None
         task_results_file = None
@@ -172,7 +161,9 @@ async def run_tasks(
 
     # Load tasks
     tasks = load_all_form_tasks(data_path)
-    print(f"Loaded {len(tasks)} form tasks from {data_path}")
+    benchmark_logger.log_message(
+        logging.INFO, "Loaded %d form tasks from %s", len(tasks), data_path
+    )
 
     # Mark tasks as malicious when running with a malicious strategy
     if malicious_strategy is not None:
@@ -186,10 +177,10 @@ async def run_tasks(
                 f"--id {task_id} is out of range. Must be between 0 and {len(tasks) - 1}."
             )
         tasks = [tasks[task_id]]
-        print(f"Running only task at index {task_id}")
+        benchmark_logger.log_message(logging.INFO, "Running only task at index %d", task_id)
     elif limit:
         tasks = tasks[:limit]
-        print(f"Running first {limit} tasks")
+        benchmark_logger.log_message(logging.INFO, "Running first %d tasks", limit)
 
     result = await _run_interactive_mode(
         tasks=tasks,
@@ -197,8 +188,6 @@ async def run_tasks(
         interviewer_model=interviewer_model,
         interviewer_form_fill_model=interviewer_form_fill_model,
         judge_model=judge_model,
-        run_mode=run_mode,
-        task_results_path=task_results_path,
         batch_size=batch_size,
         max_concurrent_requests=max_concurrent_requests,
         max_rounds=max_rounds,
@@ -218,6 +207,11 @@ async def run_tasks(
         temperature=temperature,
         social_reasoning=social_reasoning,
         use_privacy_example=use_privacy_example,
+        benchmark_logger=benchmark_logger,
+        checkpoint_mgr=checkpoint_mgr,
+        skip_exec_keys=skip_exec_keys,
+        skip_eval_keys=skip_eval_keys,
+        prior_exec_results=prior_exec_results,
     )
 
     return result
@@ -229,8 +223,6 @@ async def _run_interactive_mode(
     interviewer_model: str,
     interviewer_form_fill_model: str | None,
     judge_model: str,
-    run_mode: Literal["all", "tasks", "eval"],
-    task_results_path: str | None,
     batch_size: int,
     max_concurrent_requests: int,
     max_rounds: int,
@@ -250,44 +242,93 @@ async def _run_interactive_mode(
     temperature: float | None = None,
     social_reasoning: bool = False,
     use_privacy_example: bool = False,
+    benchmark_logger: BenchmarkLogger | None = None,
+    checkpoint_mgr: CheckpointManager | None = None,
+    skip_exec_keys: set[str] | None = None,
+    skip_eval_keys: set[str] | None = None,
+    prior_exec_results: list[InteractiveTaskExecutionResult] | None = None,
 ):
-    """Run interactive mode (interview Q&A)."""
+    """Run interactive mode with a single code path controlled by skip sets.
+
+    Skip sets are checked independently for each task:
+    - Neither skipped: exec + eval (normal)
+    - Skip exec only: reuse prior exec result, still eval (reeval)
+    - Skip eval only: exec, skip eval (exec-only)
+    - Both skipped: skip entirely (fully done resume)
+    """
+    if benchmark_logger is None:
+        benchmark_logger = VerboseLogger()
+    if skip_exec_keys is None:
+        skip_exec_keys = set()
+    if skip_eval_keys is None:
+        skip_eval_keys = set()
+    if prior_exec_results is None:
+        prior_exec_results = []
+
+    # Build lookup for prior execution results
+    prior_exec_by_key: dict[str, InteractiveTaskExecutionResult] = {
+        r.form_id: r for r in prior_exec_results
+    }
+
     execution_results: list[InteractiveTaskExecutionResult] = []
+    evaluation_results: list[InteractiveTaskEvaluationResult] = []
 
-    if run_mode == "eval":
-        # eval only - load prior results
-        if not task_results_path:
-            raise ValueError("task_results_path is required for eval mode")
-        execution_results = _load_prior_interactive_results(task_results_path, tasks)
-        print(f"Loaded {len(execution_results)} task results")
+    # If resuming, include prior results from checkpoint
+    if checkpoint_mgr is not None:
+        execution_results.extend(checkpoint_mgr.get_execution_results())
+        evaluation_results.extend(checkpoint_mgr.get_evaluation_results())
 
-    else:
-        # Create async clients
-        interviewer_client = ModelClient(reasoning_effort=interviewer_reasoning_effort)
-        assistant_client = ModelClient(
-            base_url=base_url, reasoning_effort=assistant_reasoning_effort
+    # Create async clients
+    interviewer_client = ModelClient(reasoning_effort=interviewer_reasoning_effort)
+    assistant_client = ModelClient(base_url=base_url, reasoning_effort=assistant_reasoning_effort)
+    # Separate form-fill client if a different model is specified
+    form_fill_client = ModelClient() if interviewer_form_fill_model else None
+    effective_form_fill_model = interviewer_form_fill_model or None
+
+    # Judge client (always needed - single code path always evaluates)
+    judge_client = ModelClient(reasoning_effort=judge_reasoning_effort)
+
+    # Count tasks that will be processed (skip only where BOTH exec and eval are done)
+    tasks_to_process = [
+        (idx, task)
+        for idx, task in enumerate(tasks)
+        if not (task.form_id in skip_exec_keys and task.form_id in skip_eval_keys)
+    ]
+    skipped_both = len(tasks) - len(tasks_to_process)
+    skipped_exec = sum(1 for _, t in tasks_to_process if t.form_id in skip_exec_keys)
+
+    if skipped_both > 0:
+        benchmark_logger.log_message(
+            logging.INFO,
+            "Skipping %d fully-completed tasks",
+            skipped_both,
         )
-        # Separate form-fill client if a different model is specified
-        form_fill_client = ModelClient() if interviewer_form_fill_model else None
-        effective_form_fill_model = interviewer_form_fill_model or None
+    if skipped_exec > 0:
+        benchmark_logger.log_message(
+            logging.INFO,
+            "Reusing %d prior execution results (re-evaluating)",
+            skipped_exec,
+        )
 
-        print(f"\n{'=' * 60}")
-        print(f"Running {len(tasks)} tasks in interactive mode (batches of {batch_size})")
-        print(f"Max rounds per task: {max_rounds}")
-        print(f"{'=' * 60}\n")
+    total_to_run = len(tasks_to_process)
+    benchmark_logger.on_phase_start("execution+evaluation", total_to_run)
 
-        # Process tasks in batches
-        for batch_start in range(0, len(tasks), batch_size):
-            batch_end = min(batch_start + batch_size, len(tasks))
-            batch = tasks[batch_start:batch_end]
+    completed = 0
+    failed = 0
 
-            print(
-                f"Processing batch {batch_start // batch_size + 1} (tasks {batch_start}-{batch_end - 1})..."
-            )
+    for idx, task in tasks_to_process:
+        form_id = task.form_id
 
-            # Run batch in parallel
-            batch_tasks = [
-                run_interactive_task(
+        try:
+            # --- Execution: skip or run ---
+            if form_id in skip_exec_keys:
+                exec_result = prior_exec_by_key.get(form_id)
+                if exec_result is None:
+                    raise RuntimeError(f"Task {form_id} in skip_exec_keys but no prior exec result")
+            else:
+                benchmark_logger.on_task_start(idx)
+
+                exec_result = await run_interactive_task(
                     task,
                     idx,
                     interviewer_client,
@@ -302,104 +343,72 @@ async def _run_interactive_mode(
                     malicious_attack_type=malicious_attack_type,
                     malicious_strategies_file=malicious_strategies_file,
                     temperature=temperature,
-                    form_fill_client=form_fill_client,
-                    form_fill_model=effective_form_fill_model,
                     social_reasoning=social_reasoning,
                     use_privacy_example=use_privacy_example,
+                    form_fill_client=form_fill_client,
+                    form_fill_model=effective_form_fill_model,
                 )
-                for idx, task in enumerate(batch, start=batch_start)
-            ]
-            batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
 
-            # Process results
-            batch_data_to_save = []
-            for task_idx, result in zip(range(batch_start, batch_end), batch_results):
-                if isinstance(result, Exception):
-                    logger.error(f"Task {task_idx} failed: {result}")
-                    print(f"Task {task_idx}: FAILED - {result}")
-                else:
-                    execution_results.append(result)
-                    print(
-                        f"Task {task_idx}: {result.termination_reason} - "
-                        f"{result.total_rounds} rounds"
+                if checkpoint_mgr is not None:
+                    checkpoint_mgr.add_execution_result(exec_result)
+
+                # Incremental file save for execution
+                if task_results_file:
+                    append_batch_to_json_list(
+                        task_results_file,
+                        [
+                            {
+                                "task_index": exec_result.task_index,
+                                "form_id": exec_result.form_id,
+                                "execution": exec_result.model_dump(mode="json"),
+                            }
+                        ],
                     )
 
-                    if task_results_file:
-                        batch_data_to_save.append(
-                            {
-                                "task_index": result.task_index,
-                                "form_id": result.form_id,
-                                "execution": result.model_dump(mode="json"),
-                            }
-                        )
+            execution_results.append(exec_result)
 
-            # Batch-level file write
-            if task_results_file and batch_data_to_save:
-                append_batch_to_json_list(task_results_file, batch_data_to_save)
-                print(f"Saved batch {batch_start // batch_size + 1} results\n")
+            if not exec_result.success:
+                failed += 1
+                benchmark_logger.on_task_complete(
+                    idx, success=False, error=exec_result.error_message
+                )
+                continue
 
-    # Run evaluation
-    evaluation_results: list[InteractiveTaskEvaluationResult] = []
+            # --- Evaluation: skip or run (independent of exec) ---
+            if form_id in skip_eval_keys:
+                completed += 1
+                benchmark_logger.on_task_complete(idx, success=True)
+                continue
 
-    if run_mode != "tasks":
-        print(f"\n{'=' * 60}")
-        print("Evaluating results...")
-        print("Correctness: 0 - 1, fraction of fields matching ground truth.")
-        print("FormPrivacy: 0 - 1, fraction of secrets protected in form.")
-        print("ConvPrivacy: 0 - 1, fraction of secrets protected in conversation.")
-        print("Validation: pass/fail, pydantic schema validation.")
-        print(f"{'=' * 60}\n")
+            eval_result = await evaluate_interactive_task(exec_result, judge_client, judge_model)
+            evaluation_results.append(eval_result)
 
-        judge_client = ModelClient(reasoning_effort=judge_reasoning_effort)
+            if checkpoint_mgr is not None:
+                checkpoint_mgr.add_evaluation_result(eval_result)
 
-        successful_results = [r for r in execution_results if r.success]
-        print(f"Evaluating {len(successful_results)} successful tasks in batches of {batch_size}\n")
+            # Incremental file save for evaluation
+            if eval_results_file:
+                append_batch_to_json_list(
+                    eval_results_file,
+                    [
+                        {
+                            "task_index": eval_result.task_index,
+                            "form_id": eval_result.form_id,
+                            "evaluation": eval_result.model_dump(mode="json"),
+                        }
+                    ],
+                )
 
-        # Process evaluations in batches
-        for batch_start in range(0, len(successful_results), batch_size):
-            batch_end = min(batch_start + batch_size, len(successful_results))
-            batch = successful_results[batch_start:batch_end]
+            completed += 1
+            benchmark_logger.on_task_complete(idx, success=True)
 
-            print(f"Evaluating batch {batch_start // batch_size + 1}...")
+        except Exception as e:
+            logger.error("Task %d failed with exception: %s", idx, e)
+            logger.error(traceback.format_exc())
+            failed += 1
+            benchmark_logger.on_task_complete(idx, success=False, error=str(e))
 
-            eval_tasks = [
-                evaluate_interactive_task(exec_result, judge_client, judge_model)
-                for exec_result in batch
-            ]
-
-            batch_eval_results = await asyncio.gather(*eval_tasks, return_exceptions=True)
-
-            batch_eval_data_to_save = []
-            for eval_result in batch_eval_results:
-                if isinstance(eval_result, Exception):
-                    logger.error(f"Evaluation failed: {eval_result}")
-                    logger.error(traceback.format_exc())
-                else:
-                    evaluation_results.append(eval_result)
-
-                    form_ci = len(eval_result.form_privacy_ci)
-                    conv_ci = len(eval_result.conversation_privacy_ci)
-                    print(
-                        f"Task {eval_result.task_index}: "
-                        f"Accuracy={eval_result.correctness.accuracy:.2%}, "
-                        f"FormPrivacy={eval_result.form_privacy.privacy_score:.2%}, "
-                        f"ConvPrivacy={eval_result.conversation_privacy.privacy_score:.2%}, "
-                        f"FormCI={form_ci}, ConvCI={conv_ci}, "
-                        f"Valid={'Y' if eval_result.pydantic_validation_passed else 'N'}"
-                    )
-
-                    if eval_results_file:
-                        batch_eval_data_to_save.append(
-                            {
-                                "task_index": eval_result.task_index,
-                                "form_id": eval_result.form_id,
-                                "evaluation": eval_result.model_dump(mode="json"),
-                            }
-                        )
-
-            if eval_results_file and batch_eval_data_to_save:
-                append_batch_to_json_list(eval_results_file, batch_eval_data_to_save)
-                print("Saved batch eval results\n")
+    benchmark_logger.on_phase_complete("execution+evaluation", completed, failed)
 
     # Build and return summary
     return _build_interactive_summary(
@@ -408,7 +417,6 @@ async def _run_interactive_mode(
         interviewer_model=interviewer_model,
         assistant_model=assistant_model,
         judge_model=judge_model,
-        run_mode=run_mode,
         batch_size=batch_size,
         max_rounds=max_rounds,
         summary_file=summary_file,
@@ -421,7 +429,6 @@ def _build_interactive_summary(
     interviewer_model: str,
     assistant_model: str,
     judge_model: str,
-    run_mode: str,
     batch_size: int,
     max_rounds: int,
     summary_file: Path | None,
@@ -524,7 +531,6 @@ def _build_interactive_summary(
             "assistant_model": assistant_model,
             "judge_model": judge_model,
             "timestamp": datetime.now().isoformat(),
-            "mode": run_mode,
             "total_tasks": len(execution_results),
             "successful_executions": sum(1 for r in execution_results if r.success),
             "evaluated_forms": n_evals,
@@ -571,7 +577,6 @@ def _build_interactive_summary(
     print("SUMMARY")
     print(f"{'=' * 60}")
     print(f"Execution mode: interactive")
-    print(f"Mode: {run_mode}")
     print(f"Interviewer Model: {interviewer_model}")
     print(f"Assistant Model: {assistant_model}")
     print(f"Judge Model: {judge_model}")
@@ -580,7 +585,7 @@ def _build_interactive_summary(
     print(f"Total tasks: {len(execution_results)}")
     print(f"Successful executions: {result['summary']['successful_executions']}")
 
-    if run_mode != "tasks" and n_evals > 0:
+    if n_evals > 0:
         print(f"\nCorrectness Metrics:")
         print(f"  Average precision: {avg_precision:.2%}")
         print(f"  Average recall: {avg_recall:.2%}")
