@@ -2,56 +2,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal
 
-from openai.types.chat import ChatCompletionFunctionToolParam
-from openai.types.shared_params import FunctionDefinition
 from pydantic import BaseModel, Field, computed_field
 
-
-class ToolError(Exception):
-    """Raised when a tool execution fails due to invalid input or state."""
-
-    pass
-
-
-class Tool(BaseModel):
-    """Base class for LLM tool calling."""
-
-    model_config = {"extra": "forbid"}
-
-    @classmethod
-    def get_name(cls) -> str:
-        return cls.__name__
-
-    @classmethod
-    def get_description(cls) -> str:
-        return cls.__doc__ or ""
-
-    @classmethod
-    def get_parameters_schema(cls) -> dict[str, Any]:
-        schema = cls.model_json_schema()
-        # Remove $defs from top level and inline if needed
-        schema.pop("$defs", None)
-        schema.pop("title", None)
-
-        # Gemini requires non-empty properties for type: object
-        # If there are no properties, return minimal valid schema
-        # (Anthropic API requires "type" field in input_schema)
-        if schema.get("properties") == {}:
-            return {"type": "object", "properties": {}}
-
-        return schema
-
-    @classmethod
-    def get_openai_function_tool_param(cls):
-        return ChatCompletionFunctionToolParam(
-            type="function",
-            function=FunctionDefinition(
-                name=cls.get_name(),
-                description=cls.get_description(),
-                parameters=cls.get_parameters_schema(),
-            ),
-        )
-
+from sage_benchmark.shared.tool import Tool, ToolError
 
 # iTIP-style data models
 
