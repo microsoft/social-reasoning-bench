@@ -15,9 +15,16 @@ from sage_benchmark.form_filling.checkpoints import CheckpointManager
 from sage_benchmark.form_filling.evaluation import (
     evaluate_interactive_task,
 )
+from sage_benchmark.form_filling.evaluation_summary import (
+    compute_summary,
+    print_evaluation_summary,
+    print_per_task_summary,
+)
 from sage_benchmark.form_filling.interactive import run_single_task as run_interactive_task
 from sage_benchmark.form_filling.loader import load_all_form_tasks
 from sage_benchmark.form_filling.schemas import (
+    FormFillingBenchmarkMetadata,
+    FormFillingBenchmarkOutput,
     FormTask,
     InteractiveTaskEvaluationResult,
     InteractiveTaskExecutionResult,
@@ -124,7 +131,7 @@ async def run_tasks(
         prior_exec_results: Prior execution results to reuse when skipping execution
 
     Returns:
-        Dictionary with benchmark results
+        FormFillingBenchmarkOutput with structured metadata, summary, and results.
     """
     if benchmark_logger is None:
         benchmark_logger = VerboseLogger()
@@ -405,7 +412,7 @@ async def _run_interactive_mode(
 
     benchmark_logger.on_phase_complete("execution+evaluation", completed, failed)
 
-    # Build and return summary
+    # Build and return structured output
     return _build_interactive_summary(
         execution_results=execution_results,
         evaluation_results=evaluation_results,
@@ -414,6 +421,13 @@ async def _run_interactive_mode(
         judge_model=judge_model,
         batch_size=batch_size,
         max_rounds=max_rounds,
+        prompt_type=prompt_type,
+        interviewer_type=interviewer_type,
+        single_field_mode=single_field_mode,
+        max_steps_per_turn=max_steps_per_turn,
+        interviewer_reasoning_effort=interviewer_reasoning_effort,
+        assistant_reasoning_effort=assistant_reasoning_effort,
+        judge_reasoning_effort=judge_reasoning_effort,
         summary_file=summary_file,
     )
 
@@ -426,214 +440,49 @@ def _build_interactive_summary(
     judge_model: str,
     batch_size: int,
     max_rounds: int,
+    prompt_type: str,
+    interviewer_type: str,
+    single_field_mode: bool,
+    max_steps_per_turn: int,
+    interviewer_reasoning_effort: str | None,
+    assistant_reasoning_effort: str | None,
+    judge_reasoning_effort: str | None,
     summary_file: Path | None,
-) -> dict:
-    """Build summary for interactive mode."""
-    n_evals = len(evaluation_results)
+) -> FormFillingBenchmarkOutput:
+    """Build structured benchmark output for interactive mode."""
+    metadata = FormFillingBenchmarkMetadata(
+        timestamp=datetime.now().isoformat(),
+        assistant_model=assistant_model,
+        interviewer_model=interviewer_model,
+        judge_model=judge_model,
+        max_rounds=max_rounds,
+        batch_size=batch_size,
+        task_count=len(execution_results),
+        prompt_type=prompt_type,
+        interviewer_type=interviewer_type,
+        single_field_mode=single_field_mode,
+        max_steps_per_turn=max_steps_per_turn,
+        interviewer_reasoning_effort=interviewer_reasoning_effort,
+        assistant_reasoning_effort=assistant_reasoning_effort,
+        judge_reasoning_effort=judge_reasoning_effort,
+    )
 
-    if n_evals > 0:
-        # Correctness metrics
-        avg_accuracy = sum(e.correctness.accuracy for e in evaluation_results) / n_evals
-        avg_precision = sum(e.correctness.precision for e in evaluation_results) / n_evals
-        avg_recall = sum(e.correctness.recall for e in evaluation_results) / n_evals
-        avg_f1 = sum(e.correctness.f1_score for e in evaluation_results) / n_evals
+    summary = compute_summary(execution_results, evaluation_results)
 
-        # Perfect forms: F1 = 1.0
-        perfect_forms = sum(1 for e in evaluation_results if e.correctness.f1_score == 1.0)
-        perfect_forms_rate = perfect_forms / n_evals
+    output = FormFillingBenchmarkOutput(
+        metadata=metadata,
+        summary=summary,
+        results=evaluation_results,
+    )
 
-        # Privacy metrics
-        avg_form_privacy = sum(e.form_privacy.privacy_score for e in evaluation_results) / n_evals
-        avg_conv_privacy = (
-            sum(e.conversation_privacy.privacy_score for e in evaluation_results) / n_evals
-        )
-
-        # Leakage counts
-        form_leakage_count = sum(
-            1 for e in evaluation_results if len(e.form_privacy.secrets_leaked) > 0
-        )
-        conv_leakage_count = sum(
-            1
-            for e in evaluation_results
-            if len(e.conversation_privacy.secrets_leaked_in_conversation) > 0
-        )
-
-        # Total secrets stats
-        total_secrets = sum(len(e.form_privacy.secrets_checked) for e in evaluation_results)
-        total_form_leaked = sum(len(e.form_privacy.secrets_leaked) for e in evaluation_results)
-        total_conv_leaked = sum(
-            len(e.conversation_privacy.secrets_leaked_in_conversation) for e in evaluation_results
-        )
-
-        # CI metrics
-        total_form_ci_violations = sum(len(e.form_privacy_ci) for e in evaluation_results)
-        total_conv_ci_violations = sum(len(e.conversation_privacy_ci) for e in evaluation_results)
-        tasks_with_form_ci_violations = sum(
-            1 for e in evaluation_results if len(e.form_privacy_ci) > 0
-        )
-        tasks_with_conv_ci_violations = sum(
-            1 for e in evaluation_results if len(e.conversation_privacy_ci) > 0
-        )
-
-        # Validation rate
-        validation_rate = (
-            sum(1 for e in evaluation_results if e.pydantic_validation_passed) / n_evals
-        )
-
-        # Due diligence metrics
-        total_dd_fields = sum(e.due_diligence.total_masked_fields for e in evaluation_results)
-        avg_mf_accuracy = (
-            sum(e.due_diligence.masked_field_accuracy for e in evaluation_results) / n_evals
-        )
-
-        # Duty of care metrics
-        total_doc_fields = sum(e.duty_of_care.total_fields for e in evaluation_results)
-        scored_doc_evals = [e for e in evaluation_results if e.duty_of_care.min_score is not None]
-        avg_duty_of_care_score = (
-            sum(e.duty_of_care.min_score for e in scored_doc_evals) / len(scored_doc_evals)
-            if scored_doc_evals
-            else None
-        )
-    else:
-        avg_accuracy = 0.0
-        avg_precision = 0.0
-        avg_recall = 0.0
-        avg_f1 = 0.0
-        perfect_forms = 0
-        perfect_forms_rate = 0.0
-        avg_form_privacy = 0.0
-        avg_conv_privacy = 0.0
-        form_leakage_count = 0
-        conv_leakage_count = 0
-        total_secrets = 0
-        total_form_leaked = 0
-        total_conv_leaked = 0
-        total_form_ci_violations = 0
-        total_conv_ci_violations = 0
-        tasks_with_form_ci_violations = 0
-        tasks_with_conv_ci_violations = 0
-        validation_rate = 0.0
-        total_dd_fields = 0
-        avg_mf_accuracy = 0.0
-        total_doc_fields = 0
-        avg_duty_of_care_score = None
-
-    # Build summary
-    result = {
-        "summary": {
-            "execution_mode": "interactive",
-            "interviewer_model": interviewer_model,
-            "assistant_model": assistant_model,
-            "judge_model": judge_model,
-            "timestamp": datetime.now().isoformat(),
-            "total_tasks": len(execution_results),
-            "successful_executions": sum(1 for r in execution_results if r.success),
-            "evaluated_forms": n_evals,
-            # Correctness metrics
-            "avg_accuracy": avg_accuracy,
-            "avg_precision": avg_precision,
-            "avg_recall": avg_recall,
-            "avg_f1_score": avg_f1,
-            "perfect_forms": perfect_forms,
-            "perfect_forms_rate": perfect_forms_rate,
-            # Privacy metrics
-            "avg_form_privacy_score": avg_form_privacy,
-            "avg_conversation_privacy_score": avg_conv_privacy,
-            "form_leakage_count": form_leakage_count,
-            "conversation_leakage_count": conv_leakage_count,
-            "total_secrets": total_secrets,
-            "total_form_leaked_secrets": total_form_leaked,
-            "total_conversation_leaked_secrets": total_conv_leaked,
-            "total_form_ci_violations": total_form_ci_violations,
-            "total_conversation_ci_violations": total_conv_ci_violations,
-            "tasks_with_form_ci_violations": tasks_with_form_ci_violations,
-            "tasks_with_conversation_ci_violations": tasks_with_conv_ci_violations,
-            # Due diligence
-            "total_masked_fields": total_dd_fields,
-            "avg_masked_field_accuracy": avg_mf_accuracy,
-            # Duty of care
-            "total_duty_of_care_fields": total_doc_fields,
-            "avg_duty_of_care_score": avg_duty_of_care_score,
-            # Validation
-            "validation_rate": validation_rate,
-            "batch_size": batch_size,
-            "max_rounds": max_rounds,
-        },
-    }
-
-    # Save summary
+    # Save structured output
     if summary_file:
         with open(summary_file, "w") as f:
-            json.dump(result, f, indent=2)
+            json.dump(output.model_dump(mode="json"), f, indent=2)
         print(f"\nSummary saved to: {summary_file}")
 
-    # Print summary
-    print(f"\n{'=' * 60}")
-    print("SUMMARY")
-    print(f"{'=' * 60}")
-    print(f"Execution mode: interactive")
-    print(f"Interviewer Model: {interviewer_model}")
-    print(f"Assistant Model: {assistant_model}")
-    print(f"Judge Model: {judge_model}")
-    print(f"Batch size: {batch_size}")
-    print(f"Max rounds: {max_rounds}")
-    print(f"Total tasks: {len(execution_results)}")
-    print(f"Successful executions: {result['summary']['successful_executions']}")
+    # Print per-task table and aggregate summary
+    print_per_task_summary(evaluation_results)
+    print_evaluation_summary(summary)
 
-    if n_evals > 0:
-        print(f"\nCorrectness Metrics:")
-        print(f"  Average precision: {avg_precision:.2%}")
-        print(f"  Average recall: {avg_recall:.2%}")
-        print(f"  Average F1 score: {avg_f1:.2%}")
-        print(f"  Perfect forms (F1=1.0): {perfect_forms}/{n_evals} ({perfect_forms_rate:.1%})")
-        print(f"\nPrivacy Metrics:")
-        print(f"  Average form privacy score: {avg_form_privacy:.2%}")
-        print(f"  Average conversation privacy score: {avg_conv_privacy:.2%}")
-        print(
-            f"  Form leakage rate: {form_leakage_count}/{n_evals} ({form_leakage_count / n_evals:.1%})"
-        )
-        print(
-            f"  Conversation leakage rate: {conv_leakage_count}/{n_evals} ({conv_leakage_count / n_evals:.1%})"
-        )
-        print(f"  Total secrets: {total_secrets}")
-        print(f"  Total form leaked: {total_form_leaked}")
-        print(f"  Total conversation leaked: {total_conv_leaked}")
-        print(f"\nContextual Integrity (CI) Metrics:")
-        print(
-            f"  Form CI violations: {total_form_ci_violations} (tasks: {tasks_with_form_ci_violations}/{n_evals})"
-        )
-        print(
-            f"  Conversation CI violations: {total_conv_ci_violations} (tasks: {tasks_with_conv_ci_violations}/{n_evals})"
-        )
-        print(f"\nDue Diligence Metrics:")
-        print(f"  Total masked fields: {total_dd_fields}")
-        print(f"  Masked Field Correctness:")
-        print(f"    Average accuracy: {avg_mf_accuracy:.2%}")
-        print(f"\nDuty of Care Metrics:")
-        print(f"  Total fields evaluated: {total_doc_fields}")
-        doc_score_display = (
-            f"{avg_duty_of_care_score:.2f}" if avg_duty_of_care_score is not None else "N/A"
-        )
-        print(f"  Average min duty of care score: {doc_score_display}")
-        # Print the worst field across all evaluated tasks (skip N/A fields)
-        worst_field = None
-        for e in evaluation_results:
-            for fe in e.duty_of_care.field_evaluations:
-                if fe.overall_score is None:
-                    continue
-                if worst_field is None or fe.overall_score < worst_field.overall_score:
-                    worst_field = fe
-        if worst_field is not None:
-            answer_display = (
-                worst_field.agent_answer if worst_field.agent_answer.strip() else "<empty>"
-            )
-            print(f"  Worst field: {worst_field.field_label} ({worst_field.field_id})")
-            print(f"    Agent's answer: {answer_display}")
-            print(f"    Negative fact inclusion: {worst_field.negative_fact_inclusion_score}/3")
-            print(f"    Framing quality:         {worst_field.framing_quality_score}/3")
-            print(f"    Scope discipline:        {worst_field.scope_discipline_score}/3")
-            print(f"    Advocacy effectiveness:  {worst_field.advocacy_effectiveness_score}/3")
-            print(f"    Overall: {worst_field.overall_score:.2f}")
-        print(f"\nValidation rate: {validation_rate:.1%}")
-
-    return result
+    return output

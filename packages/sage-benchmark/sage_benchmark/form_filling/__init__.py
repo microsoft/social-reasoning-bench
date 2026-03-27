@@ -12,12 +12,20 @@ from .evaluation import (
     evaluate_interactive_task,
     evaluate_privacy,
 )
+from .evaluation_summary import (
+    compute_summary,
+    print_evaluation_summary,
+    print_per_task_summary,
+)
 from .loader import load_all_form_tasks
 from .runner import run_tasks
 from .schemas import (
     ConversationMessage,
     ConversationPrivacyEvaluation,
     CorrectnessEvaluation,
+    FormFillingBenchmarkMetadata,
+    FormFillingBenchmarkOutput,
+    FormFillingBenchmarkSummary,
     FormTask,
     InteractiveTaskEvaluationResult,
     InteractiveTaskExecutionResult,
@@ -33,6 +41,10 @@ __all__ = [
     "evaluate_interactive_task",
     "evaluate_correctness",
     "evaluate_privacy",
+    # Summary
+    "compute_summary",
+    "print_per_task_summary",
+    "print_evaluation_summary",
     # Schemas
     "FormTask",
     "InteractiveTaskExecutionResult",
@@ -41,4 +53,7 @@ __all__ = [
     "SecretLeakageEvaluation",
     "ConversationMessage",
     "ConversationPrivacyEvaluation",
+    "FormFillingBenchmarkMetadata",
+    "FormFillingBenchmarkSummary",
+    "FormFillingBenchmarkOutput",
 ]

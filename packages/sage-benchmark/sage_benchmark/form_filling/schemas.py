@@ -457,3 +457,98 @@ class InteractiveTaskEvaluationResult(BaseModel):
     # Validation
     pydantic_validation_passed: bool = Field(description="Whether form passed pydantic validation")
     pydantic_validation_errors: list[str] = Field(default_factory=list)
+
+
+# --- Structured Benchmark Output ---
+
+
+class FormFillingBenchmarkMetadata(BaseModel):
+    """Metadata about a form-filling benchmark run."""
+
+    timestamp: str = Field(description="ISO format timestamp of when the benchmark was run")
+    assistant_model: str = Field(description="Model used for the assistant agent")
+    interviewer_model: str = Field(description="Model used for the interviewer agent")
+    judge_model: str = Field(description="Model used for LLM-as-judge evaluation")
+    max_rounds: int = Field(description="Maximum conversation rounds per task")
+    batch_size: int = Field(description="Number of tasks run in parallel")
+    task_count: int = Field(description="Total number of tasks evaluated")
+    prompt_type: str = Field(default="base", description="Prompt type used for the assistant")
+    interviewer_type: str = Field(default="base", description="Type of interviewer prompt")
+    single_field_mode: bool = Field(
+        default=False, description="Whether interviewer asked only one question per turn"
+    )
+    max_steps_per_turn: int = Field(default=5, description="Maximum tool calls per assistant turn")
+    interviewer_reasoning_effort: Optional[str] = Field(
+        default=None, description="Reasoning effort level for interviewer"
+    )
+    assistant_reasoning_effort: Optional[str] = Field(
+        default=None, description="Reasoning effort level for assistant"
+    )
+    judge_reasoning_effort: Optional[str] = Field(
+        default=None, description="Reasoning effort level for judge"
+    )
+    elapsed_seconds: Optional[float] = Field(
+        default=None, description="Wall-clock time in seconds for the benchmark run"
+    )
+
+
+class FormFillingFailedTaskError(BaseModel):
+    """Details about a failed form-filling task."""
+
+    form_id: str
+    task_index: int
+    error: str
+
+
+class FormFillingBenchmarkSummary(BaseModel):
+    """Summary statistics for a form-filling benchmark run."""
+
+    total_tasks: int = Field(description="Total number of tasks attempted")
+    successful_executions: int = Field(description="Tasks that executed without fatal errors")
+    evaluated_forms: int = Field(description="Tasks that were evaluated")
+    failed_tasks: int = Field(default=0, description="Tasks with execution failures")
+    failed_task_errors: list[FormFillingFailedTaskError] = Field(default_factory=list)
+
+    # Correctness metrics
+    avg_accuracy: float = Field(default=0.0)
+    avg_precision: float = Field(default=0.0)
+    avg_recall: float = Field(default=0.0)
+    avg_f1_score: float = Field(default=0.0)
+    perfect_forms: int = Field(default=0, description="Forms with F1 = 1.0")
+    perfect_forms_rate: float = Field(default=0.0)
+
+    # Privacy metrics
+    avg_form_privacy_score: float = Field(default=0.0)
+    avg_conversation_privacy_score: float = Field(default=0.0)
+    form_leakage_count: int = Field(default=0, description="Tasks with form leakage")
+    conversation_leakage_count: int = Field(
+        default=0, description="Tasks with conversation leakage"
+    )
+    total_secrets: int = Field(default=0)
+    total_form_leaked_secrets: int = Field(default=0)
+    total_conversation_leaked_secrets: int = Field(default=0)
+
+    # Contextual integrity metrics
+    total_form_ci_violations: int = Field(default=0)
+    total_conversation_ci_violations: int = Field(default=0)
+    tasks_with_form_ci_violations: int = Field(default=0)
+    tasks_with_conversation_ci_violations: int = Field(default=0)
+
+    # Due diligence metrics
+    total_masked_fields: int = Field(default=0)
+    avg_masked_field_accuracy: float = Field(default=0.0)
+
+    # Duty of care metrics
+    total_duty_of_care_fields: int = Field(default=0)
+    avg_duty_of_care_score: Optional[float] = Field(default=None)
+
+    # Validation
+    validation_rate: float = Field(default=0.0)
+
+
+class FormFillingBenchmarkOutput(BaseModel):
+    """Complete output of a form-filling benchmark run including metadata and results."""
+
+    metadata: FormFillingBenchmarkMetadata
+    summary: FormFillingBenchmarkSummary
+    results: list[InteractiveTaskEvaluationResult]
