@@ -209,6 +209,17 @@ After merging all PRs in a wave:
 
 1. **Verify all wave PRs are actually merged** — check `gh pr view <number> --json state` for each PR. Do not proceed if any are still open.
 2. Pull `release/v0.1.0`
+
+### Agent PR permissions
+
+Agents may:
+- **Create** PRs (after completing work)
+- **Edit** PR descriptions (update test plans, add validation results)
+- **Comment** on PRs (reply to reviews, post results)
+- **Check** PR merge status (before validation runs)
+
+Agents must NOT:
+- **Close** or **merge** PRs — that is the reviewer's decision
 2. Run `poe fix-all` and `poe check-all` — commit any formatting fixes
 3. Run `./scripts/wave_validation.sh <wave_number>` — generates small datasets, runs all three benchmarks, produces a report
 4. Fix any issues found (document in Wave Validation Findings below)
