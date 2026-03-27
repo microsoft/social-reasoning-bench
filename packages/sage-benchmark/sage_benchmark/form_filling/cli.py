@@ -82,14 +82,6 @@ def parse_args() -> argparse.Namespace:
         help="Maximum concurrent API requests per client (default: 100)",
     )
 
-    parser.add_argument(
-        "--logger",
-        choices=["verbose", "progress", "quiet"],
-        default="progress",
-        help="Logging style: verbose, progress (tqdm), or quiet (default: progress). "
-        "Note: not yet fully wired into form-filling runner.",
-    )
-
     # Prompt type
     parser.add_argument(
         "--prompt-type",
