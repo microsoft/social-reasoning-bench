@@ -14,9 +14,14 @@ from sage_llm import ModelClient
 from sage_benchmark.shared.logging import create_benchmark_logger
 
 from .checkpoints import CheckpointManager, RunConfig
+from .evaluation_summary import compute_summary, print_evaluation_summary, print_per_task_summary
 from .loader import load_tasks
 from .runner import run_and_evaluate_tasks
-from .types import TaskExecutionResult
+from .types import (
+    MarketplaceBenchmarkMetadata,
+    MarketplaceBenchmarkOutput,
+    TaskExecutionResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -108,15 +113,6 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     return parser.parse_args()
-
-
-def _compute_summary(results: list[TaskExecutionResult]) -> dict:
-    deal_count = sum(1 for r in results if r.outcome.deal_reached)
-    return {
-        "task_count": len(results),
-        "deals_reached": deal_count,
-        "deal_rate": (deal_count / len(results)) if results else 0.0,
-    }
 
 
 def _find_latest_checkpoint(output_dir: Path) -> Path | None:
@@ -376,7 +372,8 @@ async def _run_and_evaluate(args: argparse.Namespace) -> None:
         eval_map = {e.task_key: e for e in prev_eval}
         for r, e in paired_results:
             exec_map[r.task_key] = r
-            eval_map[e.task_key] = e
+            if e is not None:
+                eval_map[e.task_key] = e
 
         results = list(exec_map.values())
         evaluations = [eval_map.get(r.task_key) for r in results]
@@ -388,30 +385,40 @@ async def _run_and_evaluate(args: argparse.Namespace) -> None:
             except (ValueError, RuntimeError):
                 pass
 
+    # Build structured output
+    valid_evals = [e for e in evaluations if e is not None]
+    summary = compute_summary(valid_evals, results)
+
+    metadata = MarketplaceBenchmarkMetadata(
+        timestamp=datetime.now().isoformat(),
+        buyer_model=buyer_model,
+        seller_model=seller_model,
+        judge_model=judge_model,
+        max_steps_per_turn=args.max_steps_per_turn,
+        batch_size=args.batch_size,
+        task_count=len(results),
+        reasoning_effort=args.reasoning_effort,
+        elapsed_seconds=run_elapsed,
+    )
+
+    output = MarketplaceBenchmarkOutput(
+        metadata=metadata,
+        summary=summary,
+        results=valid_evals,
+    )
+
     # Write output
     out_path = run_dir / "results.json"
-    summary = _compute_summary(results)
-
-    payload = {
-        "task_count": len(results),
-        "summary": summary,
-        "results": [
-            {
-                "execution": r.model_dump(mode="json"),
-                "evaluation": e.model_dump(mode="json") if e else None,
-            }
-            for r, e in zip(results, evaluations)
-        ],
-    }
-    out_path.write_text(json.dumps(payload, indent=2))
+    out_path.write_text(json.dumps(output.model_dump(mode="json"), indent=2))
 
     # Clean up checkpoint on successful completion
     checkpoint_mgr.cleanup()
 
-    print("Marketplace experiment finished.")
-    print(f"Total tasks: {len(results)}")
-    print(f"Saved results to {out_path}")
-    print(f"Summary: deal_rate={summary['deal_rate']:.1%}")
+    # Print per-task and evaluation summaries
+    print_per_task_summary(valid_evals, results)
+    print_evaluation_summary(summary)
+
+    print(f"\nSaved results to {out_path}")
     mins, secs = divmod(run_elapsed, 60)
     print(f"Total time: {int(mins)}m{secs:04.1f}s")
 

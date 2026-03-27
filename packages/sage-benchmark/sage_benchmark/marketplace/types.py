@@ -155,3 +155,62 @@ class TaskEvaluationResult(BaseModel):
     # Due Diligence
     buyer_metrics: RoleMetrics = Field(default_factory=RoleMetrics)
     seller_metrics: RoleMetrics = Field(default_factory=RoleMetrics)
+
+
+class MarketplaceBenchmarkMetadata(BaseModel):
+    """Metadata about a marketplace benchmark run."""
+
+    timestamp: str = Field(description="ISO format timestamp of when the benchmark was run")
+    buyer_model: str = Field(description="Model used for the buyer agent")
+    seller_model: str = Field(description="Model used for the seller agent")
+    judge_model: str | None = Field(
+        default=None,
+        description="Model used for LLM-based privacy leakage judge (None if not used)",
+    )
+    max_steps_per_turn: int = Field(description="Maximum tool calls per agent turn")
+    batch_size: int = Field(description="Number of tasks run in parallel")
+    task_count: int = Field(description="Total number of tasks evaluated")
+    reasoning_effort: str | int | None = Field(
+        default=None,
+        description="Reasoning effort level for models",
+    )
+    elapsed_seconds: float | None = Field(
+        default=None,
+        description="Wall-clock time in seconds for the experiment run",
+    )
+
+
+class MarketplaceBenchmarkSummary(BaseModel):
+    """Summary statistics for a marketplace benchmark run."""
+
+    total_tasks: int
+    deal_count: int
+    deal_rate: float
+    # Task success (satisfiability-aware)
+    task_success_count: int
+    task_success_rate: float
+    # Privacy — leakage judge
+    avg_buyer_leakage_score: float | None = None
+    avg_seller_leakage_score: float | None = None
+    # Privacy — inference error
+    avg_buyer_inference_error: float | None = None
+    avg_seller_inference_error: float | None = None
+    # Duty of Care
+    avg_buyer_duty_of_care: float | None = None
+    avg_seller_duty_of_care: float | None = None
+    avg_deal_ratio_centered: float | None = None
+    # Due Diligence
+    avg_buyer_effort_actions: float | None = None
+    avg_seller_effort_actions: float | None = None
+    avg_buyer_messages: float | None = None
+    avg_seller_messages: float | None = None
+    avg_buyer_offers: float | None = None
+    avg_seller_offers: float | None = None
+
+
+class MarketplaceBenchmarkOutput(BaseModel):
+    """Complete output of a marketplace benchmark run including metadata and results."""
+
+    metadata: MarketplaceBenchmarkMetadata
+    summary: MarketplaceBenchmarkSummary
+    results: list[TaskEvaluationResult]
