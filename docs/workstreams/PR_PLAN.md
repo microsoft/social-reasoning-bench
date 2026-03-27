@@ -103,6 +103,38 @@ L touches mkt runner/cli; M touches ff runner. No overlap.
 
 ---
 
+## Wave 4.1 — Shared checkpoint manager (1 agent)
+
+All three CheckpointManagers have the same API:
+
+| Method | Calendar | Marketplace | Form-Filling |
+|--------|:--------:|:-----------:|:------------:|
+| `__init__(path, enabled)` | Yes | Yes | Yes |
+| `load() → CheckpointData` | Yes | Yes | Yes |
+| `save()` | Yes | Yes | Yes |
+| `initialize(...)` | Yes (config, hashes) | Yes (config, hashes) | Yes (no args) |
+| `add_execution_result(r)` | Yes | Yes | Yes |
+| `add_evaluation_result(r)` | Yes | Yes | Yes |
+| `set_interrupted(bool)` | Yes | Yes | Yes |
+| `get_completed_task_keys()` | Yes | Yes | Yes |
+| `get_completed_eval_keys()` | Yes | Yes | Yes |
+| `get_execution_results()` | Yes | Yes | Yes |
+| `get_evaluation_results()` | Yes | Yes | Yes |
+| `get_config()` | Yes | Yes | No |
+| `cleanup()` | Yes | Yes | Yes |
+
+The only difference is the types: each benchmark has its own `TaskExecutionResult`, `TaskEvaluationResult`, and `CheckpointData`. The logic is identical.
+
+| Agent | PR Title | Tasks | Key Files | Deps | Est. |
+|:-----:|----------|-------|-----------|:----:|:----:|
+| L2 | **Extract generic CheckpointManager to shared** | 5.5 | NEW `shared/checkpoints/`, modify all three `checkpoints/` dirs | L, M | M |
+
+**Approach:** Create `shared/checkpoints/manager.py` with a generic `CheckpointManager[TExec, TEval, TData]` using TypeVar. Each benchmark's `CheckpointData` becomes a concrete specialization. The manager logic (atomic save, load, add_result, skip sets, cleanup) moves to shared. Each benchmark's `checkpoints/` becomes a thin module defining its `CheckpointData` model and re-exporting the shared manager.
+
+**Merge → proceed to Wave 5.**
+
+---
+
 ## Wave 5 — Shared integration (2 agents)
 
 | Agent | PR Title | Tasks | Key Files | Deps | Est. |
@@ -175,7 +207,8 @@ Wave 6:                                    T(CLI flags)    U(dashboard)
 
 After merging all PRs in a wave:
 
-1. Pull `release/v0.1.0`
+1. **Verify all wave PRs are actually merged** — check `gh pr view <number> --json state` for each PR. Do not proceed if any are still open.
+2. Pull `release/v0.1.0`
 2. Run `poe fix-all` and `poe check-all` — commit any formatting fixes
 3. Run `./scripts/wave_validation.sh <wave_number>` — generates small datasets, runs all three benchmarks, produces a report
 4. Fix any issues found (document in Wave Validation Findings below)
