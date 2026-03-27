@@ -186,7 +186,11 @@ class Experiment:
     @property
     def task_count(self) -> int:
         """Number of tasks remaining to run."""
-        return len(self.tasks) - len(self.skip_eval_keys)
+        return sum(
+            1
+            for task in self.tasks
+            if not (task.task_key in self.skip_exec_keys and task.task_key in self.skip_eval_keys)
+        )
 
     async def run(self, cancel_event: asyncio.Event | None = None) -> ExperimentOutput:
         """Run the experiment and return results.
@@ -213,8 +217,12 @@ class Experiment:
         requestor_model = config.resolved_requestor_model
         judge_model = config.resolved_judge_model
 
-        # Count tasks that need work
-        total_tasks = sum(1 for task in self.tasks if task.task_key not in self.skip_eval_keys)
+        # Count tasks that need work (skip only those where BOTH exec and eval are done)
+        total_tasks = sum(
+            1
+            for task in self.tasks
+            if not (task.task_key in self.skip_exec_keys and task.task_key in self.skip_eval_keys)
+        )
 
         # Build lookup for prior exec results (for eval-only tasks)
         prior_exec_by_key = {r.task_key: r for r in self.prior_exec_results}
@@ -225,9 +233,9 @@ class Experiment:
         async def run_and_evaluate(
             task: KeyedCalendarTask,
             task_index: int,
-        ) -> TaskEvaluationResult:
-            """Execute a task (if needed) and evaluate it."""
-            # Check if we already have execution result
+        ) -> TaskEvaluationResult | None:
+            """Execute a task (if needed) and evaluate it (if needed)."""
+            # Exec: skip or run
             if task.task_key in self.skip_exec_keys:
                 exec_result = prior_exec_by_key.get(task.task_key)
                 if exec_result is None:
@@ -257,6 +265,10 @@ class Experiment:
             if cancel_event and cancel_event.is_set():
                 raise asyncio.CancelledError("Skipping evaluation due to cancellation")
 
+            # Eval: skip or run (independent of exec)
+            if task.task_key in self.skip_eval_keys:
+                return None
+
             # Evaluate
             eval_result = await evaluate_single_task(
                 exec_result,
@@ -268,13 +280,14 @@ class Experiment:
 
             return eval_result
 
-        def on_task_complete(result: TaskEvaluationResult):
-            new_eval_results.append(result)
+        def on_task_complete(result: TaskEvaluationResult | None):
+            if result is not None:
+                new_eval_results.append(result)
 
-        # Generate task coroutines
+        # Generate task coroutines — skip only tasks where BOTH exec and eval are done
         def generate_tasks():
             for task_index, task in enumerate(self.tasks):
-                if task.task_key in self.skip_eval_keys:
+                if task.task_key in self.skip_exec_keys and task.task_key in self.skip_eval_keys:
                     continue
                 yield run_and_evaluate(task, task_index)
 
@@ -458,16 +471,24 @@ class ExperimentPoolExecutor:
         from ..evaluation.evaluator import evaluate_single_task
         from ..runner import run_single_task
 
-        # Count tasks that need work (not already fully evaluated)
+        # Count tasks that need work (skip only where BOTH exec and eval are done)
         total_tasks = sum(
-            sum(1 for task in exp.tasks if task.task_key not in exp.skip_eval_keys)
+            sum(
+                1
+                for task in exp.tasks
+                if not (task.task_key in exp.skip_exec_keys and task.task_key in exp.skip_eval_keys)
+            )
             for exp in self.experiments
         )
 
         # Initialize per-experiment task counts for timing
         self._pool_start_time = time.monotonic()
         for exp in self.experiments:
-            count = sum(1 for task in exp.tasks if task.task_key not in exp.skip_eval_keys)
+            count = sum(
+                1
+                for task in exp.tasks
+                if not (task.task_key in exp.skip_exec_keys and task.task_key in exp.skip_eval_keys)
+            )
             self._exp_task_counts[exp.key] = count
 
         if self.benchmark_logger:
@@ -486,11 +507,11 @@ class ExperimentPoolExecutor:
             exp: Experiment,
             task: KeyedCalendarTask,
             task_index: int,
-        ) -> tuple[str, TaskEvaluationResult]:
-            """Execute a task (if needed) and evaluate it."""
+        ) -> tuple[str, TaskEvaluationResult | None]:
+            """Execute a task (if needed) and evaluate it (if needed)."""
             config = exp.config
 
-            # Check if we already have execution result (skip exec, run eval only)
+            # Exec: skip or run
             if task.task_key in exp.skip_exec_keys:
                 exec_result = prior_exec_by_key[exp.key].get(task.task_key)
                 if exec_result is None:
@@ -524,6 +545,10 @@ class ExperimentPoolExecutor:
             if self.cancel_event and self.cancel_event.is_set():
                 raise asyncio.CancelledError("Skipping evaluation due to cancellation")
 
+            # Eval: skip or run (independent of exec)
+            if task.task_key in exp.skip_eval_keys:
+                return (exp.key, None)
+
             # Evaluate
             if not config.resolved_judge_model:
                 raise RuntimeError("Judge model must be configured")
@@ -540,12 +565,11 @@ class ExperimentPoolExecutor:
 
             return (exp.key, eval_result)
 
-        # Generate task coroutines
+        # Generate task coroutines — skip only tasks where BOTH exec and eval are done
         def generate_tasks():
             for exp in self.experiments:
                 for task_index, task in enumerate(exp.tasks):
-                    # Skip already-evaluated tasks
-                    if task.task_key in exp.skip_eval_keys:
+                    if task.task_key in exp.skip_exec_keys and task.task_key in exp.skip_eval_keys:
                         continue
                     yield run_and_evaluate(exp, task, task_index)
 
@@ -570,10 +594,11 @@ class ExperimentPoolExecutor:
                 )
                 self.benchmark_logger.on_phase_complete("exec+eval", completed - failed, failed)
 
-    def _on_task_complete(self, tagged_result: tuple[str, TaskEvaluationResult]):
+    def _on_task_complete(self, tagged_result: tuple[str, TaskEvaluationResult | None]):
         """Handle completion of an exec+eval task."""
         exp_key, result = tagged_result
-        self._eval_results_by_exp[exp_key].append(result)
+        if result is not None:
+            self._eval_results_by_exp[exp_key].append(result)
 
         # Log when an experiment's last task completes
         expected = self._exp_task_counts.get(exp_key, 0)
