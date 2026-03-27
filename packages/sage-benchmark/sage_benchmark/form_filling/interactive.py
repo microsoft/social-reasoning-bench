@@ -9,6 +9,13 @@ from sage_llm import ModelClient
 
 from sage_benchmark.form_filling.agents.assistant import AssistantAgent
 from sage_benchmark.form_filling.agents.interviewer import InterviewerAgent
+from sage_benchmark.form_filling.environment.actions import (
+    EndConversation,
+    ReadFile,
+    SearchFiles,
+    SendMessage,
+    Wait,
+)
 from sage_benchmark.form_filling.environment.bm25_index import BM25Index
 from sage_benchmark.form_filling.schemas import (
     ConversationMessage,
@@ -53,9 +60,6 @@ def _initialize_agents(
     malicious_attack_type: str = "privacy",
     malicious_strategies_file: str | None = None,
     temperature: float | None = None,
-    bm25_index: BM25Index | None = None,
-    social_reasoning: bool = False,
-    use_privacy_example: bool = False,
     form_fill_client: ModelClient | None = None,
     form_fill_model: str | None = None,
 ) -> tuple[InterviewerAgent, AssistantAgent]:
@@ -74,8 +78,6 @@ def _initialize_agents(
         malicious_attack_type: Type of malicious attack ("privacy", "hallucination", "red_flags")
         malicious_strategies_file: Path to strategies YAML file for malicious mode
         temperature: Sampling temperature for assistant generation
-        bm25_index: BM25 index for file-system tool execution
-        social_reasoning: If True, enable ToM-augmented social reasoning for assistant
         form_fill_client: Separate client for form filling (defaults to interviewer client)
         form_fill_model: Separate model for form filling (defaults to interviewer model)
 
@@ -89,9 +91,6 @@ def _initialize_agents(
         task.artifacts,
         prompt_type,
         temperature=temperature,
-        bm25_index=bm25_index,
-        social_reasoning=social_reasoning,
-        use_privacy_example=use_privacy_example,
     )
 
     form_info = get_form_as_string(task)
@@ -120,8 +119,16 @@ async def _run_conversation_loop(
     conversation: list[ConversationMessage],
     max_rounds: int,
     task_id: int,
+    bm25_index: BM25Index | None = None,
+    max_steps_per_turn: int = 5,
 ) -> str:
     """Run the interview conversation loop.
+
+    Follows the calendar/marketplace runner pattern: each round gives the
+    interviewer one turn, then the assistant a multi-step turn.  The
+    assistant may use SearchFiles/ReadFile (handled inline via BM25) or
+    Wait/SendMessage (which end its turn) within ``max_steps_per_turn``
+    steps.
 
     Args:
         interviewer: Interviewer agent
@@ -129,19 +136,22 @@ async def _run_conversation_loop(
         conversation: Conversation message list (mutated in place)
         max_rounds: Maximum conversation rounds
         task_id: Task ID for logging
+        bm25_index: BM25 index for executing file-system tool calls
+        max_steps_per_turn: Maximum tool calls per assistant turn (default: 5)
 
     Returns:
         Termination reason: "interviewer_ended", "assistant_ended", or "max_rounds"
     """
     for round_num in range(max_rounds):
-        print(f"[Task {task_id}] Round {round_num}")
+        logger.info("[Task %s] Round %d", task_id, round_num)
 
-        # 1. Interviewer's turn
+        # --- Interviewer turn ---
         tool_name, arguments = await interviewer.generate_action()
 
         if tool_name == "EndInterview":
             return "interviewer_ended"
-        elif tool_name == "SendMessage":
+
+        if tool_name == "SendMessage":
             msg = arguments["message"]
             conversation.append(
                 ConversationMessage(
@@ -152,25 +162,44 @@ async def _run_conversation_loop(
                 )
             )
             interviewer.add_tool_result("Message sent")
-            assistant.add_new_message("interviewer", msg)
+            assistant.add_new_messages("interviewer", msg)
 
-        # 2. Assistant's turn
-        tool_name, arguments = await assistant.generate_action()
+        # --- Assistant turn (multi-step) ---
+        for _step in range(max_steps_per_turn):
+            tool = await assistant.generate_tool_call()
 
-        if tool_name == "EndConversation":
-            return "assistant_ended"
-        elif tool_name == "SendMessage":
-            msg = arguments["message"]
-            conversation.append(
-                ConversationMessage(
-                    from_agent="assistant",
-                    content=msg,
-                    timestamp=datetime.now(),
-                    round=round_num,
+            if isinstance(tool, (SearchFiles, ReadFile)) and bm25_index is not None:
+                result = bm25_index.execute_tool(tool.get_name(), tool.model_dump())
+                assistant.add_tool_call_result(result)
+                continue  # let agent make another call
+
+            if isinstance(tool, Wait):
+                # Yield turn back to interviewer
+                assistant.add_tool_call_result("Waiting for the other party.")
+                break
+
+            if isinstance(tool, SendMessage):
+                msg = tool.message
+                conversation.append(
+                    ConversationMessage(
+                        from_agent="assistant",
+                        content=msg,
+                        timestamp=datetime.now(),
+                        round=round_num,
+                    )
                 )
-            )
-            assistant.add_tool_result("Message sent")
-            interviewer.add_new_message("assistant", msg)
+                assistant.add_tool_call_result("Message sent")
+                interviewer.add_new_message("assistant", msg)
+                break
+
+            if isinstance(tool, EndConversation):
+                return "assistant_ended"
+
+            # AskUser or unexpected tool -- add result and continue
+            assistant.add_tool_call_result("Tool executed")
+            break
+
+        # If max_steps reached without Wait/SendMessage, continue to next round
 
     return "max_rounds"
 
@@ -193,10 +222,9 @@ async def run_single_task(
     malicious_attack_type: str = "privacy",
     malicious_strategies_file: str | None = None,
     temperature: float | None = None,
-    social_reasoning: bool = False,
-    use_privacy_example: bool = False,
     form_fill_client: ModelClient | None = None,
     form_fill_model: str | None = None,
+    max_steps_per_turn: int = 5,
 ) -> InteractiveTaskExecutionResult:
     """Execute a single interactive interview task.
 
@@ -215,7 +243,7 @@ async def run_single_task(
         malicious_attack_type: Type of malicious attack ("privacy", "hallucination", "red_flags")
         malicious_strategies_file: Path to strategies YAML file for malicious mode
         temperature: Sampling temperature for assistant generation
-        social_reasoning: If True, enable ToM-augmented social reasoning for assistant
+        max_steps_per_turn: Maximum tool calls per assistant turn (default: 5)
 
     Returns:
         InteractiveTaskExecutionResult with conversation and form submission
@@ -243,9 +271,6 @@ async def run_single_task(
         malicious_attack_type=malicious_attack_type,
         malicious_strategies_file=malicious_strategies_file,
         temperature=temperature,
-        bm25_index=bm25_index,
-        social_reasoning=social_reasoning,
-        use_privacy_example=use_privacy_example,
         form_fill_client=form_fill_client,
         form_fill_model=form_fill_model,
     )
@@ -258,6 +283,8 @@ async def run_single_task(
             conversation,
             max_rounds,
             task.form_id,
+            bm25_index=bm25_index,
+            max_steps_per_turn=max_steps_per_turn,
         )
 
         # 3. FORM FILLING

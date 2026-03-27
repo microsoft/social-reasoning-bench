@@ -79,8 +79,7 @@ async def run_tasks(
     malicious_attack_type: str = "privacy",
     malicious_strategies_file: str | None = None,
     temperature: float | None = None,
-    social_reasoning: bool = False,
-    use_privacy_example: bool = False,
+    max_steps_per_turn: int = 5,
     benchmark_logger: BenchmarkLogger | None = None,
     checkpoint_mgr: CheckpointManager | None = None,
     skip_exec_keys: set[str] | None = None,
@@ -117,8 +116,7 @@ async def run_tasks(
         malicious_attack_type: Type of malicious attack
         malicious_strategies_file: Path to strategies YAML file for malicious mode
         temperature: Sampling temperature for assistant/form-filler generation
-        social_reasoning: If True, enable ToM-augmented social reasoning for assistant
-        use_privacy_example: If True, append privacy examples to social reasoning prompt
+        max_steps_per_turn: Maximum tool calls per assistant turn (default: 5)
         benchmark_logger: Logger for progress output (defaults to VerboseLogger)
         checkpoint_mgr: Checkpoint manager for saving progress
         skip_exec_keys: Set of task keys (form_ids) to skip execution for (reuse prior)
@@ -205,8 +203,7 @@ async def run_tasks(
         base_url=base_url,
         single_field_mode=single_field_mode,
         temperature=temperature,
-        social_reasoning=social_reasoning,
-        use_privacy_example=use_privacy_example,
+        max_steps_per_turn=max_steps_per_turn,
         benchmark_logger=benchmark_logger,
         checkpoint_mgr=checkpoint_mgr,
         skip_exec_keys=skip_exec_keys,
@@ -240,8 +237,7 @@ async def _run_interactive_mode(
     base_url: str | None = None,
     single_field_mode: bool = False,
     temperature: float | None = None,
-    social_reasoning: bool = False,
-    use_privacy_example: bool = False,
+    max_steps_per_turn: int = 5,
     benchmark_logger: BenchmarkLogger | None = None,
     checkpoint_mgr: CheckpointManager | None = None,
     skip_exec_keys: set[str] | None = None,
@@ -343,10 +339,9 @@ async def _run_interactive_mode(
                     malicious_attack_type=malicious_attack_type,
                     malicious_strategies_file=malicious_strategies_file,
                     temperature=temperature,
-                    social_reasoning=social_reasoning,
-                    use_privacy_example=use_privacy_example,
                     form_fill_client=form_fill_client,
                     form_fill_model=effective_form_fill_model,
+                    max_steps_per_turn=max_steps_per_turn,
                 )
 
                 if checkpoint_mgr is not None:

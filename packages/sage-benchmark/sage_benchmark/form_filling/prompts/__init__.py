@@ -1,11 +1,7 @@
 """Prompts for form filling benchmark."""
 
 from .formatting import format_artifacts_as_context, translate_persona_to_text
-from .interactive import (
-    INTERACTIVE_INSTRUCTION,
-    INTERVIEW_SOCIAL_REASONING_INSTRUCTION,
-    SOCIAL_REASONING_PRIVACY_COMPLEMENT_INSTRUCTION,
-)
+from .interactive import INTERACTIVE_INSTRUCTION
 from .privacy import PRIVACY_AWARE_SUFFIX, PRIVACY_CI_SUFFIX, PRIVACY_EXPLAINED_SUFFIX
 from .system import (
     INTERVIEWER_BASE_SYSTEM_PROMPT,
@@ -29,6 +25,4 @@ __all__ = [
     "PRIVACY_CI_SUFFIX",
     # Interactive
     "INTERACTIVE_INSTRUCTION",
-    "INTERVIEW_SOCIAL_REASONING_INSTRUCTION",
-    "SOCIAL_REASONING_PRIVACY_COMPLEMENT_INSTRUCTION",
 ]

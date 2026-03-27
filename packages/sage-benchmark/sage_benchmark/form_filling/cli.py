@@ -149,14 +149,10 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--social-reasoning",
-        action="store_true",
-        help="Enable social reasoning for assistant agent (ToM-augmented)",
-    )
-    parser.add_argument(
-        "--use-privacy-example",
-        action="store_true",
-        help="Append privacy/sensitive information examples to the social reasoning prompt (requires --social-reasoning)",
+        "--max-steps-per-turn",
+        type=int,
+        default=5,
+        help="Maximum tool calls per assistant turn (default: 5)",
     )
 
     # Logging style
@@ -345,8 +341,7 @@ def main():
                     malicious_strategy=args.malicious_strategy,
                     malicious_attack_type=args.malicious_attack_type,
                     malicious_strategies_file=args.malicious_strategies_file,
-                    social_reasoning=args.social_reasoning,
-                    use_privacy_example=args.use_privacy_example,
+                    max_steps_per_turn=args.max_steps_per_turn,
                     benchmark_logger=benchmark_logger,
                     checkpoint_mgr=checkpoint_mgr,
                     skip_exec_keys=skip_exec_keys,

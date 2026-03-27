@@ -82,6 +82,8 @@ class BaseAgent:
         model_client: ModelClient,
         tools: list[type[Tool]],
         explicit_cot: bool = False,
+        temperature: float | None = None,
+        tool_choice: str = "auto",
     ) -> None:
         """Initialize the base agent.
 
@@ -91,11 +93,18 @@ class BaseAgent:
             tools: List of ``Tool`` subclasses this agent can use.
             explicit_cot: If ``True``, generate chain-of-thought reasoning
                 before each tool call via a separate LLM call.
+            temperature: Sampling temperature for LLM generation. If ``None``
+                (default), the model's default temperature is used.
+            tool_choice: Tool choice mode for the LLM (default ``"auto"``).
+                Use ``"required"`` to force the model to always produce a
+                tool call.
         """
         self._model = model
         self._model_client = model_client
         self._messages: list[ChatCompletionMessageParam] = []
         self._explicit_cot = explicit_cot
+        self._temperature = temperature
+        self._tool_choice = tool_choice
         self._previous_response_id: str | None = None
 
         # Build tool registry: name -> Tool class
@@ -295,12 +304,16 @@ class BaseAgent:
                     )
 
             # Call the LLM
+            gen_kwargs: dict[str, Any] = {}
+            if self._temperature is not None:
+                gen_kwargs["temperature"] = self._temperature
             completion = await self._model_client.chat.completions.acreate(
                 model=self._model,
                 messages=messages,
                 tools=self._openai_tools,
-                tool_choice="auto",
+                tool_choice=self._tool_choice,
                 previous_response_id=self._previous_response_id,
+                **gen_kwargs,
             )
 
             # Track response ID for thinking preservation

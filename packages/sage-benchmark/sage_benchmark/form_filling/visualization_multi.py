@@ -135,9 +135,8 @@ def _extract_timeline(
                         "content": send_content,
                         "round": round_num,
                     }
-                    for key in ("thinking", "task_related_thinking", "theory_of_mind_thinking"):
-                        if args.get(key):
-                            ev[key] = args[key]
+                    if args.get("thinking"):
+                        ev["thinking"] = args["thinking"]
                     events.append(ev)
                 elif tool_name in ("EndConversation", "EndInterview"):
                     events.append(
@@ -188,9 +187,8 @@ def _extract_timeline(
                 "content": content,
                 "round": round_num,
             }
-            for key in ("thinking", "task_related_thinking", "theory_of_mind_thinking"):
-                if msg.get(key):
-                    ev[key] = msg[key]
+            if msg.get("thinking"):
+                ev["thinking"] = msg["thinking"]
             events.append(ev)
             continue
 
@@ -483,7 +481,6 @@ def generate_multi_html(
 
     #sidebar {{ scrollbar-width: thin; }}
     .thinking-block {{ font-size: 0.8rem; color: #6b7280; margin-top: 4px; padding: 4px 8px; background: #f9fafb; border-radius: 4px; }}
-    .tom-block {{ font-size: 0.8rem; color: #7c3aed; margin-top: 4px; padding: 4px 8px; background: #f5f3ff; border-radius: 4px; }}
 </style>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen flex">
@@ -879,12 +876,6 @@ function renderTimelineEvent(ev, stepNum) {{
         </div>`;
         if (ev.thinking) {{
             html += `<details class="thinking-block mb-1"><summary class="text-xs">Thinking</summary><div class="text-xs whitespace-pre-wrap">${{esc(ev.thinking)}}</div></details>`;
-        }}
-        if (ev.task_related_thinking) {{
-            html += `<details class="thinking-block mb-1"><summary class="text-xs">Task Reasoning</summary><div class="text-xs whitespace-pre-wrap">${{esc(ev.task_related_thinking)}}</div></details>`;
-        }}
-        if (ev.theory_of_mind_thinking) {{
-            html += `<details class="tom-block mb-1"><summary class="text-xs">Theory of Mind</summary><div class="text-xs whitespace-pre-wrap">${{esc(ev.theory_of_mind_thinking)}}</div></details>`;
         }}
         html += `<div class="msg-bubble ${{bubbleCls}}">${{esc(ev.content)}}</div>`;
 
