@@ -29,6 +29,7 @@ from sage_benchmark.form_filling.schemas import (
     InteractiveTaskEvaluationResult,
     InteractiveTaskExecutionResult,
 )
+from sage_benchmark.shared.errors import is_fatal_error
 from sage_benchmark.shared.logging import BenchmarkLogger, VerboseLogger
 
 logger = logging.getLogger(__name__)
@@ -405,6 +406,8 @@ async def _run_interactive_mode(
             benchmark_logger.on_task_complete(idx, success=True)
 
         except Exception as e:
+            if is_fatal_error(e):
+                raise
             logger.error("Task %d failed with exception: %s", idx, e)
             logger.error(traceback.format_exc())
             failed += 1

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from sage_llm import ModelClient
 
+from sage_benchmark.shared.errors import is_fatal_error
 from sage_benchmark.shared.executors import TaskPoolExecutor
 from sage_benchmark.shared.logging import BenchmarkLogger
 
@@ -68,7 +69,9 @@ async def _run_agent_turn(
     for _ in range(max_steps):
         try:
             action = await agent.generate_tool_call()
-        except Exception:
+        except Exception as e:
+            if is_fatal_error(e):
+                raise
             action_trace.append(
                 {
                     "round": resources.state.current_round,

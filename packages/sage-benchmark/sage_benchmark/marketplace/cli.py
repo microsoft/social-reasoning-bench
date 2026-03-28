@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from sage_llm import ModelClient
+from sage_llm import ModelClient, get_tracer, save_traces
 
 from sage_benchmark.shared.logging import create_benchmark_logger
 
@@ -111,6 +111,13 @@ def parse_args() -> argparse.Namespace:
             "Re-evaluate existing execution results without re-running tasks. "
             "Requires --resume to specify a checkpoint with execution results."
         ),
+    )
+    # Tracing option
+    parser.add_argument(
+        "--llm-tracing",
+        action="store_true",
+        default=False,
+        help="Enable LLM call tracing (disabled by default for performance)",
     )
     return parser.parse_args()
 
@@ -359,6 +366,10 @@ async def _run_and_evaluate(args: argparse.Namespace) -> None:
 
         if cancel_event.is_set():
             logger.info("Interrupted, checkpoint saved to %s", checkpoint_path)
+            if args.llm_tracing:
+                traces_path = run_dir / "traces.json"
+                save_traces(traces_path)
+                logger.info("Saved LLM traces to %s", traces_path)
             logger.info("To resume: sagebench marketplace --resume %s", run_dir)
             return
 
@@ -411,6 +422,12 @@ async def _run_and_evaluate(args: argparse.Namespace) -> None:
     out_path = run_dir / "results.json"
     out_path.write_text(json.dumps(output.model_dump(mode="json"), indent=2))
 
+    # Save LLM traces if enabled
+    if args.llm_tracing:
+        traces_path = run_dir / "traces.json"
+        save_traces(traces_path)
+        logger.info("Saved LLM traces to %s", traces_path)
+
     # Clean up checkpoint on successful completion
     checkpoint_mgr.cleanup()
 
@@ -425,4 +442,6 @@ async def _run_and_evaluate(args: argparse.Namespace) -> None:
 
 def main() -> None:
     args = parse_args()
+    if args.llm_tracing:
+        get_tracer()
     asyncio.run(_run_and_evaluate(args))

@@ -8,6 +8,7 @@ import signal
 from pathlib import Path
 
 from dotenv import load_dotenv
+from sage_llm import get_tracer, save_traces
 
 from sage_benchmark.form_filling.checkpoints import CheckpointManager
 from sage_benchmark.form_filling.loader import load_all_form_tasks
@@ -172,6 +173,14 @@ def parse_args() -> argparse.Namespace:
         help="Resume from checkpoint. Optionally specify the checkpoint JSON path.",
     )
 
+    # Tracing option
+    parser.add_argument(
+        "--llm-tracing",
+        action="store_true",
+        default=False,
+        help="Enable LLM call tracing (disabled by default for performance)",
+    )
+
     return parser.parse_args()
 
 
@@ -216,6 +225,10 @@ def main():
     args = parse_args()
 
     load_dotenv()
+
+    # Initialize LLM tracer only when explicitly requested
+    if args.llm_tracing:
+        get_tracer()
 
     # Configure logging
     logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -358,6 +371,12 @@ def main():
                     pass
 
     asyncio.run(_run())
+
+    # Save LLM traces if enabled
+    if args.llm_tracing:
+        traces_path = Path(args.output_dir) / "traces.json"
+        save_traces(traces_path)
+        logger.info("Saved LLM traces to %s", traces_path)
 
 
 if __name__ == "__main__":

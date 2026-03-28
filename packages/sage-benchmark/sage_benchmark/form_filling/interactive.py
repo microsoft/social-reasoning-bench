@@ -22,6 +22,7 @@ from sage_benchmark.form_filling.schemas import (
     FormTask,
     InteractiveTaskExecutionResult,
 )
+from sage_benchmark.shared.errors import is_fatal_error
 
 logger = logging.getLogger(__name__)
 
@@ -307,6 +308,8 @@ async def run_single_task(
         )
 
     except Exception as e:
+        if is_fatal_error(e):
+            raise
         logger.error(f"Task {task_index} failed: {e}")
         logger.error(traceback.format_exc())
 
