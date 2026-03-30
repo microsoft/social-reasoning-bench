@@ -63,6 +63,7 @@ def _initialize_agents(
     temperature: float | None = None,
     form_fill_client: ModelClient | None = None,
     form_fill_model: str | None = None,
+    explicit_cot: bool = False,
 ) -> tuple[InterviewerAgent, AssistantAgent]:
     """Initialize interviewer and assistant agents for a task.
 
@@ -81,6 +82,7 @@ def _initialize_agents(
         temperature: Sampling temperature for assistant generation
         form_fill_client: Separate client for form filling (defaults to interviewer client)
         form_fill_model: Separate model for form filling (defaults to interviewer model)
+        explicit_cot: If True, enable explicit chain-of-thought prompting for assistant
 
     Returns:
         Tuple of (InterviewerAgent, AssistantAgent)
@@ -92,6 +94,7 @@ def _initialize_agents(
         task.artifacts,
         prompt_type,
         temperature=temperature,
+        explicit_cot=explicit_cot,
     )
 
     form_info = get_form_as_string(task)
@@ -226,6 +229,7 @@ async def run_single_task(
     form_fill_client: ModelClient | None = None,
     form_fill_model: str | None = None,
     max_steps_per_turn: int = 5,
+    explicit_cot: bool = False,
 ) -> InteractiveTaskExecutionResult:
     """Execute a single interactive interview task.
 
@@ -245,6 +249,7 @@ async def run_single_task(
         malicious_strategies_file: Path to strategies YAML file for malicious mode
         temperature: Sampling temperature for assistant generation
         max_steps_per_turn: Maximum tool calls per assistant turn (default: 5)
+        explicit_cot: If True, enable explicit chain-of-thought prompting for assistant
 
     Returns:
         InteractiveTaskExecutionResult with conversation and form submission
@@ -274,6 +279,7 @@ async def run_single_task(
         temperature=temperature,
         form_fill_client=form_fill_client,
         form_fill_model=form_fill_model,
+        explicit_cot=explicit_cot,
     )
 
     try:

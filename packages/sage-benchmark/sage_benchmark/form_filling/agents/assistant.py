@@ -44,6 +44,7 @@ class AssistantAgent(BaseAgent):
         artifacts: list,
         prompt_type: str = "base",
         temperature: float | None = None,
+        explicit_cot: bool = False,
     ):
         """Initialize the assistant agent.
 
@@ -54,6 +55,7 @@ class AssistantAgent(BaseAgent):
             artifacts: List of ArtifactData objects
             prompt_type: Type of prompt ("base", "privacy_aware", "privacy_explained")
             temperature: Sampling temperature for generation
+            explicit_cot: If True, generate chain-of-thought reasoning before each tool call
         """
         super().__init__(
             model=model,
@@ -61,6 +63,7 @@ class AssistantAgent(BaseAgent):
             tools=list(ALL_TOOLS),
             temperature=temperature,
             tool_choice="required",
+            explicit_cot=explicit_cot,
         )
 
         # Build initial messages

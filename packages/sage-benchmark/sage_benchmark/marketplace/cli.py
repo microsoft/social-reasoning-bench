@@ -28,6 +28,14 @@ logger = logging.getLogger(__name__)
 CHECKPOINT_FILENAME = "checkpoint.json"
 
 
+def _str_to_bool(value: str) -> bool:
+    if value.lower() == "true":
+        return True
+    if value.lower() == "false":
+        return False
+    raise argparse.ArgumentTypeError(f"Expected 'true' or 'false', got '{value}'")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Minimal marketplace negotiation simulation")
     parser.add_argument(
@@ -90,6 +98,13 @@ def parse_args() -> argparse.Namespace:
         default="progress",
         choices=["verbose", "progress", "quiet"],
         help="Logging style: verbose, progress (default, tqdm bar), quiet (minimal)",
+    )
+    parser.add_argument(
+        "--explicit-cot",
+        type=_str_to_bool,
+        default=False,
+        metavar="{true,false}",
+        help="Enable (true) or disable (false) explicit chain-of-thought prompting for all agents (default: false)",
     )
     # Resume/checkpoint options
     parser.add_argument(
@@ -353,6 +368,7 @@ async def _run_and_evaluate(args: argparse.Namespace) -> None:
                 buyer_client=buyer_client,
                 seller_client=seller_client,
                 max_steps_per_turn=args.max_steps_per_turn,
+                explicit_cot=args.explicit_cot,
                 batch_size=args.batch_size,
                 benchmark_logger=benchmark_logger,
                 judge_model=judge_model,

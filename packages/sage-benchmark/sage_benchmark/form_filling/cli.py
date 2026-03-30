@@ -20,6 +20,14 @@ from sage_benchmark.shared.logging import create_benchmark_logger
 logger = logging.getLogger(__name__)
 
 
+def _str_to_bool(value: str) -> bool:
+    if value.lower() == "true":
+        return True
+    if value.lower() == "false":
+        return False
+    raise argparse.ArgumentTypeError(f"Expected 'true' or 'false', got '{value}'")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Form filling benchmark")
 
@@ -154,6 +162,14 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=5,
         help="Maximum tool calls per assistant turn (default: 5)",
+    )
+
+    parser.add_argument(
+        "--explicit-cot",
+        type=_str_to_bool,
+        default=False,
+        metavar="{true,false}",
+        help="Enable (true) or disable (false) explicit chain-of-thought prompting for assistant agent (default: false)",
     )
 
     # Logging style
@@ -357,6 +373,7 @@ def main():
                     max_steps_per_turn=args.max_steps_per_turn,
                     benchmark_logger=benchmark_logger,
                     checkpoint_mgr=checkpoint_mgr,
+                    explicit_cot=args.explicit_cot,
                     skip_exec_keys=skip_exec_keys,
                     skip_eval_keys=skip_eval_keys,
                     prior_exec_results=prior_exec_results,

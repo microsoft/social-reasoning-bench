@@ -32,11 +32,13 @@ class MarketplaceAgent(BaseAgent):
         model: str,
         model_client: ModelClient,
         instruction_message: str,
+        explicit_cot: bool = False,
     ) -> None:
         super().__init__(
             model=model,
             model_client=model_client,
             tools=list(MARKETPLACE_TOOLS),
+            explicit_cot=explicit_cot,
         )
 
         self._role = role

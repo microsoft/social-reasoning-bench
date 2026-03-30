@@ -93,6 +93,7 @@ async def run_tasks(
     skip_exec_keys: set[str] | None = None,
     skip_eval_keys: set[str] | None = None,
     prior_exec_results: list[InteractiveTaskExecutionResult] | None = None,
+    explicit_cot: bool = False,
 ):
     """Run the complete form filling benchmark with coupled execution+evaluation.
 
@@ -130,6 +131,7 @@ async def run_tasks(
         skip_exec_keys: Set of task keys (form_ids) to skip execution for (reuse prior)
         skip_eval_keys: Set of task keys (form_ids) to skip entirely
         prior_exec_results: Prior execution results to reuse when skipping execution
+        explicit_cot: If True, enable explicit chain-of-thought prompting for assistant
 
     Returns:
         FormFillingBenchmarkOutput with structured metadata, summary, and results.
@@ -217,6 +219,7 @@ async def run_tasks(
         skip_exec_keys=skip_exec_keys,
         skip_eval_keys=skip_eval_keys,
         prior_exec_results=prior_exec_results,
+        explicit_cot=explicit_cot,
     )
 
     return result
@@ -251,6 +254,7 @@ async def _run_interactive_mode(
     skip_exec_keys: set[str] | None = None,
     skip_eval_keys: set[str] | None = None,
     prior_exec_results: list[InteractiveTaskExecutionResult] | None = None,
+    explicit_cot: bool = False,
 ):
     """Run interactive mode with a single code path controlled by skip sets.
 
@@ -350,6 +354,7 @@ async def _run_interactive_mode(
                     form_fill_client=form_fill_client,
                     form_fill_model=effective_form_fill_model,
                     max_steps_per_turn=max_steps_per_turn,
+                    explicit_cot=explicit_cot,
                 )
 
                 if checkpoint_mgr is not None:

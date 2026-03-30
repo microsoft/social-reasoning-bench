@@ -108,6 +108,7 @@ async def _run_single_task_llm(
     buyer_client: ModelClient,
     seller_client: ModelClient,
     max_steps_per_turn: int = 3,
+    explicit_cot: bool = False,
 ) -> TaskExecutionResult:
     env = MarketplaceEnvironment()
     buyer_resources = env.create_agent_resources("buyer")
@@ -116,11 +117,13 @@ async def _run_single_task_llm(
         model=buyer_model,
         model_client=buyer_client,
         instruction_message=task.buyer.instruction_message,
+        explicit_cot=explicit_cot,
     )
     seller_agent = SellerAgent(
         model=seller_model,
         model_client=seller_client,
         instruction_message=task.seller.instruction_message,
+        explicit_cot=explicit_cot,
     )
 
     action_trace = []
@@ -184,6 +187,7 @@ async def run_and_evaluate_tasks(
     buyer_client: ModelClient,
     seller_client: ModelClient,
     max_steps_per_turn: int = 3,
+    explicit_cot: bool = False,
     batch_size: int = 50,
     benchmark_logger: BenchmarkLogger | None = None,
     judge_model: str | None = None,
@@ -250,6 +254,7 @@ async def run_and_evaluate_tasks(
                 buyer_client=buyer_client,
                 seller_client=seller_client,
                 max_steps_per_turn=max_steps_per_turn,
+                explicit_cot=explicit_cot,
             )
             if checkpoint_mgr:
                 checkpoint_mgr.add_execution_result(exec_result)
