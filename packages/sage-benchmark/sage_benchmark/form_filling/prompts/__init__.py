@@ -2,7 +2,6 @@
 
 from .formatting import format_artifacts_as_context, translate_persona_to_text
 from .interactive import INTERACTIVE_INSTRUCTION
-from .privacy import PRIVACY_AWARE_SUFFIX, PRIVACY_CI_SUFFIX, PRIVACY_EXPLAINED_SUFFIX
 from .system import (
     INTERVIEWER_BASE_SYSTEM_PROMPT,
     INTERVIEWER_DETAIL_SYSTEM_PROMPT,
@@ -19,10 +18,6 @@ __all__ = [
     "get_interviewer_system_prompt",
     "INTERVIEWER_BASE_SYSTEM_PROMPT",
     "INTERVIEWER_DETAIL_SYSTEM_PROMPT",
-    # Privacy
-    "PRIVACY_AWARE_SUFFIX",
-    "PRIVACY_EXPLAINED_SUFFIX",
-    "PRIVACY_CI_SUFFIX",
     # Interactive
     "INTERACTIVE_INSTRUCTION",
 ]

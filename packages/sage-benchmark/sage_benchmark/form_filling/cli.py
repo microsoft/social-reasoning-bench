@@ -95,9 +95,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--prompt-type",
         type=str,
-        default="base",
-        choices=["base", "privacy_aware", "privacy_explained", "privacy_ci"],
-        help='Type of prompt to use for the agent (default: "base")',
+        default="none",
+        choices=["none", "simple", "strong", "ci"],
+        help='Privacy level for the assistant agent (default: "none")',
     )
 
     # Interactive mode specific arguments

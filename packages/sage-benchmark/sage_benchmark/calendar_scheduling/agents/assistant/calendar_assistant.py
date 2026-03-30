@@ -5,10 +5,6 @@ from sage_llm import ModelClient
 from ...environment.actions import CALENDAR_TOOLS, EndConversation
 from ...types import CalendarAssistant, TimeSlotPreference
 from ..calendar_base import CalendarAgent
-from .prompts import DEFAULT_SYSTEM_PROMPT
-
-# Backward compatibility alias
-SYSTEM_PROMPT = DEFAULT_SYSTEM_PROMPT
 
 
 def format_preferences_for_prompt(preferences: list[TimeSlotPreference]) -> str:

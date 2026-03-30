@@ -13,6 +13,7 @@ class BuyerAgent(MarketplaceAgent):
         model_client: ModelClient,
         instruction_message: str,
         explicit_cot: bool = False,
+        system_prompt: str | None = None,
     ) -> None:
         super().__init__(
             role="buyer",
@@ -20,4 +21,5 @@ class BuyerAgent(MarketplaceAgent):
             model_client=model_client,
             instruction_message=instruction_message,
             explicit_cot=explicit_cot,
+            system_prompt=system_prompt,
         )

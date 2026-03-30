@@ -13,6 +13,7 @@ from sage_llm import ModelClient, get_tracer, save_traces
 
 from sage_benchmark.shared.logging import create_benchmark_logger
 
+from .agents import get_system_prompt, list_available_presets
 from .checkpoints import CheckpointManager, RunConfig
 from .evaluation_summary import compute_summary, print_evaluation_summary, print_per_task_summary
 from .loader import load_tasks
@@ -92,6 +93,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=50,
         help="Number of tasks to run in parallel (default: 50)",
+    )
+    parser.add_argument(
+        "--system-prompt",
+        choices=list_available_presets(),
+        default="none",
+        help="Privacy-level system prompt preset for agents (default: none)",
     )
     parser.add_argument(
         "--logger",
@@ -360,6 +367,9 @@ async def _run_and_evaluate(args: argparse.Namespace) -> None:
     try:
         run_start = time.monotonic()
 
+        # Build system prompt from CLI preset
+        system_prompt_text = get_system_prompt(args.system_prompt)
+
         with benchmark_logger:
             paired_results = await run_and_evaluate_tasks(
                 tasks,
@@ -378,6 +388,7 @@ async def _run_and_evaluate(args: argparse.Namespace) -> None:
                 prior_exec_results=prior_exec_results,
                 checkpoint_mgr=checkpoint_mgr,
                 cancel_event=cancel_event,
+                system_prompt=system_prompt_text,
             )
 
         if cancel_event.is_set():

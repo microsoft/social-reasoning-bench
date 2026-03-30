@@ -36,6 +36,11 @@ class RunConfig(BaseModel):
     max_steps_per_turn: int = Field(default=3, description="Maximum tool calls per agent turn")
     batch_size: int = Field(default=50, description="Number of tasks to run in parallel")
 
+    # System prompt
+    system_prompt: str = Field(
+        default="none", description="Privacy-level system prompt preset for agents"
+    )
+
     # Output
     output_dir: Path | None = Field(default=None, description="Output directory for results")
 
@@ -68,5 +73,6 @@ class RunConfig(BaseModel):
             reasoning_effort=args.reasoning_effort,
             max_steps_per_turn=args.max_steps_per_turn,
             batch_size=args.batch_size,
+            system_prompt=getattr(args, "system_prompt", "none"),
             output_dir=Path(args.output_dir) if args.output_dir else None,
         )

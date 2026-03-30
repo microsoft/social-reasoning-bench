@@ -6,7 +6,7 @@ Example usage:
     config = ExperimentConfig(
         paths=["data/tasks.yaml"],
         model="gpt-4o",
-        assistant_system_prompt="default",
+        assistant_system_prompt="none",
         expose_preferences=True,
         explicit_cot=False,
     )
