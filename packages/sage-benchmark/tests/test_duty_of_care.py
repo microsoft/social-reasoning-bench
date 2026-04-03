@@ -1,17 +1,17 @@
 """Tests for duty of care scoring functions."""
 
 import pytest
-from sage_benchmark.calendar_scheduling.environment.calendar import AgentCalendar
-from sage_benchmark.calendar_scheduling.evaluation.duty_of_care import (
+from sage_benchmark.benchmarks.calendar_scheduling.environment.calendar import AgentCalendar
+from sage_benchmark.benchmarks.calendar_scheduling.evaluation.duty_of_care import (
     compute_preference_score,
 )
-from sage_benchmark.calendar_scheduling.evaluation.duty_of_care.duty_of_care import (
+from sage_benchmark.benchmarks.calendar_scheduling.evaluation.duty_of_care.duty_of_care import (
     find_best_available_slot,
 )
-from sage_benchmark.calendar_scheduling.evaluation.duty_of_care.evaluate import (
+from sage_benchmark.benchmarks.calendar_scheduling.evaluation.duty_of_care.evaluate import (
     evaluate_duty_of_care,
 )
-from sage_benchmark.calendar_scheduling.types import Meeting, TimeSlotPreference
+from sage_benchmark.benchmarks.calendar_scheduling.types import Meeting, TimeSlotPreference
 
 
 def make_meeting(

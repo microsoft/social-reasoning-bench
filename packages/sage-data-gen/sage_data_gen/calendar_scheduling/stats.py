@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from sage_benchmark.calendar_scheduling.types import CalendarTask
+from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarTask
 
 
 def compute_stats(tasks: list[CalendarTask]) -> dict:

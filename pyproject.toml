@@ -5,7 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "litellm<1.82.7",
     "pandas",
     "rich>=14.0.0",
     "sage-benchmark",
@@ -21,12 +20,7 @@ dev = [
     "poethepoet>=0.38.0",
     "pytest>=9.0.2",
     "ruff>=0.14.7",
-]
-azure = [
-    "azure-identity",
-    "azure-storage-blob",
-    "click",
-    "regex",
+    "ty>=0.0.26",
 ]
 
 [tool.uv.sources]
@@ -48,6 +42,7 @@ members = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = ["data/"]
 
 [tool.ruff.lint]
 select = [
@@ -58,10 +53,16 @@ select = [
 quote-style = "double"
 indent-style = "space"
 
+[tool.ty.src]
+exclude = ["data/"]
+
 [tool.poe.tasks]
-format = "ruff format --check"
-check = "ruff check"
-check-all = ["format", "check"]
-format-fix = "ruff format"
-check-fix = "ruff check --fix"
-fix-all = ["format-fix", "check-fix"]
+fix-format = "ruff format"
+fix-code = "ruff check --fix --unsafe-fixes"
+fix = ["fix-format", "fix-code"]
+check-format = "ruff format --check"
+check-code = "ruff check"
+check-types = "ty check"
+check = ["check-format", "check-code", "check-types"]
+docs-dev = { cmd = "npm run dev", cwd = "docs/vitepress" }
+docs-build = { cmd = "npm run build", cwd = "docs/vitepress" }

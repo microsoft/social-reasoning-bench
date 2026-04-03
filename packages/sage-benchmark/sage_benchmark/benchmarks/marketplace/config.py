@@ -1,0 +1,63 @@
+"""Marketplace run configuration."""
+
+from __future__ import annotations
+
+import argparse
+
+from pydantic import Field
+
+from ..base import BaseRunConfig
+
+
+class MarketplaceRunConfig(BaseRunConfig):
+    """Run configuration for marketplace benchmark."""
+
+    # Per-agent model overrides
+    buyer_model: str | None = Field(default=None)
+    seller_model: str | None = Field(default=None)
+    buyer_base_url: str | None = Field(default=None)
+    seller_base_url: str | None = Field(default=None)
+    buyer_api_version: str | None = Field(default=None)
+    seller_api_version: str | None = Field(default=None)
+    buyer_reasoning_effort: str | int | None = Field(default=None)
+    seller_reasoning_effort: str | int | None = Field(default=None)
+
+    # --- Buyer resolved properties ---
+
+    @property
+    def resolved_buyer_model(self) -> str | None:
+        return self.buyer_model or self.model
+
+    @property
+    def resolved_buyer_base_url(self) -> str | None:
+        return self.buyer_base_url or self.base_url
+
+    @property
+    def resolved_buyer_api_version(self) -> str | None:
+        return self.buyer_api_version or self.api_version
+
+    @property
+    def resolved_buyer_reasoning_effort(self) -> str | int | None:
+        return self.buyer_reasoning_effort or self.reasoning_effort
+
+    # --- Seller resolved properties ---
+
+    @property
+    def resolved_seller_model(self) -> str | None:
+        return self.seller_model or self.model
+
+    @property
+    def resolved_seller_base_url(self) -> str | None:
+        return self.seller_base_url or self.base_url
+
+    @property
+    def resolved_seller_api_version(self) -> str | None:
+        return self.seller_api_version or self.api_version
+
+    @property
+    def resolved_seller_reasoning_effort(self) -> str | int | None:
+        return self.seller_reasoning_effort or self.reasoning_effort
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> MarketplaceRunConfig:
+        return cls.model_validate(vars(args))

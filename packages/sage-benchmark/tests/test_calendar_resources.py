@@ -1,7 +1,7 @@
 """Tests for AgentResources actions."""
 
 import pytest
-from sage_benchmark.calendar_scheduling.environment import (
+from sage_benchmark.benchmarks.calendar_scheduling.environment import (
     AgentResources,
     CalendarSchedulingEnvironment,
     CancelMeeting,
@@ -13,7 +13,12 @@ from sage_benchmark.calendar_scheduling.environment import (
     SendEmail,
     Wait,
 )
-from sage_benchmark.calendar_scheduling.types import Attendee, AttendeeStatus, Meeting, ToolError
+from sage_benchmark.benchmarks.calendar_scheduling.types import (
+    Attendee,
+    AttendeeStatus,
+    Meeting,
+    ToolError,
+)
 
 
 @pytest.fixture
@@ -405,7 +410,7 @@ class TestCancelMeeting:
             ReplyMeeting(
                 message="Can't make it",
                 meeting_uid="selective-cancel-test",
-                status=AttendeeStatus.DECLINED,
+                status="DECLINED",
             )
         )
 
@@ -453,7 +458,7 @@ class TestReplyMeeting:
         action = ReplyMeeting(
             message="I'll be there!",
             meeting_uid="accept-test-meeting",
-            status=AttendeeStatus.ACCEPTED,
+            status="ACCEPTED",
         )
         result = bob_resources.execute(action)
 
@@ -497,7 +502,7 @@ class TestReplyMeeting:
         action = ReplyMeeting(
             message="Sorry, can't make it",
             meeting_uid="decline-test-meeting",
-            status=AttendeeStatus.DECLINED,
+            status="DECLINED",
         )
         result = bob_resources.execute(action)
 
@@ -517,7 +522,7 @@ class TestReplyMeeting:
         action = ReplyMeeting(
             message="Reply",
             meeting_uid="nonexistent-meeting",
-            status=AttendeeStatus.ACCEPTED,
+            status="ACCEPTED",
         )
         with pytest.raises(ToolError, match="not found"):
             bob_resources.execute(action)
@@ -589,7 +594,7 @@ class TestEndConversation:
             ReplyMeeting(
                 message="Accepted",
                 meeting_uid="will-accept-meeting",
-                status=AttendeeStatus.ACCEPTED,
+                status="ACCEPTED",
             )
         )
 
@@ -621,7 +626,7 @@ class TestEndConversation:
             ReplyMeeting(
                 message="Declined",
                 meeting_uid="will-decline-meeting",
-                status=AttendeeStatus.DECLINED,
+                status="DECLINED",
             )
         )
 

@@ -10,7 +10,7 @@ import copy
 import json
 import random
 
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from sage_data_gen.form_filling.config import FormFillingConfig
 from sage_data_gen.form_filling.models import StandaloneAnalysis
@@ -42,10 +42,10 @@ def _is_keyword_excluded(field_key: str) -> bool:
     return any(kw in lower for kw in EXCLUDED_KEYWORDS)
 
 
-def _judge_standalone(
+async def _judge_standalone(
     candidates: list[tuple[str, dict]],
     groundtruth: dict,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> list[str]:
     """Use LLM to identify which candidate fields are NOT standalone.
@@ -53,7 +53,7 @@ def _judge_standalone(
     Args:
         candidates: List of (field_id, info) tuples for candidate fields.
         groundtruth: Full ground truth dict for context.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -69,7 +69,7 @@ def _judge_standalone(
     for fid, info in candidates:
         candidate_fields.append({"field_id": fid, "answer": info["answer"]})
 
-    result = client.chat.completions.parse(
+    result = await client.aparse(
         model=config.validation_model,
         messages=[
             {
@@ -97,11 +97,11 @@ def _judge_standalone(
     return non_standalone
 
 
-def mask_groundtruth(
+async def mask_groundtruth(
     groundtruth: dict,
     n: int = 5,
     seed: int = 42,
-    client: ModelClient | None = None,
+    client: SageModelClient | None = None,
     config: FormFillingConfig | None = None,
 ) -> tuple[dict, list[dict]]:
     """Mask n close-ended fields by setting their answers to empty string.
@@ -112,7 +112,7 @@ def mask_groundtruth(
         groundtruth: Flat ground truth dict {field_id: {answer, is_open_ended}}.
         n: Number of close-ended fields to mask.
         seed: Random seed for reproducibility.
-        client: ModelClient for LLM judge (optional; skips judge if None).
+        client: SageModelClient for LLM judge (optional; skips judge if None).
         config: Pipeline configuration (optional; skips judge if None).
 
     Returns:
@@ -159,7 +159,7 @@ def mask_groundtruth(
 
         for attempt in range(max_retries):
             print(f"  LLM standalone check (attempt {attempt + 1}/{max_retries})...")
-            non_standalone = _judge_standalone(to_mask, groundtruth, client, config)
+            non_standalone = await _judge_standalone(to_mask, groundtruth, client, config)
 
             if not non_standalone:
                 print(f"  All {len(to_mask)} fields confirmed standalone")

@@ -4,10 +4,9 @@ Uses a vision model to look at the form image and create matching HTML
 that faithfully recreates the paper form's layout with interactive inputs.
 """
 
-import asyncio
 from pathlib import Path
 
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from sage_data_gen.form_filling.config import FormFillingConfig
 from sage_data_gen.form_filling.prompts import GUI_SYSTEM_PROMPT, GUI_USER_PROMPT
@@ -22,7 +21,7 @@ from sage_data_gen.form_filling.utils import (
 async def _generate_html_async(
     image_path: Path,
     form_model_code: str,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> str:
     """Generate HTML form asynchronously.
@@ -30,7 +29,7 @@ async def _generate_html_async(
     Args:
         image_path: Path to the form image.
         form_model_code: Pydantic model code as string.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -39,11 +38,11 @@ async def _generate_html_async(
     b64 = image_to_base64(image_path)
     mime = image_mime_type(image_path)
 
-    response = await client.chat.completions.acreate(
+    response = await client.acomplete(
         model=config.vision_model,
         messages=[
             {"role": "system", "content": GUI_SYSTEM_PROMPT},
-            {
+            {  # type: ignore[list-item]  # multimodal content requires dict format
                 "role": "user",
                 "content": [
                     {
@@ -59,7 +58,9 @@ async def _generate_html_async(
         ],
     )
 
-    html_content = clean_html_response(response.choices[0].message.content)
+    content = response.content
+    assert isinstance(content, str), "Expected non-streaming text response"
+    html_content = clean_html_response(content)
 
     # Basic validation
     if not html_content.lower().startswith(
@@ -70,10 +71,10 @@ async def _generate_html_async(
     return html_content
 
 
-def generate_gui_html(
+async def generate_gui_html(
     image_path: Path,
     form_model_code: str,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> str:
     """Generate interactive HTML form from image + Pydantic model.
@@ -83,13 +84,13 @@ def generate_gui_html(
     Args:
         image_path: Path to the form image.
         form_model_code: Pydantic model code as string.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
         HTML content as string.
     """
-    html_content = asyncio.run(_generate_html_async(image_path, form_model_code, client, config))
+    html_content = await _generate_html_async(image_path, form_model_code, client, config)
     print(f"  Generated {len(html_content)} characters of HTML")
 
     # Apply CSS fixes for page background

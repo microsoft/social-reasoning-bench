@@ -1,13 +1,13 @@
 """Pytest configuration and fixtures for privacy-judge tests."""
 
 import pytest
-from sage_llm import ModelClient
+from sage_llm import SageModelClient
 
 
 @pytest.fixture(scope="session")
-def model_client() -> ModelClient:
+def model_client() -> SageModelClient:
     """Shared model client for all tests."""
-    return ModelClient()
+    return SageModelClient()
 
 
 @pytest.fixture(scope="session")

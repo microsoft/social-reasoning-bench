@@ -3,7 +3,8 @@
 from collections.abc import AsyncIterator
 
 import yaml
-from sage_llm import ModelClient
+from sage_benchmark.shared.errors import is_fatal_error
+from sage_llm import SageModelClient
 
 from ..core.models import Seed, Strategy
 
@@ -24,7 +25,7 @@ class StrategyExtractor:
             model: LLM model identifier (e.g., "openai/gpt-4.1")
         """
         self.model = model
-        self._client = ModelClient()
+        self._client = SageModelClient()
 
     async def sample(
         self,
@@ -54,11 +55,11 @@ class StrategyExtractor:
             prompt = self._build_prompt(seed.title, chunk, i, len(chunks), task)
 
             try:
-                response = await self._client.chat.completions.acreate(
+                response = await self._client.acomplete(
                     model=self.model,
                     messages=[{"role": "user", "content": prompt}],
                 )
-                response_text = response.choices[0].message.content or ""
+                response_text = response.content or ""
                 strategies = self._parse_response(response_text, seed.title, i)
 
                 if max_strategies_per_chunk:
@@ -68,6 +69,8 @@ class StrategyExtractor:
                     yield strategy
 
             except Exception as e:
+                if is_fatal_error(e):
+                    raise
                 print(f"  Error extracting from chunk {i}: {e}")
                 continue
 

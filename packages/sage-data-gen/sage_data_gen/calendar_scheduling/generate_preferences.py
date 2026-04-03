@@ -1,4 +1,4 @@
-from sage_benchmark.calendar_scheduling.types import TimeSlotPreference
+from sage_benchmark.benchmarks.calendar_scheduling.types import TimeSlotPreference
 
 # One-hour working slots matching the calendar structure (08:00–19:00)
 DEFAULT_TIME_WINDOWS = [

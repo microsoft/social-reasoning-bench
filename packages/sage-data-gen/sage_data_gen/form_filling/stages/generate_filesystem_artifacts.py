@@ -17,7 +17,7 @@ import json
 import random
 from typing import Optional
 
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from sage_data_gen.form_filling.config import FormFillingConfig
 from sage_data_gen.form_filling.models import (
@@ -97,10 +97,10 @@ def _classify_findability(
 # ---------------------------------------------------------------------------
 
 
-def _generate_search_terms(
+async def _generate_search_terms(
     findable_fields: list[FieldFindability],
     persona: ExpandedPersona,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> list[FieldFindability]:
     """Generate BM25 search terms for each findable field."""
@@ -110,7 +110,7 @@ def _generate_search_terms(
     for field in findable_fields:
         field_label = field.field_id.replace("_", " ").replace(".", " > ")
 
-        result = client.chat.completions.parse(
+        result = await client.aparse(
             model=config.generation_model,
             messages=[
                 {
@@ -250,19 +250,19 @@ def _distribute_secrets_and_neginfo(
 # ---------------------------------------------------------------------------
 
 
-def _generate_answer_artifact(
+async def _generate_answer_artifact(
     field: FieldFindability,
     persona: ExpandedPersona,
     secrets_to_embed: list[dict],
     neginfo_to_embed: list[dict],
     artifact_id: str,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> FileSystemArtifact:
     """Generate exactly 1 artifact containing the correct answer for a findable field."""
     field_label = field.field_id.replace("_", " ").replace(".", " > ")
 
-    result = client.chat.completions.parse(
+    result = await client.aparse(
         model=config.generation_model,
         messages=[
             {
@@ -299,12 +299,12 @@ def _generate_answer_artifact(
 # ---------------------------------------------------------------------------
 
 
-def _generate_distractor_scenarios(
+async def _generate_distractor_scenarios(
     field_id: str,
     field_label: str,
     correct_value: str,
     persona: ExpandedPersona,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> list[DistractorScenario]:
     """Generate N plausible-but-wrong values, each with a grounding narrative.
@@ -314,7 +314,7 @@ def _generate_distractor_scenarios(
         field_label: Human-readable field label.
         correct_value: The correct answer to avoid.
         persona: Expanded persona.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -322,7 +322,7 @@ def _generate_distractor_scenarios(
     """
     n = config.filesystem_distractor_scenarios
 
-    result = client.chat.completions.parse(
+    result = await client.aparse(
         model=config.generation_model,
         messages=[
             {
@@ -369,7 +369,7 @@ def _generate_distractor_scenarios(
 # ---------------------------------------------------------------------------
 
 
-def _generate_artifacts_from_scenario(
+async def _generate_artifacts_from_scenario(
     scenario: DistractorScenario,
     field_id: str,
     field_label: str,
@@ -377,7 +377,7 @@ def _generate_artifacts_from_scenario(
     persona: ExpandedPersona,
     secrets_per_artifact: list[list[dict]],
     neginfo_per_artifact: list[list[dict]],
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> list[FileSystemArtifact]:
     """Generate N artifacts all grounded in one distractor scenario.
@@ -392,7 +392,7 @@ def _generate_artifacts_from_scenario(
         persona: Expanded persona.
         secrets_per_artifact: List of secret lists, one per artifact slot.
         neginfo_per_artifact: List of neg-info lists, one per artifact slot.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -409,7 +409,7 @@ def _generate_artifacts_from_scenario(
         if i < len(neginfo_per_artifact):
             all_neginfo.extend(neginfo_per_artifact[i])
 
-    result = client.chat.completions.parse(
+    result = await client.aparse(
         model=config.generation_model,
         messages=[
             {
@@ -459,14 +459,14 @@ def _generate_artifacts_from_scenario(
 # ---------------------------------------------------------------------------
 
 
-def _generate_distractor_artifacts(
+async def _generate_distractor_artifacts(
     field_id: str,
     field_label: str,
     correct_value: str,
     persona: ExpandedPersona,
     secrets_to_embed: list[list[dict]],  # one list per distractor artifact slot
     neginfo_to_embed: list[list[dict]],  # one list per distractor artifact slot
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> tuple[list[FileSystemArtifact], list[DistractorScenario]]:
     """Orchestrate scenario generation + artifact population for one masked field.
@@ -479,7 +479,7 @@ def _generate_distractor_artifacts(
         secrets_to_embed: Flat list of secret lists, one per distractor artifact slot.
                           Length = N_scenarios * N_artifacts_per_scenario.
         neginfo_to_embed: Same shape as secrets_to_embed.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -491,7 +491,7 @@ def _generate_distractor_artifacts(
 
     # Step A: generate distractor scenarios
     print(f"    [A] Generating {n_scenarios} distractor scenarios for {field_id}...")
-    scenarios = _generate_distractor_scenarios(
+    scenarios = await _generate_distractor_scenarios(
         field_id=field_id,
         field_label=field_label,
         correct_value=correct_value,
@@ -514,7 +514,7 @@ def _generate_distractor_artifacts(
             f"    [B] Generating {n_per_scenario} artifacts for scenario {s_idx + 1} "
             f"(wrong value: '{scenario.wrong_value}')..."
         )
-        artifacts = _generate_artifacts_from_scenario(
+        artifacts = await _generate_artifacts_from_scenario(
             scenario=scenario,
             field_id=field_id,
             field_label=field_label,
@@ -535,12 +535,12 @@ def _generate_distractor_artifacts(
 # ---------------------------------------------------------------------------
 
 
-def generate_filesystem_artifacts(
+async def generate_filesystem_artifacts(
     persona: ExpandedPersona,
     ground_truth: GroundTruthAnswers,
     masked_fields: list[dict],
     all_secrets: AllSecrets,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
     negative_info: Optional[AllNegativeInfo] = None,
 ) -> tuple[
@@ -553,7 +553,7 @@ def generate_filesystem_artifacts(
         ground_truth: Ground truth answers.
         masked_fields: List of {field_id, original_value} dicts.
         all_secrets: Generated secrets.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
         negative_info: Optional negative info to embed.
 
@@ -587,7 +587,7 @@ def generate_filesystem_artifacts(
 
     # Step 2: Generate search terms for findable fields
     print("  [Step 2] Generating search terms for findable fields...")
-    findability.findable_fields = _generate_search_terms(
+    findability.findable_fields = await _generate_search_terms(
         findability.findable_fields, persona, client, config
     )
 
@@ -610,7 +610,7 @@ def generate_filesystem_artifacts(
 
         # 4a: Answer artifact (1 slot)
         print(f"    Generating answer artifact for {field.field_id}...")
-        answer_artifact = _generate_answer_artifact(
+        answer_artifact = await _generate_answer_artifact(
             field=field,
             persona=persona,
             secrets_to_embed=secrets_per_slot[slot_idx],
@@ -627,7 +627,7 @@ def generate_filesystem_artifacts(
         distractor_secrets = secrets_per_slot[slot_idx : slot_idx + n_distractor]
         distractor_neginfo = neginfo_per_slot[slot_idx : slot_idx + n_distractor]
 
-        distractors, scenarios = _generate_distractor_artifacts(
+        distractors, scenarios = await _generate_distractor_artifacts(
             field_id=field.field_id,
             field_label=field_label,
             correct_value=field.original_value,
@@ -653,7 +653,7 @@ def generate_filesystem_artifacts(
         distractor_secrets = secrets_per_slot[slot_idx : slot_idx + n_distractor]
         distractor_neginfo = neginfo_per_slot[slot_idx : slot_idx + n_distractor]
 
-        distractors, scenarios = _generate_distractor_artifacts(
+        distractors, scenarios = await _generate_distractor_artifacts(
             field_id=uf_field_id,
             field_label=field_label,
             correct_value=field_info["original_value"],

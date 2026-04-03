@@ -5,10 +5,11 @@ LLM prompting, and generates a validated Pydantic model file.
 """
 
 import json
+import re
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from sage_data_gen.form_filling.config import FormFillingConfig
 from sage_data_gen.form_filling.models import FormField, FormSection, ParsedForm
@@ -36,9 +37,11 @@ BLANK_HINT = (
 )
 
 
-def _call_llm(client: ModelClient, system_prompt: str, user_message: str, model: str) -> str:
+async def _call_llm(
+    client: SageModelClient, system_prompt: str, user_message: str, model: str
+) -> str:
     """Helper to call LLM with system prompt and return content."""
-    response = client.chat.completions.create(
+    response = await client.acomplete(
         model=model,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -46,15 +49,19 @@ def _call_llm(client: ModelClient, system_prompt: str, user_message: str, model:
         ],
         temperature=0,
     )
-    return response.choices[0].message.content.strip()
+    content = response.content
+    assert isinstance(content, str)
+    return content.strip()
 
 
-def extract_text_from_image(image_path, client: ModelClient, config: FormFillingConfig) -> str:
+async def extract_text_from_image(
+    image_path, client: SageModelClient, config: FormFillingConfig
+) -> str:
     """Extract text from a form image using vision API.
 
     Args:
         image_path: Path to the form image.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -66,10 +73,10 @@ def extract_text_from_image(image_path, client: ModelClient, config: FormFilling
     b64 = image_to_base64(image_path)
     mime = image_mime_type(image_path)
 
-    response = client.chat.completions.create(
+    response = await client.acomplete(
         model=config.vision_model,
         messages=[
-            {
+            {  # type: ignore[list-item]  # multimodal content requires dict format
                 "role": "user",
                 "content": [
                     {"type": "text", "text": EXTRACT_TEXT_PROMPT},
@@ -82,7 +89,9 @@ def extract_text_from_image(image_path, client: ModelClient, config: FormFilling
         ],
     )
 
-    raw_text = response.choices[0].message.content.strip()
+    raw_content = response.content
+    assert isinstance(raw_content, str)
+    raw_text = raw_content.strip()
 
     # Parse content between <form> tags if present
     import re
@@ -91,12 +100,12 @@ def extract_text_from_image(image_path, client: ModelClient, config: FormFilling
     return match.group(1).strip() if match else raw_text
 
 
-def parse_form_multistep(form_text: str, client: ModelClient, model: str) -> ParsedForm:
+async def parse_form_multistep(form_text: str, client: SageModelClient, model: str) -> ParsedForm:
     """Parse a form using multi-step prompting.
 
     Args:
         form_text: Extracted form text.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         model: Model name to use.
 
     Returns:
@@ -104,26 +113,26 @@ def parse_form_multistep(form_text: str, client: ModelClient, model: str) -> Par
     """
     # Step 1: Extract title
     print("  Step 1: Extracting title...")
-    title = _call_llm(client, PARSE_STEP1_PROMPT, f"Form:\n{form_text}", model)
+    title = await _call_llm(client, PARSE_STEP1_PROMPT, f"Form:\n{form_text}", model)
     print(f"    Title: {title}")
 
     # Step 2: Extract description
     print("  Step 2: Extracting description...")
-    description = _call_llm(client, PARSE_STEP2_PROMPT, f"Form:\n{form_text}", model)
+    description = await _call_llm(client, PARSE_STEP2_PROMPT, f"Form:\n{form_text}", model)
     if description == "NONE":
         description = None
     print(f"    Description: {description[:100] if description else 'None'}...")
 
     # Step 3a: Extract field labels
     print("  Step 3a: Extracting field labels...")
-    labels_json = _call_llm(
+    labels_json = await _call_llm(
         client,
         PARSE_STEP3A_PROMPT,
         f"Form:\n{form_text}\n\nOutput JSON array of field labels:",
         model,
     )
     labels_json = clean_json_response(labels_json)
-    field_labels = json.loads(labels_json)
+    field_labels = json.loads(labels_json, strict=False)
     print(f"    Found {len(field_labels)} field labels")
 
     # Step 3b: Extract field details
@@ -136,9 +145,9 @@ Field labels to create metadata for:
 
 Create a detailed field object for each label. Output JSON array of field objects:"""
 
-    fields_json = _call_llm(client, PARSE_STEP3B_PROMPT, details_prompt, model)
+    fields_json = await _call_llm(client, PARSE_STEP3B_PROMPT, details_prompt, model)
     fields_json = clean_json_response(fields_json)
-    fields_list = json.loads(fields_json)
+    fields_list = json.loads(fields_json, strict=False)
 
     # Sanitize field IDs
     for field in fields_list:
@@ -185,9 +194,9 @@ Example output:
   ]
 }}"""
 
-    sections_json = _call_llm(client, PARSE_STEP4_PROMPT, sections_prompt, model)
+    sections_json = await _call_llm(client, PARSE_STEP4_PROMPT, sections_prompt, model)
     sections_json = clean_json_response(sections_json)
-    sections_data = json.loads(sections_json)
+    sections_data = json.loads(sections_json, strict=False)
     print(f"    Created {len(sections_data['sections'])} sections")
 
     # Build ParsedForm
@@ -219,30 +228,26 @@ Example output:
     return ParsedForm(form_title=title, form_description=description, sections=sections)
 
 
-def _generate_field_code(field: FormField, table_row_class: str | None = None) -> list[str]:
+def _generate_field_code(field: FormField) -> list[str]:
     """Generate code lines for a single Pydantic field."""
     lines = []
 
     if field.type == "boolean":
-        type_annotation = "BooleanLike"
+        type_annotation = "bool | None"
         comment = ""
     elif field.type == "select" and field.options:
-        options_str = ", ".join([f'"{opt}"' for opt in field.options + ["N/A", ""]])
-        type_annotation = f"Literal[{options_str}]"
-        comment = ""
+        type_annotation = "str"
+        comment = f"  # Options: {', '.join(field.options)}"
     elif field.type == "number":
-        type_annotation = 'Union[float, Literal["N/A", ""]]'
+        type_annotation = "float | None"
         comment = ""
     elif field.type == "date":
         type_annotation = "str"
         comment = "  # YYYY-MM-DD format"
     elif field.type == "table":
-        if table_row_class:
-            type_annotation = f"List[{table_row_class}]"
-            comment = "  # List of table rows"
-        else:
-            type_annotation = "str"
-            comment = "  # Table data - describe each row"
+        cols = ", ".join(field.table_columns or [])
+        type_annotation = "list[list[str]]"
+        comment = f"  # Columns: {cols}" if cols else ""
     else:
         type_annotation = "str"
         comment = ""
@@ -255,10 +260,9 @@ def _generate_field_code(field: FormField, table_row_class: str | None = None) -
 
     field_header = f"{field.id}: {type_annotation}"
     lines.append(f"{field_header} = Field(")
-    if field.required:
-        lines.append("    ...,")
-    else:
-        lines.append('    default="",')
+    # All fields are required (no defaults) so the JSON schema puts every
+    # property in ``required`` — needed for OpenAI structured output.
+    lines.append("    ...,")
 
     if len(description) < 80:
         lines.append(f'    description="{description}"')
@@ -296,8 +300,7 @@ def generate_pydantic_code(parsed_form: ParsedForm, class_name: str = "Generated
     lines = []
 
     # Imports
-    lines.append("from typing import Literal, Optional, List, Union")
-    lines.append("from pydantic import BaseModel, Field")
+    lines.append("from pydantic import BaseModel, ConfigDict, Field")
     lines.append("")
     lines.append("")
 
@@ -307,73 +310,11 @@ def generate_pydantic_code(parsed_form: ParsedForm, class_name: str = "Generated
     lines.append(f'    "{BLANK_HINT}"')
     lines.append(")")
     lines.append("")
-    lines.append("# Type alias for boolean-like fields")
-    lines.append('BooleanLike = Literal["true", "false", "N/A", ""]')
-    lines.append("")
     lines.append("")
 
-    # Table row classes
-    table_row_classes = {}
-    for section in parsed_form.sections:
-        for field in section.fields:
-            if field.type == "table" and field.table_columns:
-                row_class_name = f"{field.id.title().replace('_', '')}Row"
-                table_row_classes[field.id] = row_class_name
-
-                lines.append(f"class {row_class_name}(BaseModel):")
-                lines.append(f'    """Single row in {field.label}"""')
-                lines.append("")
-
-                for col in field.table_columns:
-                    col_id = col.lower().replace(" ", "_").replace("/", "_").replace("-", "_")
-                    col_id = "".join(c if c.isalnum() or c == "_" else "_" for c in col_id)
-                    col_id = "_".join(part for part in col_id.split("_") if part)
-                    if not col_id or not col_id[0].isalpha():
-                        col_id = f"col_{col_id}"
-                    if col_id in PYTHON_KEYWORDS:
-                        col_id = f"{col_id}_"
-
-                    lines.append(f"    {col_id}: str = Field(")
-                    lines.append(f'        default="",')
-                    lines.append(f'        description="{col.title()}"')
-                    lines.append(f"    )")
-
-                lines.append("")
-                lines.append("")
-
-    # Section classes if multiple sections
-    section_classes = []
-    if len(parsed_form.sections) > 1:
-        for i, section in enumerate(parsed_form.sections):
-            section_class_name = section.name
-            section_class_name = (
-                section_class_name.replace(" ", "")
-                .replace("-", "")
-                .replace("\u2013", "")
-                .replace("/", "")
-                .replace("\\", "")
-            )
-            section_class_name = "".join(c for c in section_class_name if c.isalnum())
-            section_class_name = fix_class_name_starting_with_number(section_class_name)
-            if not section_class_name or not section_class_name[0].isalpha():
-                section_class_name = f"Section{i + 1}"
-            section_classes.append((section_class_name, section))
-
-            lines.append(f"class {section_class_name}(BaseModel):")
-            if section.description:
-                lines.append(f'    """{section.description}"""')
-                lines.append("")
-
-            for field in section.fields:
-                table_row_class = table_row_classes.get(field.id)
-                field_code = _generate_field_code(field, table_row_class)
-                lines.extend([f"    {line}" for line in field_code])
-                lines.append("")
-
-            lines.append("")
-
-    # Main form class
+    # Single flat form class — all fields at top level, no nested section models
     lines.append(f"class {class_name}(BaseModel):")
+    lines.append('    model_config = ConfigDict(extra="forbid")')
     if parsed_form.form_description:
         lines.append(f'    """')
         lines.append(f"    {parsed_form.form_title}")
@@ -387,20 +328,31 @@ def generate_pydantic_code(parsed_form: ParsedForm, class_name: str = "Generated
         lines.append(f'    """{parsed_form.form_title}"""')
     lines.append("")
 
-    if len(parsed_form.sections) > 1:
-        for section_class_name, section in section_classes:
-            field_name = (
+    seen_ids: set[str] = set()
+    for section in parsed_form.sections:
+        # Build section prefix from section name
+        section_prefix = ""
+        if section.name and len(parsed_form.sections) > 1:
+            section_prefix = (
                 section.name.lower().replace(" ", "_").replace("-", "_").replace("\u2013", "_")
             )
-            field_name = "".join(c for c in field_name if c.isalnum() or c == "_")
-            lines.append(f"    {field_name}: {section_class_name} = Field(")
-            lines.append(f"        ...,")
-            lines.append(f'        description="{section.name}"')
-            lines.append(f"    )")
-    else:
-        for field in parsed_form.sections[0].fields:
-            table_row_class = table_row_classes.get(field.id)
-            field_code = _generate_field_code(field, table_row_class)
+            section_prefix = "".join(c for c in section_prefix if c.isalnum() or c == "_")
+            section_prefix = "_".join(part for part in section_prefix.split("_") if part)
+
+        for field in section.fields:
+            # Prefix field ID with section name to avoid collisions
+            if section_prefix:
+                original_id = field.id
+                field = FormField(**{**field.__dict__, "id": f"{section_prefix}_{original_id}"})
+            # Deduplicate field IDs
+            base_id = field.id
+            counter = 2
+            while field.id in seen_ids:
+                field = FormField(**{**field.__dict__, "id": f"{base_id}_{counter}"})
+                counter += 1
+            seen_ids.add(field.id)
+
+            field_code = _generate_field_code(field)
             lines.extend([f"    {line}" for line in field_code])
             lines.append("")
 
@@ -419,7 +371,7 @@ def validate_generated_code(code: str) -> bool:
         return False
 
 
-def shorten_class_name_with_llm(long_name: str, client: ModelClient, model: str) -> str:
+async def shorten_class_name_with_llm(long_name: str, client: SageModelClient, model: str) -> str:
     """Use LLM to generate a shorter class name (max 64 chars)."""
     prompt = f"""Given this long class name: "{long_name}"
 
@@ -431,26 +383,195 @@ Generate a shorter, meaningful class name that:
 
 Return ONLY the shortened class name, nothing else."""
 
-    response = client.chat.completions.create(
-        model=model, messages=[{"role": "user", "content": prompt}], temperature=0
+    response = await client.acomplete(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
     )
 
-    shortened = response.choices[0].message.content.strip()
+    raw = response.content
+    assert isinstance(raw, str)
+    shortened = raw.strip()
     shortened = "".join(c for c in shortened if c.isalnum())[:64]
     return shortened
 
 
-def parse_form_image(
-    image_path, client: ModelClient, config: FormFillingConfig
+GENERATE_MODEL_PROMPT = """\
+You are generating a Pydantic model for a form. Given the OCR text of a blank form \
+and a summary of its purpose and audience, produce a single flat BaseModel class \
+that captures every fillable field.
+
+## Form Summary
+{form_summary}
+
+## Rules
+
+1. **One flat class** — no nested models, no inheritance beyond BaseModel.
+2. **Simple types only:**
+   - `str` for text, dates (YYYY-MM-DD), select/dropdown, addresses, phone, email, SSN
+   - `bool | None` for checkboxes and yes/no fields
+   - `float | None` for numeric fields
+   - `list[list[str]]` for table fields (describe columns in the description)
+3. **Field IDs** must be valid Python snake_case identifiers. If the form has sections, \
+prefix field IDs with the section name (e.g. `contact_info_phone`).
+4. **Descriptions** should be a short phrase (under 60 chars), not a full sentence.
+5. All fields use `Field(...)` (required, no defaults).
+6. For text-like fields, append this to the description: \
+'.If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").'
+7. The class docstring MUST include the form title on the first line, followed by \
+a natural-language paragraph describing what the form is for, who submits it, \
+who reads/evaluates it, and what decisions are made based on it. Write it like \
+you're explaining the form to a colleague, not like a database entry.
+8. Include `model_config = ConfigDict(extra="forbid")` after the docstring.
+9. Class name MUST be PascalCase, MAXIMUM 64 characters, derived from the form title. Abbreviate if needed.
+
+## Output
+
+Return ONLY valid Python code. No markdown fences, no explanation. The code must start with imports.
+
+Example output:
+```
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ScholarshipApp(BaseModel):
+    \"\"\"National Merit Scholarship Application
+
+    High school seniors submit this application to be considered for merit-based
+    financial aid. A university scholarship committee reviews each applicant's
+    academic record, personal essay, and financial circumstances to decide who
+    receives awards covering tuition, books, and living expenses.
+    \"\"\"
+
+    model_config = ConfigDict(extra="forbid")
+
+    full_name: str = Field(..., description='Applicant full name. If you cannot fill this, write "N/A".')
+    gpa: float | None = Field(..., description="Cumulative GPA")
+    essay_goals: str = Field(..., description='Career goals essay. If you cannot fill this, write "N/A".')
+    has_financial_need: bool | None = Field(..., description="Demonstrates financial need?")
+```"""
+
+
+async def generate_form_model(
+    extracted_text: str,
+    client: SageModelClient,
+    config: FormFillingConfig,
+    form_id: str = "",
+    form_summary: "FormSummary | None" = None,
+) -> "tuple[str, str, str, FormSummary]":
+    """Generate Pydantic model code from extracted form text.
+
+    First extracts a FormSummary (purpose + recipient) if not provided,
+    then generates the Pydantic model with the summary as docstring context.
+
+    Args:
+        extracted_text: OCR text from the form image.
+        client: SageModelClient instance.
+        config: Pipeline configuration.
+        form_id: Form identifier (fallback for class name).
+
+    Returns:
+        Tuple of (form_model_code, class_name, form_title, form_summary).
+    """
+    from sage_data_gen.form_filling.models import FormSummary
+    from sage_data_gen.form_filling.prompts import FORM_SUMMARY_PROMPT
+
+    # Step 1: Extract form summary (purpose + recipient) if not provided
+    if form_summary is None:
+        print("  Extracting form summary...")
+        form_summary = await client.aparse(
+            model=config.parsing_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are analyzing a form to understand its context and audience.",
+                },
+                {
+                    "role": "user",
+                    "content": FORM_SUMMARY_PROMPT.format(form_content=extracted_text),
+                },
+            ],
+            response_format=FormSummary,
+            temperature=0.3,
+        )
+        print(f"  Purpose: {form_summary.form_purpose[:80]}...")
+        print(f"  Recipient: {form_summary.intended_recipient[:80]}...")
+
+    # Step 2: Generate Pydantic model with summary as context
+    summary_text = (
+        f"Purpose: {form_summary.form_purpose}\n"
+        f"Intended Recipient: {form_summary.intended_recipient}"
+    )
+    print("  Generating Pydantic model from OCR text...")
+    messages = [
+        {"role": "system", "content": GENERATE_MODEL_PROMPT.format(form_summary=summary_text)},
+        {"role": "user", "content": f"Form text:\n\n{extracted_text}"},
+    ]
+
+    max_retries = 5
+    for attempt in range(max_retries):
+        response = await client.acomplete(
+            model=config.parsing_model,
+            messages=messages,
+            temperature=0,
+        )
+
+        raw = response.content
+        assert isinstance(raw, str)
+        code = raw.strip()
+
+        # Strip markdown fences if present
+        if code.startswith("```"):
+            code = code.split("\n", 1)[1] if "\n" in code else code[3:]
+        if code.endswith("```"):
+            code = code.rsplit("```", 1)[0]
+        code = code.strip()
+
+        # Validate
+        errors = []
+        if not validate_generated_code(code):
+            errors.append("Code has syntax errors.")
+
+        classes = re.findall(r"^class (\w+)\(BaseModel\):", code, re.MULTILINE)
+        if not classes:
+            errors.append("No BaseModel class found.")
+        elif len(classes[-1]) > 64:
+            errors.append(
+                f"Class name '{classes[-1]}' is {len(classes[-1])} chars — max 64. Abbreviate it."
+            )
+
+        if not errors:
+            break
+
+        # Retry: feed errors back to the LLM
+        error_msg = "Fix these issues and regenerate:\n" + "\n".join(f"- {e}" for e in errors)
+        print(f"  Attempt {attempt + 1}: {error_msg}")
+        messages.append({"role": "assistant", "content": raw})
+        messages.append({"role": "user", "content": error_msg})
+    else:
+        print(f"  Warning: Could not fix issues after {max_retries} attempts, using last output")
+
+    # Extract class name
+    classes = re.findall(r"^class (\w+)\(BaseModel\):", code, re.MULTILINE)
+    class_name = classes[-1] if classes else f"Form{form_id}"
+
+    # Extract form title from docstring
+    form_title = class_name
+    docstring_match = re.search(r'"""(.+?)"""', code, re.DOTALL)
+    if docstring_match:
+        form_title = docstring_match.group(1).strip().split("\n")[0]
+
+    return code, class_name, form_title, form_summary
+
+
+async def parse_form_image(
+    image_path, client: SageModelClient, config: FormFillingConfig
 ) -> tuple[str, str, str, str]:
     """Parse a form image into extracted text and Pydantic model code.
 
-    This is the main entry point for Stage 1.
-
-    Args:
-        image_path: Path to the form image.
-        client: ModelClient instance.
-        config: Pipeline configuration.
+    This is the main entry point for Stage 1. Prefer using
+    extract_text_from_image() + generate_form_model() separately
+    for independent caching.
 
     Returns:
         Tuple of (extracted_text, form_model_code, class_name, form_title).
@@ -459,38 +580,15 @@ def parse_form_image(
 
     image_path = Path(image_path)
 
-    # Step 1: Extract text from image
     print("  Extracting text from image...")
-    extracted_text = extract_text_from_image(image_path, client, config)
+    extracted_text = await extract_text_from_image(image_path, client, config)
     print(f"  Extracted {len(extracted_text)} characters")
 
-    # Step 2: Parse form via multi-step prompting
-    parsed_form = parse_form_multistep(extracted_text, client, config.parsing_model)
+    form_model_code, class_name, form_title, _form_summary = await generate_form_model(
+        extracted_text, client, config, form_id=extract_form_id(image_path)
+    )
 
-    # Step 3: Generate class name
-    class_name = parsed_form.form_title
-    class_name = "".join(word.capitalize() for word in class_name.split())
-    class_name = "".join(c for c in class_name if c.isalnum())
-    class_name = fix_class_name_starting_with_number(class_name)
-    if not class_name:
-        class_name = f"Form{extract_form_id(image_path)}"
-
-    # Shorten if too long
-    if len(class_name) > 64:
-        print(f"  Class name too long ({len(class_name)} chars), shortening...")
-        class_name = shorten_class_name_with_llm(class_name, client, config.parsing_model)
-
-    # Step 4: Generate Pydantic code
-    print("  Generating Pydantic code...")
-    pydantic_code = generate_pydantic_code(parsed_form, class_name)
-
-    # Step 5: Validate
-    print("  Validating generated code...")
-    is_valid = validate_generated_code(pydantic_code)
-    if not is_valid:
-        print("  Warning: Code validation failed, but continuing...")
-
-    return extracted_text, pydantic_code, class_name, parsed_form.form_title
+    return extracted_text, form_model_code, class_name, form_title
 
 
 def extract_form_id(image_path) -> str:

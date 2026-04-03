@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import pytest
-from sage_benchmark.calendar_scheduling.loader import load_calendar_tasks
-from sage_benchmark.calendar_scheduling.types import CalendarTask
+from sage_benchmark.benchmarks.calendar_scheduling.loader import load_tasks
+from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarTask
 
 # Path to data directory relative to project root
 DATA_DIR = Path(__file__).parent.parent.parent / "data" / "calendar-scheduling"
@@ -16,7 +16,8 @@ def get_yaml_files() -> list[Path]:
 @pytest.mark.parametrize("yaml_file", get_yaml_files(), ids=lambda p: p.name)
 def test_calendar_scheduling_data_loads(yaml_file: Path) -> None:
     """Test that each YAML file can be loaded by the calendar scheduling loader."""
-    tasks = load_calendar_tasks(yaml_file)
+    loaded = load_tasks([yaml_file])
+    tasks = loaded.all_tasks
 
     # Validate return type
     assert isinstance(tasks, list)

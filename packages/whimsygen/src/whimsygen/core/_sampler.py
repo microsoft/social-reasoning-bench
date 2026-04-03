@@ -101,7 +101,10 @@ class SamplingPipeline:
                 await self._seed_queue.put(seed)
                 seed_count += 1
         finally:
-            await self._seed_queue.put(None)
+            try:
+                self._seed_queue.put_nowait(None)
+            except asyncio.QueueFull:
+                pass
 
     async def produce_strategies(self) -> None:
         """Extract strategies from seeds and put them in the queue."""
@@ -143,7 +146,10 @@ class SamplingPipeline:
                         self.stop()
                         break
         finally:
-            await self._strategy_queue.put(None)
+            try:
+                self._strategy_queue.put_nowait(None)
+            except asyncio.QueueFull:
+                pass
 
     async def run(self) -> AsyncIterator[Strategy]:
         """Run the pipeline and yield strategies.
@@ -161,12 +167,18 @@ class SamplingPipeline:
                 yield strategy
         finally:
             self.stop()
-            for task in tasks:
-                task.cancel()
-            # Wait for tasks with timeout to avoid hanging on unresponsive I/O
-            done, pending = await asyncio.wait(tasks, timeout=2.0)
+            # Wait for producer tasks to finish
+            done, pending = await asyncio.wait(tasks, timeout=5.0)
             for task in pending:
                 task.cancel()
+            # Await cancelled tasks so they don't leak
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+            # Re-raise any exceptions from producer tasks
+            for task in done:
+                exc = task.exception()
+                if exc is not None:
+                    raise exc
 
     async def _consume_strategies(self) -> AsyncIterator[Strategy]:
         """Yield strategies from the queue (internal)."""

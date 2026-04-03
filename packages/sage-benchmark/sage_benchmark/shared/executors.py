@@ -109,6 +109,7 @@ class TaskPoolExecutor:
                     break
 
                 # Fill pool up to batch_size (skip if cancelling)
+                prev_pending = len(pending)
                 while not cancelling and len(pending) < self.batch_size and not exhausted:
                     try:
                         # Get next unawaited coroutine
@@ -118,6 +119,29 @@ class TaskPoolExecutor:
                         # Reached end of tasks_iter
                         exhausted = True
                         break
+
+                if len(pending) != prev_pending and not self._quiet_cancel:
+                    self._logger.info(
+                        "Pool: %d tasks in flight (batch_size=%d)",
+                        len(pending),
+                        self.batch_size,
+                    )
+
+                # Warn only after filling — if we tried to fill and still can't
+                # reach capacity, something is slow (not just a momentary dip)
+                if (
+                    not self._quiet_cancel
+                    and not exhausted
+                    and exhausted is False
+                    and len(pending) < self.batch_size * 0.9
+                    and len(pending) == prev_pending  # fill loop added nothing
+                ):
+                    self._logger.warning(
+                        "Pool underutilized: %d/%d tasks in flight (%.0f%%)",
+                        len(pending),
+                        self.batch_size,
+                        len(pending) / self.batch_size * 100,
+                    )
 
                 if not pending:
                     # Nothing to await

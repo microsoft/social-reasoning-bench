@@ -10,13 +10,14 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from sage_data_gen.form_filling.config import FormFillingConfig
 from sage_data_gen.form_filling.models import (
     AllNegativeInfo,
     AllSecrets,
     ArtifactDetail,
+    ArtifactMetadata,
     ArtifactValidationResult,
     DigitalArtifacts,
     ExpandedPersona,
@@ -37,13 +38,13 @@ from sage_data_gen.form_filling.utils import translate_persona2text
 # ---------------------------------------------------------------------------
 
 
-def validate_artifacts_with_llm(
+async def validate_artifacts_with_llm(
     ground_truth: GroundTruthAnswers,
     all_secrets: AllSecrets,
     artifacts: DigitalArtifacts,
     persona: ExpandedPersona,
     field_analysis: OpenEndedFieldsAnalysis,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
     negative_info: Optional[AllNegativeInfo] = None,
 ) -> ArtifactValidationResult:
@@ -55,7 +56,7 @@ def validate_artifacts_with_llm(
         artifacts: The generated artifacts to validate.
         persona: Persona information.
         field_analysis: Field classification data.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
         negative_info: Optional negative info to validate.
 
@@ -107,7 +108,7 @@ def validate_artifacts_with_llm(
         for i, artifact in enumerate(artifacts.artifacts)
     ]
 
-    result = client.chat.completions.parse(
+    result = await client.aparse(
         model=config.validation_model,
         messages=[
             {
@@ -273,7 +274,7 @@ def create_artifact_for_missing_fields(
 
     artifact = ArtifactDetail(
         artifact_type="note",
-        metadata={"title": "Notes to self", "date": current_date},
+        metadata=ArtifactMetadata(title="Notes to self", date=current_date),
         content=content,
         contains_secrets=[],
     )
@@ -315,10 +316,10 @@ def fix_missing_fields(
 # ---------------------------------------------------------------------------
 
 
-def create_artifacts_for_missing_secrets(
+async def create_artifacts_for_missing_secrets(
     missing_secrets: List[tuple],
     persona: ExpandedPersona,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> List[ArtifactDetail]:
     """Create artifacts to embed missing secrets.
@@ -326,7 +327,7 @@ def create_artifacts_for_missing_secrets(
     Args:
         missing_secrets: List of (question_id, question_text, secret) tuples.
         persona: Expanded persona.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -365,7 +366,7 @@ Create 1-3 artifacts (emails, notes, texts, calendar entries) that naturally con
 
 Important: Every secret MUST appear in at least one artifact."""
 
-    result = client.chat.completions.parse(
+    result = await client.aparse(
         model=config.generation_model,
         messages=[
             {
@@ -382,14 +383,14 @@ Important: Every secret MUST appear in at least one artifact."""
     return result.artifacts
 
 
-def ensure_full_secret_coverage(
+async def ensure_full_secret_coverage(
     all_secrets: AllSecrets,
     artifacts: DigitalArtifacts,
     validation: ArtifactValidationResult,
     ground_truth: GroundTruthAnswers,
     persona: ExpandedPersona,
     field_analysis: OpenEndedFieldsAnalysis,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
     negative_info: Optional[AllNegativeInfo] = None,
 ) -> tuple:
@@ -405,7 +406,7 @@ def ensure_full_secret_coverage(
         ground_truth: Form fields.
         persona: Persona.
         field_analysis: Field classification.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
         negative_info: Optional negative info to pass through.
 
@@ -441,13 +442,13 @@ def ensure_full_secret_coverage(
             break
 
         print(f"  Creating artifacts for {len(missing_secrets)} missing secrets...")
-        new_artifacts = create_artifacts_for_missing_secrets(
+        new_artifacts = await create_artifacts_for_missing_secrets(
             missing_secrets, persona, client, config
         )
         artifacts = DigitalArtifacts(artifacts=artifacts.artifacts + new_artifacts)
 
         print(f"  Re-validating with {len(artifacts.artifacts)} total artifacts...")
-        validation = validate_artifacts_with_llm(
+        validation = await validate_artifacts_with_llm(
             ground_truth,
             all_secrets,
             artifacts,
@@ -473,10 +474,10 @@ def ensure_full_secret_coverage(
 # ---------------------------------------------------------------------------
 
 
-def validate_negative_info_coverage(
+async def validate_negative_info_coverage(
     negative_info: AllNegativeInfo,
     artifacts: DigitalArtifacts,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> List[NegativeInfoCoverageResult]:
     """Validate that negative info items are embedded in artifacts.
@@ -484,7 +485,7 @@ def validate_negative_info_coverage(
     Args:
         negative_info: All negative info items.
         artifacts: Current artifacts.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -514,7 +515,7 @@ def validate_negative_info_coverage(
     class NegativeInfoValidationResponse(BaseModel):
         results: List[NegativeInfoCoverageResult]
 
-    parsed = client.chat.completions.parse(
+    parsed = await client.aparse(
         model=config.validation_model,
         messages=[
             {
@@ -539,11 +540,11 @@ def validate_negative_info_coverage(
     return result
 
 
-def fix_missing_negative_info_in_artifacts(
+async def fix_missing_negative_info_in_artifacts(
     missing_pairs: List[tuple],
     artifacts: DigitalArtifacts,
     persona: ExpandedPersona,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> DigitalArtifacts:
     """Fix missing negative info by regenerating existing artifacts to include them.
@@ -555,7 +556,7 @@ def fix_missing_negative_info_in_artifacts(
         missing_pairs: List of (NegativeInfoItem, NegativePoint) tuples.
         artifacts: Current artifacts.
         persona: Persona.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -596,7 +597,7 @@ def fix_missing_negative_info_in_artifacts(
             f"    Weaving point into {target_artifact.artifact_type} artifact (index {best_idx})..."
         )
 
-        regenerated = client.chat.completions.parse(
+        regenerated = await client.aparse(
             model=config.generation_model,
             messages=[
                 {

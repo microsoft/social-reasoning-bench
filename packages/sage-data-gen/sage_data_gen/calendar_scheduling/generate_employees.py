@@ -1,4 +1,4 @@
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from .config import PipelineConfig
 from .models import Company, Employee, EmployeeRoster
@@ -28,7 +28,7 @@ Requirements:
 
 
 async def generate_employees(
-    client: ModelClient,
+    client: SageModelClient,
     company: Company,
     config: PipelineConfig,
 ) -> list[Employee]:
@@ -44,7 +44,7 @@ async def generate_employees(
         backstory=company.backstory,
     )
 
-    result = await client.chat.completions.aparse(
+    result = await client.aparse(
         model=config.model,
         messages=[{"role": "user", "content": prompt}],
         response_format=EmployeeRoster,

@@ -4,18 +4,56 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-from sage_benchmark.calendar_scheduling.loader import load_calendar_tasks
-from sage_benchmark.calendar_scheduling.types import (
-    CalendarTask,
-    EmailThread,
-    Note,
-)
-from sage_llm import ModelClient
+from sage_benchmark.benchmarks.calendar_scheduling.loader import load_tasks
+from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarTask
+from sage_llm import SageMessage, SageModelClient
+
+# These types were removed from sage-benchmark (no longer used at eval time)
+# but are still needed for data-gen artifact generation.
+
+
+class EventReference(BaseModel):
+    """Links artifact to calendar event(s) it hints about."""
+
+    event_title: str
+    hints_movable: bool = False
+    hints_secret: bool = False
+
+
+class EmailMessage(BaseModel):
+    """A single message in an email thread."""
+
+    sender: str
+    content: str
+
+
+class EmailThread(BaseModel):
+    """An email thread artifact."""
+
+    artifact_type: Literal["email"] = "email"
+    date: str = Field(
+        description="Relative date like 'today', 'yesterday', 'last week', 'a few days ago'"
+    )
+    subject: str
+    messages: list[EmailMessage] = Field(description="Messages in thread, oldest first")
+    event_references: list[EventReference]
+
+
+class Note(BaseModel):
+    """A note artifact."""
+
+    artifact_type: Literal["note"] = "note"
+    date: str = Field(
+        description="Relative date like 'today', 'yesterday', 'last week', 'a few days ago'"
+    )
+    title: str
+    content: str
+    event_references: list[EventReference]
 
 
 class TaskArtifacts(BaseModel):
@@ -68,7 +106,7 @@ Calendar Events for tomorrow (with their hidden properties that you should hint 
 class ArtifactGenerator:
     """Generates artifacts for calendar tasks using an LLM."""
 
-    def __init__(self, client: ModelClient, model: str, config: ArtifactConfig):
+    def __init__(self, client: SageModelClient, model: str, config: ArtifactConfig):
         self.client = client
         self.model = model
         self.config = config
@@ -90,7 +128,7 @@ class ArtifactGenerator:
                 }
             )
 
-        messages = [
+        messages: list[SageMessage] = [
             {
                 "role": "user",
                 "content": PROMPT_TEMPLATE.format(
@@ -102,7 +140,7 @@ class ArtifactGenerator:
             },
         ]
 
-        result = await self.client.chat.completions.aparse(
+        result = await self.client.aparse(
             model=self.model,
             messages=messages,
             response_format=GeneratedArtifacts,
@@ -132,8 +170,8 @@ async def generate_artifacts(
         artifacts_per_task: Number of artifacts to generate per task
     """
     print("Loading tasks from ", tasks_path)
-    tasks = load_calendar_tasks([tasks_path]).all_tasks
-    client = ModelClient()
+    tasks = load_tasks([tasks_path]).all_tasks
+    client = SageModelClient()
     config = ArtifactConfig(artifacts_per_task=artifacts_per_task)
 
     print("Generating artifacts...")

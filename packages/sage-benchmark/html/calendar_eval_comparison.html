@@ -5,6 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calendar Scheduling Evaluation Comparison</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            sage: {
+              50:  '#f0f6f1',
+              100: '#dceadf',
+              200: '#bbd6c1',
+              300: '#93bb9d',
+              400: '#7db88d',
+              500: '#6b9e78',
+              600: '#5a8a66',
+              700: '#4a7a56',
+              800: '#3d6347',
+              900: '#33523b',
+            },
+            gray: {
+              50:  '#fafafa',
+              100: '#f5f5f5',
+              200: '#e5e5e5',
+              300: '#d4d4d4',
+              400: '#a3a3a3',
+              500: '#737373',
+              600: '#525252',
+              700: '#404040',
+              800: '#262626',
+              900: '#171717',
+              950: '#0a0a0a',
+            },
+          },
+        },
+      },
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="lib/boxplot.js"></script>
   <style>
@@ -36,10 +72,10 @@
       transform: scale(1.05);
     }
     .pivot-chip.drag-over-left {
-      box-shadow: -3px 0 0 0 #3b82f6;
+      box-shadow: -3px 0 0 0 #6b9e78;
     }
     .pivot-chip.drag-over-right {
-      box-shadow: 3px 0 0 0 #3b82f6;
+      box-shadow: 3px 0 0 0 #6b9e78;
     }
 
     /* Custom tooltip styles */
@@ -129,7 +165,7 @@
     }
   </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+<body class="bg-gray-100 dark:bg-gray-950 min-h-screen">
   <div id="app" class="max-w-7xl mx-auto p-4">
     <!-- Header -->
     <div class="text-center py-6">
@@ -140,7 +176,7 @@
     <!-- File Upload Section -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
       <div class="flex items-center gap-4 mb-3">
-        <label class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg cursor-pointer transition">
+        <label class="inline-block px-4 py-2 bg-sage-600 hover:bg-sage-700 text-white font-medium rounded-lg cursor-pointer transition">
           Load Files
           <input type="file" id="file-input" accept=".json" multiple class="hidden">
         </label>
@@ -266,16 +302,18 @@
 
     // Color palette
     const colors = {
-      green: { bg: 'rgba(34, 197, 94, 0.7)', border: 'rgb(34, 197, 94)' },
-      red: { bg: 'rgba(239, 68, 68, 0.7)', border: 'rgb(239, 68, 68)' },
-      purple: { bg: 'rgba(168, 85, 247, 0.7)', border: 'rgb(168, 85, 247)' },
-      orange: { bg: 'rgba(249, 115, 22, 0.7)', border: 'rgb(249, 115, 22)' },
-      yellow: { bg: 'rgba(234, 179, 8, 0.7)', border: 'rgb(234, 179, 8)' },
-      amber: { bg: 'rgba(245, 158, 11, 0.7)', border: 'rgb(245, 158, 11)' },
-      blue: { bg: 'rgba(59, 130, 246, 0.7)', border: 'rgb(59, 130, 246)' },
-      gray: { bg: 'rgba(107, 114, 128, 0.7)', border: 'rgb(107, 114, 128)' },
-      teal: { bg: 'rgba(20, 184, 166, 0.7)', border: 'rgb(20, 184, 166)' },
-      pink: { bg: 'rgba(236, 72, 153, 0.7)', border: 'rgb(236, 72, 153)' },
+      sage:   { bg: 'rgba(107, 158, 120, 0.7)', border: '#6b9e78' },  // sage green
+      amber:  { bg: 'rgba(180, 130, 80, 0.7)',  border: '#b48250' },  // warm amber
+      slate:  { bg: 'rgba(120, 140, 180, 0.7)', border: '#788cb4' },  // slate blue
+      rose:   { bg: 'rgba(180, 100, 120, 0.7)', border: '#b46478' },  // dusty rose
+      olive:  { bg: 'rgba(160, 155, 100, 0.7)', border: '#a09b64' },  // olive gold
+      teal:   { bg: 'rgba(115, 160, 175, 0.7)', border: '#73a0af' },  // teal
+      plum:   { bg: 'rgba(155, 120, 165, 0.7)', border: '#9b78a5' },  // muted plum
+      tan:    { bg: 'rgba(190, 150, 120, 0.7)', border: '#be9678' },  // tan
+      steel:  { bg: 'rgba(110, 150, 160, 0.7)', border: '#6e96a0' },  // steel blue
+      mauve:  { bg: 'rgba(165, 130, 130, 0.7)', border: '#a58282' },  // mauve
+      red:    { bg: 'rgba(239, 68, 68, 0.7)',   border: '#ef4444' },  // red (for semantic use)
+      gray:   { bg: 'rgba(107, 114, 128, 0.7)', border: '#6b7280' },  // gray
     };
 
     // DOM Elements
@@ -560,7 +598,7 @@
 
     // Color helper for chart datasets
     function getColorForIndex(idx) {
-      const palette = [colors.blue, colors.green, colors.purple, colors.orange, colors.pink, colors.teal, colors.red, colors.yellow, colors.amber, colors.gray];
+      const palette = [colors.sage, colors.amber, colors.slate, colors.rose, colors.olive, colors.teal, colors.plum, colors.tan, colors.steel, colors.mauve];
       return palette[idx % palette.length];
     }
 
@@ -1004,7 +1042,7 @@
       sliceTogglesContainer.innerHTML = sliceDefinitions.map((slice, idx) => {
         const isEnabled = enabledSlices.has(idx);
         const bgClass = isEnabled
-          ? 'bg-blue-600 text-white'
+          ? 'bg-sage-600 text-white'
           : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
         return `
           <button class="slice-toggle px-2 py-1 text-xs rounded font-medium transition ${bgClass}"
@@ -1038,7 +1076,7 @@
       if (!container) return;
 
       container.innerHTML = pivotOrder.map(dim => `
-        <div class="pivot-chip px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300
+        <div class="pivot-chip px-3 py-1.5 bg-sage-100 dark:bg-sage-900 text-sage-700 dark:text-sage-300
                     rounded-lg cursor-grab text-sm font-medium"
              draggable="true" data-dimension="${dim}">
           ${dimensionLabels[dim]}
@@ -1136,7 +1174,7 @@
 
         // Type badges
         const satBadge = isSatisfiable
-          ? '<span class="px-1.5 py-0.5 text-xs rounded bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">Sat</span>'
+          ? '<span class="px-1.5 py-0.5 text-xs rounded bg-sage-100 text-sage-700 dark:bg-sage-900 dark:text-sage-300">Sat</span>'
           : '<span class="px-1.5 py-0.5 text-xs rounded bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">Unsat</span>';
         const malBadge = isMalicious
           ? '<span class="px-1.5 py-0.5 text-xs rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">Mal</span>'

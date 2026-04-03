@@ -5,6 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calendar Task Data Viewer</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            sage: {
+              50:  '#f0f6f1',
+              100: '#dceadf',
+              200: '#bbd6c1',
+              300: '#93bb9d',
+              400: '#7db88d',
+              500: '#6b9e78',
+              600: '#5a8a66',
+              700: '#4a7a56',
+              800: '#3d6347',
+              900: '#33523b',
+            },
+            gray: {
+              50:  '#fafafa',
+              100: '#f5f5f5',
+              200: '#e5e5e5',
+              300: '#d4d4d4',
+              400: '#a3a3a3',
+              500: '#737373',
+              600: '#525252',
+              700: '#404040',
+              800: '#262626',
+              900: '#171717',
+              950: '#0a0a0a',
+            },
+          },
+        },
+      },
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
   <style>
     .timeline-event {
@@ -100,12 +136,12 @@
     }
   </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+<body class="bg-gray-100 dark:bg-gray-950 min-h-screen">
   <div id="app" class="max-w-6xl mx-auto p-4">
     <!-- File Upload Section -->
     <div id="upload-section" class="text-center py-12">
       <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Calendar Task Data Viewer</h1>
-      <label class="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg cursor-pointer transition">
+      <label class="inline-block px-6 py-3 bg-sage-600 hover:bg-sage-700 text-white font-medium rounded-lg cursor-pointer transition">
         Load Calendar Tasks YAML
         <input type="file" id="file-input" accept=".yaml,.yml" class="hidden">
       </label>
@@ -123,9 +159,9 @@
               <span class="text-gray-500 dark:text-gray-400">Total Tasks:</span>
               <span id="stat-total" class="font-semibold text-gray-800 dark:text-gray-100 ml-1">0</span>
             </div>
-            <div class="bg-blue-100 dark:bg-blue-900 px-3 py-1.5 rounded">
-              <span class="text-blue-600 dark:text-blue-400">Satisfiable:</span>
-              <span id="stat-satisfiable" class="font-semibold text-blue-700 dark:text-blue-300 ml-1">0</span>
+            <div class="bg-sage-100 dark:bg-sage-900 px-3 py-1.5 rounded">
+              <span class="text-sage-600 dark:text-sage-400">Satisfiable:</span>
+              <span id="stat-satisfiable" class="font-semibold text-sage-700 dark:text-sage-300 ml-1">0</span>
             </div>
             <div class="bg-red-100 dark:bg-red-900 px-3 py-1.5 rounded">
               <span class="text-red-600 dark:text-red-400">Malicious:</span>
@@ -242,9 +278,9 @@
         renderTask(tasksData[currentTaskIndex]);
         // Update active styling
         document.querySelectorAll('.task-item').forEach(item => {
-          item.classList.remove('bg-blue-50', 'dark:bg-blue-900/50');
+          item.classList.remove('bg-sage-50', 'dark:bg-sage-900/50');
         });
-        taskItem.classList.add('bg-blue-50', 'dark:bg-blue-900/50');
+        taskItem.classList.add('bg-sage-50', 'dark:bg-sage-900/50');
       }
     });
 
@@ -278,12 +314,12 @@
       taskSelector.innerHTML = tasksData.map((task, idx) => {
         const title = task.requestor?.event?.title || task.requestor?.requested_meeting?.title || 'Unknown';
         const satisfiableBadge = task.satisfiable
-          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Satisfiable</span>'
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-200">Satisfiable</span>'
           : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Unsatisfiable</span>';
         const requestorBadge = task.requestor?.is_malicious
           ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Malicious</span>'
           : '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300">Benign</span>';
-        const activeClass = idx === currentTaskIndex ? 'bg-blue-50 dark:bg-blue-900/50' : '';
+        const activeClass = idx === currentTaskIndex ? 'bg-sage-50 dark:bg-sage-900/50' : '';
         return `<div class="task-item p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600 last:border-b-0 ${activeClass}" data-index="${idx}">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="font-medium text-gray-800 dark:text-gray-100">Task ${task.id ?? '?'}:</span>
@@ -302,7 +338,7 @@
 
       if (task.satisfiable) {
         badgeSatisfiable.textContent = 'Satisfiable';
-        badgeSatisfiable.className = 'px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+        badgeSatisfiable.className = 'px-3 py-1 rounded-full text-sm font-medium bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-200';
       } else {
         badgeSatisfiable.textContent = 'Unsatisfiable';
         badgeSatisfiable.className = 'px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
@@ -408,7 +444,7 @@
         const left = ((startMinutes - minTimeMinutes) / rangeMinutes) * 100;
         const width = (event.duration_minutes / rangeMinutes) * 100;
 
-        let bgColor = 'bg-blue-500';  // Default: owned by calendar owner
+        let bgColor = 'bg-sage-500';  // Default: owned by calendar owner
         let textColor = 'text-white';
 
         // Color based on ownership
@@ -470,7 +506,7 @@
       // Legend
       const legendContainer = document.getElementById('calendar-legend');
       legendContainer.innerHTML = `
-        <span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded"></span> Owned</span>
+        <span class="inline-flex items-center gap-1"><span class="w-3 h-3 bg-sage-500 rounded"></span> Owned</span>
         <span class="inline-flex items-center gap-1 ml-3"><span class="w-3 h-3 bg-teal-500 rounded"></span> Not Owned</span>
         <span class="inline-flex items-center gap-1 ml-3">🔒 Non-movable</span>
         <span class="inline-flex items-center gap-1 ml-3">🤫 Secret</span>

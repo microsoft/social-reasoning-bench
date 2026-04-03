@@ -1,16 +1,16 @@
 """Stage 2: Generate ground truth by filling form with realistic data.
 
-Imports the form model, fills it with LLM-generated data, classifies fields
-as open-ended or close-ended, and returns a flat ground truth dict.
+Fills the form with LLM-generated data, classifies fields as open-ended
+or close-ended based on the filled values, and returns a flat ground truth dict.
 """
 
 import json
 from pathlib import Path
 
-from sage_llm import ModelClient
+from sage_llm import SageModelClient
 
 from sage_data_gen.form_filling.config import FormFillingConfig
-from sage_data_gen.form_filling.models import FieldClassification, OpenEndedFieldsAnalysis
+from sage_data_gen.form_filling.models import OpenEndedFieldsAnalysis
 from sage_data_gen.form_filling.prompts import CLASSIFY_FIELDS_PROMPT, FILL_FORM_PROMPT
 from sage_data_gen.form_filling.utils import (
     clear_signature_fields,
@@ -20,35 +20,21 @@ from sage_data_gen.form_filling.utils import (
 
 
 def _get_form_schema(form_class) -> str:
-    """Get a readable JSON schema description of the form."""
-    schema = form_class.model_json_schema()
-    return json.dumps(schema, indent=2)
+    """Get form schema as a formatted string."""
+    return json.dumps(form_class.model_json_schema(), indent=2)
 
 
-def _fill_form_with_llm(form_class, client: ModelClient, model: str) -> dict:
-    """Use LLM to fill out the form with realistic data.
-
-    Args:
-        form_class: Pydantic BaseModel class for the form.
-        client: ModelClient instance.
-        model: Model name for structured output.
-
-    Returns:
-        Filled form data as a dict.
-    """
+async def _fill_form_with_llm(form_class, client: SageModelClient, model: str) -> dict:
+    """Fill a form using LLM structured output."""
     class_name = form_class.__name__
     form_title = class_name.replace("_", " ").title()
-
     if form_class.__doc__:
         form_title = form_class.__doc__.strip().split("\n")[0]
-
-    print(f"  Form class: {class_name}")
-    print(f"  Form title: {form_title}")
 
     form_schema = _get_form_schema(form_class)
 
     print(f"  Filling form with {model}...")
-    filled_form = client.chat.completions.parse(
+    filled_form = await client.aparse(
         model=model,
         messages=[
             {
@@ -69,18 +55,20 @@ def _fill_form_with_llm(form_class, client: ModelClient, model: str) -> dict:
     return filled_data
 
 
-def _classify_form_fields(filled_data: dict, client: ModelClient, model: str) -> dict[str, bool]:
+async def _classify_form_fields(
+    filled_data: dict, client: SageModelClient, model: str
+) -> dict[str, bool]:
     """Classify each field as open-ended or not using LLM.
 
     Args:
         filled_data: Filled form data dict.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         model: Model name for classification.
 
     Returns:
         Dict mapping field_id to is_open_ended boolean.
     """
-    print(f"  Classifying fields as open/close-ended...")
+    print("  Classifying fields as open/close-ended...")
 
     flattened = flatten_form_data(filled_data)
     fields_for_analysis = []
@@ -103,7 +91,7 @@ def _classify_form_fields(filled_data: dict, client: ModelClient, model: str) ->
             }
         )
 
-    analysis = client.chat.completions.parse(
+    analysis = await client.aparse(
         model=model,
         messages=[
             {
@@ -121,15 +109,56 @@ def _classify_form_fields(filled_data: dict, client: ModelClient, model: str) ->
         temperature=0.3,
     )
 
-    classifications = {c.field_id: c.is_open_ended for c in analysis.classifications}
+    expected_ids = {f["id"] for f in fields_for_analysis}
+
+    max_retries = 3
+    for attempt in range(max_retries + 1):
+        classifications: dict[str, bool] = {}
+        for c in analysis.classifications:
+            if c.field_id in expected_ids:
+                classifications[c.field_id] = c.is_open_ended
+            else:
+                print(f"  Warning: LLM returned unknown field_id '{c.field_id}'")
+
+        missing = expected_ids - set(classifications.keys())
+        if not missing:
+            break
+
+        if attempt < max_retries:
+            print(
+                f"  Retry {attempt + 1}/{max_retries}: "
+                f"{len(missing)} fields missing from classification: {missing}"
+            )
+            analysis = await client.aparse(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert at analyzing form fields to identify which allow open-ended responses.",
+                    },
+                    {
+                        "role": "user",
+                        "content": CLASSIFY_FIELDS_PROMPT.format(
+                            fields_json=json.dumps(fields_for_analysis, indent=2)
+                        ),
+                    },
+                ],
+                response_format=OpenEndedFieldsAnalysis,
+                temperature=0.3,
+            )
+        else:
+            raise ValueError(
+                f"Classification failed after {max_retries} retries. Missing field IDs: {missing}"
+            )
+
     open_count = sum(1 for v in classifications.values() if v)
     print(f"  Classified {len(classifications)} fields ({open_count} open-ended)")
     return classifications
 
 
-def generate_groundtruth(
+async def generate_groundtruth(
     form_model_path: Path,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> dict:
     """Fill form with realistic data and classify fields.
@@ -138,24 +167,22 @@ def generate_groundtruth(
 
     Args:
         form_model_path: Path to the form_model.py file.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
         Flat ground truth dict: {"field_id": {"answer": str, "is_open_ended": bool}}.
     """
-
     # Import the form model
     print("  Importing form module...")
-    _, form_class = import_form_model_from_file(form_model_path)
+    form_class = import_form_model_from_file(form_model_path)
 
     # Fill form with LLM
-    print("  Filling form with LLM...")
-    filled_data = _fill_form_with_llm(form_class, client, config.parsing_model)
+    filled_data = await _fill_form_with_llm(form_class, client, config.parsing_model)
 
     # Classify fields
     print("  Classifying fields...")
-    classifications = _classify_form_fields(filled_data, client, config.validation_model)
+    classifications = await _classify_form_fields(filled_data, client, config.validation_model)
 
     # Flatten and build flat groundtruth
     flattened = flatten_form_data(filled_data)

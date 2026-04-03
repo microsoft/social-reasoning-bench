@@ -7,7 +7,7 @@ transient ones (rate limits, timeouts, network hiccups).
 
 import re
 
-import litellm
+import anthropic
 import openai
 
 
@@ -20,29 +20,21 @@ def is_fatal_error(e: Exception) -> bool:
     - Model not found
     - Context length exceeded (cannot fit conversation in model's context window)
     - Quota exhausted (billing issue)
-    - Budget exceeded (litellm proxy budget)
 
     Other errors (rate limits, timeouts, network issues) are recoverable.
 
     Note: CancelledError is handled separately and re-raised immediately.
 
     References:
-    - https://docs.litellm.ai/docs/exception_mapping
     - https://platform.openai.com/docs/guides/error-codes
     """
-    # Check for context length exceeded (multiple ways this can be raised)
-    if isinstance(e, litellm.ContextWindowExceededError):
-        return True  # Specific litellm exception for context overflow
-
-    # Check litellm exception types
-    if isinstance(e, litellm.AuthenticationError):
+    # Check anthropic exception types
+    if isinstance(e, anthropic.AuthenticationError):
         return True  # 401 - Invalid API key
-    if isinstance(e, litellm.NotFoundError):
+    if isinstance(e, anthropic.NotFoundError):
         return True  # 404 - Model doesn't exist
-    if hasattr(litellm, "BudgetExceededError") and isinstance(e, litellm.BudgetExceededError):
-        return True  # litellm proxy budget constraint
 
-    # Check openai exception types (may not be wrapped by litellm yet)
+    # Check openai exception types
     if isinstance(e, openai.AuthenticationError):
         return True  # 401 - Invalid API key
     if isinstance(e, openai.PermissionDeniedError):
@@ -52,7 +44,7 @@ def is_fatal_error(e: Exception) -> bool:
 
     # RateLimitError can be either fatal (quota) or recoverable (rate limit)
     # Distinguish by checking error message for 'insufficient_quota' vs 'rate_limit_exceeded'
-    if isinstance(e, (litellm.RateLimitError, openai.RateLimitError)):
+    if isinstance(e, (anthropic.RateLimitError, openai.RateLimitError)):
         error_str = str(e).lower()
         # Check for quota exhaustion (fatal)
         if "insufficient_quota" in error_str or "exceeded your current quota" in error_str:
@@ -61,7 +53,7 @@ def is_fatal_error(e: Exception) -> bool:
         return False
 
     # Fallback: check error string for various fatal patterns
-    # (handles cases where litellm wraps as generic APIConnectionError/BadRequestError)
+    # (handles cases where errors are wrapped as generic APIConnectionError/BadRequestError)
     error_str = str(e).lower()
 
     # Context length issues

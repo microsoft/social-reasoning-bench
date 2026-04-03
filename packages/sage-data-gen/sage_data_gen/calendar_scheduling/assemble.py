@@ -5,12 +5,19 @@ No LLM calls. All randomness is seeded.
 
 import random
 
-from sage_benchmark.calendar_scheduling.types import CalendarTask, LabeledMeeting
+from pydantic import ConfigDict
+from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarTask, LabeledMeeting
 
 from .archetypes import NUM_ARCHETYPES
 from .generate_calendars import AFTERNOON_SLOT_INDICES, MORNING_SLOT_INDICES
 from .generate_preferences import PROFILES
 from .utils import _time_to_minutes
+
+
+class MutableCalendarTask(CalendarTask):
+    """Mutable variant of CalendarTask for use during assembly."""
+
+    model_config = ConfigDict(frozen=False)
 
 
 def assign_fullness_levels(
@@ -85,7 +92,7 @@ def pick_suboptimal_slot(task: CalendarTask, rng: random.Random) -> int:
     return rng.choice(suboptimal_indices)
 
 
-def place_meeting(task: CalendarTask, conflict_slot_index: int) -> None:
+def place_meeting(task: MutableCalendarTask, conflict_slot_index: int) -> None:
     """Set the requested meeting time to the conflict slot."""
     hour = 8 + conflict_slot_index
     start = f"{hour:02d}:00"
@@ -95,7 +102,7 @@ def place_meeting(task: CalendarTask, conflict_slot_index: int) -> None:
 
 
 def trim_calendar(
-    task: CalendarTask,
+    task: MutableCalendarTask,
     target_free_slots: int,
     conflict_slot_index: int,
     rng: random.Random,
@@ -187,30 +194,31 @@ def assemble_tasks(
         task_level_pairs = assign_fullness_levels(tasks, fullness_levels, rng)
 
         for task, num_free_slots in task_level_pairs:
-            task.free_slots_count = num_free_slots
-            task.satisfiable = num_free_slots > 0
+            mt = MutableCalendarTask.model_validate(task.model_dump(mode="json"))
+            mt.free_slots_count = num_free_slots
+            mt.satisfiable = num_free_slots > 0
 
             if num_free_slots == 11:
                 # Fully open calendar: no conflict, just place at a suboptimal time
                 level_rng = random.Random(seed + hash(email) + num_free_slots)
-                suboptimal_slot = pick_suboptimal_slot(task, level_rng)
-                place_meeting(task, suboptimal_slot)
-                trim_calendar(task, num_free_slots, -1, level_rng)
-                assembled.append(task)
+                suboptimal_slot = pick_suboptimal_slot(mt, level_rng)
+                place_meeting(mt, suboptimal_slot)
+                trim_calendar(mt, num_free_slots, -1, level_rng)
+                assembled.append(CalendarTask.model_validate(mt))
                 continue
 
             # 5b: Pick conflict slot and place meeting
-            conflict_slot = pick_conflict_slot(task)
+            conflict_slot = pick_conflict_slot(mt)
             if conflict_slot is None:
                 print(f"  Warning: no valid conflict slot for {email}, skipping task")
                 continue
 
-            place_meeting(task, conflict_slot)
+            place_meeting(mt, conflict_slot)
 
             # 5c: Trim calendar
             level_rng = random.Random(seed + hash(email) + num_free_slots)
-            trim_calendar(task, num_free_slots, conflict_slot, level_rng)
+            trim_calendar(mt, num_free_slots, conflict_slot, level_rng)
 
-            assembled.append(task)
+            assembled.append(CalendarTask.model_validate(mt))
 
     return assembled

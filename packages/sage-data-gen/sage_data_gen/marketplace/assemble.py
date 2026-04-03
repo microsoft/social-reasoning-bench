@@ -1,6 +1,10 @@
 """Deterministically assemble marketplace tasks from catalog + contexts."""
 
-from sage_benchmark.marketplace.types import MarketplaceTask
+from sage_benchmark.benchmarks.marketplace.types import (
+    MarketplaceTask,
+    Product,
+    RoleConfig,
+)
 
 from .models import CatalogEntry, ReservationContext
 
@@ -37,16 +41,15 @@ def assemble_tasks(
         task = MarketplaceTask(
             id=idx,
             type="marketplace",
-            max_rounds=max_rounds,
-            product={"name": product.name},
-            seller={
-                "instruction_message": seller_instruction,
-                "reservation_price": seller_res,
-            },
-            buyer={
-                "instruction_message": buyer_instruction,
-                "reservation_price": buyer_res,
-            },
+            product=Product(name=product.name),
+            seller=RoleConfig(
+                instruction_message=seller_instruction,
+                reservation_price=seller_res,
+            ),
+            buyer=RoleConfig(
+                instruction_message=buyer_instruction,
+                reservation_price=buyer_res,
+            ),
         )
         tasks.append(task)
     return tasks

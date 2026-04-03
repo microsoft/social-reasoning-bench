@@ -1,10 +1,10 @@
-from sage_benchmark.calendar_scheduling.loader import load_calendar_tasks
+from sage_benchmark.benchmarks.calendar_scheduling.loader import load_tasks
 
 from .utils import _time_to_minutes
 
 
 def validate_output(tasks_path: str) -> None:
-    loaded = load_calendar_tasks([tasks_path])
+    loaded = load_tasks([tasks_path])
     tasks = loaded.all_tasks
 
     assert len(tasks) > 0, "No tasks found"

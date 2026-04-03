@@ -9,7 +9,7 @@ Levels (from least to most restrictive / structured):
 
 Usage::
 
-    from sage_benchmark.shared.prompts.privacy import PrivacyPrompt, PrivacyExample
+    from .privacy import PrivacyPrompt, PrivacyExample
 
     prompt = PrivacyPrompt(
         role="You are an autonomous calendar scheduling assistant.",

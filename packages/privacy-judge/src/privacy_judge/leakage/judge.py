@@ -6,21 +6,18 @@ import asyncio
 import json
 from typing import TYPE_CHECKING
 
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionMessageParam,
-    ChatCompletionMessageToolCallParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
+from openai.types.chat.chat_completion_message_tool_call import (
+    ChatCompletionMessageToolCall,
+    Function,
 )
+from sage_llm import SageChatCompletionMessage, SageMessage
 
 from .models import LeakageExample, LeakageJudgment
 from .prompts import BASE_SYSTEM_PROMPT
 from .tools import ReportLeakage
 
 if TYPE_CHECKING:
-    from sage_llm import ModelClient
+    from sage_llm import SageModelClient
 
 
 class EvidenceValidationError(Exception):
@@ -35,34 +32,34 @@ class LeakageJudge:
     Uses majority voting across multiple parallel judge instances for robustness.
     """
 
-    DEFAULT_N_JUDGES = 5
+    DEFAULT_N_VOTES = 5
     DEFAULT_MAX_RETRIES = 3
 
     def __init__(
         self,
         model: str,
-        client: "ModelClient",
+        client: "SageModelClient",
         *,
         domain: str = "",
         examples: list[LeakageExample] | None = None,
-        n_judges: int | None = None,
+        n_votes: int | None = None,
         max_retries: int | None = None,
     ):
         """Initialize the leakage judge.
 
         Args:
             model: Model name/identifier for LLM calls
-            client: ModelClient instance for API calls
+            client: SageModelClient instance for API calls
             domain: Domain-specific context to inject into system prompt
             examples: Few-shot examples for calibration
-            n_judges: Number of parallel judges for majority voting (default: 5)
+            n_votes: Number of parallel judges for majority voting (default: 5)
             max_retries: Max retries on validation failure (default: 3)
         """
         self._model = model
         self._client = client
         self._domain = domain
         self._examples = examples or []
-        self._n_judges = n_judges if n_judges is not None else self.DEFAULT_N_JUDGES
+        self._n_votes = n_votes if n_votes is not None else self.DEFAULT_N_VOTES
         self._max_retries = max_retries if max_retries is not None else self.DEFAULT_MAX_RETRIES
         self._tool = ReportLeakage.get_tool_param()
 
@@ -70,38 +67,38 @@ class LeakageJudge:
         """Build system prompt with domain context."""
         return BASE_SYSTEM_PROMPT.format(domain=self._domain)
 
-    def _build_example_messages(self) -> list[ChatCompletionMessageParam]:
+    def _build_example_messages(self) -> list[SageMessage]:
         """Build few-shot example messages as User/ToolCall/ToolResult sequences."""
-        messages: list[ChatCompletionMessageParam] = []
+        messages: list[SageMessage] = []
 
         for i, example in enumerate(self._examples):
             # User content with secret + input
             messages.append(
-                ChatCompletionUserMessageParam(
-                    role="user",
-                    content=f"SECRET:\n{example.secret}\n\nINPUT:\n{example.input}",
-                )
+                {
+                    "role": "user",
+                    "content": f"SECRET:\n{example.secret}\n\nINPUT:\n{example.input}",
+                }
             )
 
             # Assistant tool call
             tool_call_id = f"example_{i}"
             messages.append(
-                ChatCompletionAssistantMessageParam(
+                SageChatCompletionMessage(
                     role="assistant",
                     tool_calls=[
-                        ChatCompletionMessageToolCallParam(
+                        ChatCompletionMessageToolCall(
                             id=tool_call_id,
                             type="function",
-                            function={
-                                "name": ReportLeakage.__name__,
-                                "arguments": json.dumps(
+                            function=Function(
+                                name=ReportLeakage.__name__,
+                                arguments=json.dumps(
                                     {
                                         "reasoning": example.reasoning,
                                         "leaked": example.leaked,
                                         "evidence": example.evidence,
                                     }
                                 ),
-                            },
+                            ),
                         )
                     ],
                 )
@@ -109,11 +106,11 @@ class LeakageJudge:
 
             # Tool result
             messages.append(
-                ChatCompletionToolMessageParam(
-                    role="tool",
-                    tool_call_id=tool_call_id,
-                    content="Judgment recorded.",
-                )
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_call_id,
+                    "content": "Judgment recorded.",
+                }
             )
 
         return messages
@@ -144,7 +141,7 @@ class LeakageJudge:
 
     async def _evaluate_single(
         self,
-        messages: list[ChatCompletionMessageParam],
+        messages: list[SageMessage],
     ) -> LeakageJudgment:
         """Run a single evaluation with retry logic.
 
@@ -162,18 +159,19 @@ class LeakageJudge:
 
         validation_errors: list[str] = []
         for attempt in range(self._max_retries + 1):
-            response = await self._client.chat.completions.acreate(
+            response = await self._client.acomplete(
                 model=self._model,
                 messages=messages,
                 tools=[self._tool],
                 tool_choice="required",
             )
 
-            msg = response.choices[0].message
-            if not msg.tool_calls or len(msg.tool_calls) == 0:
+            if not response.tool_calls or len(response.tool_calls) == 0:
                 raise ValueError("No tool call in response")
 
-            tool_call = msg.tool_calls[0]
+            tool_call = response.tool_calls[0]
+            if not isinstance(tool_call, ChatCompletionMessageToolCall):
+                raise ValueError(f"Unexpected tool call type: {type(tool_call)}")
             if tool_call.function.name != ReportLeakage.__name__:
                 raise ValueError(
                     f"Expected {ReportLeakage.__name__} tool call, got: {tool_call.function.name}"
@@ -194,16 +192,16 @@ class LeakageJudge:
             # Retry with error feedback
             if attempt < self._max_retries:
                 messages.append(
-                    ChatCompletionAssistantMessageParam(
+                    SageChatCompletionMessage(
                         role="assistant",
                         tool_calls=[
-                            ChatCompletionMessageToolCallParam(
+                            ChatCompletionMessageToolCall(
                                 id=tool_call.id,
                                 type="function",
-                                function={
-                                    "name": tool_call.function.name,
-                                    "arguments": tool_call.function.arguments,
-                                },
+                                function=Function(
+                                    name=tool_call.function.name,
+                                    arguments=tool_call.function.arguments,
+                                ),
                             )
                         ],
                     )
@@ -214,11 +212,11 @@ class LeakageJudge:
                     + "\n".join(f"- {e}" for e in validation_errors)
                 )
                 messages.append(
-                    ChatCompletionToolMessageParam(
-                        role="tool",
-                        tool_call_id=tool_call.id,
-                        content=error_message,
-                    )
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": error_message,
+                    }
                 )
 
         raise EvidenceValidationError(
@@ -235,7 +233,7 @@ class LeakageJudge:
     ) -> LeakageJudgment:
         """Evaluate whether input leaks secret information.
 
-        Uses majority voting across n_judges parallel evaluations.
+        Uses majority voting across n_votes parallel evaluations.
 
         Args:
             input: The text to evaluate for leakage
@@ -253,14 +251,14 @@ class LeakageJudge:
         user_content = self._build_user_content(input, secret, context)
 
         # Build messages: system prompt, few-shot examples, then actual query
-        messages: list[ChatCompletionMessageParam] = [
-            ChatCompletionSystemMessageParam(role="system", content=system_prompt),
+        messages: list[SageMessage] = [
+            {"role": "system", "content": system_prompt},
         ]
         messages.extend(self._build_example_messages())
-        messages.append(ChatCompletionUserMessageParam(role="user", content=user_content))
+        messages.append({"role": "user", "content": user_content})
 
         # Run N parallel judgments
-        tasks = [self._evaluate_single(messages) for _ in range(self._n_judges)]
+        tasks = [self._evaluate_single(messages) for _ in range(self._n_votes)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Filter valid judgments

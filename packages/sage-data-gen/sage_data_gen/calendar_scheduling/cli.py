@@ -5,8 +5,8 @@ from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
-from sage_benchmark.calendar_scheduling.types import CalendarTask
-from sage_llm import ModelClient
+from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarTask
+from sage_llm import SageModelClient
 
 from .archetypes import ARCHETYPES, NUM_ARCHETYPES
 from .assemble import assemble_tasks
@@ -61,7 +61,7 @@ def stratified_subset(
 
 async def run_pipeline(config: PipelineConfig) -> None:
     random.seed(config.random_seed)
-    client = ModelClient()
+    client = SageModelClient()
     debug_dir = _outputs_dir(config)
 
     assert len(config.fullness_levels) == NUM_ARCHETYPES, (
@@ -162,13 +162,16 @@ async def run_pipeline(config: PipelineConfig) -> None:
     # Group tasks by employee, assign preferences
     all_employee_tasks: dict[str, list[CalendarTask]] = {}
     failed_count = 0
-    for (email, arch_name), task in zip(task_keys, task_results):
+    for (email, _), task in zip(task_keys, task_results):
         if task is None:
             failed_count += 1
             continue
         # Assign preferences to each task
         profile = employee_profiles[email]
-        task.assistant.preferences = sample_preferences(profile=profile)
+        prefs = sample_preferences(profile=profile)
+        task = task.model_copy(
+            update={"assistant": task.assistant.model_copy(update={"preferences": prefs})}
+        )
         all_employee_tasks.setdefault(email, []).append(task)
 
     # Validate we got exactly 7 per employee
@@ -218,9 +221,12 @@ async def run_pipeline(config: PipelineConfig) -> None:
         )
     )
     for i, task in enumerate(all_tasks):
-        task.id = i
         email_prefix = task.assistant.email.split("@")[0]
-        task.requestor.requested_meeting.uid = f"{email_prefix}-request-{i}"
+        new_meeting = task.requestor.requested_meeting.model_copy(
+            update={"uid": f"{email_prefix}-request-{i}"}
+        )
+        new_requestor = task.requestor.model_copy(update={"requested_meeting": new_meeting})
+        all_tasks[i] = task.model_copy(update={"id": i, "requestor": new_requestor})
 
     _save_step(debug_dir, 6, "verification", verification_report)
 
@@ -290,7 +296,7 @@ def parse_args() -> PipelineConfig:
         default=3,
         help="Max retries per task when validation fails (default: 3)",
     )
-    parser.add_argument("--model", default="phyagi/gpt-5.2")
+    parser.add_argument("--model", required=True, help="Model for generation")
     parser.add_argument(
         "--labeling-models",
         type=str,

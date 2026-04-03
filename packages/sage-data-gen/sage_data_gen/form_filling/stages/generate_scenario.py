@@ -5,11 +5,12 @@ secrets (info that should not be disclosed), and generates negative info
 (details that would damage the submission if included).
 """
 
+import asyncio
 import json
 from typing import List
 
 from pydantic import BaseModel
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from sage_data_gen.form_filling.config import FormFillingConfig
 from sage_data_gen.form_filling.models import (
@@ -67,6 +68,7 @@ def groundtruth_to_answers(gt: dict) -> GroundTruthAnswers:
                 field_id=field_id,
                 field_label=label,
                 value=answer,
+                is_open_ended=info["is_open_ended"],
                 reasoning="Pre-filled value from ground truth form",
             )
         )
@@ -114,10 +116,10 @@ def identify_open_ended_fields_from_gt(
 # ---------------------------------------------------------------------------
 
 
-def step2_expand_persona(
+async def step2_expand_persona(
     form_text: str,
     ground_truth: GroundTruthAnswers,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> ExpandedPersona:
     """Expand persona based on ground truth answers.
@@ -125,7 +127,7 @@ def step2_expand_persona(
     Args:
         form_text: Extracted form text.
         ground_truth: Ground truth answers.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -136,7 +138,7 @@ def step2_expand_persona(
     form_title_lines = form_text.strip().split("\n")
     form_title = " ".join(form_title_lines).strip()
 
-    result = client.chat.completions.parse(
+    result = await client.aparse(
         model=config.generation_model,
         messages=[
             {
@@ -169,10 +171,10 @@ class PersonaFieldsToScrub(BaseModel):
     fields_to_scrub: List[str]
 
 
-def scrub_persona_for_masked_fields(
+async def scrub_persona_for_masked_fields(
     persona: ExpandedPersona,
     masked_fields: list[dict],
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> ExpandedPersona:
     """Remove masked field information from persona using LLM judgment.
@@ -184,7 +186,7 @@ def scrub_persona_for_masked_fields(
     Args:
         persona: Generated persona.
         masked_fields: List of dicts with 'field_id' and 'original_value'.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -205,7 +207,7 @@ def scrub_persona_for_masked_fields(
         {"field_id": m["field_id"], "original_value": m["original_value"]} for m in masked_fields
     ]
 
-    result = client.chat.completions.parse(
+    result = await client.aparse(
         model=config.validation_model,
         messages=[
             {
@@ -262,13 +264,13 @@ Rules:
 # ---------------------------------------------------------------------------
 
 
-def _generate_form_summary(
-    form_text: str, client: ModelClient, config: FormFillingConfig
+async def _generate_form_summary(
+    form_text: str, client: SageModelClient, config: FormFillingConfig
 ) -> FormSummary:
     """Generate form summary with purpose and intended recipient."""
     print(f"  Generating form summary...")
 
-    result = client.chat.completions.parse(
+    result = await client.aparse(
         model=config.validation_model,
         messages=[
             {
@@ -287,16 +289,20 @@ def _generate_form_summary(
     return result
 
 
-def _generate_secrets_for_question(
+async def _generate_secrets_for_question(
     question_id: str,
     question_text: str,
     question_value: str,
     form_summary: FormSummary,
     persona: ExpandedPersona,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> list[SecretDetail]:
-    """Generate 2-5 secrets for a single open-ended question."""
+    """Generate secrets for a single open-ended question.
+
+    The number of secrets is controlled by ``config.secrets_per_field_min``
+    and ``config.secrets_per_field_max`` (default 2-5).
+    """
     print(f"    Generating secrets for: {question_text[:60]}...")
 
     persona_for_prompt = translate_persona2text(persona)
@@ -304,7 +310,7 @@ def _generate_secrets_for_question(
     class QuestionSecretsResponse(BaseModel):
         secrets: list[SecretDetail]
 
-    result = client.chat.completions.parse(
+    result = await client.aparse(
         model=config.generation_model,
         messages=[
             {
@@ -319,6 +325,8 @@ def _generate_secrets_for_question(
                     question_text=question_text,
                     persona_json=persona_for_prompt,
                     ground_truth_for_question=question_value,
+                    secrets_min=config.secrets_per_field_min,
+                    secrets_max=config.secrets_per_field_max,
                 ),
             },
         ],
@@ -329,11 +337,11 @@ def _generate_secrets_for_question(
     return result.secrets
 
 
-def step3_generate_secrets(
+async def step3_generate_secrets(
     form_text: str,
     persona: ExpandedPersona,
     ground_truth: GroundTruthAnswers,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
     gt: dict,
 ) -> tuple[AllSecrets, OpenEndedFieldsAnalysis]:
@@ -343,7 +351,7 @@ def step3_generate_secrets(
         form_text: Extracted form text.
         persona: Expanded persona.
         ground_truth: Ground truth answers.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
         gt: Flat groundtruth dict with pre-classified fields.
 
@@ -352,7 +360,7 @@ def step3_generate_secrets(
     """
     # Step 3.1: Generate form summary
     print(f"  [Step 3.1] Generating form summary...")
-    form_summary = _generate_form_summary(form_text, client, config)
+    form_summary = await _generate_form_summary(form_text, client, config)
 
     # Step 3.2: Identify open-ended fields (from pre-classified groundtruth)
     print(f"  [Step 3.2] Identifying open-ended fields...")
@@ -363,29 +371,33 @@ def step3_generate_secrets(
         empty_all_secrets = AllSecrets(form_summary=form_summary, question_secrets=[])
         return empty_all_secrets, field_analysis
 
-    # Step 3.3: Generate secrets per open-ended question
+    # Step 3.3: Generate secrets per open-ended question (parallel)
     print(f"  [Step 3.3] Generating secrets for {len(open_ended_fields)} open-ended fields...")
-    question_secrets_list = []
 
-    for field in open_ended_fields:
-        secrets = _generate_secrets_for_question(
+    secret_results = await asyncio.gather(
+        *(
+            _generate_secrets_for_question(
+                question_id=field.field_id,
+                question_text=field.field_label,
+                question_value=field.value,
+                form_summary=form_summary,
+                persona=persona,
+                client=client,
+                config=config,
+            )
+            for field in open_ended_fields
+        )
+    )
+
+    question_secrets_list = [
+        QuestionSecrets(
             question_id=field.field_id,
             question_text=field.field_label,
-            question_value=field.value,
-            form_summary=form_summary,
-            persona=persona,
-            client=client,
-            config=config,
+            secrets=secrets,
         )
-
-        if secrets:
-            question_secrets_list.append(
-                QuestionSecrets(
-                    question_id=field.field_id,
-                    question_text=field.field_label,
-                    secrets=secrets,
-                )
-            )
+        for field, secrets in zip(open_ended_fields, secret_results)
+        if secrets
+    ]
 
     all_secrets = AllSecrets(form_summary=form_summary, question_secrets=question_secrets_list)
 
@@ -402,12 +414,12 @@ def step3_generate_secrets(
 # ---------------------------------------------------------------------------
 
 
-def step3b_generate_negative_info(
+async def step3b_generate_negative_info(
     persona: ExpandedPersona,
     ground_truth: GroundTruthAnswers,
     all_secrets: AllSecrets,
     field_analysis: OpenEndedFieldsAnalysis,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
 ) -> AllNegativeInfo:
     """Generate negative info points for open-ended fields.
@@ -419,7 +431,7 @@ def step3b_generate_negative_info(
         ground_truth: Ground truth answers.
         all_secrets: Generated secrets (includes form_summary).
         field_analysis: Field classifications.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
 
     Returns:
@@ -430,7 +442,7 @@ def step3b_generate_negative_info(
     form_summary = all_secrets.form_summary
 
     # Check if this form type is suitable for negative info
-    suitability = client.chat.completions.parse(
+    suitability = await client.aparse(
         model=config.validation_model,
         messages=[
             {"role": "system", "content": "You classify form types."},
@@ -447,8 +459,10 @@ def step3b_generate_negative_info(
     )
 
     if not suitability.is_suitable:
-        print(f"  Form not suitable for negative info: {suitability.reasoning}")
-        return AllNegativeInfo(items=[])
+        raise ValueError(
+            f"Form not suitable for negative info (required for duty of care): "
+            f"{suitability.reasoning}"
+        )
 
     open_ended_field_ids = {c.field_id for c in field_analysis.classifications if c.is_open_ended}
     open_ended_fields = [
@@ -463,7 +477,7 @@ def step3b_generate_negative_info(
     fields_for_classification = [
         {"field_id": f.field_id, "field_label": f.field_label} for f in open_ended_fields
     ]
-    suitability_analysis = client.chat.completions.parse(
+    suitability_analysis = await client.aparse(
         model=config.validation_model,
         messages=[
             {
@@ -500,10 +514,9 @@ def step3b_generate_negative_info(
 
     persona_for_prompt = translate_persona2text(persona)
 
-    items = []
-    for field in suitable_fields:
-        current_answer = field.value
-        item = client.chat.completions.parse(
+    # Generate negative info for all suitable fields in parallel
+    async def _gen_neg_info(field):
+        item = await client.aparse(
             model=config.generation_model,
             messages=[
                 {
@@ -517,7 +530,7 @@ def step3b_generate_negative_info(
                         form_recipient=form_summary.intended_recipient,
                         persona_json=persona_for_prompt,
                         field_label=field.field_label,
-                        current_answer=current_answer,
+                        current_answer=field.value,
                     ),
                 },
             ],
@@ -526,9 +539,11 @@ def step3b_generate_negative_info(
         )
         item.field_id = field.field_id
         item.field_label = field.field_label
-        items.append(item)
         print(f"    Generated negative info for: {field.field_label}")
+        return item
 
-    result = AllNegativeInfo(items=items)
+    items = await asyncio.gather(*(_gen_neg_info(f) for f in suitable_fields))
+
+    result = AllNegativeInfo(items=list(items))
     print(f"  Generated {len(result.items)} negative info items total")
     return result

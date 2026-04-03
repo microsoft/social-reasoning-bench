@@ -1,6 +1,6 @@
 """Deterministic validation for generated marketplace tasks."""
 
-from sage_benchmark.marketplace.types import MarketplaceTask
+from sage_benchmark.benchmarks.marketplace.types import MarketplaceTask
 
 
 def validate_tasks(tasks: list[MarketplaceTask]) -> dict:

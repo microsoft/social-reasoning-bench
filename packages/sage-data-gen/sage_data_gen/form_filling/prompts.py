@@ -93,7 +93,7 @@ Your task:
   * type: Field type (see list below)
   * required: Is this field required? (true/false)
   * options: List of options for select/checkbox fields (empty array otherwise)
-  * help_text: Brief description of what goes here
+  * help_text: Very short phrase describing what goes here (under 60 characters, NOT a full sentence)
   * raw_snippet: Exact text from form showing this field
   * table_columns: For table fields ONLY - array of column names (null otherwise)
 
@@ -358,7 +358,7 @@ Additional Background Facts:
 
 ## TASK: Generate Contextually Sensitive Details
 
-Generate 2-5 life details that:
+Generate {secrets_min}-{secrets_max} life details that:
 
 1. **Naturally answer the question** - They're relevant, specific responses to what's being asked
 2. **Are grounded in the persona's life** - Consistent with persona and background facts

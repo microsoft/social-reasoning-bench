@@ -1,187 +1,260 @@
-"""Benchmark logging strategies with multiple output styles."""
+"""Benchmark logging with structured event params."""
+
+from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 
 from tqdm import tqdm
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
+
+
+# ── Event params ─────────────────────────────────────────────────────
+
+
+@dataclass
+class LogParams:
+    """Base context carried by every log event."""
+
+    benchmark: str
+    variant: str | None = None
+
+
+@dataclass
+class SweepStartParams:
+    """Emitted when a multi-experiment sweep begins."""
+
+    total_tasks: int
+    total_experiments: int
+    experiments: list[LogParams] = field(default_factory=list)
+
+
+@dataclass
+class SweepCompleteParams:
+    """Emitted when a sweep finishes."""
+
+    completed: int
+    failed: int
+    elapsed_seconds: float
+
+
+@dataclass
+class TaskStartParams(LogParams):
+    """Emitted when a single exec+eval unit begins."""
+
+    task_id: int = 0
+    task_hash: str = ""
+
+
+@dataclass
+class TaskPhaseParams(LogParams):
+    """Emitted when a task transitions between phases (exec → eval)."""
+
+    task_id: int = 0
+    phase: str = ""  # "exec", "eval"
+
+
+@dataclass
+class TaskStepParams(LogParams):
+    """Emitted on each agent step (tool call) within execution."""
+
+    task_id: int = 0
+    step: int = 0
+    round: int = 0
+    action: str = ""  # tool name
+
+
+@dataclass
+class TaskCompleteParams(LogParams):
+    """Emitted when a single exec+eval unit finishes."""
+
+    task_id: int = 0
+    task_hash: str = ""
+    success: bool = True
+    error: str | None = None
+    elapsed_seconds: float = 0.0
+
+
+# ── Logger ABC ───────────────────────────────────────────────────────
 
 
 class BenchmarkLogger(ABC):
-    """Base class for benchmark logging strategies.
+    """Base class for benchmark logging strategies."""
 
-    Provides hooks for tracking progress through benchmark phases.
-    Implementations can display progress in different ways (verbose logs,
-    progress bars, minimal output, etc.).
-    """
+    # -- structured events --
 
     @abstractmethod
-    def on_phase_start(self, phase: str, total_items: int) -> None:
-        """Called when execution or evaluation phase begins.
-
-        Args:
-            phase: Phase name ("execution" or "evaluation")
-            total_items: Total number of items to process
-        """
-        pass
+    def on_sweep_start(self, params: SweepStartParams) -> None: ...
 
     @abstractmethod
-    def on_task_start(self, task_id: int) -> None:
-        """Called when a task begins execution.
-
-        Args:
-            task_id: The task identifier
-        """
-        pass
+    def on_sweep_complete(self, params: SweepCompleteParams) -> None: ...
 
     @abstractmethod
-    def on_task_round(self, task_id: int, round_idx: int, max_rounds: int) -> None:
-        """Called at the start of each conversation round.
-
-        Args:
-            task_id: The task identifier
-            round_idx: Zero-based round index
-            max_rounds: Maximum rounds allowed
-        """
-        pass
+    def on_task_start(self, params: TaskStartParams) -> None: ...
 
     @abstractmethod
-    def on_task_complete(self, task_id: int, success: bool, error: str | None = None) -> None:
-        """Called when a task finishes.
+    def on_task_complete(self, params: TaskCompleteParams) -> None: ...
 
-        Args:
-            task_id: The task identifier
-            success: Whether the task completed successfully
-            error: Error message if task failed
-        """
-        pass
+    def on_task_phase(self, params: TaskPhaseParams) -> None:
+        """Optional: called on exec→eval phase transition."""
 
-    @abstractmethod
-    def on_phase_complete(self, phase: str, completed: int, failed: int) -> None:
-        """Called when execution or evaluation phase ends.
+    def on_task_step(self, params: TaskStepParams) -> None:
+        """Optional: called on each agent step (tool call)."""
 
-        Args:
-            phase: Phase name ("execution" or "evaluation")
-            completed: Number of successfully completed items
-            failed: Number of failed items
-        """
-        pass
+    # -- general logging --
 
     @abstractmethod
-    def log_message(self, level: int, message: str, *args) -> None:
-        """Log a general message (for non-progress info).
+    def debug(self, message: str, *args: object) -> None: ...
 
-        Args:
-            level: Logging level (e.g., logging.INFO)
-            message: Message format string
-            *args: Format arguments
-        """
-        pass
+    @abstractmethod
+    def info(self, message: str, *args: object) -> None: ...
+
+    @abstractmethod
+    def warning(self, message: str, *args: object) -> None: ...
+
+    @abstractmethod
+    def error(self, message: str, *args: object) -> None: ...
+
+    # -- context manager --
 
     def __enter__(self):
-        """Context manager entry - for progress bar setup."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit - for progress bar cleanup."""
         pass
 
 
-class VerboseLogger(BenchmarkLogger):
-    """Verbose logging - outputs every task/round as logger.info().
+# ── Implementations ──────────────────────────────────────────────────
 
-    This preserves the original behavior of the benchmark runner.
-    """
+
+class VerboseLogger(BenchmarkLogger):
+    """Logs every event via the standard logging module."""
 
     def __init__(self, log: logging.Logger | None = None):
-        self._logger = log or logger
+        self._log = log or _logger
 
-    def on_phase_start(self, phase: str, total_items: int) -> None:
-        self._logger.info("Starting %s: %d items", phase, total_items)
+    def on_sweep_start(self, params: SweepStartParams) -> None:
+        self._log.info(
+            "Starting sweep: %d tasks across %d experiments",
+            params.total_tasks,
+            params.total_experiments,
+        )
+        for exp in params.experiments:
+            self._log.info("  %s [%s]", exp.variant or "default", exp.benchmark)
 
-    def on_task_start(self, task_id: int) -> None:
-        pass  # Verbose logs at round level
+    def on_sweep_complete(self, params: SweepCompleteParams) -> None:
+        self._log.info(
+            "Sweep complete: %d succeeded, %d failed in %.1fs",
+            params.completed,
+            params.failed,
+            params.elapsed_seconds,
+        )
 
-    def on_task_round(self, task_id: int, round_idx: int, max_rounds: int) -> None:
-        self._logger.info("Task %d - Round %d", task_id, round_idx + 1)
+    def on_task_start(self, params: TaskStartParams) -> None:
+        tag = f"{params.benchmark}/{params.variant}" if params.variant else params.benchmark
+        self._log.info("[%s] Task %d started", tag, params.task_id)
 
-    def on_task_complete(self, task_id: int, success: bool, error: str | None = None) -> None:
-        if error:
-            self._logger.error("Task %d failed: %s", task_id, error)
+    def on_task_complete(self, params: TaskCompleteParams) -> None:
+        tag = f"{params.benchmark}/{params.variant}" if params.variant else params.benchmark
+        if params.error:
+            self._log.error(
+                "[%s] Task %d failed (%.1fs): %s",
+                tag,
+                params.task_id,
+                params.elapsed_seconds,
+                params.error,
+            )
         else:
-            self._logger.info("Task %d completed", task_id)
+            self._log.info(
+                "[%s] Task %d completed (%.1fs)",
+                tag,
+                params.task_id,
+                params.elapsed_seconds,
+            )
 
-    def on_phase_complete(self, phase: str, completed: int, failed: int) -> None:
-        self._logger.info("%s complete: %d succeeded, %d failed", phase, completed, failed)
+    def debug(self, message: str, *args: object) -> None:
+        self._log.debug(message, *args)
 
-    def log_message(self, level: int, message: str, *args) -> None:
-        self._logger.log(level, message, *args)
+    def info(self, message: str, *args: object) -> None:
+        self._log.info(message, *args)
+
+    def warning(self, message: str, *args: object) -> None:
+        self._log.warning(message, *args)
+
+    def error(self, message: str, *args: object) -> None:
+        self._log.error(message, *args)
 
 
 class ProgressLogger(BenchmarkLogger):
-    """Progress bar logging using tqdm.
-
-    Shows a progress bar with task counts and current status.
-    Detailed logs are written via tqdm.write() to avoid display corruption.
-    """
+    """Shows a tqdm progress bar across all tasks."""
 
     def __init__(self, log: logging.Logger | None = None):
-        self._logger = log or logger
+        self._log = log or _logger
         self._pbar: tqdm | None = None
-        self._phase: str = ""
-        self._completed: int = 0
-        self._failed: int = 0
 
-    def on_phase_start(self, phase: str, total_items: int) -> None:
-        self._phase = phase
-        self._completed = 0
-        self._failed = 0
-        # Close existing bar if any
+    def on_sweep_start(self, params: SweepStartParams) -> None:
         if self._pbar:
             self._pbar.close()
         self._pbar = tqdm(
-            total=total_items,
-            desc=f"{phase.capitalize()}",
+            total=params.total_tasks,
+            desc=f"Running ({params.total_experiments} experiments)",
             unit="task",
             dynamic_ncols=True,
         )
 
-    def on_task_start(self, task_id: int) -> None:
-        if self._pbar:
-            self._pbar.set_postfix({"task": task_id}, refresh=True)
-
-    def on_task_round(self, task_id: int, round_idx: int, max_rounds: int) -> None:
-        if self._pbar:
-            self._pbar.set_postfix(
-                {"task": task_id, "round": f"{round_idx + 1}/{max_rounds}"},
-                refresh=True,
-            )
-
-    def on_task_complete(self, task_id: int, success: bool, error: str | None = None) -> None:
-        if success:
-            self._completed += 1
-        else:
-            self._failed += 1
-
-        if self._pbar:
-            self._pbar.update(1)
-
-        if error:
-            # Write error below progress bar
-            tqdm.write(f"Task {task_id} failed: {error}")
-
-    def on_phase_complete(self, phase: str, completed: int, failed: int) -> None:
+    def on_sweep_complete(self, params: SweepCompleteParams) -> None:
         if self._pbar:
             self._pbar.close()
             self._pbar = None
-        # Summary printed outside progress bar
-        print(f"{phase.capitalize()} complete: {completed} succeeded, {failed} failed")
+        print(
+            f"Done: {params.completed} succeeded, {params.failed} failed "
+            f"in {params.elapsed_seconds:.1f}s"
+        )
 
-    def log_message(self, level: int, message: str, *args) -> None:
-        # Use tqdm.write() to avoid breaking progress bar
+    def on_task_start(self, params: TaskStartParams) -> None:
+        if self._pbar:
+            tag = f"{params.benchmark}/{params.variant}" if params.variant else params.benchmark
+            self._pbar.set_postfix_str(f"{tag} task {params.task_id}")
+
+    def on_task_phase(self, params: TaskPhaseParams) -> None:
+        if self._pbar:
+            tag = params.variant or params.benchmark
+            self._pbar.set_postfix_str(f"{tag} task {params.task_id} {params.phase}")
+
+    def on_task_step(self, params: TaskStepParams) -> None:
+        if self._pbar:
+            tag = params.variant or params.benchmark
+            self._pbar.set_postfix_str(
+                f"{tag} task {params.task_id} r{params.round} {params.action}"
+            )
+
+    def on_task_complete(self, params: TaskCompleteParams) -> None:
+        if self._pbar:
+            self._pbar.update(1)
+        if params.error:
+            tag = f"{params.benchmark}/{params.variant}" if params.variant else params.benchmark
+            tqdm.write(f"[{tag}] Task {params.task_id} failed: {params.error}")
+
+    def debug(self, message: str, *args: object) -> None:
+        pass  # suppress under progress bar
+
+    def info(self, message: str, *args: object) -> None:
         formatted = message % args if args else message
-        tqdm.write(formatted)
+        if self._pbar:
+            self._pbar.set_postfix_str(formatted)
+            self._pbar.refresh()
+        else:
+            print(formatted)
+
+    def warning(self, message: str, *args: object) -> None:
+        formatted = message % args if args else message
+        tqdm.write(f"WARNING: {formatted}")
+
+    def error(self, message: str, *args: object) -> None:
+        formatted = message % args if args else message
+        tqdm.write(f"ERROR: {formatted}")
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._pbar:
@@ -190,62 +263,60 @@ class ProgressLogger(BenchmarkLogger):
 
 
 class QuietLogger(BenchmarkLogger):
-    """Minimal logging - only errors and final summary.
-
-    Useful for CI/CD environments or when running many experiments.
-    """
+    """Only errors and final summary. Good for CI."""
 
     def __init__(self, log: logging.Logger | None = None):
-        self._logger = log or logger
+        self._log = log or _logger
         self._errors: list[str] = []
-        self._phase: str = ""
 
-    def on_phase_start(self, phase: str, total_items: int) -> None:
-        self._phase = phase
+    def on_sweep_start(self, params: SweepStartParams) -> None:
         self._errors.clear()
 
-    def on_task_start(self, task_id: int) -> None:
-        pass
-
-    def on_task_round(self, task_id: int, round_idx: int, max_rounds: int) -> None:
-        pass
-
-    def on_task_complete(self, task_id: int, success: bool, error: str | None = None) -> None:
-        if error:
-            self._errors.append(f"Task {task_id}: {error}")
-
-    def on_phase_complete(self, phase: str, completed: int, failed: int) -> None:
-        print(f"{phase.capitalize()}: {completed}/{completed + failed} succeeded")
+    def on_sweep_complete(self, params: SweepCompleteParams) -> None:
+        print(f"{params.completed}/{params.completed + params.failed} succeeded")
         for err in self._errors:
             print(f"  ERROR: {err}")
         self._errors.clear()
 
-    def log_message(self, level: int, message: str, *args) -> None:
-        if level >= logging.ERROR:
-            self._logger.log(level, message, *args)
+    def on_task_start(self, params: TaskStartParams) -> None:
+        pass
+
+    def on_task_complete(self, params: TaskCompleteParams) -> None:
+        if params.error:
+            tag = f"{params.benchmark}/{params.variant}" if params.variant else params.benchmark
+            self._errors.append(f"[{tag}] Task {params.task_id}: {params.error}")
+
+    def debug(self, message: str, *args: object) -> None:
+        pass
+
+    def info(self, message: str, *args: object) -> None:
+        pass
+
+    def warning(self, message: str, *args: object) -> None:
+        pass
+
+    def error(self, message: str, *args: object) -> None:
+        formatted = message % args if args else message
+        self._log.error(formatted)
 
 
 def create_benchmark_logger(
     style: str,
     log: logging.Logger | None = None,
 ) -> BenchmarkLogger:
-    """Factory to create the appropriate logger based on style choice.
-
-    Args:
-        style: Logger style - "verbose", "progress", or "quiet"
-        log: Optional logger for verbose/quiet modes
-
-    Returns:
-        BenchmarkLogger instance
-
-    Raises:
-        ValueError: If style is unknown
-    """
+    """Factory: 'verbose', 'progress', or 'quiet'."""
     if style == "verbose":
+        # Ensure the logging module has at least a basic handler so that
+        # VerboseLogger's calls to logger.info / .debug / etc. are not
+        # silently dropped.  basicConfig is a no-op when handlers already exist.
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            datefmt="%H:%M:%S",
+        )
         return VerboseLogger(log)
-    elif style == "progress":
+    if style == "progress":
         return ProgressLogger(log)
-    elif style == "quiet":
+    if style == "quiet":
         return QuietLogger(log)
-    else:
-        raise ValueError(f"Unknown logger style: {style}")
+    raise ValueError(f"Unknown logger style: {style!r}")

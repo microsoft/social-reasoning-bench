@@ -3,7 +3,7 @@
 import re
 
 from pydantic import BaseModel, Field
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from .models import CatalogEntry
 
@@ -45,7 +45,7 @@ Requirements:
 
 
 async def generate_catalog(
-    client: ModelClient,
+    client: SageModelClient,
     model: str,
     catalog_size: int,
     max_retries: int,
@@ -64,7 +64,7 @@ async def generate_catalog(
         batch: list[RawCatalogEntry] = []
         for _ in range(max_retries):
             try:
-                result = await client.chat.completions.aparse(
+                result = await client.aparse(
                     model=model,
                     messages=[{"role": "user", "content": prompt}],
                     response_format=CatalogResponse,

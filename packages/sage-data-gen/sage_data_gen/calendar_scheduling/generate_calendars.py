@@ -1,11 +1,11 @@
 import random
 
-from sage_benchmark.calendar_scheduling.types import (
+from sage_benchmark.benchmarks.calendar_scheduling.types import (
     Attendee,
     AttendeeStatus,
     LabeledMeeting,
 )
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from .config import PipelineConfig
 from .models import CalendarEvent, Company, Employee, EmployeeCalendar
@@ -109,7 +109,7 @@ PLACEHOLDER_EVENTS = [
 
 
 async def generate_calendar(
-    client: ModelClient,
+    client: SageModelClient,
     employee: Employee,
     company: Company,
     all_employees: list[Employee],
@@ -135,7 +135,7 @@ async def generate_calendar(
         personal_facts=personal_facts,
     )
 
-    result = await client.chat.completions.aparse(
+    result = await client.aparse(
         model=config.model,
         messages=[{"role": "user", "content": prompt}],
         response_format=EmployeeCalendar,

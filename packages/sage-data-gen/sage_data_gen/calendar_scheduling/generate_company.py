@@ -1,4 +1,4 @@
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from .config import PipelineConfig
 from .models import Company
@@ -19,7 +19,7 @@ over "Northline Logistics Systems & Supply Chain Solutions".
 """
 
 
-async def generate_companies(client: ModelClient, config: PipelineConfig) -> list[Company]:
+async def generate_companies(client: SageModelClient, config: PipelineConfig) -> list[Company]:
     companies: list[Company] = []
     for i in range(config.num_companies):
         if companies:
@@ -31,7 +31,7 @@ async def generate_companies(client: ModelClient, config: PipelineConfig) -> lis
             previous_section = ""
 
         prompt = PROMPT_TEMPLATE.format(previous_companies_section=previous_section)
-        result = await client.chat.completions.aparse(
+        result = await client.aparse(
             model=config.model,
             messages=[{"role": "user", "content": prompt}],
             response_format=Company,

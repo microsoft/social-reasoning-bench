@@ -2,7 +2,7 @@
 
 from collections import Counter
 
-from sage_benchmark.marketplace.types import MarketplaceTask
+from sage_benchmark.benchmarks.marketplace.types import MarketplaceTask
 
 
 def _sign_for_task(task: MarketplaceTask) -> str:

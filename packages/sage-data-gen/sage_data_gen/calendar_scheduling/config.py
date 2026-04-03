@@ -13,15 +13,12 @@ class PipelineConfig(BaseModel):
         description="Max retries when a generated task fails validation "
         "(no secret event at suboptimal preference time).",
     )
-    model: str = "phyagi/gpt-5.2"
+    model: str = Field(description="Model for generation (e.g. 'phyagi/gpt-5.2')")
     labeling_models: list[str] = Field(
-        default_factory=lambda: [
-            "phyagi/gpt-5.2",
-            "phyagi/gpt-5.1",
-            "phyagi/gpt-4.1",
-        ],
-        description="Models used for majority-vote privacy labeling. "
-        "Each model labels independently; final label is majority vote.",
+        default_factory=list,
+        description="Models for majority-vote privacy labeling. "
+        "Each model labels independently; final label is majority vote. "
+        "Defaults to [model] if empty.",
     )
     output_dir: str = "data/calendar-scheduling/final"
     generate_preferences: bool = Field(

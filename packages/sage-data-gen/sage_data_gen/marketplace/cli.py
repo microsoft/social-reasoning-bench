@@ -4,14 +4,13 @@ from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
-from sage_benchmark.marketplace.types import MarketplaceTask
-from sage_llm import ModelClient
+from sage_benchmark.benchmarks.marketplace.types import MarketplaceTask
+from sage_llm import SageModelClient
 
 from .assemble import assemble_tasks
 from .config import MarketplacePipelineConfig
 from .generate_catalog import generate_catalog
 from .generate_reservation_contexts import generate_reservation_contexts
-from .malicious import generate_malicious_tasks
 from .stats import compute_stats
 from .validate import validate_tasks
 
@@ -47,12 +46,10 @@ def _subset(tasks: list[MarketplaceTask], n: int) -> list[MarketplaceTask]:
 
 async def run_pipeline(
     config: MarketplacePipelineConfig,
-    *,
-    include_malicious: bool = False,
 ) -> None:
     output_dir = Path(config.output_dir)
     debug_dir = _outputs_dir(config)
-    client = ModelClient()
+    client = SageModelClient()
 
     print("Step 1: Generating catalog...")
     catalog = await generate_catalog(
@@ -78,15 +75,6 @@ async def run_pipeline(
 
     print("Step 3: Assembling tasks...")
     tasks = assemble_tasks(catalog=catalog, contexts=contexts, max_rounds=config.max_rounds)
-
-    if include_malicious:
-        print("Step 3b: Adding malicious tasks...")
-        malicious = generate_malicious_tasks(
-            start_id=len(tasks),
-            max_rounds=config.max_rounds,
-        )
-        tasks.extend(malicious)
-        print(f"  Added {len(malicious)} malicious tasks ({len(tasks)} total)")
 
     _save_step(
         debug_dir,
@@ -129,16 +117,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-rounds", type=int, default=6)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--catalog-size", type=int, default=24)
-    parser.add_argument("--catalog-model", default="trapi/gpt-4.1")
-    parser.add_argument("--context-model", default="trapi/gpt-4.1")
+    parser.add_argument("--catalog-model", required=True, help="Model for catalog generation")
+    parser.add_argument("--context-model", required=True, help="Model for context generation")
     parser.add_argument("--max-retries-per-item", type=int, default=3)
     parser.add_argument("--max-concurrency", type=int, default=12)
-    parser.add_argument(
-        "--include-malicious",
-        action="store_true",
-        default=False,
-        help="Include hand-crafted malicious negotiation tasks in the generated dataset",
-    )
     return parser.parse_args()
 
 
@@ -157,4 +139,4 @@ def main() -> None:
         max_retries_per_item=args.max_retries_per_item,
         max_concurrency=args.max_concurrency,
     )
-    asyncio.run(run_pipeline(config, include_malicious=args.include_malicious))
+    asyncio.run(run_pipeline(config))

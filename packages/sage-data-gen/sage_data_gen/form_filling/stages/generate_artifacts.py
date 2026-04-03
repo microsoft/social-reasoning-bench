@@ -7,7 +7,7 @@ naturally embed the persona's information, secrets, and negative info points.
 import json
 from typing import Optional
 
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from sage_data_gen.form_filling.config import FormFillingConfig
 from sage_data_gen.form_filling.models import (
@@ -21,11 +21,11 @@ from sage_data_gen.form_filling.prompts import STEP4_ARTIFACTS_PROMPT
 from sage_data_gen.form_filling.utils import translate_persona2text
 
 
-def step4_create_artifacts(
+async def step4_create_artifacts(
     persona: ExpandedPersona,
     ground_truth: GroundTruthAnswers,
     all_secrets: AllSecrets,
-    client: ModelClient,
+    client: SageModelClient,
     config: FormFillingConfig,
     negative_info: Optional[AllNegativeInfo] = None,
 ) -> DigitalArtifacts:
@@ -35,7 +35,7 @@ def step4_create_artifacts(
         persona: Expanded persona.
         ground_truth: Ground truth answers.
         all_secrets: Generated secrets.
-        client: ModelClient instance.
+        client: SageModelClient instance.
         config: Pipeline configuration.
         negative_info: Optional negative info to embed.
 
@@ -89,7 +89,7 @@ NEGATIVE INFO EMBEDDING RULES:
 7. Track which negative info points are in each artifact using "contains_negative_info" (e.g., ["NEG1_2"]).
 """
 
-    result = client.chat.completions.parse(
+    result = await client.aparse(
         model=config.generation_model,
         messages=[
             {

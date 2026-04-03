@@ -5,19 +5,27 @@ build-backend = "hatchling.build"
 [project]
 name = "sage-llm"
 version = "0.1.0"
-description = "LiteLLM-based model client library"
+description = "LLM client library with direct provider implementations"
 requires-python = ">=3.11"
 dependencies = [
-    "litellm>=1.50.0,<1.82.7",
-    "azure-identity>=1.23.0",
     "openai>=2.16.0",
+    "anthropic>=0.87.0,<0.88",
+    "google-genai>=1.63.0,<1.64",
+    "azure-identity>=1.23.0",
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=8.0.0"]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sage_llm"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: tests that make real API calls (skip with -m 'not integration')",
+]
+asyncio_mode = "auto"

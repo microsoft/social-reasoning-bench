@@ -9,7 +9,6 @@ Common patterns unified here:
 - Message history management (append-only list of ChatCompletionMessageParam)
 - Tool registry (name -> Tool class mapping)
 - Tool call generation via LLM with JSON parsing and retries
-- Response ID tracking for thinking preservation across turns
 - Optional explicit chain-of-thought reasoning
 - Injecting tool call results into history
 
@@ -23,16 +22,13 @@ Benchmark-specific subclasses add:
 import traceback
 from typing import Any
 
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionFunctionToolParam,
-    ChatCompletionMessageParam,
-    ChatCompletionMessageToolCallParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
+from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToolChoiceOptionParam
+from openai.types.chat.chat_completion_message_tool_call import (
+    ChatCompletionMessageToolCall,
+    Function,
 )
 from pydantic import ValidationError
-from sage_llm import ModelClient
+from sage_llm import SageChatCompletionMessage, SageMessage, SageModelClient
 
 from .tool import Tool
 
@@ -48,7 +44,7 @@ class RetryException(Exception):
 
 
 class BaseAgent:
-    """Base LLM agent with tool calling, retries, and thinking preservation.
+    """Base LLM agent with tool calling and retries.
 
     This class provides the common infrastructure shared by all benchmark agents:
 
@@ -59,9 +55,6 @@ class BaseAgent:
       into a ``Tool`` instance, and handles retries on parse/validation errors.
     - **Explicit CoT**: Optionally generates chain-of-thought reasoning before
       each tool call to improve decision quality.
-    - **Thinking preservation**: Tracks ``previous_response_id`` so that models
-      with extended thinking (e.g., Anthropic Claude) can maintain reasoning
-      context across turns.
 
     Subclasses should:
 
@@ -79,17 +72,17 @@ class BaseAgent:
         self,
         *,
         model: str,
-        model_client: ModelClient,
+        model_client: SageModelClient,
         tools: list[type[Tool]],
         explicit_cot: bool = False,
         temperature: float | None = None,
-        tool_choice: str = "auto",
+        tool_choice: ChatCompletionToolChoiceOptionParam = "auto",
     ) -> None:
         """Initialize the base agent.
 
         Args:
             model: Model identifier for LLM calls (e.g., "gpt-4.1").
-            model_client: ``sage_llm.ModelClient`` instance for API calls.
+            model_client: ``SageModelClient`` instance for API calls.
             tools: List of ``Tool`` subclasses this agent can use.
             explicit_cot: If ``True``, generate chain-of-thought reasoning
                 before each tool call via a separate LLM call.
@@ -101,11 +94,10 @@ class BaseAgent:
         """
         self._model = model
         self._model_client = model_client
-        self._messages: list[ChatCompletionMessageParam] = []
+        self._messages: list[SageMessage] = []
         self._explicit_cot = explicit_cot
         self._temperature = temperature
         self._tool_choice = tool_choice
-        self._previous_response_id: str | None = None
 
         # Build tool registry: name -> Tool class
         self._tools: dict[str, type[Tool]] = {t.get_name(): t for t in tools}
@@ -116,7 +108,7 @@ class BaseAgent:
         ]
 
     @property
-    def messages(self) -> list[ChatCompletionMessageParam]:
+    def messages(self) -> list[SageMessage]:
         """Return the current message history (read-only view)."""
         return list(self._messages)
 
@@ -141,18 +133,22 @@ class BaseAgent:
         Raises:
             ValueError: If the last message is not an assistant tool-call message.
         """
-        if not self._messages or "tool_calls" not in self._messages[-1]:
+        last = self._messages[-1] if self._messages else None
+        # Support both dicts (TypedDicts) and pydantic models (SageChatCompletionMessage)
+        tc = last.get("tool_calls") if isinstance(last, dict) else getattr(last, "tool_calls", None)
+        if not tc:
             raise ValueError("Expected previous message to be an assistant tool-call message")
-        tool_calls = list(self._messages[-1]["tool_calls"])
+        tool_calls = list(tc)
         if len(tool_calls) != 1:
             raise ValueError("Can only call add_tool_call_result after exactly one tool call")
-        tool_call_id = tool_calls[0]["id"]
+        tc0 = tool_calls[0]
+        tool_call_id = tc0["id"] if isinstance(tc0, dict) else tc0.id
         self._messages.append(
-            ChatCompletionToolMessageParam(
-                role="tool",
-                tool_call_id=tool_call_id,
-                content=result,
-            )
+            {
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": result,
+            }
         )
 
     def add_forced_action(self, action: Tool, result: str) -> None:
@@ -167,26 +163,26 @@ class BaseAgent:
         """
         tool_call_id = str(len(self._messages))
         self._messages.append(
-            ChatCompletionAssistantMessageParam(
+            SageChatCompletionMessage(
                 role="assistant",
                 tool_calls=[
-                    ChatCompletionMessageToolCallParam(
+                    ChatCompletionMessageToolCall(
                         id=tool_call_id,
                         type="function",
-                        function={
-                            "name": action.get_name(),
-                            "arguments": action.model_dump_json(),
-                        },
+                        function=Function(
+                            name=action.get_name(),
+                            arguments=action.model_dump_json(),
+                        ),
                     )
                 ],
             )
         )
         self._messages.append(
-            ChatCompletionToolMessageParam(
-                role="tool",
-                tool_call_id=tool_call_id,
-                content=result,
-            )
+            {
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": result,
+            }
         )
 
     # ------------------------------------------------------------------ #
@@ -234,7 +230,7 @@ class BaseAgent:
     # Explicit chain-of-thought
     # ------------------------------------------------------------------ #
 
-    async def _generate_cot_reasoning(self, messages: list[ChatCompletionMessageParam]) -> str:
+    async def _generate_cot_reasoning(self, messages: list[SageMessage]) -> str:
         """Generate chain-of-thought reasoning before a tool call.
 
         Makes a separate LLM call without tools to produce internal reasoning,
@@ -248,20 +244,20 @@ class BaseAgent:
         """
         cot_messages = list(messages)
         cot_messages.append(
-            ChatCompletionUserMessageParam(
-                role="user",
-                content=(
+            {
+                "role": "user",
+                "content": (
                     "Before taking your next action, think carefully about what "
                     "should be the one next action (ONE next tool call) to do. "
                     "Generate the thoughts here."
                 ),
-            )
+            }
         )
-        response = await self._model_client.chat.completions.acreate(
+        response = await self._model_client.acomplete(
             model=self._model,
             messages=cot_messages,
         )
-        return response.choices[0].message.content or ""
+        return response.content or ""
 
     # ------------------------------------------------------------------ #
     # Core tool call generation
@@ -297,7 +293,7 @@ class BaseAgent:
                 cot_thinking = await self._generate_cot_reasoning(messages)
                 if cot_thinking:
                     messages.append(
-                        ChatCompletionAssistantMessageParam(
+                        SageChatCompletionMessage(
                             role="assistant",
                             content=cot_thinking,
                         )
@@ -307,33 +303,42 @@ class BaseAgent:
             gen_kwargs: dict[str, Any] = {}
             if self._temperature is not None:
                 gen_kwargs["temperature"] = self._temperature
-            completion = await self._model_client.chat.completions.acreate(
+            message = await self._model_client.acomplete(
                 model=self._model,
                 messages=messages,
                 tools=self._openai_tools,
                 tool_choice=self._tool_choice,
-                previous_response_id=self._previous_response_id,
                 **gen_kwargs,
             )
 
-            # Track response ID for thinking preservation
-            self._previous_response_id = completion.id
-
-            message = completion.choices[0].message
             tool_calls = message.tool_calls or []
 
             try:
                 if len(tool_calls) != 1:
-                    raise RetryException("Exactly one tool call is required.")
+                    if len(tool_calls) == 0:
+                        raise RetryException(
+                            f"Exactly one tool call is required, but got 0. "
+                            f"Model text: {message.content!r}"
+                        )
+                    else:
+                        names = [tc.function.name for tc in tool_calls if hasattr(tc, "function")]
+                        raise RetryException(
+                            f"Exactly one tool call is required, but got {len(tool_calls)}: {names}"
+                        )
 
                 tool_call = tool_calls[0]
+                if not isinstance(tool_call, ChatCompletionMessageToolCall):
+                    raise RetryException(f"Unsupported tool call type: {type(tool_call)}")
                 if tool_call.type != "function":
                     raise RetryException(f"Unsupported tool type '{tool_call.type}'")
 
                 function = tool_call.function
                 tool_type = self._tools.get(function.name)
                 if tool_type is None:
-                    raise RetryException(f"Unrecognized function name '{function.name}'")
+                    raise RetryException(
+                        f"Unrecognized function name '{function.name}'. "
+                        f"Available tools: {list(self._tools.keys())}"
+                    )
 
                 parsed_tool_call = tool_type.model_validate_json(function.arguments)
 
@@ -343,21 +348,21 @@ class BaseAgent:
                 # Successfully parsed -- commit to canonical history
                 if cot_thinking:
                     self._messages.append(
-                        ChatCompletionAssistantMessageParam(role="assistant", content=cot_thinking)
+                        SageChatCompletionMessage(role="assistant", content=cot_thinking)
                     )
 
                 self._messages.append(
-                    ChatCompletionAssistantMessageParam(
+                    SageChatCompletionMessage(
                         role="assistant",
                         content=message.content,
                         tool_calls=[
-                            ChatCompletionMessageToolCallParam(
+                            ChatCompletionMessageToolCall(
                                 id=tool_call.id,
                                 type="function",
-                                function={
-                                    "name": tool_call.function.name,
-                                    "arguments": tool_call.function.arguments,
-                                },
+                                function=Function(
+                                    name=tool_call.function.name,
+                                    arguments=tool_call.function.arguments,
+                                ),
                             )
                         ],
                     )
@@ -371,25 +376,22 @@ class BaseAgent:
                 if not tool_calls:
                     # No tool calls -- use plain assistant/user message for retry
                     messages.append(
-                        ChatCompletionAssistantMessageParam(
+                        SageChatCompletionMessage(
                             role="assistant",
                             content=message.content,
                         )
                     )
                     messages.append(
-                        ChatCompletionUserMessageParam(
-                            role="user",
-                            content=self.on_retry_no_tool_calls(),
-                        )
+                        {"role": "user", "content": self.on_retry_no_tool_calls()},
                     )
                 else:
                     # Invalid tool calls -- echo them back with error details
                     messages.append(
-                        ChatCompletionAssistantMessageParam(
+                        SageChatCompletionMessage(
                             role="assistant",
                             content=message.content,
                             tool_calls=[
-                                ChatCompletionMessageToolCallParam(
+                                ChatCompletionMessageToolCall(
                                     **tc.model_dump(include={"id", "type", "function"})
                                 )
                                 for tc in tool_calls
@@ -398,11 +400,11 @@ class BaseAgent:
                     )
                     for tc in tool_calls:
                         messages.append(
-                            ChatCompletionToolMessageParam(
-                                role="tool",
-                                tool_call_id=tc.id,
-                                content=traceback.format_exc(),
-                            )
+                            {
+                                "role": "tool",
+                                "tool_call_id": tc.id,
+                                "content": traceback.format_exc(),
+                            },
                         )
 
         raise ExceptionGroup("Exceeded maximum retries generating tool call", exceptions)
@@ -423,10 +425,9 @@ class BaseAgent:
         Returns:
             The model's text response.
         """
-        messages = list(self._messages) + [{"role": "user", "content": prompt}]
-        completion = await self._model_client.chat.completions.acreate(
+        messages: list[SageMessage] = [*self._messages, {"role": "user", "content": prompt}]
+        response = await self._model_client.acomplete(
             model=self._model,
             messages=messages,
-            previous_response_id=self._previous_response_id,
         )
-        return completion.choices[0].message.content or ""
+        return response.content or ""

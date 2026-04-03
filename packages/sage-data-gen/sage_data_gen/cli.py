@@ -1,10 +1,234 @@
+import argparse
+import asyncio
 import sys
+from pathlib import Path
+from types import ModuleType
 
 from sage_data_gen.calendar_scheduling.cli import main as calendar_main
 from sage_data_gen.form_filling.cli import main as form_filling_main
 from sage_data_gen.marketplace.cli import main as marketplace_main
 
-SUBCOMMANDS = ("calendar", "form-filling", "marketplace")
+SUBCOMMANDS = ("calendar", "form-filling", "marketplace", "malicious")
+BENCHMARKS = ("calendar", "form-filling", "marketplace")
+
+
+# ---------------------------------------------------------------------------
+# sagegen malicious
+# ---------------------------------------------------------------------------
+
+
+def _get_malicious_module(benchmark: str) -> ModuleType:
+    """Import and return the malicious module for a benchmark."""
+    if benchmark == "calendar":
+        from sage_data_gen.calendar_scheduling import malicious as mod
+    elif benchmark == "form-filling":
+        from sage_data_gen.form_filling import malicious as mod
+    else:
+        from sage_data_gen.marketplace import malicious as mod
+    return mod
+
+
+def _build_malicious_parser() -> argparse.ArgumentParser:
+    """Build the unified parser for ``sagegen malicious``."""
+    from sage_data_gen.shared.whimsical import DEFAULT_SEEDS_DIR
+
+    parser = argparse.ArgumentParser(
+        prog="sagegen malicious",
+        description="Generate malicious task variants (whimsical, hand-crafted, or both).",
+    )
+    parser.add_argument("benchmark", choices=BENCHMARKS)
+
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--whimsical", action="store_true", help="Whimsical only")
+    mode.add_argument("--handcrafted", action="store_true", help="Hand-crafted only")
+
+    parser.add_argument("--input", type=Path, required=True, help="Input tasks file/dir")
+    parser.add_argument("--attack-type", default=None, help="Attack type (omit for all)")
+    parser.add_argument("-o", "--output", type=Path, default=None, help="Output path")
+
+    # Whimsical options
+    whim = parser.add_argument_group("whimsical options")
+    whim.add_argument("-m", "--model", default=None, help="Model for strategy generation")
+    whim.add_argument("-n", "--count", type=int, default=1, help="Strategies to generate")
+    whim.add_argument(
+        "--strategy-assignment",
+        choices=["sequential", "random", "unique", "single"],
+        default="single",
+    )
+    whim.add_argument("--seeds-dir", type=Path, default=DEFAULT_SEEDS_DIR)
+    whim.add_argument("--topics", nargs="+")
+    whim.add_argument("--seed-chunk-size", type=int, default=5000)
+    whim.add_argument("--max-chunks-per-seed", type=int)
+    whim.add_argument("--max-strategies-per-chunk", type=int)
+    whim.add_argument("--max-strategies-per-seed", type=int)
+    whim.add_argument("--prefetch-seeds", type=int)
+    whim.add_argument("--prefetch-strategies", type=int)
+    whim.add_argument("--strategies-file", type=Path)
+    whim.add_argument("--rng-seed", type=int, default=42)
+
+    # Validation options (generate → benchmark → select best)
+    val = parser.add_argument_group("validation (generate-validate-select)")
+    val.add_argument(
+        "--validate",
+        action="store_true",
+        help="Generate N strategies, benchmark each on a validation set, "
+        "then inject only the best into the full task set.",
+    )
+    val.add_argument(
+        "--n-strategies",
+        type=int,
+        default=None,
+        help="Number of candidate strategies to generate for validation",
+    )
+    val.add_argument("--agent-model", default=None, help="Model for the agent under test")
+    val.add_argument("--judge-model", default=None, help="Model for the evaluation judge")
+    val.add_argument("--val-tasks-data", type=Path, default=None, help="Validation task YAML")
+    val.add_argument("--val-tasks-limit", type=int, default=None, help="Max validation tasks")
+    val.add_argument("--val-output-dir", type=Path, default=None, help="Validation output dir")
+
+    return parser
+
+
+async def _run_whimsical(benchmark: str, attack_type: str, args: argparse.Namespace) -> None:
+    """Run whimsical injection for a single (benchmark, attack_type)."""
+    from sage_data_gen.shared.whimsical import run_injection
+
+    mod = _get_malicious_module(benchmark)
+    task_desc = mod.TASK_DESCRIPTIONS[attack_type]
+
+    injection_args = argparse.Namespace(
+        input=args.input,
+        output=args.output,
+        attack_type=attack_type,
+        model=args.model,
+        count=args.count,
+        strategy_assignment=args.strategy_assignment,
+        seeds_dir=args.seeds_dir,
+        topics=args.topics,
+        seed_chunk_size=args.seed_chunk_size,
+        max_chunks_per_seed=args.max_chunks_per_seed,
+        max_strategies_per_chunk=args.max_strategies_per_chunk,
+        max_strategies_per_seed=args.max_strategies_per_seed,
+        prefetch_seeds=args.prefetch_seeds,
+        prefetch_strategies=args.prefetch_strategies,
+        strategies_file=args.strategies_file,
+        rng_seed=args.rng_seed,
+        # Validation fields
+        validate=args.validate,
+        n_strategies=args.n_strategies,
+        agent_model=args.agent_model,
+        judge_model=args.judge_model,
+        val_tasks_data=args.val_tasks_data,
+        val_tasks_limit=args.val_tasks_limit,
+        val_output_dir=args.val_output_dir,
+    )
+    await run_injection(
+        injection_args,
+        task_desc,
+        mod.load,
+        mod.inject_whimsical,
+        mod.save,
+        benchmark_name=benchmark,
+    )
+
+
+async def _run_handcrafted(benchmark: str, attack_type: str, args: argparse.Namespace) -> None:
+    """Run hand-crafted injection for a single (benchmark, attack_type)."""
+    from sage_data_gen.shared.hand_crafted import inject_and_save
+
+    mod = _get_malicious_module(benchmark)
+    input_path = args.input
+    output_path = args.output or _default_handcrafted_output(input_path, attack_type)
+
+    await asyncio.to_thread(
+        inject_and_save, input_path, output_path, mod.load, mod.inject_handcrafted, attack_type
+    )
+
+
+def _default_handcrafted_output(input_path: Path, attack_type: str) -> Path:
+    return input_path.parent / f"{input_path.stem}-malicious-hand-crafted-{attack_type}.yaml"
+
+
+def _malicious_main():
+    """``sagegen malicious {benchmark} [--whimsical|--handcrafted] [opts]``."""
+    from sage_benchmark.shared import TaskPoolExecutor
+
+    parser = _build_malicious_parser()
+    args = parser.parse_args()
+
+    # Determine modes
+    if args.whimsical:
+        modes = ["whimsical"]
+    elif args.handcrafted:
+        modes = ["handcrafted"]
+    else:
+        modes = ["whimsical", "handcrafted"]
+
+    if "whimsical" in modes and not args.model:
+        parser.error("-m/--model is required for whimsical generation")
+
+    if args.validate:
+        if "whimsical" not in modes:
+            parser.error("--validate only applies to whimsical generation")
+        # Default agent/judge model to -m/--model when not explicitly set.
+        if not args.agent_model:
+            args.agent_model = args.model
+        if not args.judge_model:
+            args.judge_model = args.model
+        if not args.val_tasks_data:
+            parser.error("--val-tasks-data is required when --validate is used")
+
+    if args.attack_type is None and args.output is not None:
+        parser.error("--output cannot be used when running all attack types")
+
+    # Get attack types from the benchmark module
+    mod = _get_malicious_module(args.benchmark)
+
+    # Build the list of (mode, attack_type) combos.
+    combos: list[tuple[str, str]] = []
+    for mode in modes:
+        attack_types = (
+            mod.WHIMSICAL_ATTACK_TYPES if mode == "whimsical" else mod.HANDCRAFTED_ATTACK_TYPES
+        )
+        types = [args.attack_type] if args.attack_type else attack_types
+        for at in types:
+            combos.append((mode, at))
+
+    async def _run_combo(mode: str, attack_type: str) -> str:
+        label = f"{args.benchmark} / {mode} / {attack_type}"
+        print(f"\n{'=' * 60}\n  {label}\n{'=' * 60}\n")
+        if mode == "whimsical":
+            await _run_whimsical(args.benchmark, attack_type, args)
+        else:
+            await _run_handcrafted(args.benchmark, attack_type, args)
+        return label
+
+    async def _run_all() -> None:
+        cancel = asyncio.Event()
+        errors: list[Exception] = []
+
+        def _on_error(exc: Exception) -> None:
+            errors.append(exc)
+            print(f"\n  [FAILED] {exc}")
+            cancel.set()
+
+        executor = TaskPoolExecutor(
+            batch_size=len(combos),
+            on_task_complete=lambda label: print(f"\n  [done] {label}"),
+            on_task_error=_on_error,
+            cancel_event=cancel,
+        )
+        await executor.run(_run_combo(m, at) for m, at in combos)
+
+        if errors:
+            raise errors[0]
+
+    asyncio.run(_run_all())
+
+
+# ---------------------------------------------------------------------------
+# Top-level router
+# ---------------------------------------------------------------------------
 
 
 def main():
@@ -21,3 +245,5 @@ def main():
         form_filling_main()
     elif subcommand == "marketplace":
         marketplace_main()
+    elif subcommand == "malicious":
+        _malicious_main()

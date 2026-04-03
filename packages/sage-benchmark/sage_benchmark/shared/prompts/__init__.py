@@ -2,7 +2,7 @@
 
 Quick start::
 
-    from sage_benchmark.shared.prompts import PrivacyPrompt, PrivacyExample
+    from . import PrivacyPrompt, PrivacyExample
 
     prompt = PrivacyPrompt(
         role="You are an assistant.",
@@ -12,7 +12,7 @@ Quick start::
     system_prompt = prompt.build()
 """
 
-from sage_benchmark.shared.prompts.privacy import (
+from .privacy import (
     PRIVACY_CI,
     PRIVACY_NONE,
     PRIVACY_SIMPLE,

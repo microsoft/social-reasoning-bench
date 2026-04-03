@@ -75,7 +75,7 @@ uv run sagebench calendar \
   --data "$GEN_CAL_DIR/small.yaml" \
   --model "$MODEL" \
   --judge-model "$JUDGE_MODEL" \
-  --assistant-system-prompt default \
+  --assistant-system-prompt simple \
   --expose-preferences true \
   --explicit-cot false \
   --limit 2 \
@@ -90,6 +90,7 @@ uv run sagebench marketplace \
   --data "$GEN_MKT_DIR/small.yaml" \
   --model "$MODEL" \
   --judge-model "$JUDGE_MODEL" \
+  --explicit-cot false \
   --limit 2 \
   --output-dir "$REPORT_DIR/benchmark/marketplace" \
   2>&1 | tee "$REPORT_DIR/benchmark_marketplace.log" | tail -5
@@ -101,6 +102,7 @@ uv run sagebench forms \
   --assistant-model "$MODEL" \
   --interviewer-model "$MODEL" \
   --judge-model "$JUDGE_MODEL" \
+  --explicit-cot false \
   --limit 2 \
   --batch-size 2 \
   --max-rounds 10 \
@@ -156,25 +158,28 @@ if mkt_files:
         mkt = json.load(f)
     s = mkt.get("summary", {})
     results = mkt.get("results", [])
-    evals = [r.get("evaluation", {}) for r in results]
     print("MARKETPLACE:")
-    print(f"  Tasks: {s.get('task_count', '?')}")
+    print(f"  Tasks: {s.get('total_tasks', '?')}")
     print(f"  Task completion:  deal_rate={fmt(s.get('deal_rate'), pct=True)}")
-    # Privacy
-    buyer_leak = [e.get("buyer_leakage_score") for e in evals if e.get("buyer_leakage_score") is not None]
-    seller_leak = [e.get("seller_leakage_score") for e in evals if e.get("seller_leakage_score") is not None]
+    # Privacy — fields are at the top level of each result, not nested under "evaluation"
+    buyer_leak = [r.get("buyer_leakage_score") for r in results if r.get("buyer_leakage_score") is not None]
+    seller_leak = [r.get("seller_leakage_score") for r in results if r.get("seller_leakage_score") is not None]
     if buyer_leak:
         print(f"  Privacy leakage:  buyer={fmt(sum(buyer_leak)/len(buyer_leak))} seller={fmt(sum(seller_leak)/len(seller_leak))}")
+    elif s.get("avg_buyer_leakage_score") is not None:
+        print(f"  Privacy leakage:  buyer={fmt(s['avg_buyer_leakage_score'])} seller={fmt(s.get('avg_seller_leakage_score'))}")
     else:
         print(f"  Privacy leakage:  — (no --judge-model)")
     # DoC
-    doc_vals = [e.get("deal_ratio_centered") for e in evals if e.get("deal_ratio_centered") is not None]
+    doc_vals = [r.get("deal_ratio_centered") for r in results if r.get("deal_ratio_centered") is not None]
     if doc_vals:
         print(f"  Duty of care:     avg deal_ratio_centered={fmt(sum(doc_vals)/len(doc_vals))}")
+    elif s.get("avg_deal_ratio_centered") is not None:
+        print(f"  Duty of care:     avg deal_ratio_centered={fmt(s['avg_deal_ratio_centered'])}")
     else:
         print(f"  Duty of care:     — (no deals or no ZOPA)")
     # DD
-    offer_counts = [e.get("buyer_metrics", {}).get("offer_count", 0) + e.get("seller_metrics", {}).get("offer_count", 0) for e in evals]
+    offer_counts = [r.get("buyer_metrics", {}).get("offer_count", 0) + r.get("seller_metrics", {}).get("offer_count", 0) for r in results]
     if offer_counts:
         print(f"  Due diligence:    avg total offers={fmt(sum(offer_counts)/len(offer_counts))}")
 else:

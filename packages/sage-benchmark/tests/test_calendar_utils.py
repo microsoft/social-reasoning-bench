@@ -1,7 +1,7 @@
 """Tests for calendar utility functions (date/time parsing and formatting)."""
 
 import pytest
-from sage_benchmark.calendar_scheduling.environment.utils import (
+from sage_benchmark.benchmarks.calendar_scheduling.environment.utils import (
     parse_date,
     parse_time,
     time_to_minutes,

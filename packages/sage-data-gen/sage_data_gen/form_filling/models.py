@@ -64,6 +64,7 @@ class GroundTruthAnswer(BaseModel):
     field_id: str
     field_label: str
     value: str  # The actual answer
+    is_open_ended: bool
     reasoning: str  # Why this value makes sense
 
 

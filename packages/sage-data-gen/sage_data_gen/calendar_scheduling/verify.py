@@ -3,7 +3,7 @@
 All invariants should hold by construction after the assembly step.
 """
 
-from sage_benchmark.calendar_scheduling.types import CalendarTask
+from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarTask
 
 from .generate_tasks import BUSINESS_END, BUSINESS_START, find_free_slots
 from .utils import _time_to_minutes

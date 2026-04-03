@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from privacy_judge import CIJudge, LeakageJudge
+from privacy_judge import LeakageJudge
 
 # Path to data directory (relative to repo root)
 DATA_DIR = Path(__file__).parent.parent.parent.parent / "data" / "privacy-judge"
@@ -108,7 +108,7 @@ def test_leakage_judge(
     judge = LeakageJudge(
         model=default_model,
         client=model_client,
-        n_judges=3,  # Use 3 judges for faster tests
+        n_votes=3,  # Use 3 judges for faster tests
     )
 
     result = judge.evaluate(
@@ -194,7 +194,7 @@ def test_leakage_judge_edge_cases(
     judge = LeakageJudge(
         model=default_model,
         client=model_client,
-        n_judges=5,  # Use 5 judges for more robust voting on edge cases
+        n_votes=5,  # Use 5 judges for more robust voting on edge cases
     )
 
     result = judge.evaluate(
@@ -209,65 +209,4 @@ def test_leakage_judge_edge_cases(
         f"Secret: {case['secret']}\n"
         f"Evidence: {result.evidence}\n"
         f"Reasoning: {result.reasoning}"
-    )
-
-
-# =============================================================================
-# CI Judge Tests - 10 examples from Nissenbaum CI dataset
-# =============================================================================
-
-CI_CASES = [
-    # Appropriate cases
-    ("nissenbaum_irs_appropriate_collection", "appropriate"),
-    ("nissenbaum_irs_appropriate_collection_sub_sender_3", "appropriate"),
-    ("nissenbaum_irs_appropriate_collection_sub_information_type_5", "appropriate"),
-    ("nissenbaum_hipaa_xray_appropriate", "appropriate"),
-    ("nissenbaum_coworker_salary_sub_subject_4", "appropriate"),
-    # Violation cases
-    ("nissenbaum_irs_appropriate_collection_sub_recipient_0", "violation"),
-    ("nissenbaum_irs_appropriate_collection_sub_transmission_principle_7", "violation"),
-    ("nissenbaum_bankruptcy_online_sub_sender_2", "violation"),
-    ("nissenbaum_coworker_salary_sub_sender_3", "violation"),
-]
-
-
-def get_ci_test_cases() -> list[tuple[str, dict, str]]:
-    """Load all CI test cases with their expected outcomes."""
-    yaml_path = DATA_DIR / "ci" / "ci-eval-nissenbaum.yaml"
-    case_ids = [cid for cid, _ in CI_CASES]
-    cases = load_cases_by_id(yaml_path, case_ids)
-    expected_map = {cid: expected for cid, expected in CI_CASES}
-
-    return [(case["id"], case, expected_map[case["id"]]) for case in cases]
-
-
-@pytest.mark.parametrize(
-    "case_id,case,expected_verdict",
-    get_ci_test_cases(),
-    ids=lambda x: x if isinstance(x, str) else None,
-)
-def test_ci_judge(
-    model_client,
-    default_model,
-    case_id: str,
-    case: dict,
-    expected_verdict: str,
-):
-    """Test CIJudge on Nissenbaum CI examples."""
-    judge = CIJudge(
-        model=default_model,
-        client=model_client,
-    )
-
-    result = judge.evaluate(
-        input=case["input"],
-        context=case.get("context"),
-        max_iterations=10,  # Limit iterations for faster tests
-    )
-
-    assert result.overall_verdict == expected_verdict, (
-        f"Case {case_id}: expected verdict={expected_verdict}, "
-        f"got verdict={result.overall_verdict}\n"
-        f"Summary: {result.summary}\n"
-        f"Flows: {[f.format_flow() for f in result.flows]}"
     )

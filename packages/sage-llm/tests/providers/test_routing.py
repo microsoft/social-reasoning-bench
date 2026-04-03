@@ -1,0 +1,83 @@
+"""Tests for provider routing."""
+
+from unittest.mock import patch
+
+from sage_llm.providers import resolve_provider
+from sage_llm.providers.anthropic import AnthropicProvider
+from sage_llm.providers.azure_openai import AzureProvider
+from sage_llm.providers.google_genai import GoogleProvider
+from sage_llm.providers.openai import OpenAIProvider
+from sage_llm.providers.phyagi import PhyagiProvider
+from sage_llm.providers.trapi import TrapiProvider
+
+
+class TestResolveProvider:
+    def test_anthropic_prefix(self):
+        provider, model = resolve_provider("anthropic/claude-sonnet-4-5")
+        assert isinstance(provider, AnthropicProvider)
+        assert model == "claude-sonnet-4-5"
+
+    @patch("sage_llm.providers.google_genai.genai.Client")
+    def test_gemini_prefix(self, _mock_client):
+        provider, model = resolve_provider("gemini/gemini-2.0-flash")
+        assert isinstance(provider, GoogleProvider)
+        assert model == "gemini-2.0-flash"
+
+    @patch("sage_llm.providers.openai.openai.OpenAI")
+    @patch("sage_llm.providers.openai.openai.AsyncOpenAI")
+    def test_openai_prefix(self, _mock_async, _mock_sync):
+        provider, model = resolve_provider("openai/gpt-4o")
+        assert isinstance(provider, OpenAIProvider)
+        assert model == "gpt-4o"
+
+    @patch("sage_llm.providers.openai.openai.OpenAI")
+    @patch("sage_llm.providers.openai.openai.AsyncOpenAI")
+    def test_bare_model_defaults_to_openai(self, _mock_async, _mock_sync):
+        provider, model = resolve_provider("gpt-4o")
+        assert isinstance(provider, OpenAIProvider)
+        assert model == "gpt-4o"
+
+    @patch("sage_llm.providers.azure_openai.openai.AzureOpenAI")
+    @patch("sage_llm.providers.azure_openai.openai.AsyncAzureOpenAI")
+    def test_azure_prefix(self, _mock_async, _mock_sync):
+        provider, model = resolve_provider(
+            "azure/my-deployment", base_url="https://x.openai.azure.com"
+        )
+        assert isinstance(provider, AzureProvider)
+        assert model == "my-deployment"
+
+    def test_api_key_forwarded_to_anthropic(self):
+        provider, _ = resolve_provider("anthropic/claude-sonnet-4-5", api_key="sk-test")
+        assert isinstance(provider, AnthropicProvider)
+
+    @patch("sage_llm.providers.openai.openai.OpenAI")
+    @patch("sage_llm.providers.openai.openai.AsyncOpenAI")
+    def test_api_key_forwarded_to_openai(self, _mock_async, _mock_sync):
+        provider, _ = resolve_provider("openai/gpt-4o", api_key="sk-test")
+        assert isinstance(provider, OpenAIProvider)
+
+    @patch("sage_llm.providers.openai.openai.OpenAI")
+    @patch("sage_llm.providers.openai.openai.AsyncOpenAI")
+    @patch.dict("os.environ", {"PHYAGI_API_KEY": "test-key"})
+    def test_phyagi_prefix(self, _mock_async, _mock_sync):
+        provider, model = resolve_provider("phyagi/gpt-4o")
+        assert isinstance(provider, PhyagiProvider)
+        assert isinstance(provider, OpenAIProvider)
+        assert model == "gpt-4o"
+
+    @patch("sage_llm.providers.trapi._get_token_provider")
+    @patch("sage_llm.providers.azure_openai.openai.AzureOpenAI")
+    @patch("sage_llm.providers.azure_openai.openai.AsyncAzureOpenAI")
+    def test_trapi_prefix(self, _mock_async, _mock_sync, _mock_tp):
+        provider, model = resolve_provider("trapi/gpt-4.1")
+        assert isinstance(provider, TrapiProvider)
+        assert isinstance(provider, AzureProvider)
+        assert model == "gpt-4.1_2025-04-14"
+
+    @patch("sage_llm.providers.trapi._get_token_provider")
+    @patch("sage_llm.providers.azure_openai.openai.AzureOpenAI")
+    @patch("sage_llm.providers.azure_openai.openai.AsyncAzureOpenAI")
+    def test_trapi_with_api_path(self, _mock_async, _mock_sync, _mock_tp):
+        provider, model = resolve_provider("trapi/msraif/shared/gpt-5.2")
+        assert isinstance(provider, TrapiProvider)
+        assert model == "gpt-5.2_2025-12-11"

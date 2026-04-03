@@ -102,11 +102,9 @@ class SeedManager:
         Yields:
             Seed objects as they are crawled
         """
-        if self._dir is None:
-            raise ValueError("Seeds directory not set. Set manager.dir first.")
-
-        # Ensure directory exists for saving crawled seeds
-        self._dir.mkdir(parents=True, exist_ok=True)
+        cache_dir = self._dir
+        if cache_dir is not None:
+            cache_dir.mkdir(parents=True, exist_ok=True)
 
         topics = topics or DEFAULT_TOPICS
         visited: set[str] = set()
@@ -127,21 +125,21 @@ class SeedManager:
                 if title in visited or depth > max_depth:
                     continue
 
-                # Check if already cached
-                safe_name = self._safe_filename(title)
-                filepath = self._dir / f"{safe_name}.yaml"
+                # Check if already cached on disk
+                if cache_dir is not None:
+                    safe_name = self._safe_filename(title)
+                    filepath = cache_dir / f"{safe_name}.yaml"
 
-                if filepath.exists():
-                    visited.add(title)
-                    # Load cached seed to get links for BFS
-                    seed = self._load_seed_file(filepath)
-                    if seed:
-                        yield seed
-                        if depth < max_depth:
-                            for link in seed.links[:50]:
-                                if link not in visited:
-                                    queue.append((link, depth + 1))
-                    continue
+                    if filepath.exists():
+                        visited.add(title)
+                        seed = self._load_seed_file(filepath)
+                        if seed:
+                            yield seed
+                            if depth < max_depth:
+                                for link in seed.links[:50]:
+                                    if link not in visited:
+                                        queue.append((link, depth + 1))
+                        continue
 
                 url = f"https://en.wikipedia.org/wiki/{title}"
 
@@ -185,8 +183,9 @@ class SeedManager:
                             total_links=len(links),
                         )
 
-                        # Save to file
-                        self._save_seed_file(filepath, seed)
+                        # Cache to disk if directory is set
+                        if cache_dir is not None:
+                            self._save_seed_file(filepath, seed)
                         yield seed
                         visited.add(title)
 

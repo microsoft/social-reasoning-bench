@@ -85,7 +85,7 @@ class Tool(BaseModel):
 
         This produces a ``ChatCompletionFunctionToolParam`` TypedDict suitable
         for passing directly to the ``tools`` argument of the OpenAI chat
-        completions API (or compatible wrappers like ``sage_llm.ModelClient``).
+        completions API (or compatible wrappers like ``SageModelClient``).
         """
         return ChatCompletionFunctionToolParam(
             type="function",

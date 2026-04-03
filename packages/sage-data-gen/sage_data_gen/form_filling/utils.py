@@ -4,7 +4,7 @@ import base64
 import re
 from pathlib import Path
 
-from sage_benchmark.form_filling.utils import import_form_model_from_file  # noqa: F401
+from sage_benchmark.benchmarks.form_filling.utils import import_form_model_from_file  # noqa: F401
 
 
 def extract_form_id(image_path: str | Path) -> str:

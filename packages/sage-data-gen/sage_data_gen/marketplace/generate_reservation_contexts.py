@@ -3,7 +3,7 @@
 import asyncio
 
 from pydantic import BaseModel, Field
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from .models import CatalogEntry, ReservationContext
 
@@ -50,7 +50,7 @@ Requirements:
 
 async def _generate_one(
     *,
-    client: ModelClient,
+    client: SageModelClient,
     model: str,
     context_id: str,
     catalog: CatalogEntry,
@@ -61,7 +61,7 @@ async def _generate_one(
 
     for _ in range(max_retries):
         try:
-            parsed = await client.chat.completions.aparse(
+            parsed = await client.aparse(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 response_format=ReservationContextResponse,
@@ -91,7 +91,7 @@ async def _generate_one(
 
 async def generate_reservation_contexts(
     *,
-    client: ModelClient,
+    client: SageModelClient,
     model: str,
     catalog: list[CatalogEntry],
     total_tasks: int,

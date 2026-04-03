@@ -2,7 +2,7 @@ import asyncio
 import random
 
 from pydantic import BaseModel, Field
-from sage_benchmark.calendar_scheduling.types import (
+from sage_benchmark.benchmarks.calendar_scheduling.types import (
     Attendee,
     AttendeeStatus,
     CalendarAssistant,
@@ -12,7 +12,7 @@ from sage_benchmark.calendar_scheduling.types import (
     LabeledMeeting,
     Meeting,
 )
-from sage_llm import ModelClient
+from sage_llm import SageMessage, SageModelClient
 
 from .archetypes import (
     Archetype,
@@ -271,13 +271,13 @@ Generate a coworker at {company_name} matching this archetype. The person should
 
 
 async def _label_event_privacy_single(
-    client: ModelClient,
+    client: SageModelClient,
     model: str,
     prompt: str,
     num_events: int,
 ) -> list[bool]:
     """Run a single model's privacy labeling pass."""
-    result = await client.chat.completions.aparse(
+    result = await client.aparse(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         response_format=PrivacyLabels,
@@ -287,7 +287,7 @@ async def _label_event_privacy_single(
 
 
 async def _label_event_privacy(
-    client: ModelClient,
+    client: SageModelClient,
     calendar: list[CalendarEvent],
     assistant_name: str,
     assistant_role: str,
@@ -338,7 +338,7 @@ async def _label_event_privacy(
 
 
 async def _generate_requestor(
-    client: ModelClient,
+    client: SageModelClient,
     employee: Employee,
     company: Company,
     company_employees: list[Employee],
@@ -358,7 +358,7 @@ async def _generate_requestor(
             archetype_description=archetype.description,
             existing_names=existing_names,
         )
-        result = await client.chat.completions.aparse(
+        result = await client.aparse(
             model=config.model,
             messages=[{"role": "user", "content": prompt}],
             response_format=InternalRequestor,
@@ -382,7 +382,7 @@ async def _generate_requestor(
             industry=company.industry,
             archetype_description=archetype.description,
         )
-        result = await client.chat.completions.aparse(
+        result = await client.aparse(
             model=config.model,
             messages=[{"role": "user", "content": prompt}],
             response_format=ExternalRequestor,
@@ -427,7 +427,7 @@ def _has_valid_conflict_slot(
 
 
 async def generate_task_for_archetype(
-    client: ModelClient,
+    client: SageModelClient,
     employee: Employee,
     working_events: list[CalendarEvent],
     labeled_calendar: list[LabeledMeeting],
@@ -490,7 +490,7 @@ async def generate_task_for_archetype(
             existing_events=existing_events_str,
         )
 
-        instructions = await client.chat.completions.aparse(
+        instructions = await client.aparse(
             model=config.model,
             messages=[{"role": "user", "content": prompt}],
             response_format=TaskInstructions,
