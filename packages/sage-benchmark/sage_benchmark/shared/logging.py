@@ -303,19 +303,23 @@ class QuietLogger(BenchmarkLogger):
 def create_benchmark_logger(
     style: str,
     log: logging.Logger | None = None,
+    log_level: str = "info",
 ) -> BenchmarkLogger:
     """Factory: 'verbose', 'progress', or 'quiet'."""
+    level = getattr(logging, log_level.upper(), logging.INFO)
     if style == "verbose":
-        # Ensure the logging module has at least a basic handler so that
-        # VerboseLogger's calls to logger.info / .debug / etc. are not
-        # silently dropped.  basicConfig is a no-op when handlers already exist.
         logging.basicConfig(
-            level=logging.INFO,
+            level=level,
             format="%(asctime)s [%(levelname)s] %(message)s",
             datefmt="%H:%M:%S",
         )
         return VerboseLogger(log)
     if style == "progress":
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%H:%M:%S",
+        )
         return ProgressLogger(log)
     if style == "quiet":
         return QuietLogger(log)

@@ -259,7 +259,14 @@ class LeakageJudge:
 
         # Run N parallel judgments
         tasks = [self._evaluate_single(messages) for _ in range(self._n_votes)]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+        except asyncio.CancelledError:
+            # Cancel any still-running tasks and propagate
+            for t in tasks:
+                if hasattr(t, "cancel"):
+                    t.cancel()
+            raise
 
         # Filter valid judgments
         valid_judgments: list[LeakageJudgment] = []

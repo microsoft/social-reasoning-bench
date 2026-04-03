@@ -15,6 +15,7 @@ from openai.types.chat import (
 )
 from pydantic import BaseModel
 
+from .. import concurrency as _concurrency
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionInfo, SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
@@ -41,7 +42,7 @@ def _get_openai_clients(
         ck["api_key"] = api_key
     if base_url is not None:
         ck["base_url"] = base_url
-    pair = (openai.OpenAI(**ck), openai.AsyncOpenAI(**ck))
+    pair = (openai.OpenAI(max_retries=0, **ck), openai.AsyncOpenAI(max_retries=0, **ck))
     cache[cache_key] = pair
     return pair
 
@@ -234,26 +235,40 @@ class OpenAIProvider(SageModelProvider):
         trace: LLMTrace,
         num_retries: int,
     ) -> OpenAIMessage:
+        concurrency_key = trace.sage_request.model if trace.sage_request else ""
+        if concurrency_key:
+            await _concurrency.acquire(concurrency_key)
         last_error: Exception | None = None
-        for attempt in range(max(1, num_retries + 1)):
-            try:
-                response = await call()
-                _fill_trace(trace, sdk_kwargs, response)
-                return _to_openai_message(response)
-            except openai.APIStatusError as e:
-                last_error = e
-                if _is_retryable(e) and attempt < num_retries:
-                    await asyncio.sleep(min(2**attempt, 8))
-                    continue
-                raise
-            except (openai.APITimeoutError, openai.APIConnectionError) as e:
-                last_error = e
-                if attempt < num_retries:
-                    await asyncio.sleep(min(2**attempt, 8))
-                    continue
-                raise
-        assert last_error is not None
-        raise last_error
+        try:
+            for attempt in range(max(1, num_retries + 1)):
+                try:
+                    response = await call()
+                    _fill_trace(trace, sdk_kwargs, response)
+                    if concurrency_key:
+                        await _concurrency.on_success(concurrency_key)
+                    return _to_openai_message(response)
+                except openai.APIStatusError as e:
+                    last_error = e
+                    if _is_retryable(e) and attempt < num_retries:
+                        retry_after = _parse_retry_after(e)
+                        if e.status_code == 429 and concurrency_key:
+                            await _concurrency.on_rate_limit(
+                                concurrency_key, retry_after=retry_after
+                            )
+                        await asyncio.sleep(retry_after or min(2**attempt, 8))
+                        continue
+                    raise
+                except (openai.APITimeoutError, openai.APIConnectionError) as e:
+                    last_error = e
+                    if attempt < num_retries:
+                        await asyncio.sleep(min(2**attempt, 8))
+                        continue
+                    raise
+            assert last_error is not None
+            raise last_error
+        finally:
+            if concurrency_key:
+                _concurrency.release(concurrency_key)
 
 
 # ---------------------------------------------------------------------------
@@ -327,3 +342,14 @@ def _pydantic_to_json_schema(model_class: type[BaseModel]) -> dict[str, Any]:
 
 def _is_retryable(e: openai.APIStatusError) -> bool:
     return e.status_code in (429, 500, 502, 503, 504)
+
+
+def _parse_retry_after(e: openai.APIStatusError) -> float | None:
+    """Best-effort parse of Retry-After header."""
+    try:
+        val = e.response.headers.get("retry-after")
+        if val:
+            return float(val)
+    except (AttributeError, ValueError, TypeError):
+        pass
+    return None

@@ -63,15 +63,12 @@ ATTACK_TYPES: list[str] = list(PROMPTS.keys())
 
 
 def inject(task: MarketplaceTask, attack_type: str) -> list[MarketplaceTask]:
-    """Inject handcrafted malicious prompt into both roles, returning two variants."""
+    """Inject handcrafted malicious prompt into the seller role, returning one variant."""
     prompt = PROMPTS[attack_type]
-    variants: list[MarketplaceTask] = []
-    for role in ("buyer", "seller"):
-        task_dict = task.model_dump(mode="json")
-        task_dict[role]["instruction_message"] += prompt
-        task_dict[role]["is_malicious"] = True
-        task_dict[role]["malicious_target"] = attack_type
-        task_dict[role]["malicious_strategy"] = "hand_crafted"
-        task_dict["variant"] = f"hc-{attack_type}-{role}"
-        variants.append(MarketplaceTask.model_validate(task_dict))
-    return variants
+    task_dict = task.model_dump(mode="json")
+    task_dict["seller"]["instruction_message"] += prompt
+    task_dict["seller"]["is_malicious"] = True
+    task_dict["seller"]["malicious_target"] = attack_type
+    task_dict["seller"]["malicious_strategy"] = "hand_crafted"
+    task_dict["variant"] = f"hc-{attack_type}-seller"
+    return [MarketplaceTask.model_validate(task_dict)]

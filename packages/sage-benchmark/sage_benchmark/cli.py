@@ -180,6 +180,12 @@ def _run_experiment(argv: list[str]) -> None:
         choices=["verbose", "progress", "quiet"],
         help="Logging style (default: progress)",
     )
+    parser.add_argument(
+        "--log-level",
+        default="info",
+        choices=["debug", "info", "warning", "error"],
+        help="Python logging level for library loggers (default: info)",
+    )
 
     args = parser.parse_args(_strip_set_args(arg_groups[0]))
 
@@ -216,6 +222,7 @@ def _run_experiment(argv: list[str]) -> None:
             restart_exec=args.restart_exec,
             restart_eval=args.restart_eval,
             logger_style=args.logger,
+            log_level=args.log_level,
         )
     )
 

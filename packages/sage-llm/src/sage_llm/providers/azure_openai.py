@@ -14,12 +14,14 @@ from openai.types.chat import (
 )
 from pydantic import BaseModel
 
+from .. import concurrency as _concurrency
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
 from .openai import (
     OpenAIMessage,
     _is_retryable,
+    _parse_retry_after,
     _pydantic_to_json_schema,
     _to_openai_message,
     _to_openai_messages,
@@ -54,7 +56,7 @@ def _get_azure_clients(
         ck["api_key"] = api_key
     if azure_ad_token_provider is not None:
         ck["azure_ad_token_provider"] = azure_ad_token_provider
-    pair = (openai.AzureOpenAI(**ck), openai.AsyncAzureOpenAI(**ck))
+    pair = (openai.AzureOpenAI(max_retries=0, **ck), openai.AsyncAzureOpenAI(max_retries=0, **ck))
     cache[cache_key] = pair
     return pair
 
@@ -265,23 +267,35 @@ async def _acall_with_retries(
     trace: LLMTrace,
     num_retries: int,
 ) -> OpenAIMessage:
+    concurrency_key = trace.sage_request.model if trace.sage_request else ""
+    if concurrency_key:
+        await _concurrency.acquire(concurrency_key)
     last_error: Exception | None = None
-    for attempt in range(max(1, num_retries + 1)):
-        try:
-            response = await call()
-            _fill_trace(trace, sdk_kwargs, response)
-            return _to_openai_message(response)
-        except openai.APIStatusError as e:
-            last_error = e
-            if _is_retryable(e) and attempt < num_retries:
-                await asyncio.sleep(min(2**attempt, 8))
-                continue
-            raise
-        except (openai.APITimeoutError, openai.APIConnectionError) as e:
-            last_error = e
-            if attempt < num_retries:
-                await asyncio.sleep(min(2**attempt, 8))
-                continue
-            raise
-    assert last_error is not None
-    raise last_error
+    try:
+        for attempt in range(max(1, num_retries + 1)):
+            try:
+                response = await call()
+                _fill_trace(trace, sdk_kwargs, response)
+                if concurrency_key:
+                    await _concurrency.on_success(concurrency_key)
+                return _to_openai_message(response)
+            except openai.APIStatusError as e:
+                last_error = e
+                if _is_retryable(e) and attempt < num_retries:
+                    retry_after = _parse_retry_after(e)
+                    if e.status_code == 429 and concurrency_key:
+                        await _concurrency.on_rate_limit(concurrency_key, retry_after=retry_after)
+                    await asyncio.sleep(retry_after or min(2**attempt, 8))
+                    continue
+                raise
+            except (openai.APITimeoutError, openai.APIConnectionError) as e:
+                last_error = e
+                if attempt < num_retries:
+                    await asyncio.sleep(min(2**attempt, 8))
+                    continue
+                raise
+        assert last_error is not None
+        raise last_error
+    finally:
+        if concurrency_key:
+            _concurrency.release(concurrency_key)

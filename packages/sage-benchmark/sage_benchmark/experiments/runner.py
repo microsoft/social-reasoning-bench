@@ -165,12 +165,13 @@ class ExperimentPoolExecutor:
 
         def generate_all():
             for bm in self.benchmarks:
+                hints = bm.get_concurrency_hints()
                 prior_exec_by_key = {r.task.hash: r for r in bm.prior_exec_results}
                 for task in bm.tasks:
                     h = task.hash
                     if h in bm.skip_exec_keys and h in bm.skip_eval_keys:
                         continue
-                    yield self._tagged_task(bm, task, prior_exec_by_key)
+                    yield self._tagged_task(bm, task, prior_exec_by_key), hints
 
         executor = TaskPoolExecutor(
             batch_size=self.batch_size,
@@ -249,6 +250,7 @@ async def run_multiple(
     restart_exec: bool = False,
     restart_eval: bool = False,
     logger_style: str = "progress",
+    log_level: str = "info",
 ) -> tuple[int, int, int]:
     """Collect and run multiple experiments.
 
@@ -263,11 +265,12 @@ async def run_multiple(
         restart_exec: Re-run execution (ignore checkpointed execution progress).
         restart_eval: Re-run evaluation (ignore checkpointed evaluation progress).
         logger_style: Logger style — 'verbose', 'progress', or 'quiet'.
+        log_level: Python logging level for library loggers (e.g. 'info', 'warning').
 
     Returns:
         ``(success_count, skipped_count, fail_count)``
     """
-    bl = create_benchmark_logger(logger_style)
+    bl = create_benchmark_logger(logger_style, log_level=log_level)
 
     raw_configs = collect_all(path, patterns, override_groups)
 

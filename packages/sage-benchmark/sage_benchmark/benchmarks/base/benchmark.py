@@ -152,6 +152,15 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         """
         return [self.config.model or "unknown"]
 
+    def get_concurrency_hints(self) -> list[str]:
+        """Concurrency keys (typically model names) used by tasks in this benchmark.
+
+        The executor uses these to avoid launching tasks when their models
+        are under rate-limit pressure.  Override to return the deduplicated
+        set of models this benchmark calls per task.
+        """
+        return list({self.config.model} - {None}) if self.config.model else []
+
     def load_tasks(self) -> tuple[list[TTask], dict[str, str]]:
         """Load tasks from ``self.config``.
 
@@ -344,11 +353,12 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
                 new_eval_results.append(result)
 
         def generate_tasks():
+            hints = self.get_concurrency_hints()
             for task in self.tasks:
                 h = task.hash
                 if h in self.skip_exec_keys and h in self.skip_eval_keys:
                     continue
-                yield self._exec_and_eval_single(task, prior_exec_by_key, cancel_event)
+                yield self._exec_and_eval_single(task, prior_exec_by_key, cancel_event), hints
 
         batch_size = self.config.batch_size
         executor = TaskPoolExecutor(
@@ -583,7 +593,10 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         args = parser.parse_args()
         config = cls.create_config(args)
 
-        bl = create_benchmark_logger(getattr(args, "logger", "verbose"))
+        bl = create_benchmark_logger(
+            getattr(args, "logger", "verbose"),
+            log_level=getattr(args, "log_level", "info"),
+        )
 
         benchmark = cls(
             config,

@@ -266,6 +266,16 @@ class FormFillingBenchmark(
             self.config.resolved_interviewer_model or "unknown",
         ]
 
+    def get_concurrency_hints(self) -> list[str]:
+        return list(
+            {
+                self.config.resolved_assistant_model,
+                self.config.resolved_interviewer_model,
+                self.config.resolved_judge_model,
+            }
+            - {None}
+        )
+
     def load_tasks(self) -> tuple[list[FormTask], dict[str, str]]:
         if not self.config.paths:
             return [], {}

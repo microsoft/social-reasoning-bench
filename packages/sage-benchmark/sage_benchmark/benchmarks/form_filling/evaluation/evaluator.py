@@ -391,7 +391,9 @@ async def evaluate_single_task(
             negative_info=form_task.negative_info,
         )
 
-    all_items = itertools.chain(
+    # ── Execute all in one pool ──
+
+    all_items_gen = itertools.chain(
         _correctness_items(
             form_dict,
             form_task.ground_truth,
@@ -415,17 +417,15 @@ async def evaluate_single_task(
         ),
         doc_items,
     )
-
-    # ── Execute all in one pool ──
-
-    all_items_list = list(all_items)
-    batch = eval_batch_size if eval_batch_size > 0 else len(all_items_list)
-    benchmark_logger.info(f"Eval: {len(all_items_list)} work items, batch_size={batch}")
+    # Count items without materializing (for logging); re-count from generators
+    # is not possible, so we let the pool report count after completion.
+    batch = eval_batch_size if eval_batch_size > 0 else 0
 
     eval_t0 = time.monotonic()
-    pool = TaskPoolExecutor(batch_size=batch, quiet_cancel=True)
-    timed_results = await pool.run(all_items_list)
+    pool = TaskPoolExecutor(batch_size=batch if batch > 0 else 9999, quiet_cancel=True)
+    timed_results = await pool.run(all_items_gen)
     eval_wall = time.monotonic() - eval_t0
+    benchmark_logger.info(f"Eval: {len(timed_results)} items completed in {eval_wall:.1f}s")
 
     # ── Route results by type + collect timing ──
 

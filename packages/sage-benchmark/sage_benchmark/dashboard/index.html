@@ -515,6 +515,7 @@ const state = {
   scrollLocked: true,
   scatterX: 'due_diligence',
   scatterY: 'duty_of_care',
+  filterClipboard: null,  // { dims: { dim: Set }, visibleMetrics: Set } or null
 };
 
 // ─────────────────────────────────────────────
@@ -753,10 +754,9 @@ function removeColumn(colIdx) {
   renderActiveTab();
 }
 
-// Get dimensions not used in grouping (these become filter options)
+// Get dimensions available as filter options (all dimensions including group-by)
 function getFilterableDims() {
-  const allDims = Object.keys(DIMENSION_DEFS);
-  return allDims.filter(d => !state.groupBy.includes(d));
+  return Object.keys(DIMENSION_DEFS);
 }
 
 // Render metric toggle pills for a facet. Returns HTML string.
@@ -790,8 +790,12 @@ function renderFacetFilterPills(colIdx, facetKey, exps, { showMetrics = true } =
     return `<span class="inline-flex items-center gap-1"><span class="text-[9px] text-gray-400 dark:text-gray-500 uppercase">${DIMENSION_DEFS[dim]?.label || dim}:</span>${pills}</span>`;
   }).filter(Boolean);
 
+  const copyIcon = `<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+  const pasteIcon = `<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/></svg>`;
+  const copyPaste = `<span class="inline-flex items-center gap-0.5"><button class="facet-copy-btn p-0.5 rounded text-gray-400 hover:text-sage-600 dark:hover:text-sage-400 transition" data-col="${colIdx}" data-facet="${esc(facetKey)}" title="Copy all filters">${copyIcon}</button><button class="facet-paste-btn p-0.5 rounded transition text-gray-400 hover:text-sage-600 dark:hover:text-sage-400" data-col="${colIdx}" data-facet="${esc(facetKey)}" title="Paste all filters">${pasteIcon}</button></span>`;
+
   const sep = '<span class="text-gray-300 dark:text-gray-600 mx-1">|</span>';
-  const parts = showMetrics ? [renderMetricPills(colIdx, facetKey), ...dimPills] : dimPills;
+  const parts = showMetrics ? [renderMetricPills(colIdx, facetKey), ...dimPills, copyPaste] : [...dimPills, copyPaste];
   return parts.join(sep);
 }
 
@@ -816,6 +820,35 @@ function wireFacetCardPills(container, allExpsForFacets, renderSingleFacetCard) 
       const vm = getVisibleMetrics(colIdx, facetKey);
       if (vm.has(key)) { if (vm.size > 1) vm.delete(key); }
       else vm.add(key);
+      rerenderSingleFacetCard(btn, allExpsForFacets, renderSingleFacetCard);
+    });
+  });
+  container.querySelectorAll('.facet-copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const colIdx = parseInt(btn.dataset.col);
+      const facetKey = btn.dataset.facet;
+      const filters = getFacetFilter(colIdx, facetKey);
+      const dims = {};
+      for (const key of Object.keys(filters)) {
+        if (key.startsWith('_')) continue;
+        dims[key] = filters[key] && filters[key].size > 0 ? new Set(filters[key]) : null;
+      }
+      state.filterClipboard = { dims, visibleMetrics: new Set(getVisibleMetrics(colIdx, facetKey)) };
+    });
+  });
+  container.querySelectorAll('.facet-paste-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!state.filterClipboard) return;
+      const colIdx = parseInt(btn.dataset.col);
+      const facetKey = btn.dataset.facet;
+      const filters = getFacetFilter(colIdx, facetKey);
+      const clip = state.filterClipboard;
+      for (const [dim, val] of Object.entries(clip.dims)) {
+        filters[dim] = val ? new Set(val) : new Set();
+      }
+      if (clip.visibleMetrics) {
+        filters._visibleMetrics = new Set(clip.visibleMetrics);
+      }
       rerenderSingleFacetCard(btn, allExpsForFacets, renderSingleFacetCard);
     });
   });
@@ -1408,7 +1441,8 @@ function barChartOptions(mc, { showLegend = true } = {}) {
 
 function renderRadarColumn(container, experiments, colIdx) {
   const facetDim = state.groupBy[0] || 'benchmark';
-  const seriesDim = state.groupBy[1] || null;
+  const xDim = state.groupBy[1] || null;
+  const seriesDim = state.groupBy[2] || null;
   const facetGroups = groupExperiments(experiments, [facetDim]);
   const facetKeys = dimSort(facetDim, Object.keys(facetGroups));
   const allExpsForFacets = {};
@@ -1435,7 +1469,6 @@ function renderRadarColumn(container, experiments, colIdx) {
   function renderSingleFacetCard(card, colIdx, fk, unfilteredExps) {
     const fi = facetKeys.indexOf(fk);
     const filtered = applyFacetFilters(unfilteredExps, colIdx, fk);
-    const canvasId = `radar-c${colIdx}-f${fi}`;
     card.innerHTML = '';
     card.setAttribute('data-facet-card', '');
     card.dataset.facetCol = colIdx;
@@ -1448,33 +1481,59 @@ function renderRadarColumn(container, experiments, colIdx) {
       <div class="flex flex-wrap items-center gap-1">${renderFacetFilterPills(colIdx, fk, unfilteredExps)}</div>`;
     card.appendChild(header);
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'flex-1 min-h-0 p-3 relative';
-    const canvas = document.createElement('canvas');
-    canvas.id = canvasId;
-    wrapper.appendChild(canvas);
-    card.appendChild(wrapper);
+    // X-Axis dimension drives multiple radar plots per card
+    const xGroups = xDim ? groupExperiments(filtered, [xDim]) : { [fk]: filtered };
+    const xKeys = dimSort(xDim, Object.keys(xGroups));
+    const gridCols = Math.min(xKeys.length, 3);
 
-    const groupMaxDD = Math.max(1, ...filtered.map(e => e.evaluation.avg_due_diligence || 0));
-    let datasets;
-    if (seriesDim) {
-      const secGroups = groupExperiments(filtered, [seriesDim]);
-      const secKeys = dimSort(seriesDim, Object.keys(secGroups));
-      const secColorMap = DIMENSION_DEFS[seriesDim]?.colorMap;
-      datasets = secKeys.map((sk, si) => {
-        const color = secColorMap?.[sk] || PALETTE[si % PALETTE.length];
-        return { label: sk, data: makeRadarData(secGroups[sk], groupMaxDD), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 };
+    const grid = document.createElement('div');
+    grid.className = 'p-3';
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+    grid.style.gap = '12px';
+
+    const chartConfigs = [];
+
+    xKeys.forEach((xk, xi) => {
+      const xExps = xGroups[xk];
+      const canvasId = `radar-c${colIdx}-f${fi}-x${xi}`;
+
+      const cell = document.createElement('div');
+      cell.style.position = 'relative';
+      cell.style.minHeight = '220px';
+      const canvas = document.createElement('canvas');
+      canvas.id = canvasId;
+      cell.appendChild(canvas);
+      grid.appendChild(cell);
+
+      const groupMaxDD = Math.max(1, ...xExps.map(e => e.evaluation.avg_due_diligence || 0));
+      let datasets;
+      if (seriesDim) {
+        const secGroups = groupExperiments(xExps, [seriesDim]);
+        const secKeys = dimSort(seriesDim, Object.keys(secGroups));
+        const secColorMap = DIMENSION_DEFS[seriesDim]?.colorMap;
+        datasets = secKeys.map((sk, si) => {
+          const color = secColorMap?.[sk] || PALETTE[si % PALETTE.length];
+          return { label: sk, data: makeRadarData(secGroups[sk], groupMaxDD), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 };
+        });
+      } else {
+        const primColorMap = xDim ? DIMENSION_DEFS[xDim]?.colorMap : DIMENSION_DEFS[facetDim]?.colorMap;
+        const color = primColorMap?.[xk] || PALETTE[xi % PALETTE.length];
+        datasets = [{ label: xk, data: makeRadarData(xExps, groupMaxDD), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 }];
+      }
+
+      const title = xDim ? xk : '';
+      chartConfigs.push({ canvasId, datasets, title });
+    });
+
+    card.appendChild(grid);
+
+    chartConfigs.forEach(({ canvasId, datasets, title }) => {
+      createChart(canvasId, {
+        type: 'radar',
+        data: { labels: axisLabels, datasets },
+        options: { ...radarOpts, plugins: { ...radarOpts.plugins, title: { display: !!title, text: title, color: isDark ? '#d4d4d4' : '#404040', font: { size: 11, weight: '500' } } } },
       });
-    } else {
-      const primColorMap = DIMENSION_DEFS[facetDim]?.colorMap;
-      const color = primColorMap?.[filtered[0]?.[facetDim]] || PALETTE[fi % PALETTE.length];
-      datasets = [{ label: fk, data: makeRadarData(filtered, groupMaxDD), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 }];
-    }
-
-    createChart(canvasId, {
-      type: 'radar',
-      data: { labels: axisLabels, datasets },
-      options: { ...radarOpts, plugins: { ...radarOpts.plugins, title: { display: false } } },
     });
   }
 
@@ -1791,8 +1850,8 @@ function renderDistColumn(container, experiments, colIdx) {
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: {
-            legend: { display: showLegend, labels: { color: isDark ? '#d1d5db' : '#374151', font: { size: 9 }, usePointStyle: true, boxWidth: 8, generateLabels: (chart) => chart.data.datasets.map((ds, i) => ({ text: ds.label, fillStyle: ds._bgColor || PALETTE[i % PALETTE.length].bg, strokeStyle: ds._bdColor || PALETTE[i % PALETTE.length].border, lineWidth: 1, datasetIndex: i })) } },
-            title: { display: true, text: mc.label, color: isDark ? '#d1d5db' : '#374151', font: { size: 12 } },
+            legend: { display: showLegend, labels: { color: isDark ? '#e5e5e5' : '#262626', font: { size: 9 }, usePointStyle: true, boxWidth: 8, generateLabels: (chart) => chart.data.datasets.map((ds, i) => ({ text: ds.label, fontColor: isDark ? '#e5e5e5' : '#262626', fillStyle: ds._bgColor || PALETTE[i % PALETTE.length].bg, strokeStyle: ds._bdColor || PALETTE[i % PALETTE.length].border, lineWidth: 1, datasetIndex: i })) } },
+            title: { display: true, text: mc.label, color: isDark ? '#e5e5e5' : '#262626', font: { size: 12 } },
             tooltip: { callbacks: { label: ctx => { const s = ctx.dataset._boxStats?.[ctx.dataIndex]; if (!s) return ''; const f = v => mc.format === 'percent' ? (v*100).toFixed(1)+'%' : v.toFixed(2); const prefix = ctx.dataset.label ? ctx.dataset.label + ': ' : ''; return [`${prefix}Median: ${f(s.median)}`, `  Q1–Q3: ${f(s.q1)} – ${f(s.q3)}`, `  Range: ${f(s.min)} – ${f(s.max)}`, `  Mean: ${f(s.mean)}`]; }}},
           },
           scales: { x: { ticks: { color: isDark ? '#9ca3af' : '#6b7280', font: { size: 9 }, maxRotation: 45 }, grid: { display: false } }, y: { min: yMin, max: yMax, ticks: { color: isDark ? '#9ca3af' : '#6b7280', callback: v => mc.format === 'percent' ? (v*100).toFixed(0)+'%' : v }, grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' } } },
@@ -1923,9 +1982,9 @@ function renderScatterColumn(container, experiments, colIdx) {
 
 // Per-benchmark viewer state
 const tvState = {
-  calendar:     { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true },
-  marketplace:  { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true },
-  form_filling: { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true },
+  calendar:     { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {} },
+  marketplace:  { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {} },
+  form_filling: { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {} },
 };
 
 function tvMetricCell(val, format) {
@@ -1937,6 +1996,49 @@ function tvMetricCell(val, format) {
   }
   if (format === 'int') return `<td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">${Math.round(val)}</td>`;
   return `<td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">${esc(String(val))}</td>`;
+}
+
+// TV filter helpers — per-benchmark dimension filters for experiment tables
+function tvToggleFilter(benchmark, dim, val, allExps) {
+  const filters = tvState[benchmark].filters;
+  const allVals = [...new Set(allExps.map(e => e[dim]))].filter(v => v != null);
+  if (!filters[dim] || filters[dim].size === 0) {
+    filters[dim] = new Set(allVals);
+  }
+  const f = filters[dim];
+  if (f.has(val)) f.delete(val); else f.add(val);
+  if (f.size === allVals.length) filters[dim] = new Set();
+}
+
+function tvApplyFilters(benchmark, exps) {
+  const filters = tvState[benchmark].filters;
+  return exps.filter(e => {
+    for (const dim of Object.keys(filters)) {
+      const f = filters[dim];
+      if (!f || f.size === 0) continue;
+      if (!f.has(e[dim])) return false;
+    }
+    return true;
+  });
+}
+
+function tvRenderFilterPills(benchmark, exps) {
+  const filters = tvState[benchmark].filters;
+  const dims = tvExpCols.filter(c => c.dim);
+  const parts = dims.map(col => {
+    const dim = col.dim;
+    const values = [...new Set(exps.map(e => col.getter(e)))].sort();
+    if (values.length <= 1) return '';
+    const pills = values.map(val => {
+      const active = !filters[dim] || filters[dim].size === 0 || filters[dim].has(val);
+      const cls = active
+        ? 'bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300'
+        : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 line-through';
+      return `<button class="tv-filter-btn px-1.5 py-0.5 rounded text-[10px] font-medium transition ${cls}" data-dim="${dim}" data-val="${esc(String(val))}">${esc(String(val))}</button>`;
+    }).join('');
+    return `<span class="inline-flex items-center gap-1"><span class="text-[9px] text-gray-400 dark:text-gray-500 uppercase">${col.label}:</span>${pills}</span>`;
+  }).filter(Boolean);
+  return parts.join('<span class="text-gray-300 dark:text-gray-600 mx-1">|</span>');
 }
 
 function renderBenchmarkTab(benchmark, experiments) {
@@ -1965,14 +2067,16 @@ function renderBenchmarkTab(benchmark, experiments) {
 
 const tvExpCols = [
   { key: 'variant',    label: 'Variant',    align: 'left',   getter: e => e.variant },
-  { key: 'model',      label: 'Model',      align: 'left',   getter: e => e.model },
+  { key: 'model',      label: 'Model',      align: 'left',   getter: e => e.model, dim: 'model' },
+  { key: 'privacy',    label: 'Privacy',    align: 'left',   getter: e => e.privacyLevel || 'none', dim: 'privacyLevel' },
+  { key: 'reasoning',  label: 'Reasoning',  align: 'left',   getter: e => e.reasoningConfig || 'none', dim: 'reasoningConfig' },
+  { key: 'attack',     label: 'Attack',     align: 'left',   getter: e => e.attackType || 'none', dim: 'attackType' },
+  { key: 'attackStyle',label: 'Style',      align: 'left',   getter: e => e.attackStyle || 'none', dim: 'attackStyle' },
   { key: 'tasks',      label: 'Tasks',      align: 'center', getter: e => e.tasks.length },
   { key: 'completion', label: 'Completion',  align: 'center', getter: e => e.evaluation?.avg_task_completion, format: 'percent' },
   { key: 'leakage',    label: 'Leakage',    align: 'center', getter: e => e.evaluation?.avg_leakage_rate, format: 'percent' },
   { key: 'doc',        label: 'DoC',        align: 'center', getter: e => e.evaluation?.avg_duty_of_care, format: 'percent' },
   { key: 'dd',         label: 'DD',         align: 'center', getter: e => e.evaluation?.avg_due_diligence, format: 'int' },
-  { key: 'privacy',    label: 'Privacy',    align: 'left',   getter: e => e.privacyLevel || 'none', dim: 'privacyLevel' },
-  { key: 'attack',     label: 'Attack',     align: 'left',   getter: e => e.attackType || 'none', dim: 'attackType' },
 ];
 
 function tvShowExpTable(benchmark, experiments) {
@@ -1983,8 +2087,11 @@ function tvShowExpTable(benchmark, experiments) {
   expPanel.classList.remove('hidden');
   taskView.classList.add('hidden');
 
+  // Apply dimension filters
+  const filtered = tvApplyFilters(benchmark, experiments);
+
   // Sort experiments (keep original indices for selection)
-  const indexed = experiments.map((e, i) => ({ exp: e, origIdx: i }));
+  const indexed = filtered.map((e, i) => ({ exp: e, origIdx: experiments.indexOf(e) }));
   const sc = tvState[benchmark].sortCol;
   if (sc) {
     const col = tvExpCols.find(c => c.key === sc);
@@ -2004,6 +2111,12 @@ function tvShowExpTable(benchmark, experiments) {
     }
   }
 
+  // Filter pills
+  const filterPillsHtml = tvRenderFilterPills(benchmark, experiments);
+  const countLabel = filtered.length < experiments.length
+    ? `<span class="text-[10px] text-gray-400 dark:text-gray-500">${filtered.length}/${experiments.length}</span>`
+    : '';
+
   // Header with sort arrows
   const thHtml = tvExpCols.map(col => {
     const active = sc === col.key;
@@ -2011,29 +2124,35 @@ function tvShowExpTable(benchmark, experiments) {
     return `<th class="px-3 py-2 text-${col.align} cursor-pointer select-none hover:text-sage-600 dark:hover:text-sage-400 transition" data-sort="${col.key}">${esc(col.label)}${arrow}</th>`;
   }).join('');
 
-  let html = `<table class="w-full text-xs">
+  let html = `<div class="flex-shrink-0 px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex flex-wrap items-center gap-1">${filterPillsHtml} ${countLabel}</div>`;
+  html += `<table class="w-full text-xs">
     <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
       <tr class="text-gray-500 dark:text-gray-400 font-medium text-[10px] uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">${thHtml}</tr>
     </thead>
     <tbody>`;
 
   indexed.forEach(({ exp: e, origIdx }) => {
-    const ev = e.evaluation || {};
-    html += `<tr class="tv-exp-row border-b border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-sage-50 dark:hover:bg-sage-900/20 transition" data-idx="${origIdx}">
-      <td class="px-3 py-2 font-medium max-w-[200px] truncate" title="${esc(e.variant)}">${esc(e.variant)}</td>
-      <td class="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[140px] truncate" title="${esc(e.model)}">${esc(e.model)}</td>
-      <td class="px-3 py-2 text-center">${e.tasks.length}</td>
-      ${tvMetricCell(ev.avg_task_completion, 'percent')}
-      ${tvMetricCell(ev.avg_leakage_rate, 'percent')}
-      ${tvMetricCell(ev.avg_duty_of_care, 'percent')}
-      ${tvMetricCell(ev.avg_due_diligence, 'int')}
-      <td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">${esc(e.privacyLevel || 'none')}</span></td>
-      <td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${e.attackType !== 'none' ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}">${esc(e.attackType || 'none')}</span></td>
-    </tr>`;
+    const cells = tvExpCols.map(col => {
+      const val = col.getter(e);
+      if (col.format === 'percent' || col.format === 'int') return tvMetricCell(val, col.format);
+      if (col.key === 'variant') return `<td class="px-3 py-2 font-medium max-w-[200px] truncate" title="${esc(val || '')}">${esc(val || '')}</td>`;
+      if (col.key === 'tasks') return `<td class="px-3 py-2 text-center">${val}</td>`;
+      if (col.dim) return `<td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">${esc(String(val))}</span></td>`;
+      return `<td class="px-3 py-2 max-w-[140px] truncate" title="${esc(String(val || ''))}">${esc(String(val || ''))}</td>`;
+    }).join('');
+    html += `<tr class="tv-exp-row border-b border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-sage-50 dark:hover:bg-sage-900/20 transition" data-idx="${origIdx}">${cells}</tr>`;
   });
 
   html += '</tbody></table>';
   expTable.innerHTML = html;
+
+  // Wire filter pill clicks
+  expTable.querySelectorAll('.tv-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tvToggleFilter(benchmark, btn.dataset.dim, btn.dataset.val, experiments);
+      tvShowExpTable(benchmark, experiments);
+    });
+  });
 
   // Wire header clicks for sorting
   expTable.querySelectorAll('th[data-sort]').forEach(th => {
@@ -2639,6 +2758,18 @@ function tvRenderTaskContext(r, benchmark, experiment) {
     const fsArtifacts = Array.isArray(task.filesystem_artifacts) ? task.filesystem_artifacts : [];
     const legacyArtifacts = Array.isArray(task.artifacts) ? task.artifacts : [];
     const allArtifacts = fsArtifacts.length > 0 ? fsArtifacts : legacyArtifacts;
+
+    // For context-mode artifacts, derive contains_answer_for from validation.field_coverage
+    const artifactFieldMap = {};  // artifact index → [field_id, ...]
+    const fieldCoverage = task.validation?.field_coverage || [];
+    fieldCoverage.forEach(fc => {
+      (fc.found_in_artifacts || []).forEach(idx => {
+        const key = String(idx);
+        if (!artifactFieldMap[key]) artifactFieldMap[key] = [];
+        artifactFieldMap[key].push(fc.field_id || fc.field_label || '?');
+      });
+    });
+
     if (allArtifacts.length > 0) {
       html += `<details class="mb-3">
         <summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 font-semibold">Artifacts (${allArtifacts.length})</summary>
@@ -2647,7 +2778,8 @@ function tvRenderTaskContext(r, benchmark, experiment) {
             const aType = a.artifact_type || 'unknown';
             const aId = a.id || `artifact-${ai}`;
             const typeCls = aType === 'email' ? 'bg-sage-100 text-sage-700 dark:bg-sage-900 dark:text-sage-300' : aType === 'calendar' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
-            const answersFor = a.contains_answer_for || [];
+            // Use explicit contains_answer_for if present, otherwise derive from validation
+            const answersFor = a.contains_answer_for || artifactFieldMap[String(ai)] || [];
             const secretsIn = a.contains_secrets || [];
             const negIn = a.contains_negative_info || [];
             const distractorFor = a.is_distractor_for || [];

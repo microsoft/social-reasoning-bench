@@ -19,6 +19,7 @@ from openai.types.chat.chat_completion_message_tool_call import Function
 from openai.types.completion_usage import CompletionUsage
 from pydantic import BaseModel
 
+from .. import concurrency as _concurrency
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionInfo, SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
@@ -721,17 +722,29 @@ async def _acall_with_retries(
     model: str,
     num_retries: int,
 ) -> GoogleMessage:
+    concurrency_key = trace.sage_request.model if trace.sage_request else model
+    if concurrency_key:
+        await _concurrency.acquire(concurrency_key)
     last_error: Exception | None = None
-    for attempt in range(max(1, num_retries + 1)):
-        try:
-            response = await call()
-            _fill_trace(trace, sdk_kwargs, response)
-            return _to_google_message(response, model)
-        except Exception as e:
-            last_error = e
-            if _is_retryable(e) and attempt < num_retries:
-                await asyncio.sleep(min(2**attempt, 8))
-                continue
-            raise
-    assert last_error is not None
-    raise last_error
+    try:
+        for attempt in range(max(1, num_retries + 1)):
+            try:
+                response = await call()
+                _fill_trace(trace, sdk_kwargs, response)
+                if concurrency_key:
+                    await _concurrency.on_success(concurrency_key)
+                return _to_google_message(response, model)
+            except Exception as e:
+                last_error = e
+                if _is_retryable(e) and attempt < num_retries:
+                    is_rate_limit = "429" in str(e) or "resource exhausted" in str(e).lower()
+                    if is_rate_limit and concurrency_key:
+                        await _concurrency.on_rate_limit(concurrency_key)
+                    await asyncio.sleep(min(2**attempt, 8))
+                    continue
+                raise
+        assert last_error is not None
+        raise last_error
+    finally:
+        if concurrency_key:
+            _concurrency.release(concurrency_key)
