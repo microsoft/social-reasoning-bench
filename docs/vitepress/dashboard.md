@@ -6,7 +6,7 @@ footer: false
 ---
 
 <div class="dashboard-wrapper">
-  <iframe src="/sage/dashboard-app.html?load=/sage/dashboard-data/"></iframe>
+  <iframe src="/sage/dashboard-app.html"></iframe>
 </div>
 
 <style scoped>
