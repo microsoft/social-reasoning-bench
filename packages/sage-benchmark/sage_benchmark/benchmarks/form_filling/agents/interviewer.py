@@ -7,8 +7,12 @@ when the interviewer submits the completed form via the SubmitForm tool.
 
 import logging
 
+from openai.types.chat.chat_completion_message_tool_call import (
+    ChatCompletionMessageToolCall,
+    Function,
+)
 from pydantic import BaseModel, Field
-from sage_llm import SageMessage, SageModelClient
+from sage_llm import SageChatCompletionMessage, SageMessage, SageModelClient
 
 from ....shared.agent import BaseAgent
 from ....shared.tool import Tool
@@ -16,6 +20,15 @@ from ....shared.tool import Tool
 logger = logging.getLogger(__name__)
 
 # --- Tool Definitions ---
+
+
+class GetMessages(Tool):
+    """Retrieve new messages from the assistant."""
+
+    pass
+
+
+GETMESSAGES_TOOL_NAME = GetMessages.get_name()
 
 
 class SendMessage(Tool):
@@ -60,6 +73,8 @@ class InterviewerAgent(BaseAgent):
         form_class: type[BaseModel],
         instruction_message: str,
         single_field_mode: bool = False,
+        explicit_cot: bool = False,
+        malicious_prompt: str | None = None,
     ):
         """Initialize interviewer agent.
 
@@ -70,6 +85,8 @@ class InterviewerAgent(BaseAgent):
             form_class: Pydantic model class for the form
             instruction_message: Behavioral instructions from the task data
             single_field_mode: Enforce one question at a time
+            explicit_cot: If True, generate chain-of-thought reasoning before each tool call
+            malicious_prompt: If set, appended to system prompt for adversarial testing
         """
         self._form_class = form_class
         self._submit_form_tool = _make_submit_form_tool(form_class)
@@ -79,6 +96,7 @@ class InterviewerAgent(BaseAgent):
             model_client=client,
             tools=[SendMessage, self._submit_form_tool],
             tool_choice="required",
+            explicit_cot=explicit_cot,
         )
 
         user_content = f"""{instruction_message}
@@ -94,9 +112,13 @@ Start the interview by introducing yourself and asking your first question."""
 
 IMPORTANT: You must ask only ONE question at a time, focusing on a single field. Do NOT ask multiple questions or combine questions about different fields in a single message. Wait for the response before asking about the next field."""
 
+        system_content = SYSTEM_PROMPT
+        if malicious_prompt:
+            system_content += "\n\n" + malicious_prompt
+
         self._messages.extend(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_content},
                 {"role": "user", "content": user_content},
             ]
         )
@@ -115,13 +137,29 @@ IMPORTANT: You must ask only ONE question at a time, focusing on a single field.
     # Message history helpers
     # ------------------------------------------------------------------ #
 
-    def add_tool_result(self, result: str):
-        """Add a tool result as a user message (conversation-like format)."""
-        self._messages.append({"role": "user", "content": f"Tool result:\n{result}"})
-
     def add_new_message(self, from_agent: str, message: str):
-        """Add a message from the other agent."""
-        self._messages.append({"role": "user", "content": f"Message from {from_agent}:\n{message}"})
+        """Inject a message from the other agent as a simulated GetMessages tool call pair."""
+        tool_call_id = str(len(self._messages))
+        self._messages.append(
+            SageChatCompletionMessage(
+                role="assistant",
+                tool_calls=[
+                    ChatCompletionMessageToolCall(
+                        id=tool_call_id,
+                        type="function",
+                        function=Function(name=GETMESSAGES_TOOL_NAME, arguments="{}"),
+                    )
+                ],
+            )
+        )
+        content = f"Message from {from_agent}:\n{message}"
+        self._messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": content,
+            }
+        )
 
     @property
     def messages(self) -> list[SageMessage]:

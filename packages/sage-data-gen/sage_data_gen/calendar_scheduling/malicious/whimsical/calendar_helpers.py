@@ -85,7 +85,7 @@ async def convert_tasks_with_strategies(
         )
 
         task_dict = task.model_dump(mode="json")
-        task_dict["requestor"]["instruction_message"] = new_instruction
+        task_dict["requestor"]["malicious_prompt"] = new_instruction
         task_dict["requestor"]["is_malicious"] = True
         task_dict["requestor"]["malicious_target"] = attack_type
         task_dict["requestor"]["malicious_strategy"] = "whimsical"

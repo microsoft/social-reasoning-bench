@@ -6,7 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from google.genai import types
-from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToolParam
+from openai.types.chat import (
+    ChatCompletionFunctionToolParam,
+    ChatCompletionToolMessageParam,
+    ChatCompletionToolParam,
+)
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
@@ -103,65 +107,76 @@ class TestTranslateRequest:
         assert parts[1].text == "answer"
 
 
+def _tool_msg(content: str, tool_call_id: str, **extra: str) -> ChatCompletionToolMessageParam:
+    """Build a tool message dict with proper typing."""
+    return cast(
+        ChatCompletionToolMessageParam,
+        {"role": "tool", "content": content, "tool_call_id": tool_call_id, **extra},
+    )
+
+
+def _get_fr(content: types.Content, index: int = 0) -> types.FunctionResponse:
+    """Extract a FunctionResponse from Content, with assertions."""
+    assert content.parts is not None
+    fr = content.parts[index].function_response
+    assert fr is not None
+    return fr
+
+
 class TestTranslateToolResult:
     def test_dict_result(self):
-        msg = {
-            "role": "tool",
-            "content": '{"temp": 72}',
-            "name": "get_weather",
-            "tool_call_id": "1",
-        }
+        msg = _tool_msg('{"temp": 72}', "1", name="get_weather")
         content = _translate_tool_result(msg)
-        fr = content.parts[0].function_response
+        fr = _get_fr(content)
         assert fr.name == "get_weather"
         assert fr.response == {"temp": 72}
 
     def test_string_result_wrapped(self):
         """json.loads returns a str — must be wrapped in a dict."""
-        msg = {"role": "tool", "content": '"sunny"', "name": "get_weather", "tool_call_id": "1"}
+        msg = _tool_msg('"sunny"', "1", name="get_weather")
         content = _translate_tool_result(msg)
-        assert content.parts[0].function_response.response == {"result": "sunny"}
+        assert _get_fr(content).response == {"result": "sunny"}
 
     def test_list_result_wrapped(self):
         """json.loads returns a list — must be wrapped in a dict."""
-        msg = {"role": "tool", "content": "[1, 2, 3]", "name": "sum", "tool_call_id": "1"}
+        msg = _tool_msg("[1, 2, 3]", "1", name="sum")
         content = _translate_tool_result(msg)
-        assert content.parts[0].function_response.response == {"result": [1, 2, 3]}
+        assert _get_fr(content).response == {"result": [1, 2, 3]}
 
     def test_int_result_wrapped(self):
-        msg = {"role": "tool", "content": "42", "name": "compute", "tool_call_id": "1"}
+        msg = _tool_msg("42", "1", name="compute")
         content = _translate_tool_result(msg)
-        assert content.parts[0].function_response.response == {"result": 42}
+        assert _get_fr(content).response == {"result": 42}
 
     def test_plain_text_fallback(self):
         """Non-JSON content goes through except branch."""
-        msg = {"role": "tool", "content": "not json", "name": "foo", "tool_call_id": "1"}
+        msg = _tool_msg("not json", "1", name="foo")
         content = _translate_tool_result(msg)
-        assert content.parts[0].function_response.response == {"result": "not json"}
+        assert _get_fr(content).response == {"result": "not json"}
 
     def test_null_result_wrapped(self):
-        msg = {"role": "tool", "content": "null", "name": "noop", "tool_call_id": "1"}
+        msg = _tool_msg("null", "1", name="noop")
         content = _translate_tool_result(msg)
-        assert content.parts[0].function_response.response == {"result": None}
+        assert _get_fr(content).response == {"result": None}
 
     def test_bool_result_wrapped(self):
-        msg = {"role": "tool", "content": "true", "name": "check", "tool_call_id": "1"}
+        msg = _tool_msg("true", "1", name="check")
         content = _translate_tool_result(msg)
-        assert content.parts[0].function_response.response == {"result": True}
+        assert _get_fr(content).response == {"result": True}
 
     def test_name_resolved_from_lookup(self):
         """When 'name' is absent, resolve via tc_id_to_name lookup."""
-        msg = {"role": "tool", "content": '{"ok": true}', "tool_call_id": "call_123"}
+        msg = _tool_msg('{"ok": true}', "call_123")
         lookup = {"call_123": "get_weather"}
         content = _translate_tool_result(msg, lookup)
-        assert content.parts[0].function_response.name == "get_weather"
+        assert _get_fr(content).name == "get_weather"
 
     def test_name_from_lookup_without_explicit_name(self):
         """tool_call_id present but no 'name' key at all."""
-        msg = {"role": "tool", "content": "result text", "tool_call_id": "call_456"}
+        msg = _tool_msg("result text", "call_456")
         lookup = {"call_456": "search"}
         content = _translate_tool_result(msg, lookup)
-        assert content.parts[0].function_response.name == "search"
+        assert _get_fr(content).name == "search"
 
 
 class TestTranslateRequestToolNameResolution:
@@ -180,7 +195,7 @@ class TestTranslateRequestToolNameResolution:
                 )
             ],
         )
-        tool_msg = {"role": "tool", "tool_call_id": "call_abc", "content": '{"temp": 55}'}
+        tool_msg = _tool_msg('{"temp": 55}', "call_abc")
         msgs: list[SageMessage] = [
             {"role": "user", "content": "What's the weather?"},
             assistant_msg,
@@ -189,7 +204,7 @@ class TestTranslateRequestToolNameResolution:
         raw_contents, _ = _translate_request(msgs)
         contents = cast(list[types.Content], raw_contents)
         # contents[0] = user, contents[1] = assistant, contents[2] = tool
-        fr = contents[2].parts[0].function_response
+        fr = _get_fr(contents[2])
         assert fr.name == "get_weather"
 
     def test_multiple_tool_calls_resolved(self):
@@ -213,13 +228,13 @@ class TestTranslateRequestToolNameResolution:
         msgs: list[SageMessage] = [
             {"role": "user", "content": "hi"},
             assistant_msg,
-            {"role": "tool", "tool_call_id": "call_1", "content": "sunny"},
-            {"role": "tool", "tool_call_id": "call_2", "content": "3pm"},
+            _tool_msg("sunny", "call_1"),
+            _tool_msg("3pm", "call_2"),
         ]
         raw_contents, _ = _translate_request(msgs)
         contents = cast(list[types.Content], raw_contents)
-        assert contents[2].parts[0].function_response.name == "get_weather"
-        assert contents[3].parts[0].function_response.name == "get_time"
+        assert _get_fr(contents[2]).name == "get_weather"
+        assert _get_fr(contents[3]).name == "get_time"
 
 
 class TestBuildConfig:
@@ -358,7 +373,9 @@ class TestJsonSchemaToGoogleSchema:
             },
         }
         result = _json_schema_to_google_schema(schema)
+        assert result.properties is not None
         person = result.properties["person"]
+        assert person.properties is not None
         addr = person.properties["addr"]
         assert addr.properties is not None
         assert "zip" in addr.properties

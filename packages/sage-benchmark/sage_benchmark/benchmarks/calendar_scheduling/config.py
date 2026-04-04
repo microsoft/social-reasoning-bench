@@ -22,10 +22,6 @@ class CalendarRunConfig(BaseRunConfig):
     assistant_reasoning_effort: str | int | None = Field(default=None)
     requestor_reasoning_effort: str | int | None = Field(default=None)
 
-    # System prompt
-    assistant_system_prompt: str | None = Field(default=None)
-    assistant_system_prompt_file: str | None = Field(default=None)
-
     # Per-agent CoT
     assistant_explicit_cot: bool | None = Field(default=None)
     requestor_explicit_cot: bool | None = Field(default=None)

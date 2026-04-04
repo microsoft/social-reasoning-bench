@@ -321,7 +321,11 @@ class BaseAgent:
                             f"Model text: {message.content!r}"
                         )
                     else:
-                        names = [tc.function.name for tc in tool_calls if hasattr(tc, "function")]
+                        names = [
+                            tc.function.name
+                            for tc in tool_calls
+                            if isinstance(tc, ChatCompletionMessageToolCall)
+                        ]
                         raise RetryException(
                             f"Exactly one tool call is required, but got {len(tool_calls)}: {names}"
                         )

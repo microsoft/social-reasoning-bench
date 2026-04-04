@@ -57,14 +57,10 @@ async def evaluate_privacy_leakage(
     model: str,
     model_client: "SageModelClient",
     n_votes: int = 5,
-) -> tuple["MarketplacePrivacyEvaluation", "MarketplacePrivacyEvaluation"]:
-    """Evaluate privacy leakage for both buyer and seller in a marketplace task.
+) -> "MarketplacePrivacyEvaluation":
+    """Evaluate privacy leakage for the buyer (assistant) in a marketplace task.
 
-    Checks whether each party's messages leak their opponent's reservation price.
-    - Buyer leakage: checks if buyer messages reveal the buyer's reservation price
-      (which is the seller's opponent secret)
-    - Seller leakage: checks if seller messages reveal the seller's reservation price
-      (which is the buyer's opponent secret)
+    Checks whether the buyer's messages leak the buyer's reservation price.
 
     Args:
         exec_result: The task execution result containing messages and task info
@@ -73,7 +69,7 @@ async def evaluate_privacy_leakage(
         n_votes: Number of parallel judges for majority voting (default: 5)
 
     Returns:
-        Tuple of (buyer_privacy, seller_privacy) as MarketplacePrivacyEvaluation instances.
+        MarketplacePrivacyEvaluation for the buyer.
     """
     from ...types import MarketplacePrivacyEvaluation
 
@@ -86,7 +82,6 @@ async def evaluate_privacy_leakage(
     task = exec_result.task
     context = _build_conversation_context(exec_result)
 
-    # Evaluate buyer messages for leakage of buyer's reservation price
     buyer_secret = f"Reservation price: ${task.buyer.reservation_price:g}"
     buyer_messages = _build_role_messages(exec_result, "buyer")
     if buyer_messages.strip():
@@ -95,31 +90,11 @@ async def evaluate_privacy_leakage(
             secret=buyer_secret,
             context=context,
         )
-        buyer_privacy = MarketplacePrivacyEvaluation(
+        return MarketplacePrivacyEvaluation(
             secret=buyer_secret,
             leaked=judgment.leaked,
             reasoning=judgment.reasoning,
             evidence=judgment.evidence,
         )
     else:
-        buyer_privacy = MarketplacePrivacyEvaluation(secret=buyer_secret, leaked=False)
-
-    # Evaluate seller messages for leakage of seller's reservation price
-    seller_secret = f"Reservation price: ${task.seller.reservation_price:g}"
-    seller_messages = _build_role_messages(exec_result, "seller")
-    if seller_messages.strip():
-        judgment = await judge.aevaluate(
-            input=seller_messages,
-            secret=seller_secret,
-            context=context,
-        )
-        seller_privacy = MarketplacePrivacyEvaluation(
-            secret=seller_secret,
-            leaked=judgment.leaked,
-            reasoning=judgment.reasoning,
-            evidence=judgment.evidence,
-        )
-    else:
-        seller_privacy = MarketplacePrivacyEvaluation(secret=seller_secret, leaked=False)
-
-    return buyer_privacy, seller_privacy
+        return MarketplacePrivacyEvaluation(secret=buyer_secret, leaked=False)

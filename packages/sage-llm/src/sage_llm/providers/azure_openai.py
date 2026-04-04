@@ -1,9 +1,7 @@
 """Azure OpenAI provider — TRAPI and direct Azure deployments."""
 
-import asyncio
 import logging
 import threading
-import time
 from typing import Any, Callable, TypeVar
 
 import openai
@@ -14,14 +12,11 @@ from openai.types.chat import (
 )
 from pydantic import BaseModel
 
-from .. import concurrency as _concurrency
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
 from .openai import (
     OpenAIMessage,
-    _is_retryable,
-    _parse_retry_after,
     _pydantic_to_json_schema,
     _to_openai_message,
     _to_openai_messages,
@@ -56,7 +51,7 @@ def _get_azure_clients(
         ck["api_key"] = api_key
     if azure_ad_token_provider is not None:
         ck["azure_ad_token_provider"] = azure_ad_token_provider
-    pair = (openai.AzureOpenAI(max_retries=0, **ck), openai.AsyncAzureOpenAI(max_retries=0, **ck))
+    pair = (openai.AzureOpenAI(**ck), openai.AsyncAzureOpenAI(**ck))
     cache[cache_key] = pair
     return pair
 
@@ -75,7 +70,7 @@ class AzureProvider(SageModelProvider):
             azure_endpoint, api_key, azure_ad_token_provider, api_version
         )
 
-    # -- public API (same as OpenAI but default num_retries=0 for TRAPI) --
+    # -- public API --
 
     def complete(
         self,
@@ -90,7 +85,6 @@ class AzureProvider(SageModelProvider):
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage:
         kwargs = _build_kwargs(
             temperature=temperature,
@@ -103,12 +97,9 @@ class AzureProvider(SageModelProvider):
         )
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
-        return _call_with_retries(
-            lambda: self._client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            num_retries,
-        )
+        response = self._client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        _fill_trace(trace, sdk_kwargs, response)
+        return _to_openai_message(response)
 
     async def acomplete(
         self,
@@ -123,7 +114,6 @@ class AzureProvider(SageModelProvider):
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage:
         kwargs = _build_kwargs(
             temperature=temperature,
@@ -136,12 +126,9 @@ class AzureProvider(SageModelProvider):
         )
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
-        return await _acall_with_retries(
-            lambda: self._async_client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            num_retries,
-        )
+        response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        _fill_trace(trace, sdk_kwargs, response)
+        return _to_openai_message(response)
 
     def parse(
         self,
@@ -154,7 +141,6 @@ class AzureProvider(SageModelProvider):
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T:
         kwargs = _build_kwargs(
             temperature=temperature,
@@ -167,12 +153,9 @@ class AzureProvider(SageModelProvider):
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
         trace = LLMTrace()
-        message = _call_with_retries(
-            lambda: self._client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            num_retries,
-        )
+        response = self._client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        _fill_trace(trace, sdk_kwargs, response)
+        message = _to_openai_message(response)
         assert message.content is not None
         return response_format.model_validate_json(message.content)
 
@@ -187,7 +170,6 @@ class AzureProvider(SageModelProvider):
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T:
         kwargs = _build_kwargs(
             temperature=temperature,
@@ -200,12 +182,9 @@ class AzureProvider(SageModelProvider):
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
         trace = LLMTrace()
-        message = await _acall_with_retries(
-            lambda: self._async_client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            num_retries,
-        )
+        response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        _fill_trace(trace, sdk_kwargs, response)
+        message = _to_openai_message(response)
         assert message.content is not None
         return response_format.model_validate_json(message.content)
 
@@ -231,71 +210,3 @@ def _fill_trace(trace: LLMTrace, sdk_kwargs: dict[str, Any], response: ChatCompl
         trace.total_tokens = response.usage.total_tokens
         if response.usage.completion_tokens_details:
             trace.reasoning_tokens = response.usage.completion_tokens_details.reasoning_tokens
-
-
-def _call_with_retries(
-    call,
-    sdk_kwargs: dict[str, Any],
-    trace: LLMTrace,
-    num_retries: int,
-) -> OpenAIMessage:
-    last_error: Exception | None = None
-    for attempt in range(max(1, num_retries + 1)):
-        try:
-            response = call()
-            _fill_trace(trace, sdk_kwargs, response)
-            return _to_openai_message(response)
-        except openai.APIStatusError as e:
-            last_error = e
-            if _is_retryable(e) and attempt < num_retries:
-                time.sleep(min(2**attempt, 8))
-                continue
-            raise
-        except (openai.APITimeoutError, openai.APIConnectionError) as e:
-            last_error = e
-            if attempt < num_retries:
-                time.sleep(min(2**attempt, 8))
-                continue
-            raise
-    assert last_error is not None
-    raise last_error
-
-
-async def _acall_with_retries(
-    call,
-    sdk_kwargs: dict[str, Any],
-    trace: LLMTrace,
-    num_retries: int,
-) -> OpenAIMessage:
-    concurrency_key = trace.sage_request.model if trace.sage_request else ""
-    if concurrency_key:
-        await _concurrency.acquire(concurrency_key)
-    last_error: Exception | None = None
-    try:
-        for attempt in range(max(1, num_retries + 1)):
-            try:
-                response = await call()
-                _fill_trace(trace, sdk_kwargs, response)
-                if concurrency_key:
-                    await _concurrency.on_success(concurrency_key)
-                return _to_openai_message(response)
-            except openai.APIStatusError as e:
-                last_error = e
-                if _is_retryable(e) and attempt < num_retries:
-                    retry_after = _parse_retry_after(e)
-                    if e.status_code == 429 and concurrency_key:
-                        await _concurrency.on_rate_limit(concurrency_key, retry_after=retry_after)
-                    await asyncio.sleep(retry_after or min(2**attempt, 8))
-                    continue
-                raise
-            except (openai.APITimeoutError, openai.APIConnectionError) as e:
-                last_error = e
-                if attempt < num_retries:
-                    await asyncio.sleep(min(2**attempt, 8))
-                    continue
-                raise
-        assert last_error is not None
-        raise last_error
-    finally:
-        if concurrency_key:
-            _concurrency.release(concurrency_key)

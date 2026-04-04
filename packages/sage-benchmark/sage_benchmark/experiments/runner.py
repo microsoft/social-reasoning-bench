@@ -165,13 +165,12 @@ class ExperimentPoolExecutor:
 
         def generate_all():
             for bm in self.benchmarks:
-                hints = bm.get_concurrency_hints()
                 prior_exec_by_key = {r.task.hash: r for r in bm.prior_exec_results}
                 for task in bm.tasks:
                     h = task.hash
                     if h in bm.skip_exec_keys and h in bm.skip_eval_keys:
                         continue
-                    yield self._tagged_task(bm, task, prior_exec_by_key), hints
+                    yield self._tagged_task(bm, task, prior_exec_by_key)
 
         executor = TaskPoolExecutor(
             batch_size=self.batch_size,

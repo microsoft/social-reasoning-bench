@@ -55,8 +55,8 @@ class BaseRunConfig(BaseModel):
     max_steps_per_turn: int = Field(default=20, description="Maximum tool calls per agent turn")
     batch_size: int = Field(default=32, description="Number of tasks to run in parallel")
 
-    # --- System prompt ---
-    system_prompt: str | None = Field(
+    # --- Privacy prompt ---
+    privacy_prompt: str | None = Field(
         default=None, description="Privacy-level system prompt preset"
     )
 

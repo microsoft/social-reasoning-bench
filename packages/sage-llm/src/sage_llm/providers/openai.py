@@ -2,8 +2,8 @@
 
 import asyncio
 import logging
+import os
 import threading
-import time
 from typing import Any, TypeVar, cast
 
 import openai
@@ -15,7 +15,6 @@ from openai.types.chat import (
 )
 from pydantic import BaseModel
 
-from .. import concurrency as _concurrency
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionInfo, SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
@@ -24,6 +23,24 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 _thread_local = threading.local()
+
+_MAX_CONCURRENT = int(
+    os.environ.get("SAGE_LLM_MAX_CONCURRENT_OPENAI", os.environ.get("SAGE_LLM_MAX_CONCURRENT", "0"))
+)
+_async_semaphore: asyncio.Semaphore | None = None
+_sync_semaphore: threading.Semaphore | None = (
+    threading.Semaphore(_MAX_CONCURRENT) if _MAX_CONCURRENT > 0 else None
+)
+
+
+def _get_async_semaphore() -> asyncio.Semaphore | None:
+    """Return a module-level async semaphore for throttling concurrent OpenAI calls."""
+    global _async_semaphore
+    if _MAX_CONCURRENT <= 0:
+        return None
+    if _async_semaphore is None:
+        _async_semaphore = asyncio.Semaphore(_MAX_CONCURRENT)
+    return _async_semaphore
 
 
 def _get_openai_clients(
@@ -42,7 +59,7 @@ def _get_openai_clients(
         ck["api_key"] = api_key
     if base_url is not None:
         ck["base_url"] = base_url
-    pair = (openai.OpenAI(max_retries=0, **ck), openai.AsyncOpenAI(max_retries=0, **ck))
+    pair = (openai.OpenAI(**ck), openai.AsyncOpenAI(**ck))
     cache[cache_key] = pair
     return pair
 
@@ -74,7 +91,6 @@ class OpenAIProvider(SageModelProvider):
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage:
         kwargs = self._build_kwargs(
             temperature=temperature,
@@ -87,12 +103,15 @@ class OpenAIProvider(SageModelProvider):
         )
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
-        return self._call_with_retries(
-            lambda: self._client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            num_retries,
-        )
+        if _sync_semaphore:
+            _sync_semaphore.acquire()
+        try:
+            response = self._client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        finally:
+            if _sync_semaphore:
+                _sync_semaphore.release()
+        _fill_trace(trace, sdk_kwargs, response)
+        return _to_openai_message(response)
 
     async def acomplete(
         self,
@@ -107,7 +126,6 @@ class OpenAIProvider(SageModelProvider):
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage:
         kwargs = self._build_kwargs(
             temperature=temperature,
@@ -120,12 +138,14 @@ class OpenAIProvider(SageModelProvider):
         )
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
-        return await self._acall_with_retries(
-            lambda: self._async_client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            num_retries,
-        )
+        sem = _get_semaphore()
+        if sem:
+            async with sem:
+                response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        else:
+            response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        _fill_trace(trace, sdk_kwargs, response)
+        return _to_openai_message(response)
 
     def parse(
         self,
@@ -138,7 +158,6 @@ class OpenAIProvider(SageModelProvider):
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T:
         kwargs = self._build_kwargs(
             temperature=temperature,
@@ -151,12 +170,15 @@ class OpenAIProvider(SageModelProvider):
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
         trace = LLMTrace()
-        message = self._call_with_retries(
-            lambda: self._client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            num_retries,
-        )
+        if _sync_semaphore:
+            _sync_semaphore.acquire()
+        try:
+            response = self._client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        finally:
+            if _sync_semaphore:
+                _sync_semaphore.release()
+        _fill_trace(trace, sdk_kwargs, response)
+        message = _to_openai_message(response)
         assert message.content is not None
         return response_format.model_validate_json(message.content)
 
@@ -171,7 +193,6 @@ class OpenAIProvider(SageModelProvider):
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T:
         kwargs = self._build_kwargs(
             temperature=temperature,
@@ -184,12 +205,14 @@ class OpenAIProvider(SageModelProvider):
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
         trace = LLMTrace()
-        message = await self._acall_with_retries(
-            lambda: self._async_client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            num_retries,
-        )
+        sem = _get_async_semaphore()
+        if sem:
+            async with sem:
+                response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        else:
+            response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        _fill_trace(trace, sdk_kwargs, response)
+        message = _to_openai_message(response)
         assert message.content is not None
         return response_format.model_validate_json(message.content)
 
@@ -199,76 +222,6 @@ class OpenAIProvider(SageModelProvider):
     def _build_kwargs(**params: Any) -> dict[str, Any]:
         """Build OpenAI SDK kwargs, dropping Nones."""
         return {k: v for k, v in params.items() if v is not None}
-
-    def _call_with_retries(
-        self,
-        call,
-        sdk_kwargs: dict[str, Any],
-        trace: LLMTrace,
-        num_retries: int,
-    ) -> OpenAIMessage:
-        last_error: Exception | None = None
-        for attempt in range(max(1, num_retries + 1)):
-            try:
-                response = call()
-                _fill_trace(trace, sdk_kwargs, response)
-                return _to_openai_message(response)
-            except openai.APIStatusError as e:
-                last_error = e
-                if _is_retryable(e) and attempt < num_retries:
-                    time.sleep(min(2**attempt, 8))
-                    continue
-                raise
-            except (openai.APITimeoutError, openai.APIConnectionError) as e:
-                last_error = e
-                if attempt < num_retries:
-                    time.sleep(min(2**attempt, 8))
-                    continue
-                raise
-        assert last_error is not None
-        raise last_error
-
-    async def _acall_with_retries(
-        self,
-        call,
-        sdk_kwargs: dict[str, Any],
-        trace: LLMTrace,
-        num_retries: int,
-    ) -> OpenAIMessage:
-        concurrency_key = trace.sage_request.model if trace.sage_request else ""
-        if concurrency_key:
-            await _concurrency.acquire(concurrency_key)
-        last_error: Exception | None = None
-        try:
-            for attempt in range(max(1, num_retries + 1)):
-                try:
-                    response = await call()
-                    _fill_trace(trace, sdk_kwargs, response)
-                    if concurrency_key:
-                        await _concurrency.on_success(concurrency_key)
-                    return _to_openai_message(response)
-                except openai.APIStatusError as e:
-                    last_error = e
-                    if _is_retryable(e) and attempt < num_retries:
-                        retry_after = _parse_retry_after(e)
-                        if e.status_code == 429 and concurrency_key:
-                            await _concurrency.on_rate_limit(
-                                concurrency_key, retry_after=retry_after
-                            )
-                        await asyncio.sleep(retry_after or min(2**attempt, 8))
-                        continue
-                    raise
-                except (openai.APITimeoutError, openai.APIConnectionError) as e:
-                    last_error = e
-                    if attempt < num_retries:
-                        await asyncio.sleep(min(2**attempt, 8))
-                        continue
-                    raise
-            assert last_error is not None
-            raise last_error
-        finally:
-            if concurrency_key:
-                _concurrency.release(concurrency_key)
 
 
 # ---------------------------------------------------------------------------
@@ -338,18 +291,3 @@ def _pydantic_to_json_schema(model_class: type[BaseModel]) -> dict[str, Any]:
             "strict": True,
         },
     }
-
-
-def _is_retryable(e: openai.APIStatusError) -> bool:
-    return e.status_code in (429, 500, 502, 503, 504)
-
-
-def _parse_retry_after(e: openai.APIStatusError) -> float | None:
-    """Best-effort parse of Retry-After header."""
-    try:
-        val = e.response.headers.get("retry-after")
-        if val:
-            return float(val)
-    except (AttributeError, ValueError, TypeError):
-        pass
-    return None

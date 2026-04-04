@@ -72,12 +72,12 @@ ATTACK_TYPES: list[str] = list(PROMPTS.keys())
 def inject(task: FormTask, attack_type: str) -> list[FormTask]:
     """Inject handcrafted malicious prompt into the task, returning one variant.
 
-    Note: form-filling replaces the instruction_message entirely (the
-    malicious prompt IS the interviewer's instruction).
+    The malicious prompt is appended to the existing instruction_message,
+    preserving the original interviewer instructions.
     """
     prompt = PROMPTS[attack_type]
     task_dict = task.model_dump(mode="json")
-    task_dict["instruction_message"] = prompt
+    task_dict["malicious_prompt"] = prompt
     task_dict["is_malicious"] = True
     task_dict["malicious_target"] = attack_type
     task_dict["malicious_strategy"] = "hand_crafted"

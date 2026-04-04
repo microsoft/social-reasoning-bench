@@ -152,15 +152,6 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         """
         return [self.config.model or "unknown"]
 
-    def get_concurrency_hints(self) -> list[str]:
-        """Concurrency keys (typically model names) used by tasks in this benchmark.
-
-        The executor uses these to avoid launching tasks when their models
-        are under rate-limit pressure.  Override to return the deduplicated
-        set of models this benchmark calls per task.
-        """
-        return list({self.config.model} - {None}) if self.config.model else []
-
     def load_tasks(self) -> tuple[list[TTask], dict[str, str]]:
         """Load tasks from ``self.config``.
 
@@ -353,12 +344,11 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
                 new_eval_results.append(result)
 
         def generate_tasks():
-            hints = self.get_concurrency_hints()
             for task in self.tasks:
                 h = task.hash
                 if h in self.skip_exec_keys and h in self.skip_eval_keys:
                     continue
-                yield self._exec_and_eval_single(task, prior_exec_by_key, cancel_event), hints
+                yield self._exec_and_eval_single(task, prior_exec_by_key, cancel_event)
 
         batch_size = self.config.batch_size
         executor = TaskPoolExecutor(
@@ -546,14 +536,13 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         g.add_argument("--judge-votes", type=int, default=3)
         g.add_argument("--judge-reasoning-effort", default=None)
 
-        # -- system prompt --
-        g = parser.add_argument_group("system prompt")
+        # -- privacy prompt --
+        g = parser.add_argument_group("privacy prompt")
         g.add_argument(
-            "--assistant-system-prompt",
+            "--privacy-prompt",
             choices=["none", "simple", "strong", "ci"],
             default=None,
         )
-        g.add_argument("--assistant-system-prompt-file", default=None)
 
         # -- reasoning & CoT --
         g = parser.add_argument_group("reasoning")

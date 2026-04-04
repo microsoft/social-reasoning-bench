@@ -1,10 +1,8 @@
 """Anthropic provider — Claude models with thinking support."""
 
-import asyncio
 import json
 import logging
 import threading
-import time
 from typing import Any, TypeVar, cast
 
 import anthropic
@@ -19,7 +17,6 @@ from openai.types.chat.chat_completion_message_tool_call import Function
 from openai.types.completion_usage import CompletionUsage
 from pydantic import BaseModel
 
-from .. import concurrency as _concurrency
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionInfo, SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
@@ -44,7 +41,7 @@ def _get_anthropic_clients(
     ck: dict[str, Any] = {}
     if api_key is not None:
         ck["api_key"] = api_key
-    pair = (anthropic.Anthropic(max_retries=0, **ck), anthropic.AsyncAnthropic(max_retries=0, **ck))
+    pair = (anthropic.Anthropic(**ck), anthropic.AsyncAnthropic(**ck))
     cache[cache_key] = pair
     return pair
 
@@ -78,7 +75,6 @@ class AnthropicProvider(SageModelProvider):
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage:
         system, anthropic_msgs = _translate_messages(messages)
         kwargs = _build_kwargs(
@@ -93,13 +89,9 @@ class AnthropicProvider(SageModelProvider):
             model=model,
         )
         sdk_kwargs = {"model": model, "messages": anthropic_msgs, **kwargs}
-        return _call_with_retries(
-            lambda: self._client.messages.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            model,
-            num_retries,
-        )
+        response = self._client.messages.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        _fill_trace(trace, sdk_kwargs, response)
+        return _to_anthropic_message(response, model)
 
     async def acomplete(
         self,
@@ -114,7 +106,6 @@ class AnthropicProvider(SageModelProvider):
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage:
         system, anthropic_msgs = _translate_messages(messages)
         kwargs = _build_kwargs(
@@ -129,13 +120,9 @@ class AnthropicProvider(SageModelProvider):
             model=model,
         )
         sdk_kwargs = {"model": model, "messages": anthropic_msgs, **kwargs}
-        return await _acall_with_retries(
-            lambda: self._async_client.messages.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            model,
-            num_retries,
-        )
+        response = await self._async_client.messages.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        _fill_trace(trace, sdk_kwargs, response)
+        return _to_anthropic_message(response, model)
 
     def parse(
         self,
@@ -148,7 +135,6 @@ class AnthropicProvider(SageModelProvider):
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T:
         system, anthropic_msgs = _translate_messages(messages)
         tool, tool_name = _structured_output_tool(response_format)
@@ -167,13 +153,9 @@ class AnthropicProvider(SageModelProvider):
         kwargs["tool_choice"] = {"type": "tool", "name": tool_name}
         sdk_kwargs = {"model": model, "messages": anthropic_msgs, **kwargs}
         trace = LLMTrace()
-        message = _call_with_retries(
-            lambda: self._client.messages.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            model,
-            num_retries,
-        )
+        response = self._client.messages.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        _fill_trace(trace, sdk_kwargs, response)
+        message = _to_anthropic_message(response, model)
         return _extract_structured_output(message, response_format)
 
     async def aparse(
@@ -187,7 +169,6 @@ class AnthropicProvider(SageModelProvider):
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T:
         system, anthropic_msgs = _translate_messages(messages)
         tool, tool_name = _structured_output_tool(response_format)
@@ -206,13 +187,9 @@ class AnthropicProvider(SageModelProvider):
         kwargs["tool_choice"] = {"type": "tool", "name": tool_name}
         sdk_kwargs = {"model": model, "messages": anthropic_msgs, **kwargs}
         trace = LLMTrace()
-        message = await _acall_with_retries(
-            lambda: self._async_client.messages.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
-            sdk_kwargs,
-            trace,
-            model,
-            num_retries,
-        )
+        response = await self._async_client.messages.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        _fill_trace(trace, sdk_kwargs, response)
+        message = _to_anthropic_message(response, model)
         return _extract_structured_output(message, response_format)
 
 
@@ -496,89 +473,3 @@ def _fill_trace(
     trace.prompt_tokens = response.usage.input_tokens
     trace.completion_tokens = response.usage.output_tokens
     trace.total_tokens = response.usage.input_tokens + response.usage.output_tokens
-
-
-# ---------------------------------------------------------------------------
-# Retry helpers
-# ---------------------------------------------------------------------------
-
-
-def _call_with_retries(
-    call,
-    sdk_kwargs: dict[str, Any],
-    trace: LLMTrace,
-    model: str,
-    num_retries: int,
-) -> AnthropicMessage:
-    last_error: Exception | None = None
-    for attempt in range(max(1, num_retries + 1)):
-        try:
-            response = call()
-            _fill_trace(trace, sdk_kwargs, response)
-            return _to_anthropic_message(response, model)
-        except anthropic.APIStatusError as e:
-            last_error = e
-            if e.status_code in (429, 500, 502, 503, 504, 529) and attempt < num_retries:
-                time.sleep(min(2**attempt, 8))
-                continue
-            raise
-        except (anthropic.APITimeoutError, anthropic.APIConnectionError) as e:
-            last_error = e
-            if attempt < num_retries:
-                time.sleep(min(2**attempt, 8))
-                continue
-            raise
-    assert last_error is not None
-    raise last_error
-
-
-async def _acall_with_retries(
-    call,
-    sdk_kwargs: dict[str, Any],
-    trace: LLMTrace,
-    model: str,
-    num_retries: int,
-) -> AnthropicMessage:
-    concurrency_key = trace.sage_request.model if trace.sage_request else model
-    if concurrency_key:
-        await _concurrency.acquire(concurrency_key)
-    last_error: Exception | None = None
-    try:
-        for attempt in range(max(1, num_retries + 1)):
-            try:
-                response = await call()
-                _fill_trace(trace, sdk_kwargs, response)
-                if concurrency_key:
-                    await _concurrency.on_success(concurrency_key)
-                return _to_anthropic_message(response, model)
-            except anthropic.APIStatusError as e:
-                last_error = e
-                if e.status_code in (429, 500, 502, 503, 504, 529) and attempt < num_retries:
-                    retry_after = _parse_retry_after(e)
-                    if e.status_code == 429 and concurrency_key:
-                        await _concurrency.on_rate_limit(concurrency_key, retry_after=retry_after)
-                    await asyncio.sleep(retry_after or min(2**attempt, 8))
-                    continue
-                raise
-            except (anthropic.APITimeoutError, anthropic.APIConnectionError) as e:
-                last_error = e
-                if attempt < num_retries:
-                    await asyncio.sleep(min(2**attempt, 8))
-                    continue
-                raise
-        assert last_error is not None
-        raise last_error
-    finally:
-        if concurrency_key:
-            _concurrency.release(concurrency_key)
-
-
-def _parse_retry_after(e: anthropic.APIStatusError) -> float | None:
-    """Best-effort parse of Retry-After header."""
-    try:
-        val = e.response.headers.get("retry-after")
-        if val:
-            return float(val)
-    except (AttributeError, ValueError, TypeError):
-        pass
-    return None

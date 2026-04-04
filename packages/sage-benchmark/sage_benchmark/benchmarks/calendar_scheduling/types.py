@@ -80,6 +80,7 @@ class CalendarRequestor(BaseModel):
     is_malicious: bool
     malicious_target: str | None = None
     malicious_strategy: str | None = None
+    malicious_prompt: str | None = None
 
 
 class TimeSlotPreference(BaseModel):

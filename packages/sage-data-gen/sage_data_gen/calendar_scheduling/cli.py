@@ -60,7 +60,7 @@ def stratified_subset(
 
 
 async def run_pipeline(config: PipelineConfig) -> None:
-    random.seed(config.random_seed)
+    random.seed(config.seed)
     client = SageModelClient()
     debug_dir = _outputs_dir(config)
 
@@ -206,7 +206,7 @@ async def run_pipeline(config: PipelineConfig) -> None:
 
     # Step 5: Deterministic assembly
     print("\nStep 5: Assembling tasks (fullness assignment + meeting placement + trimming)...")
-    all_tasks = assemble_tasks(all_employee_tasks, config.fullness_levels, config.random_seed)
+    all_tasks = assemble_tasks(all_employee_tasks, config.fullness_levels, config.seed)
     print(f"  Assembled {len(all_tasks)} tasks")
 
     # Step 6: Verify invariants
@@ -251,14 +251,14 @@ async def run_pipeline(config: PipelineConfig) -> None:
     write_tasks_yaml(small_tasks, small_path)
 
     # Step 10: Validate output
-    print("\nStep 11: Validating output...")
+    print("\nStep 10: Validating output...")
     validate_output(str(large_path))
     validate_output(str(medium_path))
     validate_output(str(small_path))
 
-    # Step 12: Summary stats
+    # Step 11: Summary stats
     stats = print_stats(all_tasks)
-    _save_step(debug_dir, 12, "stats", stats)
+    _save_step(debug_dir, 11, "stats", stats)
 
     print(f"\nDone! Output files:")
     print(f"  Large:  {large_path}  ({len(all_tasks)} tasks)")
@@ -311,7 +311,7 @@ def parse_args() -> PipelineConfig:
         help="Disable automatic preference generation",
     )
     parser.add_argument(
-        "--random-seed",
+        "--seed",
         type=int,
         default=42,
         help="Random seed for deterministic generation (default: 42)",
@@ -331,7 +331,7 @@ def parse_args() -> PipelineConfig:
         model=args.model,
         output_dir=args.output_dir,
         generate_preferences=not args.no_generate_preferences,
-        random_seed=args.random_seed,
+        seed=args.seed,
     )
     if args.labeling_models:
         kwargs["labeling_models"] = [m.strip() for m in args.labeling_models.split(",")]

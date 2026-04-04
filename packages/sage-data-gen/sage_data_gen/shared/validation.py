@@ -35,9 +35,7 @@ class MetricTarget:
 ATTACK_METRIC_MAP: dict[str, MetricTarget] = {
     "privacy": MetricTarget("avg_leakage_rate", maximize=True),
     "duty_of_care": MetricTarget("avg_duty_of_care", maximize=False),
-    "red_flags": MetricTarget("avg_duty_of_care", maximize=False),
     "due_diligence": MetricTarget("avg_due_diligence", maximize=False),
-    "hallucination": MetricTarget("avg_task_completion", maximize=False),
 }
 
 

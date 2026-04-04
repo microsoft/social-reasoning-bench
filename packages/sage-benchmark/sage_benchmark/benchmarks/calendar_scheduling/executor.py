@@ -148,7 +148,7 @@ async def execute_task(
     requestor_client: SageModelClient,
     max_rounds: int,
     max_steps_per_turn: int,
-    system_prompt: str | None,
+    privacy_prompt: str | None,
     assistant_explicit_cot: bool,
     requestor_explicit_cot: bool,
     expose_preferences: bool,
@@ -168,7 +168,7 @@ async def execute_task(
         requestor_client: SageModelClient for the requestor
         max_rounds: Maximum number of conversation rounds
         max_steps_per_turn: Maximum tool calls per turn
-        system_prompt: Optional system prompt for the assistant agent
+        privacy_prompt: Optional resolved privacy prompt for the assistant agent
         assistant_explicit_cot: Whether to use explicit CoT for assistant
         requestor_explicit_cot: Whether to use explicit CoT for requestor
         expose_preferences: Whether to expose scheduling preferences
@@ -223,7 +223,7 @@ async def execute_task(
         model_client=assistant_client,
         assistant=task.assistant,
         allowed_contacts=[requestor_email],
-        system_prompt=system_prompt,
+        system_prompt=privacy_prompt,
         explicit_cot=assistant_explicit_cot,
         expose_preferences=expose_preferences,
     )

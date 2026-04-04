@@ -35,47 +35,6 @@ def _create_client(
     return SageModelClient(base_url=base_url)
 
 
-def _expand_privacy_variants(
-    tasks: list[MarketplaceTask], privacy_level: str
-) -> list[MarketplaceTask]:
-    """Expand tasks into privacy-level variants.
-
-    - Malicious buyer  → 1 variant: seller gets privacy, variant="seller"
-    - Malicious seller → 1 variant: buyer gets privacy, variant="buyer"
-    - Non-malicious    → 4 variants: none/buyer/seller/both
-    """
-    expanded: list[MarketplaceTask] = []
-    for task in tasks:
-        task_dict = task.model_dump(mode="json")
-        buyer_malicious = task.buyer.is_malicious
-        seller_malicious = task.seller.is_malicious
-
-        if buyer_malicious or seller_malicious:
-            # Privacy goes to the victim (non-malicious) role only
-            if not buyer_malicious:
-                task_dict["buyer"]["privacy_level"] = privacy_level
-            if not seller_malicious:
-                task_dict["seller"]["privacy_level"] = privacy_level
-            victim = "seller" if buyer_malicious else "buyer"
-            task_dict["variant"] = victim
-            expanded.append(MarketplaceTask.model_validate(task_dict))
-        else:
-            # Non-malicious: 4 variants
-            for variant_name, buyer_pl, seller_pl in [
-                ("none", None, None),
-                ("buyer", privacy_level, None),
-                ("seller", None, privacy_level),
-                ("both", privacy_level, privacy_level),
-            ]:
-                d = task_dict.copy()
-                d["buyer"] = {**task_dict["buyer"], "privacy_level": buyer_pl}
-                d["seller"] = {**task_dict["seller"], "privacy_level": seller_pl}
-                d["variant"] = variant_name
-                expanded.append(MarketplaceTask.model_validate(d))
-
-    return expanded
-
-
 def _safe_avg(values: Sequence[float | None]) -> float | None:
     filtered = [v for v in values if v is not None]
     if not filtered:
@@ -110,14 +69,6 @@ class MarketplaceBenchmark(
         g.add_argument("--buyer-reasoning-effort", default=None)
         g.add_argument("--seller-reasoning-effort", default=None)
 
-        g = parser.add_argument_group("marketplace options")
-        g.add_argument(
-            "--system-prompt-preset",
-            dest="system_prompt",
-            choices=["none", "simple", "strong", "ci"],
-            default=None,
-        )
-
     @classmethod
     def create_config(cls, args: argparse.Namespace) -> MarketplaceRunConfig:
         return MarketplaceRunConfig.from_args(args)
@@ -136,6 +87,15 @@ class MarketplaceBenchmark(
             config.resolved_judge_reasoning_effort,
         )
 
+        # Resolve privacy system prompt once (same for all tasks)
+        from .prompts import get_system_prompt
+
+        privacy_level = config.privacy_prompt
+        if privacy_level and privacy_level != "none":
+            self.privacy_prompt: str | None = get_system_prompt(privacy_level)
+        else:
+            self.privacy_prompt = None
+
     async def execute_task(
         self,
         task: MarketplaceTask,
@@ -153,7 +113,9 @@ class MarketplaceBenchmark(
             seller_client=self.seller_client,
             max_rounds=config.max_rounds,
             max_steps_per_turn=config.max_steps_per_turn,
-            explicit_cot=config.explicit_cot or False,
+            buyer_explicit_cot=config.resolved_buyer_explicit_cot,
+            seller_explicit_cot=config.resolved_seller_explicit_cot,
+            privacy_prompt=self.privacy_prompt,
             benchmark_logger=self._benchmark_logger,
         )
 
@@ -216,39 +178,26 @@ class MarketplaceBenchmark(
             ],
             deal_count=len(deals),
             deal_rate=len(deals) / len(valid) if valid else 0.0,
-            avg_buyer_leakage_score=_safe_avg(
-                [r.buyer_privacy.leakage_score for r in valid if r.buyer_privacy]
-            ),
-            avg_seller_leakage_score=_safe_avg(
-                [r.seller_privacy.leakage_score for r in valid if r.seller_privacy]
-            ),
-            avg_buyer_duty_of_care=_safe_avg(
-                [r.duty_of_care_eval.buyer_duty_of_care for r in valid]
-            ),
-            avg_seller_duty_of_care=_safe_avg(
-                [r.duty_of_care_eval.seller_duty_of_care for r in valid]
+            avg_leakage_score=_safe_avg([r.privacy.leakage_score for r in valid if r.privacy]),
+            avg_duty_of_care_score=_safe_avg(
+                [r.duty_of_care_eval.duty_of_care_score for r in valid]
             ),
             avg_deal_ratio_centered=_safe_avg(
                 [r.duty_of_care_eval.deal_ratio_centered for r in valid]
             ),
-            avg_buyer_effort_actions=_safe_avg(
-                [float(r.buyer_metrics.effort_action_count) for r in valid]
+            avg_effort_actions=_safe_avg(
+                [float(r.due_diligence_eval.effort_action_count) for r in valid]
             ),
-            avg_seller_effort_actions=_safe_avg(
-                [float(r.seller_metrics.effort_action_count) for r in valid]
-            ),
-            avg_buyer_messages=_safe_avg([float(r.buyer_metrics.message_count) for r in valid]),
-            avg_seller_messages=_safe_avg([float(r.seller_metrics.message_count) for r in valid]),
+            avg_messages=_safe_avg([float(r.due_diligence_eval.message_count) for r in valid]),
         )
 
     def print_per_task_summary(self, eval_results: list[MarketplaceEvaluationResult]) -> None:
         bl_ = self._benchmark_logger
         bl_.info(
             f"\n{'ID':>4}  {'Deal':>4}  {'Price':>7}  {'Done':>4}  "
-            f"{'BLeak':>5}  {'SLeak':>5}  {'BDoC':>5}  {'SDoC':>5}  "
-            f"{'BEff':>4}  {'SEff':>4}"
+            f"{'Leak':>5}  {'DoC':>5}  {'Eff':>4}"
         )
-        bl_.info("-" * 65)
+        bl_.info("-" * 45)
         for r in sorted(eval_results, key=lambda r: r.execution.task.id):
             tid = r.execution.task.id
             deal = "Y" if r.execution.outcome.deal_reached else "N"
@@ -256,25 +205,14 @@ class MarketplaceBenchmark(
                 f"{r.execution.outcome.deal_price:.0f}" if r.execution.outcome.deal_price else "-"
             )
             done = "Y" if r.task_completed else "N"
-            bl = f"{r.buyer_privacy.leakage_score:.2f}" if r.buyer_privacy else "-"
-            sl = f"{r.seller_privacy.leakage_score:.2f}" if r.seller_privacy else "-"
-            bd = (
-                f"{r.duty_of_care_eval.buyer_duty_of_care:.2f}"
-                if r.duty_of_care_eval.buyer_duty_of_care is not None
+            lk = f"{r.privacy.leakage_score:.2f}" if r.privacy else "-"
+            dc = (
+                f"{r.duty_of_care_eval.duty_of_care_score:.2f}"
+                if r.duty_of_care_eval.duty_of_care_score is not None
                 else "-"
             )
-            sd = (
-                f"{r.duty_of_care_eval.seller_duty_of_care:.2f}"
-                if r.duty_of_care_eval.seller_duty_of_care is not None
-                else "-"
-            )
-            be = str(r.buyer_metrics.effort_action_count)
-            se = str(r.seller_metrics.effort_action_count)
-            bl_.info(
-                f"{tid:>4}  {deal:>4}  {price:>7}  {done:>4}  "
-                f"{bl:>5}  {sl:>5}  {bd:>5}  {sd:>5}  "
-                f"{be:>4}  {se:>4}"
-            )
+            ef = str(r.due_diligence_eval.effort_action_count)
+            bl_.info(f"{tid:>4}  {deal:>4}  {price:>7}  {done:>4}  {lk:>5}  {dc:>5}  {ef:>4}")
 
     def print_evaluation_summary(self, evaluation: MarketplaceBenchmarkEvaluation) -> None:
         bl = self._benchmark_logger
@@ -304,16 +242,6 @@ class MarketplaceBenchmark(
             self.config.resolved_seller_model or "unknown",
         ]
 
-    def get_concurrency_hints(self) -> list[str]:
-        return list(
-            {
-                self.config.resolved_buyer_model,
-                self.config.resolved_seller_model,
-                self.config.resolved_judge_model,
-            }
-            - {None}
-        )
-
     def load_tasks(self) -> tuple[list[MarketplaceTask], dict[str, str]]:
         if not self.config.paths:
             return [], {}
@@ -342,9 +270,5 @@ class MarketplaceBenchmark(
                 for at in self.config.attack_types:
                     expanded.extend(inject(task, at))
             tasks = expanded
-
-        privacy_level = self.config.system_prompt
-        if privacy_level and privacy_level != "none":
-            tasks = _expand_privacy_variants(tasks, privacy_level)
 
         return tasks, loaded.file_hashes

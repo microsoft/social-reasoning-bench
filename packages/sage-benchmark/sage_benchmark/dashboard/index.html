@@ -226,7 +226,6 @@
           <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="calendar" disabled>Calendar</button>
           <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="marketplace" disabled>Marketplace</button>
           <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="form_filling" disabled>Form Filling</button>
-          <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="datatable">Data Table</button>
         </nav>
 
         <!-- Tab panels (fill remaining height) -->
@@ -400,13 +399,6 @@
                   <div id="tv-detail-form_filling" class="flex-1 min-w-0 overflow-y-auto p-4"></div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <!-- Data Table -->
-          <div id="tab-datatable" class="tab-content hidden flex-1 min-h-0">
-            <div class="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-              <div id="data-table-container" class="flex-1 min-h-0 overflow-auto"></div>
             </div>
           </div>
 
@@ -1181,7 +1173,6 @@ function renderActiveTab() {
     case 'calendar': renderBenchmarkTab('calendar', filtered.filter(e => e.benchmark === 'calendar')); break;
     case 'marketplace': renderBenchmarkTab('marketplace', filtered.filter(e => e.benchmark === 'marketplace')); break;
     case 'form_filling': renderBenchmarkTab('form_filling', filtered.filter(e => e.benchmark === 'form_filling')); break;
-    case 'datatable': renderDataTable(filtered); break;
   }
 }
 
@@ -2066,7 +2057,6 @@ function renderBenchmarkTab(benchmark, experiments) {
 }
 
 const tvExpCols = [
-  { key: 'variant',    label: 'Variant',    align: 'left',   getter: e => e.variant },
   { key: 'model',      label: 'Model',      align: 'left',   getter: e => e.model, dim: 'model' },
   { key: 'privacy',    label: 'Privacy',    align: 'left',   getter: e => e.privacyLevel || 'none', dim: 'privacyLevel' },
   { key: 'reasoning',  label: 'Reasoning',  align: 'left',   getter: e => e.reasoningConfig || 'none', dim: 'reasoningConfig' },
@@ -2135,7 +2125,6 @@ function tvShowExpTable(benchmark, experiments) {
     const cells = tvExpCols.map(col => {
       const val = col.getter(e);
       if (col.format === 'percent' || col.format === 'int') return tvMetricCell(val, col.format);
-      if (col.key === 'variant') return `<td class="px-3 py-2 font-medium max-w-[200px] truncate" title="${esc(val || '')}">${esc(val || '')}</td>`;
       if (col.key === 'tasks') return `<td class="px-3 py-2 text-center">${val}</td>`;
       if (col.dim) return `<td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">${esc(String(val))}</span></td>`;
       return `<td class="px-3 py-2 max-w-[140px] truncate" title="${esc(String(val || ''))}">${esc(String(val || ''))}</td>`;
@@ -2494,15 +2483,11 @@ function tvRenderEvalMetrics(r, benchmark) {
     cards += tvRenderMetricCard('Pref Mentions', r.due_diligence_preference_mention_count, { format: 'int' });
     cards += tvRenderMetricCard('Proposals', r.due_diligence_proposal_count, { format: 'int' });
   } else if (benchmark === 'marketplace') {
-    cards += tvRenderMetricCard('Buyer Leak', r.buyer_privacy?.leakage_score, { format: 'percent', good: 'low' });
-    cards += tvRenderMetricCard('Seller Leak', r.seller_privacy?.leakage_score, { format: 'percent', good: 'low' });
-    cards += tvRenderMetricCard('Buyer DoC', r.duty_of_care_eval?.buyer_duty_of_care, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('Seller DoC', r.duty_of_care_eval?.seller_duty_of_care, { format: 'percent', good: 'high' });
+    cards += tvRenderMetricCard('Leakage', r.privacy?.leakage_score, { format: 'percent', good: 'low' });
+    cards += tvRenderMetricCard('Duty of Care', r.duty_of_care_eval?.duty_of_care_score, { format: 'percent', good: 'high' });
     cards += tvRenderMetricCard('Deal Fairness', r.duty_of_care_eval?.deal_ratio_centered, { format: 'number' });
-    cards += tvRenderMetricCard('Buyer Effort', r.buyer_metrics?.effort_action_count, { format: 'int' });
-    cards += tvRenderMetricCard('Seller Effort', r.seller_metrics?.effort_action_count, { format: 'int' });
-    cards += tvRenderMetricCard('Buyer Range', r.buyer_metrics?.price_range_explored, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('Seller Range', r.seller_metrics?.price_range_explored, { format: 'percent', good: 'high' });
+    cards += tvRenderMetricCard('Effort', r.due_diligence_eval?.effort_action_count, { format: 'int' });
+    cards += tvRenderMetricCard('Price Range', r.due_diligence_eval?.price_range_explored, { format: 'percent', good: 'high' });
   } else if (benchmark === 'form_filling') {
     cards += tvRenderMetricCard('F1', r.correctness?.f1_score, { format: 'percent', good: 'high' });
     cards += tvRenderMetricCard('Accuracy', r.correctness?.accuracy, { format: 'percent', good: 'high' });
@@ -2656,7 +2641,7 @@ function tvRenderTaskContext(r, benchmark, experiment) {
     html += `<div class="grid md:grid-cols-2 gap-3">
       <div class="bg-sage-50 dark:bg-sage-900/20 border border-sage-200 dark:border-sage-800 rounded-lg p-3">
         <div class="flex items-center gap-2 mb-1">
-          <span class="text-xs font-semibold text-sage-800 dark:text-sage-200">Buyer</span>
+          <span class="text-xs font-semibold text-sage-800 dark:text-sage-200">Assistant (Buyer)</span>
           ${buyer.is_malicious
             ? '<span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Malicious</span>'
             : ''}
@@ -2667,7 +2652,7 @@ function tvRenderTaskContext(r, benchmark, experiment) {
       </div>
       <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
         <div class="flex items-center gap-2 mb-1">
-          <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">Seller</span>
+          <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">Requestor (Seller)</span>
           ${seller.is_malicious
             ? '<span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Malicious</span>'
             : ''}
@@ -3189,12 +3174,11 @@ function tvRenderOutcomes(r, benchmark) {
 
     // Surplus analysis if deal reached
     const docEval = r.duty_of_care_eval || {};
-    if (outcome.deal_reached && (docEval.buyer_surplus_share != null || docEval.seller_surplus_share != null)) {
+    if (outcome.deal_reached && docEval.surplus_share != null) {
       html += `<div class="mb-3 bg-sage-50 dark:bg-sage-900/20 border border-sage-200 dark:border-sage-800 rounded-lg p-3">
         <div class="text-xs font-semibold text-sage-700 dark:text-sage-400 uppercase tracking-wide mb-2">Surplus Analysis</div>
         <div class="grid grid-cols-2 gap-3 text-sm">
-          <div><span class="text-gray-500 dark:text-gray-400">Buyer Surplus Share:</span> <span class="font-bold text-gray-800 dark:text-gray-200">${docEval.buyer_surplus_share != null ? (docEval.buyer_surplus_share * 100).toFixed(1) + '%' : '-'}</span></div>
-          <div><span class="text-gray-500 dark:text-gray-400">Seller Surplus Share:</span> <span class="font-bold text-gray-800 dark:text-gray-200">${docEval.seller_surplus_share != null ? (docEval.seller_surplus_share * 100).toFixed(1) + '%' : '-'}</span></div>
+          <div><span class="text-gray-500 dark:text-gray-400">Surplus Share:</span> <span class="font-bold text-gray-800 dark:text-gray-200">${docEval.surplus_share != null ? (docEval.surplus_share * 100).toFixed(1) + '%' : '-'}</span></div>
         </div>
       </div>`;
     }
@@ -3461,10 +3445,12 @@ function tvRenderConversation(r, benchmark) {
             </div>`;
           }).join('');
 
+          const speakerLabel = isBuyer ? 'Assistant (Buyer)' : 'Requestor (Seller)';
+
           return `<div class="flex ${isBuyer ? 'justify-start' : 'justify-end'}">
             <div class="w-[85%] rounded-lg border ${bgCls} p-3">
               <div class="flex items-center gap-2 mb-1">
-                <span class="text-xs font-medium ${labelCls}">${esc(msg.speaker || '?')}</span>
+                <span class="text-xs font-medium ${labelCls}">${esc(speakerLabel)}</span>
                 ${msg.round != null ? `<span class="text-[10px] text-gray-400">R${msg.round}</span>` : ''}
               </div>
               <div class="text-sm ${textCls} whitespace-pre-wrap">${esc(msg.content || '')}</div>
@@ -3599,11 +3585,11 @@ function tvRenderPerAgentTrace(r, benchmark) {
     if (buyerCtx.length || sellerCtx.length) {
       html += `<div class="grid md:grid-cols-2 gap-3 mb-4">
         <div>
-          <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Buyer</div>
+          <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Assistant (Buyer)</div>
           <div class="space-y-1.5 max-h-[600px] overflow-y-auto font-mono">${renderCtx(buyerCtx, 'marketplace', 'Buyer')}</div>
         </div>
         <div>
-          <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Seller</div>
+          <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Requestor (Seller)</div>
           <div class="space-y-1.5 max-h-[600px] overflow-y-auto font-mono">${renderCtx(sellerCtx, 'marketplace', 'Seller')}</div>
         </div>
       </div>`;
@@ -3627,7 +3613,7 @@ function tvRenderPerAgentTrace(r, benchmark) {
             return `<div class="rounded p-2 border ${validCls}">
               <div class="flex flex-wrap items-center gap-2 mb-1">
                 <span class="text-gray-500 dark:text-gray-400">R${a.round ?? '?'}</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${actorCls}">${esc(a.actor || '?')}</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${actorCls}">${esc(isBuyer ? 'Assistant (Buyer)' : (a.actor || '?'))}</span>
                 <span class="text-gray-500 dark:text-gray-400 font-medium">${esc(a.action_type || '?')}</span>
                 ${isEffort ? EFFORT_BADGE : ''}
                 ${isInvalid ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">INVALID</span>' : ''}
@@ -3643,129 +3629,6 @@ function tvRenderPerAgentTrace(r, benchmark) {
 
   html += '</div>'; // close section heading wrapper
   return html;
-}
-
-// ─────────────────────────────────────────────
-// Data Table Tab
-// ─────────────────────────────────────────────
-
-function renderDataTable(experiments) {
-  const container = document.getElementById('data-table-container');
-  const cols = [
-    { key: 'benchmark', label: 'Benchmark', align: 'left' },
-    { key: 'model', label: 'Model', align: 'left' },
-    { key: 'variant', label: 'Variant', align: 'left' },
-    { key: 'attackType', label: 'Attack', align: 'left' },
-    { key: 'attackStyle', label: 'Style', align: 'left' },
-    { key: 'privacyLevel', label: 'Privacy', align: 'left' },
-    { key: 'reasoningConfig', label: 'Reasoning', align: 'left' },
-    { key: 'tasks', label: 'Tasks', align: 'right', getter: e => e.tasks.length },
-    { key: 'avg_task_completion', label: 'Completion', align: 'right', getter: e => e.evaluation.avg_task_completion, format: 'percent' },
-    { key: 'avg_leakage_rate', label: 'Leakage', align: 'right', getter: e => e.evaluation.avg_leakage_rate, format: 'percent' },
-    { key: 'avg_duty_of_care', label: 'DoC', align: 'right', getter: e => e.evaluation.avg_duty_of_care, format: 'number' },
-    { key: 'avg_due_diligence', label: 'DD', align: 'right', getter: e => e.evaluation.avg_due_diligence, format: 'number' },
-    { key: 'elapsedSeconds', label: 'Time (s)', align: 'right', getter: e => e.elapsedSeconds, format: 'number' },
-  ];
-
-  // Sort
-  let sorted = [...experiments];
-  if (state.sortColumn) {
-    const col = cols.find(c => c.key === state.sortColumn);
-    if (col) {
-      sorted.sort((a, b) => {
-        const va = col.getter ? col.getter(a) : a[col.key];
-        const vb = col.getter ? col.getter(b) : b[col.key];
-        if (va == null && vb == null) return 0;
-        if (va == null) return 1;
-        if (vb == null) return -1;
-        const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
-        return state.sortAsc ? cmp : -cmp;
-      });
-    }
-  }
-
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const headers = cols.map(c => {
-    const arrow = state.sortColumn === c.key ? (state.sortAsc ? ' ▲' : ' ▼') : '';
-    return `<th class="sort-header text-${c.align} py-2 px-3 text-gray-600 dark:text-gray-400 text-xs font-medium whitespace-nowrap" data-col="${c.key}">${c.label}${arrow}</th>`;
-  }).join('');
-
-  const rows = sorted.map(e => {
-    const cells = cols.map(c => {
-      const val = c.getter ? c.getter(e) : e[c.key];
-      let display;
-      if (c.key === 'benchmark') display = benchmarkBadge(val);
-      else if (c.format === 'percent') display = fmtPct(val);
-      else if (c.format === 'number') display = fmtNum(val);
-      else display = esc(String(val ?? '-'));
-
-      // Conditional coloring for metric columns
-      let colorClass = '';
-      if (c.key === 'avg_task_completion' && val != null) colorClass = val >= 0.7 ? 'text-green-600 dark:text-green-400' : val >= 0.4 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400';
-      if (c.key === 'avg_leakage_rate' && val != null) colorClass = val <= 0.1 ? 'text-green-600 dark:text-green-400' : val <= 0.3 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400';
-
-      return `<td class="py-2 px-3 text-${c.align} ${colorClass || 'text-gray-700 dark:text-gray-300'} text-sm">${display}</td>`;
-    }).join('');
-
-    return `<tr class="expand-row border-b border-gray-100 dark:border-gray-700" data-variant="${esc(e.variant)}" data-filename="${esc(e.filename)}">${cells}</tr>`;
-  }).join('');
-
-  container.innerHTML = `
-    <table class="w-full">
-      <thead><tr class="border-b border-gray-200 dark:border-gray-700">${headers}</tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-
-  // Sort click handlers
-  container.querySelectorAll('.sort-header').forEach(th => {
-    th.addEventListener('click', () => {
-      const col = th.dataset.col;
-      if (state.sortColumn === col) state.sortAsc = !state.sortAsc;
-      else { state.sortColumn = col; state.sortAsc = true; }
-      renderDataTable(getFilteredExperiments());
-    });
-  });
-
-  // Row expand handlers
-  container.querySelectorAll('.expand-row').forEach(row => {
-    row.addEventListener('click', () => {
-      const filename = row.dataset.filename;
-      const existing = row.nextElementSibling;
-      if (existing?.classList.contains('detail-row')) {
-        existing.remove();
-        return;
-      }
-      // Remove any other open detail rows
-      container.querySelectorAll('.detail-row').forEach(r => r.remove());
-
-      const exp = state.experiments.find(e => e.filename === filename);
-      if (!exp) return;
-
-      const detailRow = document.createElement('tr');
-      detailRow.className = 'detail-row';
-      detailRow.innerHTML = `<td colspan="${cols.length}" class="p-4 bg-gray-50 dark:bg-gray-700/50">
-        <div class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">Per-Task Details: ${esc(exp.variant)} (${exp.tasks.length} tasks)</div>
-        <div class="overflow-x-auto max-h-[300px] overflow-y-auto">
-          <table class="w-full text-xs">
-            <thead><tr class="border-b border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400">
-              <th class="py-1 px-2 text-left">Task ID</th><th class="py-1 px-2 text-center">Done</th>
-              <th class="py-1 px-2 text-right">Leakage</th><th class="py-1 px-2 text-right">DoC</th>
-              <th class="py-1 px-2 text-right">DD</th><th class="py-1 px-2 text-right">Leaks</th>
-            </tr></thead>
-            <tbody>${exp.tasks.map(t => `<tr class="border-b border-gray-100 dark:border-gray-600 text-gray-700 dark:text-gray-300">
-              <td class="py-1 px-2">${t.taskId}</td>
-              <td class="py-1 px-2 text-center">${t.taskCompleted ? '<span class="text-green-600">Y</span>' : '<span class="text-red-500">N</span>'}</td>
-              <td class="py-1 px-2 text-right">${fmtNum(t.leakageRate)}</td>
-              <td class="py-1 px-2 text-right">${fmtNum(t.dutyOfCare)}</td>
-              <td class="py-1 px-2 text-right">${t.dueDiligence}</td>
-              <td class="py-1 px-2 text-right">${t.privacyLeaks?.length || 0}</td>
-            </tr>`).join('')}</tbody>
-          </table>
-        </div>
-      </td>`;
-      row.after(detailRow);
-    });
-  });
 }
 
 // ─────────────────────────────────────────────

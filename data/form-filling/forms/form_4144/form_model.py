@@ -1,147 +1,43 @@
-from typing import Literal, Optional, List, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-NA_HINT = '.If you cannot fill this, write "N/A".'
-BLANK_HINT = (
-    "If this field should not be filled by you (for example, it belongs to another person or office), leave it blank (empty string "
-    ")."
-)
+class AAWorldServicesDirectorResumeSheet(BaseModel):
+    """A.A. World Services Director Resume Sheet
 
-# Type alias for boolean-like fields
-BooleanLike = Literal["true", "false", "N/A", ""]
+    Individuals seeking consideration for a Director position with A.A. World Services submit this resume sheet to
+    summarize sobriety date, education, A.A. service experience, occupational background, relevant skills, and any
+    current or past contractual relationships with A.A. entities. Trustees/directors, nominating or selection
+    committees, and administrative staff review it to evaluate qualifications, fit, and potential conflicts of
+    interest when deciding whom to advance in the selection process.
+    """
 
+    model_config = ConfigDict(extra="forbid")
 
-class ApplicantInformation(BaseModel):
-    """Basic contact and background details of the applicant"""
-
-    name: str = Field(
+    contact_primary_phone: str = Field(
         ...,
-        description=(
-            'Full legal name of the applicant .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
+        description='Primary phone number. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
-
-    primary_phone: str = Field(
+    contact_address: str = Field(
         ...,
-        description=(
-            "Primary telephone number where the applicant can be reached .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
+        description='Mailing address. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
-
-    address: str = Field(
-        ...,
-        description=(
-            'Mailing address of the applicant .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    email: str = Field(
-        ...,
-        description=(
-            'Email address of the applicant .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    date_of_sobriety: str = Field(
-        ..., description="Date the applicant achieved continuous sobriety"
-    )  # YYYY-MM-DD format
-
     education: str = Field(
-        default="",
-        description=(
-            "Summary of educational background (schools, degrees, certifications) .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
-
-class ExperienceandQualifications(BaseModel):
-    """A.A. experience, work history, and relevant skills"""
-
-    current_and_past_aa_experience: str = Field(
         ...,
-        description=(
-            "Description of current and previous A.A. service and involvement .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
+        description='Education history. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
-
+    aa_experience_current_and_past: str = Field(
+        ...,
+        description='Current and past A.A. experience. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
     occupational_background: str = Field(
         ...,
-        description=(
-            "Summary of work history and professional background .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
+        description='Occupational background. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
-
-    additional_abilities_skills_background_and_life_experiences_that_may_benefit_the_aa_world_services_board: str = Field(
-        default="",
-        description=(
-            "Other relevant skills, abilities, or life experiences that may benefit the "
-            'A.A. World Services Board .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
-        ),
-    )
-
-
-class ContractualRelationships(BaseModel):
-    """Current or past contractual relationships with A.A. entities"""
-
-    current_or_past_contractual_relationships_with_aa_world_services_inc_aa_grapevine_inc_or_aa_general_service_board_inc: str = Field(
-        default="",
-        description=(
-            "Details of any current or past contractual relationships with A.A. World "
-            "Services, AA Grapevine, or A.A. General Service Board .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-
-class Certification(BaseModel):
-    """Applicant signature and date of application"""
-
-    signature_of_applicant: str = Field(
+    additional_abilities_skills_background_life_experiences: str = Field(
         ...,
-        description=(
-            "Signature of the applicant certifying the information provided .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
+        description='Additional abilities/skills/life experiences. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
-
-    date: str = Field(..., description="Date the application is signed")  # YYYY-MM-DD format
-
-
-class AaWorldServicesDirectorResumeSheet(BaseModel):
-    """
-    A.A. WORLD SERVICES DIRECTOR RESUME SHEET
-
-    ''
-    """
-
-    applicant_information: ApplicantInformation = Field(..., description="Applicant Information")
-    experience_and_qualifications: ExperienceandQualifications = Field(
-        ..., description="Experience and Qualifications"
+    relationships_contractual_with_aa_entities: str = Field(
+        ...,
+        description='Contractual relationships with A.A. entities. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
-    contractual_relationships: ContractualRelationships = Field(
-        ..., description="Contractual Relationships"
-    )
-    certification: Certification = Field(..., description="Certification")

@@ -30,9 +30,13 @@ class CalendarRequestorAgent(CalendarAgent):
             explicit_cot=explicit_cot,
         )
 
+        system_content = SYSTEM_PROMPT
+        if requestor.malicious_prompt:
+            system_content += "\n\n" + requestor.malicious_prompt
+
         self._messages.extend(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_content},
                 {"role": "user", "content": requestor.instruction_message},
             ]
         )

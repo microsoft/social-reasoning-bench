@@ -1,134 +1,35 @@
-from typing import Literal, Optional, List, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-NA_HINT = '.If you cannot fill this, write "N/A".'
-BLANK_HINT = (
-    "If this field should not be filled by you (for example, it belongs to another person or office), leave it blank (empty string "
-    ")."
-)
+class TeamCoachingSupervisionTrainingProgrammeApplicationForm(BaseModel):
+    """Team Coaching Supervision Training Programme Application Form
 
-# Type alias for boolean-like fields
-BooleanLike = Literal["true", "false", "N/A", ""]
+    Applicants submit this form to apply for Renewal Associates’ Team Coaching Supervision Training Programme. Programme administrators use it to contact the applicant and arrange invoicing, and training/supervision faculty review the applicant’s coaching and supervision background to assess suitability for enrolment.
+    """
 
+    model_config = ConfigDict(extra="forbid")
 
-class ApplicantDetails(BaseModel):
-    """Contact and organisational information for the applicant"""
-
-    name: str = Field(
+    contact_telephone: str = Field(
         ...,
-        description=(
-            'Applicant\'s full name .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
-        ),
+        description='Telephone. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
-
-    company: str = Field(
-        default="",
-        description=(
-            'Name of your company or organisation .If you cannot fill this, write "N/A". '
-            "If this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    address: str = Field(
+    background_training_qualifications_certifications: str = Field(
         ...,
-        description=(
-            'Primary mailing address .If you cannot fill this, write "N/A". If this field '
-            "should not be filled by you (for example, it belongs to another person or "
-            'office), leave it blank (empty string "").'
-        ),
+        description='Training quals/certs incl date/duration/level. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
-
-    invoice_address_if_different: str = Field(
-        default="",
-        description=(
-            "Billing or invoice address, if different from the main address .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-    telephone: str = Field(
+    experience_years_practicing_as_coach: float | None = Field(
         ...,
-        description=(
-            'Primary contact telephone number .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
+        description="Years practicing as a coach",
     )
-
-    email: str = Field(
+    experience_years_practicing_as_team_coach: float | None = Field(
         ...,
-        description=(
-            'Primary contact email address .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
-        ),
+        description="Years practicing as a team coach",
     )
-
-
-class CoachingTrainingExperience(BaseModel):
-    """Training background and coaching practice experience"""
-
-    coach_supervision_related_training_qualifications_and_certifications_including_the_date_duration_and_level: str = Field(
+    experience_years_practicing_as_coach_supervisor: float | None = Field(
         ...,
-        description=(
-            "List your coach/supervision-related training, qualifications, and "
-            "certifications, including date, duration, and level .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
+        description="Years practicing as a coach supervisor",
     )
-
-    how_long_have_you_been_practicing_as_a_coach_a_coach: str = Field(
-        default="",
-        description=(
-            "Length of time you have been practicing as an individual coach .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-    how_long_have_you_been_practicing_as_a_coach_team_coach: str = Field(
-        default="",
-        description=(
-            "Length of time you have been practicing as a team coach .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    how_long_have_you_been_practicing_as_a_coach_coach_supervisor: str = Field(
-        default="",
-        description=(
-            "Length of time you have been practicing as a coach supervisor .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-    how_long_have_you_been_practicing_as_a_coach_other: str = Field(
-        default="",
-        description=(
-            "Length of time you have been practicing in any other related coaching role .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
-
-class TeamCoachingSupervisionTrainingProgramme(BaseModel):
-    """Team Coaching Supervision
-    Training Programme"""
-
-    applicant_details: ApplicantDetails = Field(..., description="Applicant Details")
-    coaching_training__experience: CoachingTrainingExperience = Field(
-        ..., description="Coaching Training & Experience"
+    experience_other_role_description: str = Field(
+        ...,
+        description='Other role description. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )

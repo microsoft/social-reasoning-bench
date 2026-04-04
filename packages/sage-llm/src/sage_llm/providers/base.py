@@ -33,7 +33,6 @@ class SageModelProvider(ABC):
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage: ...
 
     @abstractmethod
@@ -50,7 +49,6 @@ class SageModelProvider(ABC):
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage: ...
 
     @abstractmethod
@@ -65,7 +63,6 @@ class SageModelProvider(ABC):
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T: ...
 
     @abstractmethod
@@ -80,5 +77,4 @@ class SageModelProvider(ABC):
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T: ...

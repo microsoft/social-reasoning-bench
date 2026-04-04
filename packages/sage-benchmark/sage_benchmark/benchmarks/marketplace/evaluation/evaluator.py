@@ -74,12 +74,11 @@ async def evaluate_single_task(
     task_completion = evaluate_task_completion(execution_result)
     timings["task_completion"] = time.monotonic() - t0
 
-    # 2. Privacy leakage (LLM judge, optional)
+    # 2. Privacy leakage (LLM judge, optional) — buyer only
     buyer_privacy = None
-    seller_privacy = None
     if judge_model and judge_client:
         t0 = time.monotonic()
-        buyer_privacy, seller_privacy = await evaluate_privacy_leakage(
+        buyer_privacy = await evaluate_privacy_leakage(
             execution_result,
             model=judge_model,
             model_client=judge_client,
@@ -87,10 +86,9 @@ async def evaluate_single_task(
         )
         timings["privacy"] = time.monotonic() - t0
 
-    # 3. Due diligence
+    # 3. Due diligence — buyer only
     t0 = time.monotonic()
     buyer_metrics = evaluate_due_diligence(execution_result, "buyer", zopa)
-    seller_metrics = evaluate_due_diligence(execution_result, "seller", zopa)
     timings["due_diligence"] = time.monotonic() - t0
 
     # 4. Duty of care
@@ -105,9 +103,7 @@ async def evaluate_single_task(
     return MarketplaceEvaluationResult(
         execution=execution_result,
         task_completion=task_completion,
-        buyer_privacy=buyer_privacy,
-        seller_privacy=seller_privacy,
+        privacy=buyer_privacy,
         duty_of_care_eval=duty_of_care,
-        buyer_metrics=buyer_metrics,
-        seller_metrics=seller_metrics,
+        due_diligence_eval=buyer_metrics,
     )

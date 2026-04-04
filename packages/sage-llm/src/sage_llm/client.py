@@ -53,7 +53,6 @@ class SageModelClient:
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage:
         resolved = _handle_model_aliases(model)
         provider, provider_model = resolve_provider(
@@ -91,7 +90,6 @@ class SageModelClient:
                 tools=tools,
                 tool_choice=tool_choice,
                 reasoning_effort=effort,
-                num_retries=num_retries,
             )
             trace.sage_response = msg
             trace.status = "success"
@@ -119,7 +117,6 @@ class SageModelClient:
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage:
         resolved = _handle_model_aliases(model)
         provider, provider_model = resolve_provider(
@@ -157,7 +154,6 @@ class SageModelClient:
                 tools=tools,
                 tool_choice=tool_choice,
                 reasoning_effort=effort,
-                num_retries=num_retries,
             )
             trace.sage_response = msg
             trace.status = "success"
@@ -184,7 +180,6 @@ class SageModelClient:
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T:
         resolved = _handle_model_aliases(model)
         provider, provider_model = resolve_provider(
@@ -203,7 +198,6 @@ class SageModelClient:
             top_p=top_p,
             stop=stop,
             reasoning_effort=effort,
-            num_retries=num_retries,
         )
 
     async def aparse(
@@ -217,7 +211,6 @@ class SageModelClient:
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T:
         resolved = _handle_model_aliases(model)
         provider, provider_model = resolve_provider(
@@ -236,7 +229,6 @@ class SageModelClient:
             top_p=top_p,
             stop=stop,
             reasoning_effort=effort,
-            num_retries=num_retries,
         )
 
 

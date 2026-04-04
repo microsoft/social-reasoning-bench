@@ -6,7 +6,6 @@ import argparse
 import asyncio
 import logging
 from collections.abc import Sequence
-from pathlib import Path
 
 from sage_llm import SageModelClient
 
@@ -113,13 +112,11 @@ class CalendarBenchmark(
             config.resolved_judge_reasoning_effort,
         )
 
-        # Resolve system prompt
-        if config.assistant_system_prompt_file:
-            self.system_prompt: str | None = Path(config.assistant_system_prompt_file).read_text()
-        elif config.assistant_system_prompt:
-            self.system_prompt = get_system_prompt(config.assistant_system_prompt)
+        # Resolve privacy prompt
+        if config.privacy_prompt:
+            self.privacy_prompt: str | None = get_system_prompt(config.privacy_prompt)
         else:
-            self.system_prompt = None
+            self.privacy_prompt = None
 
     async def execute_task(
         self,
@@ -138,7 +135,7 @@ class CalendarBenchmark(
             self.requestor_client,
             config.max_rounds,
             config.max_steps_per_turn,
-            self.system_prompt,
+            self.privacy_prompt,
             config.resolved_assistant_explicit_cot,
             config.resolved_requestor_explicit_cot,
             config.expose_preferences or False,
@@ -324,16 +321,6 @@ class CalendarBenchmark(
             self.config.resolved_assistant_model or "unknown",
             self.config.resolved_requestor_model or "unknown",
         ]
-
-    def get_concurrency_hints(self) -> list[str]:
-        return list(
-            {
-                self.config.resolved_assistant_model,
-                self.config.resolved_requestor_model,
-                self.config.resolved_judge_model,
-            }
-            - {None}
-        )
 
     def load_tasks(self) -> tuple[list[CalendarTask], dict[str, str]]:
         if not self.config.paths:

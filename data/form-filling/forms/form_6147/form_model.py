@@ -1,316 +1,59 @@
-from typing import Literal, Optional, List, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-NA_HINT = '.If you cannot fill this, write "N/A".'
-BLANK_HINT = (
-    "If this field should not be filled by you (for example, it belongs to another person or office), leave it blank (empty string "
-    ")."
-)
+class MissouriWildlifeHobbyPermitAppCode530(BaseModel):
+    """Application for Wildlife Hobby Permit (CODE 530)
 
-# Type alias for boolean-like fields
-BooleanLike = Literal["true", "false", "N/A", ""]
-
-
-class Section1PermitInformation(BaseModel):
-    """Permit number for renewals"""
-
-    permit_number: str = Field(
-        default="",
-        description=(
-            "Existing permit number if renewing a commercial permit .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-
-class Section2IndividualInformation(BaseModel):
-    """Applicant’s personal and contact information"""
-
-    county: str = Field(
-        ...,
-        description=(
-            "County of residence for the individual permit holder .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    individual_name: str = Field(
-        ...,
-        description=(
-            "Full legal name of the individual to whom the permit will be issued .If you "
-            'cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
-    doing_business_as_if_applicable_provide_fictitious_business_name_registered_with_mo_secretary_of_state: str = Field(
-        default="",
-        description=(
-            "Fictitious business name registered with the Missouri Secretary of State, if "
-            'applicable .If you cannot fill this, write "N/A". If this field should not '
-            "be filled by you (for example, it belongs to another person or office), leave "
-            'it blank (empty string "").'
-        ),
-    )
-
-    address: str = Field(
-        ...,
-        description=(
-            "Street mailing address of the individual .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    city: str = Field(
-        ...,
-        description=(
-            'City for the mailing address .If you cannot fill this, write "N/A". If this '
-            "field should not be filled by you (for example, it belongs to another person "
-            'or office), leave it blank (empty string "").'
-        ),
-    )
-
-    state: str = Field(..., description="State for the mailing address")
-
-    zip_code: str = Field(..., description="ZIP Code for the mailing address")
-
-    if_po_box_provide_physical_address: str = Field(
-        default="",
-        description=(
-            "Physical street address if mailing address is a PO Box .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    telephone: str = Field(
-        ...,
-        description=(
-            "Primary telephone number for the applicant .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    email: str = Field(
-        default="",
-        description=(
-            'Email address for the applicant .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-
-class PermitTypeandTags(BaseModel):
-    """Permit selection, tag quantities, and payment total"""
-
-    wildlife_hobby_permit_code_530: BooleanLike = Field(
-        default="", description="Check if applying for a Wildlife Hobby Permit (Code 530)"
-    )
-
-    pheasant_leg_bands_per_100_number_requested: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Number of sets of 100 pheasant leg bands requested"
-    )
-
-    pheasant_leg_bands_per_100_tag_total: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total cost for pheasant leg bands requested"
-    )
-
-    quail_leg_bands_per_100_number_requested: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Number of sets of 100 quail leg bands requested"
-    )
-
-    quail_leg_bands_per_100_tag_total: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total cost for quail leg bands requested"
-    )
-
-    total_amount_due: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total amount due for permit and tags"
-    )
-
-
-class LocationInformation(BaseModel):
-    """Location details if wildlife is held at a different address"""
-
-    location_county: str = Field(
-        default="",
-        description=(
-            "County where wildlife is held if different from mailing address .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-    section: str = Field(
-        default="",
-        description=(
-            "Land survey section for the wildlife holding location .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    township: str = Field(
-        default="",
-        description=(
-            "Land survey township for the wildlife holding location .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    range: str = Field(
-        default="",
-        description=(
-            "Land survey range for the wildlife holding location .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    location_address_if_applicable: str = Field(
-        default="",
-        description=(
-            "Street address of the wildlife holding location, if it has one .If you cannot "
-            'fill this, write "N/A". If this field should not be filled by you (for '
-            "example, it belongs to another person or office), leave it blank (empty string "
-            '"").'
-        ),
-    )
-
-    area_acreage: Union[float, Literal["N/A", ""]] = Field(
-        default="", description="Total acreage of the area where wildlife is held"
-    )
-
-    name_alternate_location_contact: str = Field(
-        default="",
-        description=(
-            "Name of the person at the alternate location, if different from applicant .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
-    address_alternate_location: str = Field(
-        default="",
-        description=(
-            "Street mailing address for the alternate location .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    city_alternate_location: str = Field(
-        default="",
-        description=(
-            "City for the alternate location address .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    state_alternate_location: str = Field(
-        default="", description="State for the alternate location address"
-    )
-
-    zip_code_alternate_location: str = Field(
-        default="", description="ZIP Code for the alternate location address"
-    )
-
-    directions: str = Field(
-        default="",
-        description=(
-            "Driving directions to the location if in a rural area or if needed for agent "
-            'contact .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
-        ),
-    )
-
-
-class SpeciesCovered(BaseModel):
-    """Species to be covered by the permit"""
-
-    species_to_be_covered_by_permit: str = Field(
-        ...,
-        description=(
-            "List of wildlife species to be covered by this permit .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-
-class ConservationAgentUseOnly(BaseModel):
-    """For conservation agent approval/denial and signature"""
-
-    approved: BooleanLike = Field(
-        default="", description="Indicates conservation agent approval of the permit"
-    )
-
-    disapproved: BooleanLike = Field(
-        default="", description="Indicates conservation agent disapproval of the permit"
-    )
-
-    conservation_agent_signature: str = Field(
-        default="",
-        description=(
-            "Signature of the conservation agent approving or disapproving the permit .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
-    conservation_agent_date: str = Field(
-        default="", description="Date the conservation agent signed the approval or disapproval"
-    )  # YYYY-MM-DD format
-
-
-class ApplicantCertification(BaseModel):
-    """Applicant signature and date"""
-
-    applicant_signature: str = Field(
-        ...,
-        description=(
-            "Signature of the applicant accepting permit rules .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    applicant_date: str = Field(
-        ..., description="Date the applicant signed the application"
-    )  # YYYY-MM-DD format
-
-
-class ApplicationForWildlifeHobbyPermitcode530(BaseModel):
-    """
-    Application for Wildlife Hobby Permit (CODE 530)
-
-    Application for Wildlife Hobby Permit (CODE 530)
+    Individuals submit this application to the Missouri Department of Conservation to
+    request issuance or renewal of a Wildlife Hobby Permit (Code 530), optionally
+    request leg band tags, and identify the species and holding location(s) covered
+    by the permit. Commercial permits staff and a conservation agent review the
+    application for completeness and compliance, then approve or disapprove the
+    permit and record signatures and dates.
     """
 
-    section_1___permit_information: Section1PermitInformation = Field(
-        ..., description="Section 1 – Permit Information"
+    model_config = ConfigDict(extra="forbid")
+
+
+    section2_doing_business_as: str = Field(
+        ...,
+        description='DBA fictitious business name. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
-    section_2___individual_information: Section2IndividualInformation = Field(
-        ..., description="Section 2 – Individual Information"
+    section2_address: str = Field(
+        ...,
+        description='Mailing street address. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
-    permit_type_and_tags: PermitTypeandTags = Field(..., description="Permit Type and Tags")
-    location_information: LocationInformation = Field(..., description="Location Information")
-    species_covered: SpeciesCovered = Field(..., description="Species Covered")
-    conservation_agent_use_only: ConservationAgentUseOnly = Field(
-        ..., description="Conservation Agent Use Only"
+    section2_telephone: str = Field(
+        ...,
+        description='Applicant telephone. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
-    applicant_certification: ApplicantCertification = Field(
-        ..., description="Applicant Certification"
+
+
+
+    location_other_than_address_section: str = Field(
+        ...,
+        description='Holding location section. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )
+    location_other_than_address_range: str = Field(
+        ...,
+        description='Holding location range. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
+    location_other_than_address_location_address: str = Field(
+        ...,
+        description='Holding location address. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
+    location_other_than_address_area_acreage: str = Field(
+        ...,
+        description='Holding location area acreage. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
+
+    alternate_contact_directions: str = Field(
+        ...,
+        description='Directions to location. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
+
+    species_list: str = Field(
+        ...,
+        description='Species covered by permit. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
+

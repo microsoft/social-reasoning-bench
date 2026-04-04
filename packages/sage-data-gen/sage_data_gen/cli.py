@@ -34,13 +34,9 @@ def _build_malicious_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         prog="sagegen malicious",
-        description="Generate malicious task variants (whimsical, hand-crafted, or both).",
+        description="Generate malicious task variants (whimsical).",
     )
     parser.add_argument("benchmark", choices=BENCHMARKS)
-
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--whimsical", action="store_true", help="Whimsical only")
-    mode.add_argument("--handcrafted", action="store_true", help="Hand-crafted only")
 
     parser.add_argument("--input", type=Path, required=True, help="Input tasks file/dir")
     parser.add_argument("--attack-type", default=None, help="Attack type (omit for all)")
@@ -132,44 +128,17 @@ async def _run_whimsical(benchmark: str, attack_type: str, args: argparse.Namesp
     )
 
 
-async def _run_handcrafted(benchmark: str, attack_type: str, args: argparse.Namespace) -> None:
-    """Run hand-crafted injection for a single (benchmark, attack_type)."""
-    from sage_data_gen.shared.hand_crafted import inject_and_save
-
-    mod = _get_malicious_module(benchmark)
-    input_path = args.input
-    output_path = args.output or _default_handcrafted_output(input_path, attack_type)
-
-    await asyncio.to_thread(
-        inject_and_save, input_path, output_path, mod.load, mod.inject_handcrafted, attack_type
-    )
-
-
-def _default_handcrafted_output(input_path: Path, attack_type: str) -> Path:
-    return input_path.parent / f"{input_path.stem}-malicious-hand-crafted-{attack_type}.yaml"
-
-
 def _malicious_main():
-    """``sagegen malicious {benchmark} [--whimsical|--handcrafted] [opts]``."""
+    """``sagegen malicious {benchmark} [opts]``."""
     from sage_benchmark.shared import TaskPoolExecutor
 
     parser = _build_malicious_parser()
     args = parser.parse_args()
 
-    # Determine modes
-    if args.whimsical:
-        modes = ["whimsical"]
-    elif args.handcrafted:
-        modes = ["handcrafted"]
-    else:
-        modes = ["whimsical", "handcrafted"]
-
-    if "whimsical" in modes and not args.model:
+    if not args.model:
         parser.error("-m/--model is required for whimsical generation")
 
     if args.validate:
-        if "whimsical" not in modes:
-            parser.error("--validate only applies to whimsical generation")
         # Default agent/judge model to -m/--model when not explicitly set.
         if not args.agent_model:
             args.agent_model = args.model
@@ -184,23 +153,14 @@ def _malicious_main():
     # Get attack types from the benchmark module
     mod = _get_malicious_module(args.benchmark)
 
-    # Build the list of (mode, attack_type) combos.
-    combos: list[tuple[str, str]] = []
-    for mode in modes:
-        attack_types = (
-            mod.WHIMSICAL_ATTACK_TYPES if mode == "whimsical" else mod.HANDCRAFTED_ATTACK_TYPES
-        )
-        types = [args.attack_type] if args.attack_type else attack_types
-        for at in types:
-            combos.append((mode, at))
+    attack_types = mod.WHIMSICAL_ATTACK_TYPES
+    types = [args.attack_type] if args.attack_type else attack_types
+    combos: list[str] = list(types)
 
-    async def _run_combo(mode: str, attack_type: str) -> str:
-        label = f"{args.benchmark} / {mode} / {attack_type}"
+    async def _run_combo(attack_type: str) -> str:
+        label = f"{args.benchmark} / whimsical / {attack_type}"
         print(f"\n{'=' * 60}\n  {label}\n{'=' * 60}\n")
-        if mode == "whimsical":
-            await _run_whimsical(args.benchmark, attack_type, args)
-        else:
-            await _run_handcrafted(args.benchmark, attack_type, args)
+        await _run_whimsical(args.benchmark, attack_type, args)
         return label
 
     async def _run_all() -> None:
@@ -218,7 +178,7 @@ def _malicious_main():
             on_task_error=_on_error,
             cancel_event=cancel,
         )
-        await executor.run(_run_combo(m, at) for m, at in combos)
+        await executor.run(_run_combo(at) for at in combos)
 
         if errors:
             raise errors[0]

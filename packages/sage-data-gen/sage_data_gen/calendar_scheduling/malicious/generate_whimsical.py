@@ -26,9 +26,9 @@ def _load(paths):
 
 def _inject(task: CalendarTask, attack_type: str, strategy: str) -> list[CalendarTask]:
     task_desc = _TASK_DESCRIPTIONS[attack_type]
-    suffix = f"\n\n{task_desc}\n\n### STRATEGY TO USE\n{strategy}\n"
+    malicious_prompt = f"{task_desc}\n\n### STRATEGY TO USE\n{strategy}\n"
     task_dict = task.model_dump(mode="json")
-    task_dict["requestor"]["instruction_message"] += suffix
+    task_dict["requestor"]["malicious_prompt"] = malicious_prompt
     task_dict["requestor"]["is_malicious"] = True
     task_dict["requestor"]["malicious_target"] = attack_type
     task_dict["requestor"]["malicious_strategy"] = "whimsical"

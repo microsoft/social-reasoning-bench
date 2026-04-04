@@ -4,9 +4,14 @@ Reads an image, extracts text via vision API, parses fields via multi-step
 LLM prompting, and generates a validated Pydantic model file.
 """
 
+from __future__ import annotations
+
 import json
 import re
-from typing import List, Literal, Optional
+from typing import TYPE_CHECKING, List, Literal, Optional, cast
+
+if TYPE_CHECKING:
+    from sage_benchmark.benchmarks.form_filling.types import FormSummary
 
 from pydantic import BaseModel, Field
 from sage_llm import SageMessage, SageModelClient
@@ -343,12 +348,12 @@ def generate_pydantic_code(parsed_form: ParsedForm, class_name: str = "Generated
             # Prefix field ID with section name to avoid collisions
             if section_prefix:
                 original_id = field.id
-                field = FormField(**{**field.__dict__, "id": f"{section_prefix}_{original_id}"})
+                field = field.model_copy(update={"id": f"{section_prefix}_{original_id}"})
             # Deduplicate field IDs
             base_id = field.id
             counter = 2
             while field.id in seen_ids:
-                field = FormField(**{**field.__dict__, "id": f"{base_id}_{counter}"})
+                field = field.model_copy(update={"id": f"{base_id}_{counter}"})
                 counter += 1
             seen_ids.add(field.id)
 
@@ -473,13 +478,13 @@ async def generate_form_model(
     Returns:
         Tuple of (form_model_code, class_name, form_title, form_summary).
     """
-    from sage_data_gen.form_filling.models import FormSummary
+    from sage_data_gen.form_filling.models import FormSummary as _FormSummaryModel
     from sage_data_gen.form_filling.prompts import FORM_SUMMARY_PROMPT
 
     # Step 1: Extract form summary (purpose + recipient) if not provided
     if form_summary is None:
         print("  Extracting form summary...")
-        form_summary = await client.aparse(
+        parsed_summary = await client.aparse(
             model=config.parsing_model,
             messages=[
                 {
@@ -491,9 +496,10 @@ async def generate_form_model(
                     "content": FORM_SUMMARY_PROMPT.format(form_content=extracted_text),
                 },
             ],
-            response_format=FormSummary,
+            response_format=_FormSummaryModel,
             temperature=0.3,
         )
+        form_summary = cast("FormSummary", parsed_summary)
         print(f"  Purpose: {form_summary.form_purpose[:80]}...")
         print(f"  Recipient: {form_summary.intended_recipient[:80]}...")
 
@@ -503,7 +509,7 @@ async def generate_form_model(
         f"Intended Recipient: {form_summary.intended_recipient}"
     )
     print("  Generating Pydantic model from OCR text...")
-    messages = [
+    gen_messages: list[SageMessage] = [
         {"role": "system", "content": GENERATE_MODEL_PROMPT.format(form_summary=summary_text)},
         {"role": "user", "content": f"Form text:\n\n{extracted_text}"},
     ]
@@ -512,7 +518,7 @@ async def generate_form_model(
     for attempt in range(max_retries):
         response = await client.acomplete(
             model=config.parsing_model,
-            messages=messages,
+            messages=gen_messages,
             temperature=0,
         )
 
@@ -546,8 +552,8 @@ async def generate_form_model(
         # Retry: feed errors back to the LLM
         error_msg = "Fix these issues and regenerate:\n" + "\n".join(f"- {e}" for e in errors)
         print(f"  Attempt {attempt + 1}: {error_msg}")
-        messages.append({"role": "assistant", "content": raw})
-        messages.append({"role": "user", "content": error_msg})
+        gen_messages.append({"role": "assistant", "content": raw})
+        gen_messages.append({"role": "user", "content": error_msg})
     else:
         print(f"  Warning: Could not fix issues after {max_retries} attempts, using last output")
 

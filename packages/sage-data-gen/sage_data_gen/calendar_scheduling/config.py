@@ -25,7 +25,7 @@ class PipelineConfig(BaseModel):
         default=True,
         description="Whether to generate scheduling preferences for tasks",
     )
-    random_seed: int = Field(
+    seed: int = Field(
         default=42,
         description="Random seed for deterministic preference generation",
     )

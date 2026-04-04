@@ -26,9 +26,9 @@ def _load(paths):
 
 def _inject(task: FormTask, attack_type: str, strategy: str) -> list[FormTask]:
     task_desc = _TASK_DESCRIPTIONS[attack_type]
-    new_instruction = f"{task_desc}\n\n### STRATEGY TO USE\n{strategy}\n"
+    malicious_prompt = f"{task_desc}\n\n### STRATEGY TO USE\n{strategy}\n"
     task_dict = task.model_dump()
-    task_dict["instruction_message"] = new_instruction
+    task_dict["malicious_prompt"] = malicious_prompt
     task_dict["is_malicious"] = True
     task_dict["malicious_target"] = attack_type
     task_dict["malicious_strategy"] = "whimsical"

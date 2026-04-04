@@ -66,16 +66,13 @@ def _initialize_agents(
     interviewer_model: str,
     assistant_client: SageModelClient,
     assistant_model: str,
-    prompt_type: str = "base",
-    interviewer_type: str = "base",
+    privacy_prompt: str = "none",
     single_field_mode: bool = False,
-    malicious_strategy: int | None = None,
-    malicious_attack_type: str = "privacy",
-    malicious_strategies_file: str | None = None,
     temperature: float | None = None,
     form_fill_client: SageModelClient | None = None,
     form_fill_model: str | None = None,
-    explicit_cot: bool = False,
+    assistant_explicit_cot: bool = False,
+    interviewer_explicit_cot: bool = False,
 ) -> tuple[InterviewerAgent, AssistantAgent]:
     """Initialize interviewer and assistant agents for a task.
 
@@ -85,16 +82,13 @@ def _initialize_agents(
         interviewer_model: Model name for interviewer
         assistant_client: Model client for assistant agent
         assistant_model: Model name for assistant
-        prompt_type: Privacy level ("none", "simple", "strong", "ci")
-        interviewer_type: Type of interviewer prompt ("base" or "detail")
+        privacy_prompt: Privacy level ("none", "simple", "strong", "ci")
         single_field_mode: If True, interviewer asks only one question per turn
-        malicious_strategy: If set, use malicious interviewer with this strategy index
-        malicious_attack_type: Type of malicious attack ("privacy", "hallucination", "red_flags")
-        malicious_strategies_file: Path to strategies YAML file for malicious mode
         temperature: Sampling temperature for assistant generation
         form_fill_client: Separate client for form filling (defaults to interviewer client)
         form_fill_model: Separate model for form filling (defaults to interviewer model)
-        explicit_cot: If True, enable explicit chain-of-thought prompting for assistant
+        assistant_explicit_cot: If True, enable explicit chain-of-thought for assistant
+        interviewer_explicit_cot: If True, enable explicit chain-of-thought for interviewer
 
     Returns:
         Tuple of (InterviewerAgent, AssistantAgent)
@@ -104,9 +98,9 @@ def _initialize_agents(
         assistant_model,
         task.persona,
         task.artifacts,
-        prompt_type,
+        privacy_prompt,
         temperature=temperature,
-        explicit_cot=explicit_cot,
+        explicit_cot=assistant_explicit_cot,
     )
 
     form_class = load_form_class(task.form_model_path)
@@ -119,8 +113,10 @@ Form Schema:
         model=interviewer_model,
         form_context=form_info,
         form_class=form_class,
-        instruction_message=interviewer_type,
+        instruction_message=task.instruction_message,
         single_field_mode=single_field_mode,
+        explicit_cot=interviewer_explicit_cot,
+        malicious_prompt=task.malicious_prompt,
     )
 
     return interviewer, assistant
@@ -290,17 +286,14 @@ async def execute_task(
     assistant_model: str,
     max_rounds: int,
     benchmark_logger: BenchmarkLogger,
-    prompt_type: str = "base",
-    interviewer_type: str = "base",
+    privacy_prompt: str = "none",
     single_field_mode: bool = False,
-    malicious_strategy: int | None = None,
-    malicious_attack_type: str = "privacy",
-    malicious_strategies_file: str | None = None,
     temperature: float | None = None,
     form_fill_client: SageModelClient | None = None,
     form_fill_model: str | None = None,
     max_steps_per_turn: int = 5,
-    explicit_cot: bool = False,
+    assistant_explicit_cot: bool = False,
+    interviewer_explicit_cot: bool = False,
 ) -> FormFillingExecutionResult:
     """Execute a single interactive interview task.
 
@@ -315,15 +308,12 @@ async def execute_task(
         assistant_model: Model name for assistant
         max_rounds: Maximum conversation rounds
         benchmark_logger: BenchmarkLogger for structured logging
-        prompt_type: Privacy level ("none", "simple", "strong", "ci")
-        interviewer_type: Type of interviewer prompt ("base" or "detail")
+        privacy_prompt: Privacy level ("none", "simple", "strong", "ci")
         single_field_mode: If True, interviewer asks only one question per turn
-        malicious_strategy: If set, use malicious interviewer with this strategy index
-        malicious_attack_type: Type of malicious attack ("privacy", "hallucination", "red_flags")
-        malicious_strategies_file: Path to strategies YAML file for malicious mode
         temperature: Sampling temperature for assistant generation
         max_steps_per_turn: Maximum tool calls per assistant turn (default: 5)
-        explicit_cot: If True, enable explicit chain-of-thought prompting for assistant
+        assistant_explicit_cot: If True, enable explicit chain-of-thought for assistant
+        interviewer_explicit_cot: If True, enable explicit chain-of-thought for interviewer
 
     Returns:
         FormFillingExecutionResult with conversation and form submission
@@ -344,16 +334,13 @@ async def execute_task(
         interviewer_model,
         assistant_client,
         assistant_model,
-        prompt_type,
-        interviewer_type,
+        privacy_prompt,
         single_field_mode,
-        malicious_strategy,
-        malicious_attack_type=malicious_attack_type,
-        malicious_strategies_file=malicious_strategies_file,
         temperature=temperature,
         form_fill_client=form_fill_client,
         form_fill_model=form_fill_model,
-        explicit_cot=explicit_cot,
+        assistant_explicit_cot=assistant_explicit_cot,
+        interviewer_explicit_cot=interviewer_explicit_cot,
     )
 
     try:

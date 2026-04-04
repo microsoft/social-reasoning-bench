@@ -9,10 +9,8 @@ import yaml
 from sage_benchmark.benchmarks.marketplace.loader import load_tasks as _load_tasks
 from sage_benchmark.benchmarks.marketplace.types import MarketplaceTask
 
-from .generate_hand_crafted import ATTACK_TYPES as HANDCRAFTED_ATTACK_TYPES
-from .generate_hand_crafted import _inject_both_roles as inject_handcrafted
 from .generate_whimsical import ATTACK_TYPES as WHIMSICAL_ATTACK_TYPES
-from .generate_whimsical import _inject_both_roles as inject_whimsical
+from .generate_whimsical import _inject as inject_whimsical
 from .whimsical.inject import _TASK_DESCRIPTIONS as TASK_DESCRIPTIONS
 
 
@@ -35,11 +33,9 @@ def save(tasks: list[MarketplaceTask], output_path: Path) -> None:
 
 
 __all__ = [
-    "HANDCRAFTED_ATTACK_TYPES",
     "WHIMSICAL_ATTACK_TYPES",
     "TASK_DESCRIPTIONS",
     "load",
     "save",
-    "inject_handcrafted",
     "inject_whimsical",
 ]

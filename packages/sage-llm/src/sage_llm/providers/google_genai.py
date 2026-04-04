@@ -1,6 +1,5 @@
 """Google provider — Gemini models with thinking support."""
 
-import asyncio
 import json
 import logging
 import threading
@@ -19,7 +18,6 @@ from openai.types.chat.chat_completion_message_tool_call import Function
 from openai.types.completion_usage import CompletionUsage
 from pydantic import BaseModel
 
-from .. import concurrency as _concurrency
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionInfo, SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
@@ -72,7 +70,6 @@ class GoogleProvider(SageModelProvider):
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage:
         contents, config = _translate_request(
             messages,
@@ -85,17 +82,13 @@ class GoogleProvider(SageModelProvider):
             reasoning_effort=reasoning_effort,
         )
         sdk_kwargs = _serialize_sdk_kwargs(model, contents, config)
-        return _call_with_retries(
-            lambda: self._client.models.generate_content(
-                model=model,
-                contents=cast(types.ContentListUnionDict, contents),
-                config=config,
-            ),
-            sdk_kwargs,
-            trace,
-            model,
-            num_retries,
+        response = self._client.models.generate_content(
+            model=model,
+            contents=cast(types.ContentListUnionDict, contents),
+            config=config,
         )
+        _fill_trace(trace, sdk_kwargs, response)
+        return _to_google_message(response, model)
 
     async def acomplete(
         self,
@@ -110,7 +103,6 @@ class GoogleProvider(SageModelProvider):
         tools: list[ChatCompletionToolParam] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> SageChatCompletionMessage:
         contents, config = _translate_request(
             messages,
@@ -123,17 +115,13 @@ class GoogleProvider(SageModelProvider):
             reasoning_effort=reasoning_effort,
         )
         sdk_kwargs = _serialize_sdk_kwargs(model, contents, config)
-        return await _acall_with_retries(
-            lambda: self._client.aio.models.generate_content(
-                model=model,
-                contents=cast(types.ContentListUnionDict, contents),
-                config=config,
-            ),
-            sdk_kwargs,
-            trace,
-            model,
-            num_retries,
+        response = await self._client.aio.models.generate_content(
+            model=model,
+            contents=cast(types.ContentListUnionDict, contents),
+            config=config,
         )
+        _fill_trace(trace, sdk_kwargs, response)
+        return _to_google_message(response, model)
 
     def parse(
         self,
@@ -146,7 +134,6 @@ class GoogleProvider(SageModelProvider):
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T:
         contents, config = _translate_request(
             messages,
@@ -159,17 +146,13 @@ class GoogleProvider(SageModelProvider):
         )
         sdk_kwargs = _serialize_sdk_kwargs(model, contents, config)
         trace = LLMTrace()
-        message = _call_with_retries(
-            lambda: self._client.models.generate_content(
-                model=model,
-                contents=cast(types.ContentListUnionDict, contents),
-                config=config,
-            ),
-            sdk_kwargs,
-            trace,
-            model,
-            num_retries,
+        response = self._client.models.generate_content(
+            model=model,
+            contents=cast(types.ContentListUnionDict, contents),
+            config=config,
         )
+        _fill_trace(trace, sdk_kwargs, response)
+        message = _to_google_message(response, model)
         assert message.content is not None
         return response_format.model_validate_json(message.content)
 
@@ -184,7 +167,6 @@ class GoogleProvider(SageModelProvider):
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
-        num_retries: int = 3,
     ) -> T:
         contents, config = _translate_request(
             messages,
@@ -197,17 +179,13 @@ class GoogleProvider(SageModelProvider):
         )
         sdk_kwargs = _serialize_sdk_kwargs(model, contents, config)
         trace = LLMTrace()
-        message = await _acall_with_retries(
-            lambda: self._client.aio.models.generate_content(
-                model=model,
-                contents=cast(types.ContentListUnionDict, contents),
-                config=config,
-            ),
-            sdk_kwargs,
-            trace,
-            model,
-            num_retries,
+        response = await self._client.aio.models.generate_content(
+            model=model,
+            contents=cast(types.ContentListUnionDict, contents),
+            config=config,
         )
+        _fill_trace(trace, sdk_kwargs, response)
+        message = _to_google_message(response, model)
         assert message.content is not None
         return response_format.model_validate_json(message.content)
 
@@ -677,74 +655,3 @@ def _fill_trace(
         trace.completion_tokens = getattr(um, "candidates_token_count", None)
         if trace.prompt_tokens is not None and trace.completion_tokens is not None:
             trace.total_tokens = trace.prompt_tokens + trace.completion_tokens
-
-
-# ---------------------------------------------------------------------------
-# Retry helpers
-# ---------------------------------------------------------------------------
-
-
-def _is_retryable(e: Exception) -> bool:
-    error_str = str(e).lower()
-    return any(
-        kw in error_str
-        for kw in ("429", "500", "502", "503", "504", "resource exhausted", "timeout", "connection")
-    )
-
-
-def _call_with_retries(
-    call,
-    sdk_kwargs: dict[str, Any],
-    trace: LLMTrace,
-    model: str,
-    num_retries: int,
-) -> GoogleMessage:
-    last_error: Exception | None = None
-    for attempt in range(max(1, num_retries + 1)):
-        try:
-            response = call()
-            _fill_trace(trace, sdk_kwargs, response)
-            return _to_google_message(response, model)
-        except Exception as e:
-            last_error = e
-            if _is_retryable(e) and attempt < num_retries:
-                time.sleep(min(2**attempt, 8))
-                continue
-            raise
-    assert last_error is not None
-    raise last_error
-
-
-async def _acall_with_retries(
-    call,
-    sdk_kwargs: dict[str, Any],
-    trace: LLMTrace,
-    model: str,
-    num_retries: int,
-) -> GoogleMessage:
-    concurrency_key = trace.sage_request.model if trace.sage_request else model
-    if concurrency_key:
-        await _concurrency.acquire(concurrency_key)
-    last_error: Exception | None = None
-    try:
-        for attempt in range(max(1, num_retries + 1)):
-            try:
-                response = await call()
-                _fill_trace(trace, sdk_kwargs, response)
-                if concurrency_key:
-                    await _concurrency.on_success(concurrency_key)
-                return _to_google_message(response, model)
-            except Exception as e:
-                last_error = e
-                if _is_retryable(e) and attempt < num_retries:
-                    is_rate_limit = "429" in str(e) or "resource exhausted" in str(e).lower()
-                    if is_rate_limit and concurrency_key:
-                        await _concurrency.on_rate_limit(concurrency_key)
-                    await asyncio.sleep(min(2**attempt, 8))
-                    continue
-                raise
-        assert last_error is not None
-        raise last_error
-    finally:
-        if concurrency_key:
-            _concurrency.release(concurrency_key)

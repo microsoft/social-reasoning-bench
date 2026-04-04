@@ -47,6 +47,7 @@ class MarketplaceAgent(BaseAgent):
         instruction_message: str,
         explicit_cot: bool = False,
         system_prompt: str | None = None,
+        malicious_prompt: str | None = None,
     ) -> None:
         super().__init__(
             model=model,
@@ -59,6 +60,8 @@ class MarketplaceAgent(BaseAgent):
 
         # Use provided system prompt or fall back to MKT_ROLE
         effective_prompt = system_prompt if system_prompt is not None else MKT_ROLE
+        if malicious_prompt:
+            effective_prompt += "\n\n" + malicious_prompt
 
         self._messages.extend(
             [

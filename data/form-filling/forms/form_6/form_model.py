@@ -1,194 +1,40 @@
-from typing import Literal, Optional, List, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-NA_HINT = '.If you cannot fill this, write "N/A".'
-BLANK_HINT = (
-    "If this field should not be filled by you (for example, it belongs to another person or office), leave it blank (empty string "
-    ")."
-)
+class NeighborhoodNotificationInitiativeNeighborhoodRegistrationForm(BaseModel):
+    """Neighborhood Notification Initiative Neighborhood Registration Form
 
-# Type alias for boolean-like fields
-BooleanLike = Literal["true", "false", "N/A", ""]
-
-
-class RequiredInformation(BaseModel):
-    """Information required to register the neighborhood organization"""
-
-    organization_name: str = Field(
-        ...,
-        description=(
-            "Full legal name of the neighborhood organization .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    covenant_based_homeowners_association: BooleanLike = Field(
-        ..., description="Check if the organization is a covenant-based homeowner's association"
-    )
-
-    other_incorporated: BooleanLike = Field(
-        ..., description="Check if the organization is another type of incorporated entity"
-    )
-
-    non_profit: BooleanLike = Field(..., description="Check if the organization is a non-profit")
-
-    llc: BooleanLike = Field(
-        ..., description="Check if the organization is a limited liability company (LLC)"
-    )
-
-    other: str = Field(
-        default="",
-        description=(
-            "If 'Other' is selected, specify the type of organization .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    commission_districts: str = Field(
-        ...,
-        description=(
-            "List the Athens-Clarke County commission district(s) for the neighborhood .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
-    contact_person: str = Field(
-        ...,
-        description=(
-            'Primary contact person\'s full name .If you cannot fill this, write "N/A". If '
-            "this field should not be filled by you (for example, it belongs to another "
-            'person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    contact_person_mailing_address: str = Field(
-        ...,
-        description=(
-            "Mailing address for the contact person .If you cannot fill this, write "
-            '"N/A". If this field should not be filled by you (for example, it belongs to '
-            'another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    neighborhood_mailing_address_if_different: str = Field(
-        default="",
-        description=(
-            "Mailing address for the neighborhood organization, if different from the "
-            'contact person .If you cannot fill this, write "N/A". If this field should '
-            "not be filled by you (for example, it belongs to another person or office), "
-            'leave it blank (empty string "").'
-        ),
-    )
-
-    telephone_number: str = Field(
-        ...,
-        description=(
-            "Primary telephone number for the contact person .If you cannot fill this, "
-            'write "N/A". If this field should not be filled by you (for example, it '
-            'belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    e_mail_address: str = Field(
-        ...,
-        description=(
-            "Valid email address for the contact person to receive neighborhood "
-            'notifications .If you cannot fill this, write "N/A". If this field should '
-            "not be filled by you (for example, it belongs to another person or office), "
-            'leave it blank (empty string "").'
-        ),
-    )
-
-
-class OptionalInformation(BaseModel):
-    """Additional, optional details about the neighborhood organization"""
-
-    website: str = Field(
-        default="",
-        description=(
-            "Website URL for the neighborhood organization, if any .If you cannot fill "
-            'this, write "N/A". If this field should not be filled by you (for example, '
-            'it belongs to another person or office), leave it blank (empty string "").'
-        ),
-    )
-
-    newsletter_or_other_publication: str = Field(
-        default="",
-        description=(
-            "Name or description of any neighborhood newsletter or other publication .If "
-            'you cannot fill this, write "N/A". If this field should not be filled by you '
-            "(for example, it belongs to another person or office), leave it blank (empty "
-            'string "").'
-        ),
-    )
-
-    regularly_scheduled_meetings: BooleanLike = Field(
-        default="",
-        description="Indicate whether the organization holds regularly scheduled meetings",
-    )
-
-    provide_date_time_and_location: str = Field(
-        default="",
-        description=(
-            "Details of the regular meeting schedule, including date, time, and location "
-            '.If you cannot fill this, write "N/A". If this field should not be filled by '
-            "you (for example, it belongs to another person or office), leave it blank "
-            '(empty string "").'
-        ),
-    )
-
-    comments_questions_or_suggested_topics_for_neighborhood_planning_workshops: str = Field(
-        default="",
-        description=(
-            "Any comments, questions, or suggested topics for neighborhood planning "
-            'workshops .If you cannot fill this, write "N/A". If this field should not be '
-            "filled by you (for example, it belongs to another person or office), leave it "
-            'blank (empty string "").'
-        ),
-    )
-
-
-class PlanningDepartmentUse(BaseModel):
-    """For Planning Department processing and approval"""
-
-    date_received_by_planning_department: str = Field(
-        default="",
-        description="Date the Planning Department received the registration form (staff use)",
-    )  # YYYY-MM-DD format
-
-    date_approved_by_mayor_and_commission: str = Field(
-        default="",
-        description="Date the Mayor and Commission approved the registration (staff use)",
-    )  # YYYY-MM-DD format
-
-
-class AthensClarkeNeighborhoodNotificationRegistrationForm(BaseModel):
-    """
-        ATHENS
-    CLARKE
-    COUNTY
-
-    Neighborhood Notification Initiative
-    NEIGHBORHOOD REGISTRATION FORM
-
-        *A valid e-mail address is required for all Contact Persons where they may receive neighborhood notifications.
-        Please include the following information with this completed registration form:
-        1.  Map of neighborhood boundaries
-        2.  One of the following:
-            •  For established neighborhoods - Documentation indicating your neighborhood group's
-               organizational structure and/or legal status (i.e. by-laws, articles of incorporation, etc.)
-            •  For newly forming groups - A petition acknowledging the endorsement of the neighborhood
-               organization and Contact Person signed by at least 20% of the property owners and/or residents
-               within the proposed neighborhood boundaries.
+    Neighborhood organizations submit this form to register with Athens-Clarke County’s Neighborhood Notification Initiative so they can receive official neighborhood notifications and be recognized with defined neighborhood boundaries and a designated contact person. Planning Department staff intake and verify the registration materials, and the Mayor and Commission review the submission to approve the registration based on the provided organization details, contact information, and supporting documentation.
     """
 
-    required_information: RequiredInformation = Field(..., description="Required Information")
-    optional_information: OptionalInformation = Field(..., description="Optional Information")
-    planning_department_use: PlanningDepartmentUse = Field(
-        ..., description="Planning Department Use"
+    model_config = ConfigDict(extra="forbid")
+
+    required_information_type_other_specify: str = Field(
+        ...,
+        description='Type other (specify). If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
+    required_information_commission_districts: str = Field(
+        ...,
+        description='Commission districts. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
+    required_information_telephone_number: str = Field(
+        ...,
+        description='Telephone number. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
+
+    optional_information_website: str = Field(
+        ...,
+        description='Website. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
+    optional_information_newsletter_or_other_publication: str = Field(
+        ...,
+        description='Newsletter/other publication. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
+    optional_information_regularly_scheduled_meetings_details: str = Field(
+        ...,
+        description='Meetings date/time/location. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
+    )
+    optional_information_comments_questions_suggested_topics: str = Field(
+        ...,
+        description='Comments/questions/suggested topics. If you cannot fill this, write "N/A". If this field should not be filled by you, leave it blank (empty string "").',
     )

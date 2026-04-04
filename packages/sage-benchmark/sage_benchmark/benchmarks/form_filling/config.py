@@ -22,8 +22,11 @@ class FormFillingRunConfig(BaseRunConfig):
     assistant_reasoning_effort: str | int | None = Field(default=None)
     interviewer_reasoning_effort: str | int | None = Field(default=None)
 
+    # Per-agent CoT
+    assistant_explicit_cot: bool | None = Field(default=None)
+    interviewer_explicit_cot: bool | None = Field(default=None)
+
     # Form-filling specific
-    prompt_type: str = Field(default="none")
     single_field_mode: bool = Field(default=False)
     eval_batch_size: int = Field(
         default=0,
@@ -49,6 +52,12 @@ class FormFillingRunConfig(BaseRunConfig):
     def resolved_assistant_reasoning_effort(self) -> str | int | None:
         return self.assistant_reasoning_effort or self.reasoning_effort
 
+    @property
+    def resolved_assistant_explicit_cot(self) -> bool:
+        if self.assistant_explicit_cot is not None:
+            return self.assistant_explicit_cot
+        return self.explicit_cot or False
+
     # --- Interviewer resolved properties ---
 
     @property
@@ -66,6 +75,12 @@ class FormFillingRunConfig(BaseRunConfig):
     @property
     def resolved_interviewer_reasoning_effort(self) -> str | int | None:
         return self.interviewer_reasoning_effort or self.reasoning_effort
+
+    @property
+    def resolved_interviewer_explicit_cot(self) -> bool:
+        if self.interviewer_explicit_cot is not None:
+            return self.interviewer_explicit_cot
+        return self.explicit_cot or False
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> FormFillingRunConfig:

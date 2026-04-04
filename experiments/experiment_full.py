@@ -8,6 +8,9 @@ Sweeps:
       Non-reasoning: gpt-4.1 × {no_cot, cot}  (2)
       Reasoning: {gpt-5.4, gemini-3.1-pro, claude-sonnet-4.6} × {think_off, think_med, think_high}  (9)
 
+Counterparty agents (requestor, interviewer, seller) use a fixed strong
+model: phyagi/gpt-5.2 with medium reasoning effort across all sweeps.
+
 Usage::
 
     sagebench experiment experiments/experiment_full.py
@@ -24,12 +27,16 @@ from sage_benchmark.benchmarks.marketplace.config import MarketplaceRunConfig
 
 CAL_DIR = "data/calendar-scheduling"
 MKT_DIR = "data/marketplace"
-FF_DIR = "data/form-filling/open_ended_only/simple_forms/fs"
+FF_DIR = "data/form-filling"
 
 # ── Sweep axes ──────────────────────────────────────────────────────
 
 ATTACK_TYPES = ["privacy", "duty_of_care", "due_diligence"]
 PRIVACY_LEVELS = ["none", "simple", "strong", "ci"]
+
+# Fixed strong counterparty model (requestor, interviewer, seller)
+COUNTERPARTY_MODEL = "phyagi/gpt-5.2"
+COUNTERPARTY_REASONING_EFFORT = "medium"
 
 # Non-reasoning models get explicit_cot=True and explicit_cot=False variants.
 # Reasoning models get a reasoning_effort sweep instead.
@@ -73,7 +80,7 @@ def _variant(benchmark: str, *parts: str) -> str:
 
 
 # ── Calendar ────────────────────────────────────────────────────────
-# Calendar uses assistant_system_prompt for privacy and assistant_explicit_cot
+# Calendar uses privacy_prompt for privacy and assistant_explicit_cot
 # for CoT (only the assistant agent, not the requestor).
 
 
@@ -91,7 +98,9 @@ def _cal(
         paths=paths,
         variant=variant,
         model=model,
-        assistant_system_prompt=privacy,
+        requestor_model=COUNTERPARTY_MODEL,
+        requestor_reasoning_effort=COUNTERPARTY_REASONING_EFFORT,
+        privacy_prompt=privacy,
         expose_preferences=True,
         reasoning_effort=reasoning_effort,
         assistant_explicit_cot=assistant_explicit_cot,
@@ -158,7 +167,7 @@ def experiment_calendar():
 
 
 # ── Marketplace ─────────────────────────────────────────────────────
-# Marketplace uses system_prompt (base field) for privacy and explicit_cot
+# Marketplace uses privacy_prompt (base field) for privacy and explicit_cot
 # (base field) which applies to both buyer and seller agents.
 
 
@@ -170,7 +179,9 @@ def _mkt(
         paths=paths,
         variant=variant,
         model=model,
-        system_prompt=privacy,
+        seller_model=COUNTERPARTY_MODEL,
+        seller_reasoning_effort=COUNTERPARTY_REASONING_EFFORT,
+        privacy_prompt=privacy,
         reasoning_effort=reasoning_effort,
         explicit_cot=explicit_cot,
         attack_types=attack_types,
@@ -236,7 +247,7 @@ def experiment_marketplace():
 
 
 # ── Form filling ────────────────────────────────────────────────────
-# Form filling uses prompt_type for privacy and explicit_cot (base field).
+# Form filling uses privacy_prompt for privacy and explicit_cot (base field).
 
 
 def _ff(
@@ -247,7 +258,9 @@ def _ff(
         paths=paths,
         variant=variant,
         model=model,
-        prompt_type=privacy,
+        interviewer_model=COUNTERPARTY_MODEL,
+        interviewer_reasoning_effort=COUNTERPARTY_REASONING_EFFORT,
+        privacy_prompt=privacy,
         reasoning_effort=reasoning_effort,
         explicit_cot=explicit_cot,
         attack_types=attack_types,

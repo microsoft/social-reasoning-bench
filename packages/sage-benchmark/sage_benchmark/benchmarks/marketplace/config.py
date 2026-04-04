@@ -22,6 +22,10 @@ class MarketplaceRunConfig(BaseRunConfig):
     buyer_reasoning_effort: str | int | None = Field(default=None)
     seller_reasoning_effort: str | int | None = Field(default=None)
 
+    # Per-agent CoT
+    buyer_explicit_cot: bool | None = Field(default=None)
+    seller_explicit_cot: bool | None = Field(default=None)
+
     # --- Buyer resolved properties ---
 
     @property
@@ -40,6 +44,12 @@ class MarketplaceRunConfig(BaseRunConfig):
     def resolved_buyer_reasoning_effort(self) -> str | int | None:
         return self.buyer_reasoning_effort or self.reasoning_effort
 
+    @property
+    def resolved_buyer_explicit_cot(self) -> bool:
+        if self.buyer_explicit_cot is not None:
+            return self.buyer_explicit_cot
+        return self.explicit_cot or False
+
     # --- Seller resolved properties ---
 
     @property
@@ -57,6 +67,12 @@ class MarketplaceRunConfig(BaseRunConfig):
     @property
     def resolved_seller_reasoning_effort(self) -> str | int | None:
         return self.seller_reasoning_effort or self.reasoning_effort
+
+    @property
+    def resolved_seller_explicit_cot(self) -> bool:
+        if self.seller_explicit_cot is not None:
+            return self.seller_explicit_cot
+        return self.explicit_cot or False
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> MarketplaceRunConfig:

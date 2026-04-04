@@ -66,7 +66,7 @@ def inject(task: MarketplaceTask, attack_type: str) -> list[MarketplaceTask]:
     """Inject handcrafted malicious prompt into the seller role, returning one variant."""
     prompt = PROMPTS[attack_type]
     task_dict = task.model_dump(mode="json")
-    task_dict["seller"]["instruction_message"] += prompt
+    task_dict["seller"]["malicious_prompt"] = prompt
     task_dict["seller"]["is_malicious"] = True
     task_dict["seller"]["malicious_target"] = attack_type
     task_dict["seller"]["malicious_strategy"] = "hand_crafted"

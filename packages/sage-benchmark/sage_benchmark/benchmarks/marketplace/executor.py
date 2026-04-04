@@ -78,7 +78,9 @@ async def execute_task(
     seller_client: SageModelClient,
     max_rounds: int = 20,
     max_steps_per_turn: int = 3,
-    explicit_cot: bool = False,
+    buyer_explicit_cot: bool = False,
+    seller_explicit_cot: bool = False,
+    privacy_prompt: str | None = None,
     benchmark_logger: BenchmarkLogger | None = None,
 ) -> MarketplaceExecutionResult:
     """Execute a single marketplace negotiation task.
@@ -88,9 +90,6 @@ async def execute_task(
     until a deal is reached, an agent ends the conversation, or max rounds
     are exhausted.
 
-    Privacy system prompts are read from ``task.buyer.privacy_level`` and
-    ``task.seller.privacy_level`` (set during task expansion in load_tasks).
-
     Args:
         task: The marketplace task to execute, with .hash for checkpointing.
         buyer_model: Model name for the buyer agent.
@@ -99,13 +98,13 @@ async def execute_task(
         seller_client: SageModelClient for the seller agent.
         max_rounds: Maximum conversation rounds.
         max_steps_per_turn: Maximum tool calls per agent turn.
-        explicit_cot: Whether to enable explicit chain-of-thought.
+        buyer_explicit_cot: Whether to enable explicit chain-of-thought for buyer.
+        seller_explicit_cot: Whether to enable explicit chain-of-thought for seller.
+        privacy_prompt: Optional resolved privacy prompt for the buyer (assistant).
 
     Returns:
         MarketplaceExecutionResult with all execution state.
     """
-    from .prompts import get_system_prompt
-
     env = MarketplaceEnvironment()
     buyer_resources = env.create_agent_resources("buyer")
     seller_resources = env.create_agent_resources("seller")
@@ -113,19 +112,16 @@ async def execute_task(
         model=buyer_model,
         model_client=buyer_client,
         instruction_message=task.buyer.instruction_message,
-        explicit_cot=explicit_cot,
-        system_prompt=get_system_prompt(task.buyer.privacy_level)
-        if task.buyer.privacy_level
-        else None,
+        explicit_cot=buyer_explicit_cot,
+        system_prompt=privacy_prompt,
+        malicious_prompt=task.buyer.malicious_prompt,
     )
     seller_agent = SellerAgent(
         model=seller_model,
         model_client=seller_client,
         instruction_message=task.seller.instruction_message,
-        explicit_cot=explicit_cot,
-        system_prompt=get_system_prompt(task.seller.privacy_level)
-        if task.seller.privacy_level
-        else None,
+        explicit_cot=seller_explicit_cot,
+        malicious_prompt=task.seller.malicious_prompt,
     )
 
     if benchmark_logger is None:

@@ -89,17 +89,17 @@ PRESETS: dict[str, PrivacyPrompt] = {
 }
 
 
-def construct_system_prompt(persona: Any, prompt_type: str = "none") -> str:
+def construct_system_prompt(persona: Any, privacy_prompt: str = "none") -> str:
     """Construct the AI assistant system prompt for interactive interview mode.
 
     Builds a :class:`PrivacyPrompt` with the form-filling role (including
-    persona information), privacy level from *prompt_type*, domain context,
+    persona information), privacy level from *privacy_prompt*, domain context,
     and domain-specific examples.  Tool instructions are appended after the
     privacy block.
 
     Args:
         persona: Persona information (PersonaData object)
-        prompt_type: Privacy level (``"none"``, ``"simple"``, ``"strong"``, ``"ci"``)
+        privacy_prompt: Privacy level (``"none"``, ``"simple"``, ``"strong"``, ``"ci"``)
 
     Returns:
         System prompt string with persona context, privacy guidance,
@@ -109,7 +109,7 @@ def construct_system_prompt(persona: Any, prompt_type: str = "none") -> str:
     ff_role = FF_ROLE.replace("{persona_info}", persona_info)
 
     # Validate level
-    level: PrivacyLevel = prompt_type  # type: ignore
+    level: PrivacyLevel = privacy_prompt  # type: ignore
 
     prompt = PrivacyPrompt(
         role=ff_role,

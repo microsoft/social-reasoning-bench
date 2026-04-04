@@ -33,7 +33,7 @@ class RoleConfig(BaseModel):
     is_malicious: bool = False
     malicious_target: str | None = None
     malicious_strategy: str | None = None
-    privacy_level: str | None = None
+    malicious_prompt: str | None = None
 
 
 class MessageRecord(BaseModel):

@@ -1,7 +1,7 @@
 """Generate whimsical malicious marketplace tasks.
 
-For each input task, produces two variants: one with the buyer as the
-malicious agent and one with the seller as the malicious agent.
+For each input task, produces one variant with the seller as the
+malicious agent (the buyer is always the assistant under evaluation).
 
 Usage:
     python -m sage_data_gen.marketplace.malicious.generate_whimsical \
@@ -27,22 +27,17 @@ def _load(paths):
     return load_tasks(paths).all_tasks
 
 
-def _inject_both_roles(
-    task: MarketplaceTask, attack_type: str, strategy: str
-) -> list[MarketplaceTask]:
-    """Inject the malicious prompt into each role, returning two variants."""
+def _inject(task: MarketplaceTask, attack_type: str, strategy: str) -> list[MarketplaceTask]:
+    """Inject the malicious prompt into the seller role, returning one variant."""
     task_desc = _TASK_DESCRIPTIONS[attack_type]
-    suffix = f"\n\n{task_desc}\n\n### STRATEGY TO USE\n{strategy}\n"
-    variants: list[MarketplaceTask] = []
-    for role in ("buyer", "seller"):
-        task_dict = task.model_dump(mode="json")
-        task_dict[role]["instruction_message"] += suffix
-        task_dict[role]["is_malicious"] = True
-        task_dict[role]["malicious_target"] = attack_type
-        task_dict[role]["malicious_strategy"] = "whimsical"
-        task_dict["variant"] = role
-        variants.append(MarketplaceTask.model_validate(task_dict))
-    return variants
+    malicious_prompt = f"{task_desc}\n\n### STRATEGY TO USE\n{strategy}\n"
+    task_dict = task.model_dump(mode="json")
+    task_dict["seller"]["malicious_prompt"] = malicious_prompt
+    task_dict["seller"]["is_malicious"] = True
+    task_dict["seller"]["malicious_target"] = attack_type
+    task_dict["seller"]["malicious_strategy"] = "whimsical"
+    task_dict["variant"] = "seller"
+    return [MarketplaceTask.model_validate(task_dict)]
 
 
 def _save(tasks: list[MarketplaceTask], output_path: Path) -> None:
@@ -66,11 +61,7 @@ def main() -> None:
     )
     args = parser.parse_args()
     task_desc = _TASK_DESCRIPTIONS[args.attack_type]
-    asyncio.run(
-        run_injection(
-            args, task_desc, _load, _inject_both_roles, _save, benchmark_name="marketplace"
-        )
-    )
+    asyncio.run(run_injection(args, task_desc, _load, _inject, _save, benchmark_name="marketplace"))
 
 
 if __name__ == "__main__":

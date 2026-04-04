@@ -358,6 +358,7 @@ class FormTask(Task):
     is_malicious: bool = False
     malicious_target: str | None = None
     malicious_strategy: str | None = None
+    malicious_prompt: str | None = None
     satisfiable: bool = True
     filesystem_artifacts: list[FileSystemArtifactData] = Field(default_factory=list)
     findability: list[FieldFindabilityInfo] = Field(default_factory=list)
@@ -451,7 +452,7 @@ class FormFillingEvaluationResult(TaskEvaluationResult[FormFillingExecutionResul
 
     @computed_field
     @property
-    def privacy_leaks(self) -> Sequence[FormFillingLeakedSecret]:
+    def privacy_leaks(self) -> list[FormFillingLeakedSecret]:
         leaks: list[FormFillingLeakedSecret] = []
         for name in self.form_privacy.secrets_leaked:
             leaks.append(FormFillingLeakedSecret(secret=name, source="form"))

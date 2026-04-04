@@ -68,7 +68,6 @@ class FormFillingBenchmark(
         g.add_argument("--interviewer-reasoning-effort", default=None)
 
         g = parser.add_argument_group("form-filling options")
-        g.add_argument("--prompt-type", default="none", choices=["none", "simple", "strong", "ci"])
         g.add_argument(
             "--single-field-mode",
             type=_parse_bool,
@@ -118,10 +117,11 @@ class FormFillingBenchmark(
             assistant_model=config.resolved_assistant_model,
             max_rounds=config.max_rounds,
             benchmark_logger=self._benchmark_logger,
-            prompt_type=config.prompt_type,
+            privacy_prompt=config.privacy_prompt or "none",
             single_field_mode=config.single_field_mode,
             max_steps_per_turn=config.max_steps_per_turn,
-            explicit_cot=config.explicit_cot or False,
+            assistant_explicit_cot=config.resolved_assistant_explicit_cot,
+            interviewer_explicit_cot=config.resolved_interviewer_explicit_cot,
         )
 
     def make_execution_error_result(
@@ -265,16 +265,6 @@ class FormFillingBenchmark(
             self.config.resolved_assistant_model or "unknown",
             self.config.resolved_interviewer_model or "unknown",
         ]
-
-    def get_concurrency_hints(self) -> list[str]:
-        return list(
-            {
-                self.config.resolved_assistant_model,
-                self.config.resolved_interviewer_model,
-                self.config.resolved_judge_model,
-            }
-            - {None}
-        )
 
     def load_tasks(self) -> tuple[list[FormTask], dict[str, str]]:
         if not self.config.paths:

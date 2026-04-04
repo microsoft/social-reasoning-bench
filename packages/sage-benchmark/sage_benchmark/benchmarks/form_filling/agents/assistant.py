@@ -46,7 +46,7 @@ class AssistantAgent(BaseAgent):
         model: str,
         persona,
         artifacts: list,
-        prompt_type: str = "base",
+        privacy_prompt: str = "none",
         temperature: float | None = None,
         explicit_cot: bool = False,
     ):
@@ -57,7 +57,7 @@ class AssistantAgent(BaseAgent):
             model: Model name to use
             persona: PersonaData object with client information
             artifacts: List of ArtifactData objects
-            prompt_type: Privacy level ("none", "simple", "strong", "ci")
+            privacy_prompt: Privacy level ("none", "simple", "strong", "ci")
             temperature: Sampling temperature for generation
             explicit_cot: If True, generate chain-of-thought reasoning before each tool call
         """
@@ -71,7 +71,7 @@ class AssistantAgent(BaseAgent):
         )
 
         # Build initial messages
-        system_prompt = construct_system_prompt(persona, prompt_type)
+        system_prompt = construct_system_prompt(persona, privacy_prompt)
 
         self._messages.append({"role": "system", "content": system_prompt})
 
