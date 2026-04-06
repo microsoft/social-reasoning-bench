@@ -1,7 +1,8 @@
 """Tests for SageModelClient."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from pydantic import BaseModel
 from sage_llm.client import SageModelClient, _handle_model_aliases
 from sage_llm.providers.openai import OpenAIMessage
@@ -39,66 +40,69 @@ def _make_mock_provider():
         content="hi",
         completion_info=SageChatCompletionInfo(id="x", model="m", finish_reason="stop"),
     )
-    provider.complete.return_value = msg
-    provider.acomplete.return_value = msg
+    provider.acomplete = AsyncMock(return_value=msg)
+    provider.aparse = AsyncMock()
     return provider, msg
 
 
 class TestSageModelClientComplete:
+    @pytest.mark.asyncio
     @patch("sage_llm.client.resolve_provider")
-    def test_complete_dispatches(self, mock_resolve):
+    async def test_complete_dispatches(self, mock_resolve):
         _tracer.clear()
         provider, expected_msg = _make_mock_provider()
         mock_resolve.return_value = (provider, "gpt-4o")
 
         client = SageModelClient()
-        msg = client.complete("openai/gpt-4o", [{"role": "user", "content": "hi"}])
+        msg = await client.acomplete("openai/gpt-4o", [{"role": "user", "content": "hi"}])
 
         assert msg is expected_msg
-        provider.complete.assert_called_once()
-        # Trace should have been recorded
+        provider.acomplete.assert_called_once()
         traces = _tracer.get_traces()
         assert len(traces) == 1
         assert traces[0].status == "success"
 
+    @pytest.mark.asyncio
     @patch("sage_llm.client.resolve_provider")
-    def test_complete_applies_default_reasoning_effort(self, mock_resolve):
+    async def test_complete_applies_default_reasoning_effort(self, mock_resolve):
         _tracer.clear()
         provider, _ = _make_mock_provider()
         mock_resolve.return_value = (provider, "gpt-4o")
 
         client = SageModelClient(reasoning_effort="high")
-        client.complete("openai/gpt-4o", [{"role": "user", "content": "hi"}])
+        await client.acomplete("openai/gpt-4o", [{"role": "user", "content": "hi"}])
 
-        call_kwargs = provider.complete.call_args
+        call_kwargs = provider.acomplete.call_args
         assert call_kwargs.kwargs["reasoning_effort"] == "high"
 
+    @pytest.mark.asyncio
     @patch("sage_llm.client.resolve_provider")
-    def test_complete_override_reasoning_effort(self, mock_resolve):
+    async def test_complete_override_reasoning_effort(self, mock_resolve):
         _tracer.clear()
         provider, _ = _make_mock_provider()
         mock_resolve.return_value = (provider, "gpt-4o")
 
         client = SageModelClient(reasoning_effort="high")
-        client.complete(
+        await client.acomplete(
             "openai/gpt-4o",
             [{"role": "user", "content": "hi"}],
             reasoning_effort="low",
         )
 
-        call_kwargs = provider.complete.call_args
+        call_kwargs = provider.acomplete.call_args
         assert call_kwargs.kwargs["reasoning_effort"] == "low"
 
+    @pytest.mark.asyncio
     @patch("sage_llm.client.resolve_provider")
-    def test_complete_traces_failure(self, mock_resolve):
+    async def test_complete_traces_failure(self, mock_resolve):
         _tracer.clear()
         provider = MagicMock()
-        provider.complete.side_effect = RuntimeError("boom")
+        provider.acomplete = AsyncMock(side_effect=RuntimeError("boom"))
         mock_resolve.return_value = (provider, "gpt-4o")
 
         client = SageModelClient()
         try:
-            client.complete("openai/gpt-4o", [{"role": "user", "content": "hi"}])
+            await client.acomplete("openai/gpt-4o", [{"role": "user", "content": "hi"}])
         except RuntimeError:
             pass
 
@@ -107,26 +111,28 @@ class TestSageModelClientComplete:
         assert traces[0].status == "failure"
         assert traces[0].error == "boom"
 
+    @pytest.mark.asyncio
     @patch("sage_llm.client.resolve_provider")
-    def test_complete_resolves_aliases(self, mock_resolve):
+    async def test_complete_resolves_aliases(self, mock_resolve):
         _tracer.clear()
         provider, _ = _make_mock_provider()
         mock_resolve.return_value = (provider, "claude-sonnet-4-5")
 
         client = SageModelClient()
-        client.complete("claude-sonnet-4.5", [{"role": "user", "content": "hi"}])
+        await client.acomplete("claude-sonnet-4.5", [{"role": "user", "content": "hi"}])
 
         resolved_model = mock_resolve.call_args.args[0]
         assert resolved_model == "anthropic/claude-sonnet-4-5"
 
+    @pytest.mark.asyncio
     @patch("sage_llm.client.resolve_provider")
-    def test_complete_records_sage_request(self, mock_resolve):
+    async def test_complete_records_sage_request(self, mock_resolve):
         _tracer.clear()
         provider, _ = _make_mock_provider()
         mock_resolve.return_value = (provider, "gpt-4o")
 
         client = SageModelClient()
-        client.complete(
+        await client.acomplete(
             "openai/gpt-4o",
             [{"role": "user", "content": "hi"}],
             temperature=0.5,
@@ -138,14 +144,15 @@ class TestSageModelClientComplete:
         assert traces[0].sage_request.model == "openai/gpt-4o"
         assert traces[0].sage_request.temperature == 0.5
 
+    @pytest.mark.asyncio
     @patch("sage_llm.client.resolve_provider")
-    def test_complete_records_sage_response(self, mock_resolve):
+    async def test_complete_records_sage_response(self, mock_resolve):
         _tracer.clear()
         provider, expected_msg = _make_mock_provider()
         mock_resolve.return_value = (provider, "gpt-4o")
 
         client = SageModelClient()
-        client.complete("openai/gpt-4o", [{"role": "user", "content": "hi"}])
+        await client.acomplete("openai/gpt-4o", [{"role": "user", "content": "hi"}])
 
         traces = _tracer.get_traces()
         assert traces[0].sage_response is not None
@@ -153,17 +160,18 @@ class TestSageModelClientComplete:
 
 
 class TestSageModelClientParse:
+    @pytest.mark.asyncio
     @patch("sage_llm.client.resolve_provider")
-    def test_parse_delegates(self, mock_resolve):
+    async def test_parse_delegates(self, mock_resolve):
         class Answer(BaseModel):
             text: str
 
         provider = MagicMock()
-        provider.parse.return_value = Answer(text="hello")
+        provider.aparse = AsyncMock(return_value=Answer(text="hello"))
         mock_resolve.return_value = (provider, "gpt-4o")
 
         client = SageModelClient()
-        result = client.parse(
+        result = await client.aparse(
             "openai/gpt-4o",
             [{"role": "user", "content": "hi"}],
             Answer,
@@ -171,4 +179,4 @@ class TestSageModelClientParse:
 
         assert isinstance(result, Answer)
         assert result.text == "hello"
-        provider.parse.assert_called_once()
+        provider.aparse.assert_called_once()

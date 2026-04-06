@@ -272,27 +272,26 @@ class FormFillingBenchmark(
         from .loader import load_tasks
 
         loaded = load_tasks(self.config.paths, limit=self.config.limit)
-        tasks = loaded.all_tasks
+        return loaded.all_tasks, loaded.file_hashes
 
-        # Handcrafted injection: expand benign tasks into malicious variants
-        if self.config.attack_types:
-            from .handcrafted import ATTACK_TYPES, inject
+    def expand_tasks(self, tasks: list[FormTask]) -> list[FormTask]:
+        if not self.config.attack_types:
+            return tasks
+        from .handcrafted import ATTACK_TYPES, inject
 
-            expanded: list[FormTask] = list(tasks)
-            for at in self.config.attack_types:
-                if at not in ATTACK_TYPES:
-                    raise ValueError(
-                        f"Unknown attack type {at!r}. Valid form-filling types: {ATTACK_TYPES}"
-                    )
-            benign = [t for t in tasks if not t.is_malicious]
-            if not benign:
-                raise RuntimeError(
-                    "--attack-types was set but no benign tasks found to inject into. "
-                    "All loaded tasks are already malicious."
+        for at in self.config.attack_types:
+            if at not in ATTACK_TYPES:
+                raise ValueError(
+                    f"Unknown attack type {at!r}. Valid form-filling types: {ATTACK_TYPES}"
                 )
-            for task in benign:
-                for at in self.config.attack_types:
-                    expanded.extend(inject(task, at))
-            tasks = expanded
-
-        return tasks, loaded.file_hashes
+        benign = [t for t in tasks if not t.is_malicious]
+        if not benign:
+            raise RuntimeError(
+                "--attack-types was set but no benign tasks found to inject into. "
+                "All loaded tasks are already malicious."
+            )
+        expanded: list[FormTask] = list(tasks)
+        for task in benign:
+            for at in self.config.attack_types:
+                expanded.extend(inject(task, at))
+        return expanded

@@ -77,6 +77,7 @@ class BaseAgent:
         explicit_cot: bool = False,
         temperature: float | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam = "auto",
+        prompt_label: str = "unknown",
     ) -> None:
         """Initialize the base agent.
 
@@ -91,9 +92,13 @@ class BaseAgent:
             tool_choice: Tool choice mode for the LLM (default ``"auto"``).
                 Use ``"required"`` to force the model to always produce a
                 tool call.
+            prompt_label: Label for token tracking (e.g., "interviewer",
+                "assistant"). Used by the concurrency module to report
+                per-prompt token breakdowns.
         """
         self._model = model
         self._model_client = model_client
+        self._prompt_label = prompt_label
         self._messages: list[SageMessage] = []
         self._explicit_cot = explicit_cot
         self._temperature = temperature
@@ -242,6 +247,8 @@ class BaseAgent:
         Returns:
             The generated reasoning text.
         """
+        from sage_llm.concurrency import prompt_label
+
         cot_messages = list(messages)
         cot_messages.append(
             {
@@ -253,10 +260,14 @@ class BaseAgent:
                 ),
             }
         )
-        response = await self._model_client.acomplete(
-            model=self._model,
-            messages=cot_messages,
-        )
+        token = prompt_label.set(self._prompt_label)
+        try:
+            response = await self._model_client.acomplete(
+                model=self._model,
+                messages=cot_messages,
+            )
+        finally:
+            prompt_label.reset(token)
         return response.content or ""
 
     # ------------------------------------------------------------------ #
@@ -300,16 +311,22 @@ class BaseAgent:
                     )
 
             # Call the LLM
+            from sage_llm.concurrency import prompt_label
+
             gen_kwargs: dict[str, Any] = {}
             if self._temperature is not None:
                 gen_kwargs["temperature"] = self._temperature
-            message = await self._model_client.acomplete(
-                model=self._model,
-                messages=messages,
-                tools=self._openai_tools,
-                tool_choice=self._tool_choice,
-                **gen_kwargs,
-            )
+            token = prompt_label.set(self._prompt_label)
+            try:
+                message = await self._model_client.acomplete(
+                    model=self._model,
+                    messages=messages,
+                    tools=self._openai_tools,
+                    tool_choice=self._tool_choice,
+                    **gen_kwargs,
+                )
+            finally:
+                prompt_label.reset(token)
 
             tool_calls = message.tool_calls or []
 
@@ -429,9 +446,15 @@ class BaseAgent:
         Returns:
             The model's text response.
         """
+        from sage_llm.concurrency import prompt_label
+
         messages: list[SageMessage] = [*self._messages, {"role": "user", "content": prompt}]
-        response = await self._model_client.acomplete(
-            model=self._model,
-            messages=messages,
-        )
+        token = prompt_label.set(self._prompt_label)
+        try:
+            response = await self._model_client.acomplete(
+                model=self._model,
+                messages=messages,
+            )
+        finally:
+            prompt_label.reset(token)
         return response.content or ""

@@ -97,6 +97,7 @@ class InterviewerAgent(BaseAgent):
             tools=[SendMessage, self._submit_form_tool],
             tool_choice="required",
             explicit_cot=explicit_cot,
+            prompt_label="ff_interviewer",
         )
 
         user_content = f"""{instruction_message}

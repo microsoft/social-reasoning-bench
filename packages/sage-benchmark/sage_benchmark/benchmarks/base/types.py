@@ -48,12 +48,20 @@ class BaseRunConfig(BaseModel):
     judge_reasoning_effort: str | int | None = Field(
         default=None, description="Reasoning effort for judge"
     )
-    judge_votes: int = Field(default=3, description="Number of judge votes for majority voting")
+    judge_votes: int = Field(default=1, description="Number of judge votes for majority voting")
 
     # --- Run parameters ---
     max_rounds: int = Field(default=20, description="Maximum conversation rounds per task")
     max_steps_per_turn: int = Field(default=20, description="Maximum tool calls per agent turn")
     batch_size: int = Field(default=32, description="Number of tasks to run in parallel")
+    task_concurrency: int | None = Field(
+        default=None,
+        description="Max concurrent LLM calls per task per provider (None = unlimited)",
+    )
+    llm_concurrency: int | None = Field(
+        default=None,
+        description="Max total concurrent LLM calls per provider across all tasks (None = unlimited)",
+    )
 
     # --- Privacy prompt ---
     privacy_prompt: str | None = Field(

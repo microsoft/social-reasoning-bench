@@ -163,6 +163,18 @@ def _run_experiment(argv: list[str]) -> None:
         help="Number of tasks to run concurrently (default: 100)",
     )
     parser.add_argument(
+        "--task-concurrency",
+        type=int,
+        default=None,
+        help="Max concurrent LLM calls per task per provider (default: unlimited)",
+    )
+    parser.add_argument(
+        "--llm-concurrency",
+        type=int,
+        default=None,
+        help="Max total concurrent LLM calls per provider across all tasks (default: unlimited)",
+    )
+    parser.add_argument(
         "--restart-exec",
         action="store_true",
         default=False,
@@ -219,6 +231,8 @@ def _run_experiment(argv: list[str]) -> None:
             patterns=args.k,
             override_groups=final_override_groups,
             batch_size=args.batch_size,
+            task_concurrency=args.task_concurrency,
+            llm_concurrency=args.llm_concurrency,
             restart_exec=args.restart_exec,
             restart_eval=args.restart_eval,
             logger_style=args.logger,

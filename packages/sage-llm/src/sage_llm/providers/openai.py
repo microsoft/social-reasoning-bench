@@ -1,9 +1,6 @@
 """OpenAI provider — direct API and OpenAI-compatible gateways (e.g. phyagi)."""
 
-import asyncio
 import logging
-import os
-import threading
 from typing import Any, TypeVar, cast
 
 import openai
@@ -15,6 +12,7 @@ from openai.types.chat import (
 )
 from pydantic import BaseModel
 
+from ..concurrency import record_usage, with_llm_retry
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionInfo, SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
@@ -22,46 +20,23 @@ from .base import SageModelProvider
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
-_thread_local = threading.local()
-
-_MAX_CONCURRENT = int(
-    os.environ.get("SAGE_LLM_MAX_CONCURRENT_OPENAI", os.environ.get("SAGE_LLM_MAX_CONCURRENT", "0"))
-)
-_async_semaphore: asyncio.Semaphore | None = None
-_sync_semaphore: threading.Semaphore | None = (
-    threading.Semaphore(_MAX_CONCURRENT) if _MAX_CONCURRENT > 0 else None
-)
+_CLIENT_CACHE: dict[tuple, openai.AsyncOpenAI] = {}
 
 
-def _get_async_semaphore() -> asyncio.Semaphore | None:
-    """Return a module-level async semaphore for throttling concurrent OpenAI calls."""
-    global _async_semaphore
-    if _MAX_CONCURRENT <= 0:
-        return None
-    if _async_semaphore is None:
-        _async_semaphore = asyncio.Semaphore(_MAX_CONCURRENT)
-    return _async_semaphore
-
-
-def _get_openai_clients(
-    api_key: str | None, base_url: str | None
-) -> tuple[openai.OpenAI, openai.AsyncOpenAI]:
-    """Return a cached (sync, async) OpenAI client pair for this thread."""
+def _get_openai_client(api_key: str | None, base_url: str | None) -> openai.AsyncOpenAI:
+    """Return a cached AsyncOpenAI client."""
     cache_key = ("openai", api_key, base_url)
-    cache = getattr(_thread_local, "openai_clients", None)
-    if cache is None:
-        cache = {}
-        _thread_local.openai_clients = cache
-    if cache_key in cache:
-        return cache[cache_key]
+    if cache_key in _CLIENT_CACHE:
+        return _CLIENT_CACHE[cache_key]
     ck: dict[str, Any] = {}
     if api_key is not None:
         ck["api_key"] = api_key
     if base_url is not None:
         ck["base_url"] = base_url
-    pair = (openai.OpenAI(**ck), openai.AsyncOpenAI(**ck))
-    cache[cache_key] = pair
-    return pair
+    ck["max_retries"] = 0
+    client = openai.AsyncOpenAI(**ck)
+    _CLIENT_CACHE[cache_key] = client
+    return client
 
 
 class OpenAIMessage(SageChatCompletionMessage):
@@ -73,45 +48,12 @@ class OpenAIMessage(SageChatCompletionMessage):
 class OpenAIProvider(SageModelProvider):
     """Provider for OpenAI and OpenAI-compatible APIs."""
 
+    PROVIDER_KEY = "openai"
+
     def __init__(self, api_key: str | None = None, base_url: str | None = None):
-        self._client, self._async_client = _get_openai_clients(api_key, base_url)
+        self._client = _get_openai_client(api_key, base_url)
 
     # -- public API --
-
-    def complete(
-        self,
-        model: str,
-        messages: list[SageMessage],
-        *,
-        trace: LLMTrace,
-        temperature: float | None = None,
-        max_tokens: int | None = None,
-        top_p: float | None = None,
-        stop: str | list[str] | None = None,
-        tools: list[ChatCompletionToolParam] | None = None,
-        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        reasoning_effort: str | int | None = None,
-    ) -> SageChatCompletionMessage:
-        kwargs = self._build_kwargs(
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-            stop=stop,
-            tools=tools,
-            tool_choice=tool_choice,
-            reasoning_effort=reasoning_effort,
-        )
-        openai_msgs = _to_openai_messages(messages)
-        sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
-        if _sync_semaphore:
-            _sync_semaphore.acquire()
-        try:
-            response = self._client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
-        finally:
-            if _sync_semaphore:
-                _sync_semaphore.release()
-        _fill_trace(trace, sdk_kwargs, response)
-        return _to_openai_message(response)
 
     async def acomplete(
         self,
@@ -138,49 +80,21 @@ class OpenAIProvider(SageModelProvider):
         )
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
-        sem = _get_semaphore()
-        if sem:
-            async with sem:
-                response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
-        else:
-            response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        response, call_duration = await with_llm_retry(
+            self.PROVIDER_KEY,
+            model,
+            lambda _: self._client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
+        )
+        if response.usage:
+            record_usage(
+                self.PROVIDER_KEY,
+                model,
+                response.usage.prompt_tokens or 0,
+                response.usage.completion_tokens or 0,
+                call_duration,
+            )
         _fill_trace(trace, sdk_kwargs, response)
         return _to_openai_message(response)
-
-    def parse(
-        self,
-        model: str,
-        messages: list[SageMessage],
-        response_format: type[T],
-        *,
-        temperature: float | None = None,
-        max_tokens: int | None = None,
-        top_p: float | None = None,
-        stop: str | list[str] | None = None,
-        reasoning_effort: str | int | None = None,
-    ) -> T:
-        kwargs = self._build_kwargs(
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-            stop=stop,
-            reasoning_effort=reasoning_effort,
-        )
-        kwargs["response_format"] = _pydantic_to_json_schema(response_format)
-        openai_msgs = _to_openai_messages(messages)
-        sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
-        trace = LLMTrace()
-        if _sync_semaphore:
-            _sync_semaphore.acquire()
-        try:
-            response = self._client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
-        finally:
-            if _sync_semaphore:
-                _sync_semaphore.release()
-        _fill_trace(trace, sdk_kwargs, response)
-        message = _to_openai_message(response)
-        assert message.content is not None
-        return response_format.model_validate_json(message.content)
 
     async def aparse(
         self,
@@ -205,12 +119,19 @@ class OpenAIProvider(SageModelProvider):
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
         trace = LLMTrace()
-        sem = _get_async_semaphore()
-        if sem:
-            async with sem:
-                response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
-        else:
-            response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        response, call_duration = await with_llm_retry(
+            self.PROVIDER_KEY,
+            model,
+            lambda _: self._client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
+        )
+        if response.usage:
+            record_usage(
+                self.PROVIDER_KEY,
+                model,
+                response.usage.prompt_tokens or 0,
+                response.usage.completion_tokens or 0,
+                call_duration,
+            )
         _fill_trace(trace, sdk_kwargs, response)
         message = _to_openai_message(response)
         assert message.content is not None

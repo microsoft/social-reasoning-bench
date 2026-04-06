@@ -68,6 +68,7 @@ class AssistantAgent(BaseAgent):
             temperature=temperature,
             tool_choice="required",
             explicit_cot=explicit_cot,
+            prompt_label="ff_assistant",
         )
 
         # Build initial messages

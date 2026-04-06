@@ -69,9 +69,6 @@
     .metric-card { transition: box-shadow 0.2s; }
     .metric-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 
-    .heatmap-cell { transition: transform 0.1s; }
-    .heatmap-cell:hover { transform: scale(1.05); z-index: 10; }
-
     .filter-btn { transition: all 0.15s; }
     .filter-btn.active { ring: 2px; }
 
@@ -82,6 +79,14 @@
     .expand-row:hover { background: rgba(107, 158, 120, 0.08); }
 
     .detail-tab-btn.active { color: #6b9e78; border-bottom-color: #6b9e78; }
+
+    .tv-detail-tab { transition: color 0.15s, border-color 0.15s; }
+    .tv-field-exact { background: rgba(107, 158, 120, 0.06); }
+    .tv-field-semantic { background: rgba(234, 179, 8, 0.06); }
+    .tv-field-miss { background: rgba(239, 68, 68, 0.06); }
+    .dark .tv-field-exact { background: rgba(107, 158, 120, 0.08); }
+    .dark .tv-field-semantic { background: rgba(234, 179, 8, 0.08); }
+    .dark .tv-field-miss { background: rgba(239, 68, 68, 0.08); }
 
     .sidebar-file {
       display: flex; align-items: center; justify-content: space-between;
@@ -165,6 +170,9 @@
       <div id="loading-text" class="text-sm font-medium text-gray-700 dark:text-gray-300">Loading...</div>
     </div>
   </div>
+
+  <!-- ── Toast ── -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium bg-gray-800 text-gray-100 dark:bg-gray-200 dark:text-gray-900 opacity-0 pointer-events-none transition-opacity duration-300"></div>
 
   <!-- ── App Body (sidebar + main) ── -->
   <div class="flex flex-1 min-h-0">
@@ -302,105 +310,8 @@
             </div>
           </div>
 
-          <!-- Benchmark Trace Viewer Tabs -->
-          <div id="tab-calendar" class="tab-content hidden flex-1 min-h-0 flex flex-col">
-            <div class="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-              <!-- Experiment picker (shown first) -->
-              <div id="tv-exppanel-calendar" class="flex-1 min-h-0 flex flex-col">
-                <div class="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
-                  <div class="text-sm font-medium text-gray-700 dark:text-gray-300">Select an experiment to inspect its tasks</div>
-                  <div class="text-[10px] text-gray-400 dark:text-gray-500">Click a row to view individual task results</div>
-                </div>
-                <div id="tv-exptable-calendar" class="flex-1 min-h-0 overflow-auto"></div>
-              </div>
-              <!-- Task viewer (shown after picking experiment) -->
-              <div id="tv-taskview-calendar" class="hidden flex-1 min-h-0 flex flex-col">
-                <div class="flex-shrink-0 px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
-                  <button class="tv-back-btn text-xs text-sage-600 dark:text-sage-400 hover:text-sage-800 dark:hover:text-sage-200 font-medium flex items-center gap-1" data-benchmark="calendar">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                    All Experiments
-                  </button>
-                  <span class="text-[10px] text-gray-400 dark:text-gray-500">|</span>
-                  <span id="tv-exp-label-calendar" class="text-xs text-gray-500 dark:text-gray-400 truncate"></span>
-                </div>
-                <div class="flex-1 min-h-0 flex">
-                  <div class="tv-tasklist-wrapper flex-shrink-0 border-r border-gray-100 dark:border-gray-800 flex flex-col transition-all duration-200" style="width: 28rem;">
-                    <button class="tv-tasklist-toggle flex-shrink-0 h-7 flex items-center gap-1.5 px-2 text-gray-400 hover:text-sage-600 dark:hover:text-sage-400 transition border-b border-gray-100 dark:border-gray-800" data-benchmark="calendar" title="Toggle task list">
-                      <svg class="tv-tl-collapse w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                      <svg class="tv-tl-expand w-3.5 h-3.5 flex-shrink-0 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                      <span class="tv-tl-label text-[10px] text-gray-400 dark:text-gray-500">Select a task to view details</span>
-                    </button>
-                    <div id="tv-tasklist-calendar" class="tv-tasklist-content flex-1 min-h-0 overflow-auto"></div>
-                  </div>
-                  <div id="tv-detail-calendar" class="flex-1 min-w-0 overflow-y-auto p-4"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div id="tab-marketplace" class="tab-content hidden flex-1 min-h-0 flex flex-col">
-            <div class="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-              <div id="tv-exppanel-marketplace" class="flex-1 min-h-0 flex flex-col">
-                <div class="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
-                  <div class="text-sm font-medium text-gray-700 dark:text-gray-300">Select an experiment to inspect its tasks</div>
-                  <div class="text-[10px] text-gray-400 dark:text-gray-500">Click a row to view individual task results</div>
-                </div>
-                <div id="tv-exptable-marketplace" class="flex-1 min-h-0 overflow-auto"></div>
-              </div>
-              <div id="tv-taskview-marketplace" class="hidden flex-1 min-h-0 flex flex-col">
-                <div class="flex-shrink-0 px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
-                  <button class="tv-back-btn text-xs text-sage-600 dark:text-sage-400 hover:text-sage-800 dark:hover:text-sage-200 font-medium flex items-center gap-1" data-benchmark="marketplace">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                    All Experiments
-                  </button>
-                  <span class="text-[10px] text-gray-400 dark:text-gray-500">|</span>
-                  <span id="tv-exp-label-marketplace" class="text-xs text-gray-500 dark:text-gray-400 truncate"></span>
-                </div>
-                <div class="flex-1 min-h-0 flex">
-                  <div class="tv-tasklist-wrapper flex-shrink-0 border-r border-gray-100 dark:border-gray-800 flex flex-col transition-all duration-200" style="width: 28rem;">
-                    <button class="tv-tasklist-toggle flex-shrink-0 h-7 flex items-center gap-1.5 px-2 text-gray-400 hover:text-sage-600 dark:hover:text-sage-400 transition border-b border-gray-100 dark:border-gray-800" data-benchmark="marketplace" title="Toggle task list">
-                      <svg class="tv-tl-collapse w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                      <svg class="tv-tl-expand w-3.5 h-3.5 flex-shrink-0 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                      <span class="tv-tl-label text-[10px] text-gray-400 dark:text-gray-500">Select a task to view details</span>
-                    </button>
-                    <div id="tv-tasklist-marketplace" class="tv-tasklist-content flex-1 min-h-0 overflow-auto"></div>
-                  </div>
-                  <div id="tv-detail-marketplace" class="flex-1 min-w-0 overflow-y-auto p-4"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div id="tab-form_filling" class="tab-content hidden flex-1 min-h-0 flex flex-col">
-            <div class="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-              <div id="tv-exppanel-form_filling" class="flex-1 min-h-0 flex flex-col">
-                <div class="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
-                  <div class="text-sm font-medium text-gray-700 dark:text-gray-300">Select an experiment to inspect its tasks</div>
-                  <div class="text-[10px] text-gray-400 dark:text-gray-500">Click a row to view individual task results</div>
-                </div>
-                <div id="tv-exptable-form_filling" class="flex-1 min-h-0 overflow-auto"></div>
-              </div>
-              <div id="tv-taskview-form_filling" class="hidden flex-1 min-h-0 flex flex-col">
-                <div class="flex-shrink-0 px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
-                  <button class="tv-back-btn text-xs text-sage-600 dark:text-sage-400 hover:text-sage-800 dark:hover:text-sage-200 font-medium flex items-center gap-1" data-benchmark="form_filling">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                    All Experiments
-                  </button>
-                  <span class="text-[10px] text-gray-400 dark:text-gray-500">|</span>
-                  <span id="tv-exp-label-form_filling" class="text-xs text-gray-500 dark:text-gray-400 truncate"></span>
-                </div>
-                <div class="flex-1 min-h-0 flex">
-                  <div class="tv-tasklist-wrapper flex-shrink-0 border-r border-gray-100 dark:border-gray-800 flex flex-col transition-all duration-200" style="width: 28rem;">
-                    <button class="tv-tasklist-toggle flex-shrink-0 h-7 flex items-center gap-1.5 px-2 text-gray-400 hover:text-sage-600 dark:hover:text-sage-400 transition border-b border-gray-100 dark:border-gray-800" data-benchmark="form_filling" title="Toggle task list">
-                      <svg class="tv-tl-collapse w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                      <svg class="tv-tl-expand w-3.5 h-3.5 flex-shrink-0 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                      <span class="tv-tl-label text-[10px] text-gray-400 dark:text-gray-500">Select a task to view details</span>
-                    </button>
-                    <div id="tv-tasklist-form_filling" class="tv-tasklist-content flex-1 min-h-0 overflow-auto"></div>
-                  </div>
-                  <div id="tv-detail-form_filling" class="flex-1 min-w-0 overflow-y-auto p-4"></div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- Benchmark Trace Viewer Tabs (generated by JS) -->
+          <div id="benchmark-tabs-container" class="contents"></div>
 
         </div>
       </div>
@@ -437,6 +348,8 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
 // Constants & Config
 // ─────────────────────────────────────────────
 
+function themeDark() { return document.documentElement.classList.contains('dark'); }
+
 const CORE_METRICS = {
   task_completion: { label: 'Task Completion', aggKey: 'avg_task_completion', taskKey: 'task_completed', format: 'percent', higherIsBetter: true, scale: [0, 1] },
   leakage_rate:    { label: 'Leakage Rate',    aggKey: 'avg_leakage_rate',    taskKey: 'leakage_rate',   format: 'percent', higherIsBetter: false, scale: [0, 1] },
@@ -468,6 +381,18 @@ const PALETTE = [
   { bg: 'rgba(190, 150, 120, 0.7)', border: '#be9678' },  // tan
   { bg: 'rgba(110, 150, 160, 0.7)', border: '#6e96a0' },  // steel blue
   { bg: 'rgba(165, 130, 130, 0.7)', border: '#a58282' },  // mauve
+];
+
+// Warm palette used exclusively for the Series (3rd groupBy) dimension
+const SERIES_PALETTE = [
+  { bg: 'rgba(107, 114, 128, 0.7)', border: '#6b7280' },  // gray
+  { bg: 'rgba(239, 68, 68, 0.7)',   border: '#ef4444' },  // red
+  { bg: 'rgba(249, 115, 22, 0.7)',  border: '#f97316' },  // orange
+  { bg: 'rgba(234, 179, 8, 0.7)',   border: '#eab308' },  // yellow
+  { bg: 'rgba(168, 85, 247, 0.7)',  border: '#a855f7' },  // purple
+  { bg: 'rgba(236, 72, 153, 0.7)',  border: '#ec4899' },  // pink
+  { bg: 'rgba(20, 184, 166, 0.7)',  border: '#14b8a6' },  // teal
+  { bg: 'rgba(59, 130, 246, 0.7)',  border: '#3b82f6' },  // blue
 ];
 
 const DIMENSION_DEFS = {
@@ -507,30 +432,100 @@ const state = {
   scrollLocked: true,
   scatterX: 'due_diligence',
   scatterY: 'duty_of_care',
+  seriesEnabled: true,
   filterClipboard: null,  // { dims: { dim: Set }, visibleMetrics: Set } or null
 };
+
+// ─────────────────────────────────────────────
+// URL State Persistence
+// ─────────────────────────────────────────────
+
+function pushViewState() {
+  try {
+    const s = {
+      tab: state.activeTab,
+      g: state.groupBy,
+      sx: state.scatterX,
+      sy: state.scatterY,
+      se: state.seriesEnabled,
+      dt: document.querySelector('.detail-tab-btn.active')?.dataset.detail,
+    };
+    history.replaceState(null, '', '#' + btoa(JSON.stringify(s)));
+  } catch(e) {}
+}
+
+function restoreViewState() {
+  try {
+    const hash = location.hash.slice(1);
+    if (!hash) return;
+    const s = JSON.parse(atob(hash));
+    if (s.tab) state.activeTab = s.tab;
+    if (Array.isArray(s.g) && s.g.length === 3) state.groupBy = s.g;
+    if (s.sx && CORE_METRICS[s.sx]) state.scatterX = s.sx;
+    if (s.sy && CORE_METRICS[s.sy]) state.scatterY = s.sy;
+    if (s.se != null) state.seriesEnabled = s.se;
+    if (s.dt) {
+      // Restore detail sub-tab after DOM ready
+      setTimeout(() => {
+        const btn = document.querySelector(`.detail-tab-btn[data-detail="${s.dt}"]`);
+        if (btn) btn.click();
+      }, 0);
+    }
+  } catch(e) {}
+}
 
 // ─────────────────────────────────────────────
 // Data Parsing
 // ─────────────────────────────────────────────
 
-function parseAttackFromPaths(paths) {
-  // Extract attack type and style from data file paths
-  // e.g. "small-malicious-hand-crafted-privacy.yaml" → {attackType:'privacy', attackStyle:'hand_crafted'}
-  //      "small-whimsical-duty_of_care.yaml"          → {attackType:'duty_of_care', attackStyle:'whimsical'}
-  //      "small.yaml"                                  → {attackType:'none', attackStyle:'none'}
-  if (!paths || !paths.length) return { attackType: 'none', attackStyle: 'none' };
+function parseAttackFromTasks(results) {
+  // Primary: read attack info directly from task data
+  for (const r of (results || [])) {
+    const task = r.execution?.task || r.task || {};
+    // Form filling: fields on task directly
+    if (task.is_malicious && task.malicious_target) {
+      return { attackType: task.malicious_target.replace(/-/g, '_'), attackStyle: (task.malicious_strategy || 'unknown').replace(/-/g, '_') };
+    }
+    // Calendar: fields on task.requestor
+    const req = task.requestor || {};
+    if (req.is_malicious && req.malicious_target) {
+      return { attackType: req.malicious_target.replace(/-/g, '_'), attackStyle: (req.malicious_strategy || 'unknown').replace(/-/g, '_') };
+    }
+    // Marketplace: fields on task.seller or task.buyer
+    for (const role of [task.seller, task.buyer].filter(Boolean)) {
+      if (role.is_malicious && role.malicious_target) {
+        return { attackType: role.malicious_target.replace(/-/g, '_'), attackStyle: (role.malicious_strategy || 'unknown').replace(/-/g, '_') };
+      }
+    }
+  }
+  return { attackType: 'none', attackStyle: 'none' };
+}
 
+function parseAttackFromVariant(variant) {
+  // Fallback: parse variant string for attack hints
+  if (!variant) return null;
+  const v = variant.toLowerCase();
+  const attackTypes = ['privacy', 'duty_of_care', 'due_diligence'];
+  for (const at of attackTypes) {
+    if (v.includes(at)) {
+      const style = v.includes('whimsical') ? 'whimsical' : v.includes('hand_crafted') || v.includes('hc-') ? 'hand_crafted' : 'unknown';
+      return { attackType: at, attackStyle: style };
+    }
+  }
+  return null;
+}
+
+function parseAttackFromPaths(paths) {
+  // Last resort: extract attack type from data file paths
+  if (!paths || !paths.length) return null;
   for (const p of paths) {
-    const base = p.split('/').pop().replace(/\.\w+$/, ''); // filename without extension
-    // hand-crafted attacks: "...-malicious-hand-crafted-{attack}"
+    const base = p.split('/').pop().replace(/\.\w+$/, '');
     const hc = base.match(/malicious-hand-crafted-(\w+)/);
     if (hc) return { attackType: hc[1].replace(/-/g, '_'), attackStyle: 'hand_crafted' };
-    // whimsical attacks: "...-whimsical-{attack}" or "...-whimsical_{attack}"
     const wh = base.match(/whimsical[-_](\w+)/);
     if (wh) return { attackType: wh[1].replace(/-/g, '_'), attackStyle: 'whimsical' };
   }
-  return { attackType: 'none', attackStyle: 'none' };
+  return null;
 }
 
 function parseBenchmarkFromPaths(paths) {
@@ -548,7 +543,8 @@ function detectBenchmark(json) {
   if ('requestor_model' in cfg || 'assistant_system_prompt' in cfg) return 'calendar';
   if ('buyer_model' in cfg || 'seller_model' in cfg) return 'marketplace';
   if ('interviewer_model' in cfg || 'prompt_type' in cfg) return 'form_filling';
-  const firstTask = json.results?.[0]?.execution?.task;
+  // Check results (BenchmarkOutput) or evaluation_results (CheckpointData)
+  const firstTask = (json.results?.[0] || json.evaluation_results?.[0])?.execution?.task;
   if (firstTask?.type) return firstTask.type === 'marketplace' ? 'marketplace' : firstTask.type === 'calendar' ? 'calendar' : 'form_filling';
   if (firstTask?.form_info) return 'form_filling';
   if (firstTask?.product) return 'marketplace';
@@ -585,7 +581,8 @@ function extractPrivacyLevel(cfg) {
 
 function parseResultsFile(json, filename) {
   const cfg = json.config || {};
-  const attack = parseAttackFromPaths(cfg.paths);
+  const variant = (cfg.variant || filename.replace('.json', '')).replace(/,[^,]+=.*/g, '');
+  const attack = parseAttackFromTasks(json.results) || parseAttackFromVariant(variant) || parseAttackFromPaths(cfg.paths) || { attackType: 'none', attackStyle: 'none' };
   const benchmark = parseBenchmarkFromPaths(cfg.paths) || detectBenchmark(json);
   const model = displayModel(cfg.model);
   const privacyLevel = extractPrivacyLevel(cfg);
@@ -600,7 +597,7 @@ function parseResultsFile(json, filename) {
     model,
     privacyLevel,
     reasoningConfig,
-    variant: (cfg.variant || filename.replace('.json', '')).replace(/,[^,]+=.*/g, ''),
+    variant,
     timestamp: json.timestamp,
     elapsedSeconds: json.elapsed_seconds || 0,
     evaluation: json.evaluation || {},
@@ -624,7 +621,8 @@ function isCheckpointFile(json) {
 
 function parseCheckpointFile(json, filename) {
   const cfg = json.config || {};
-  const attack = parseAttackFromPaths(cfg.paths);
+  const variant = (cfg.variant || filename.replace('.json', '')).replace(/,[^,]+=.*/g, '');
+  const attack = parseAttackFromTasks(json.evaluation_results) || parseAttackFromVariant(variant) || parseAttackFromPaths(cfg.paths) || { attackType: 'none', attackStyle: 'none' };
   const benchmark = parseBenchmarkFromPaths(cfg.paths) || detectBenchmark(json);
   const model = displayModel(cfg.model);
   const privacyLevel = extractPrivacyLevel(cfg);
@@ -662,7 +660,7 @@ function parseCheckpointFile(json, filename) {
     model,
     privacyLevel,
     reasoningConfig,
-    variant: (cfg.variant || filename.replace('.json', '')).replace(/,[^,]+=.*/g, ''),
+    variant,
     timestamp: json.last_updated || '',
     elapsedSeconds: 0,
     evaluation,
@@ -891,6 +889,75 @@ const emptyState = document.getElementById('empty-state');
 const sidebar = document.getElementById('sidebar');
 const fileCountSpan = document.getElementById('file-count');
 
+// Generate benchmark trace-viewer tabs from template
+(function initBenchmarkTabs() {
+  const container = document.getElementById('benchmark-tabs-container');
+  const benchmarks = ['calendar', 'marketplace', 'form_filling'];
+  benchmarks.forEach(bm => {
+    const tab = document.createElement('div');
+    tab.id = 'tab-' + bm;
+    tab.className = 'tab-content hidden flex-1 min-h-0 flex flex-col';
+    tab.innerHTML = `
+      <div class="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <div id="tv-exppanel-${bm}" class="flex-1 min-h-0 flex flex-col">
+          <div class="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+            <div class="text-sm font-medium text-gray-700 dark:text-gray-300">Select an experiment to inspect its tasks</div>
+            <div class="text-[10px] text-gray-400 dark:text-gray-500">Click a row to view individual task results</div>
+          </div>
+          <div id="tv-exptable-${bm}" class="flex-1 min-h-0 overflow-auto"></div>
+        </div>
+        <div id="tv-taskview-${bm}" class="hidden flex-1 min-h-0 flex flex-col">
+          <div class="flex-shrink-0 px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
+            <button class="tv-back-btn text-xs text-sage-600 dark:text-sage-400 hover:text-sage-800 dark:hover:text-sage-200 font-medium flex items-center gap-1" data-benchmark="${bm}">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+              All Experiments
+            </button>
+            <span class="text-[10px] text-gray-400 dark:text-gray-500">|</span>
+            <span id="tv-exp-label-${bm}" class="text-xs text-gray-500 dark:text-gray-400 truncate"></span>
+          </div>
+          <div class="flex-1 min-h-0 flex">
+            <div class="tv-tasklist-wrapper flex-shrink-0 border-r border-gray-100 dark:border-gray-800 flex flex-col transition-all duration-200" style="width: 28rem;">
+              <button class="tv-tasklist-toggle flex-shrink-0 h-7 flex items-center gap-1.5 px-2 text-gray-400 hover:text-sage-600 dark:hover:text-sage-400 transition border-b border-gray-100 dark:border-gray-800" data-benchmark="${bm}" title="Toggle task list">
+                <svg class="tv-tl-collapse w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                <svg class="tv-tl-expand w-3.5 h-3.5 flex-shrink-0 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                <span class="tv-tl-label text-[10px] text-gray-400 dark:text-gray-500">Select a task to view details</span>
+              </button>
+              <div id="tv-tasklist-${bm}" class="tv-tasklist-content flex-1 min-h-0 overflow-auto"></div>
+            </div>
+            <div id="tv-detail-${bm}" class="flex-1 min-w-0 flex flex-col overflow-hidden"></div>
+          </div>
+        </div>
+      </div>`;
+    container.appendChild(tab);
+  });
+
+  // Wire task list collapse toggles
+  container.querySelectorAll('.tv-tasklist-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wrapper = btn.closest('.tv-tasklist-wrapper');
+      const content = wrapper.querySelector('.tv-tasklist-content');
+      const expanded = !content.classList.contains('hidden');
+      content.classList.toggle('hidden', expanded);
+      wrapper.style.width = expanded ? '1.75rem' : '28rem';
+      btn.querySelector('.tv-tl-collapse').classList.toggle('hidden', expanded);
+      btn.querySelector('.tv-tl-expand').classList.toggle('hidden', !expanded);
+      btn.querySelector('.tv-tl-label').classList.toggle('hidden', expanded);
+    });
+  });
+
+  // Wire back buttons
+  container.querySelectorAll('.tv-back-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const benchmark = btn.dataset.benchmark;
+      tvState[benchmark].expIdx = null;
+      tvState[benchmark].taskIdx = 0;
+      tvState[benchmark].activeDetailTab = 'outcomes';
+      const filtered = state.experiments.filter(e => e.benchmark === benchmark);
+      tvShowExpTable(benchmark, filtered);
+    });
+  });
+})();
+
 async function handleFileInput(e) {
   const files = Array.from(e.target.files);
   if (!files.length) return;
@@ -932,6 +999,15 @@ function showLoading(msg) {
 }
 function hideLoading() {
   document.getElementById('loading-overlay').classList.add('hidden');
+}
+
+function showToast(msg, ms = 4000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.remove('opacity-0', 'pointer-events-none');
+  el.classList.add('opacity-100');
+  clearTimeout(el._tid);
+  el._tid = setTimeout(() => { el.classList.remove('opacity-100'); el.classList.add('opacity-0', 'pointer-events-none'); }, ms);
 }
 
 async function handleFolderPick() {
@@ -979,7 +1055,6 @@ document.querySelectorAll('.detail-tab-btn').forEach(btn => {
     destroyAllCharts();
     if (btn.dataset.detail === 'radar') renderColumned('radar-columns', filtered, renderRadarColumn);
     if (btn.dataset.detail === 'bars') renderColumned('bars-columns', filtered, renderBarsColumn);
-    if (btn.dataset.detail === 'heatmap') renderHeatmap(filtered);
     if (btn.dataset.detail === 'distributions') renderColumned('dist-columns', filtered, renderDistColumn);
     if (btn.dataset.detail === 'scatter') renderColumned('scatter-columns', filtered, renderScatterColumn);
   });
@@ -1028,6 +1103,10 @@ document.getElementById('scroll-lock-btn').addEventListener('click', () => {
 function setupScrollSync(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
+  // Abort previous listeners to prevent accumulation
+  if (container._scrollSyncAC) container._scrollSyncAC.abort();
+  const ac = new AbortController();
+  container._scrollSyncAC = ac;
   const cols = container.children;
   let syncing = false;
   Array.from(cols).forEach(col => {
@@ -1038,7 +1117,7 @@ function setupScrollSync(containerId) {
         if (other !== col) other.scrollTop = col.scrollTop;
       });
       syncing = false;
-    });
+    }, { signal: ac.signal });
   });
 }
 
@@ -1047,20 +1126,22 @@ function setupScrollSync(containerId) {
 // ─────────────────────────────────────────────
 
 async function loadFiles(files) {
+  const replaced = [];
   for (const file of files) {
     try {
       const text = await file.text();
       const json = JSON.parse(text);
       const exp = isCheckpointFile(json) ? parseCheckpointFile(json, file.name) : parseResultsFile(json, file.name);
       // Dedup by variant+model (not filename — all files are named results.json)
-      const dedupKey = `${exp.variant}::${exp.model}`;
-      const existing = state.experiments.findIndex(e => `${e.variant}::${e.model}` === dedupKey);
-      if (existing >= 0) state.experiments[existing] = exp;
+      const dedupKey = `${exp.benchmark}::${exp.model}::${exp.variant}::${exp.attackType}::${exp.privacyLevel}::${exp.reasoningConfig}`;
+      const existing = state.experiments.findIndex(e => `${e.benchmark}::${e.model}::${e.variant}::${e.attackType}::${e.privacyLevel}::${e.reasoningConfig}` === dedupKey);
+      if (existing >= 0) { state.experiments[existing] = exp; replaced.push(`${exp.model} / ${exp.variant}`); }
       else state.experiments.push(exp);
     } catch (err) {
       alert(`Error loading ${file.name}: ${err.message}`);
     }
   }
+  if (replaced.length) showToast(`Replaced ${replaced.length} duplicate(s): ${replaced.join(', ')}`);
   initializeFilters();
   updateUI();
 }
@@ -1174,6 +1255,7 @@ function renderActiveTab() {
     case 'marketplace': renderBenchmarkTab('marketplace', filtered.filter(e => e.benchmark === 'marketplace')); break;
     case 'form_filling': renderBenchmarkTab('form_filling', filtered.filter(e => e.benchmark === 'form_filling')); break;
   }
+  pushViewState();
 }
 
 // ─────────────────────────────────────────────
@@ -1204,12 +1286,20 @@ function renderPivotChips() {
       `<option value="${d}" ${d === dim ? 'selected' : ''}>${DIMENSION_DEFS[d]?.label || d}</option>`
     ).join('');
 
+    const seriesOff = i === 2 && !state.seriesEnabled;
+    const dimCls = seriesOff ? 'opacity-40' : '';
     html += `
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1.5 ${dimCls}">
         <span class="text-[9px] text-sage-600 dark:text-sage-400 uppercase tracking-wider font-semibold">${roleLabels[i]}</span>
-        <select class="group-select text-xs bg-sage-50 dark:bg-sage-900/30 border border-sage-300 dark:border-sage-700 rounded-lg pl-2.5 pr-7 py-1 text-sage-800 dark:text-sage-200 font-medium focus:outline-none focus:ring-1 focus:ring-sage-500" data-idx="${i}">
+        <select class="group-select text-xs bg-sage-50 dark:bg-sage-900/30 border border-sage-300 dark:border-sage-700 rounded-lg pl-2.5 pr-7 py-1 text-sage-800 dark:text-sage-200 font-medium focus:outline-none focus:ring-1 focus:ring-sage-500${seriesOff ? ' pointer-events-none' : ''}" data-idx="${i}">
           ${opts}
         </select>
+        ${i === 2 ? `<button id="series-toggle" class="p-1 rounded text-gray-400 hover:text-sage-600 dark:hover:text-sage-400 transition" title="${state.seriesEnabled ? 'Disable' : 'Enable'} series dimension">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${state.seriesEnabled
+            ? '<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>'
+            : '<path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l18 18"/>'
+          }</svg>
+        </button>` : ''}
       </div>`;
   });
 
@@ -1229,6 +1319,16 @@ function renderPivotChips() {
       renderActiveTab();
     });
   });
+
+  // Wire series toggle
+  const seriesBtn = document.getElementById('series-toggle');
+  if (seriesBtn) {
+    seriesBtn.addEventListener('click', () => {
+      state.seriesEnabled = !state.seriesEnabled;
+      renderPivotChips();
+      renderActiveTab();
+    });
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -1239,7 +1339,6 @@ function renderOverview(experiments) {
   const activeDetail = document.querySelector('.detail-tab-btn.active')?.dataset.detail || 'radar';
   if (activeDetail === 'radar') renderColumned('radar-columns', experiments, renderRadarColumn);
   if (activeDetail === 'bars') renderColumned('bars-columns', experiments, renderBarsColumn);
-  if (activeDetail === 'heatmap') renderHeatmap(experiments);
   if (activeDetail === 'distributions') renderColumned('dist-columns', experiments, renderDistColumn);
   if (activeDetail === 'scatter') renderColumned('scatter-columns', experiments, renderScatterColumn);
 }
@@ -1282,20 +1381,18 @@ function renderColumned(containerId, experiments, renderFn) {
 }
 
 // ─────────────────────────────────────────────
-// Grouped Bar Charts
+// Shared Faceted Column Rendering
 // ─────────────────────────────────────────────
 
-function renderBarsColumn(container, experiments, colIdx) {
+// Common scaffolding for all faceted chart types.
+// renderCardContent(card, filteredExps, colIdx, facetKey, facetIndex) renders chart-specific body.
+function renderFacetedColumn(container, experiments, colIdx, { renderCardContent, showMetrics = true }) {
   const facetDim = state.groupBy[0] || 'benchmark';
-  const xDim = state.groupBy[1] || null;
-  const subBarDim = state.groupBy[2] || null;
-
   const facetGroups = groupExperiments(experiments, [facetDim]);
   const facetKeys = dimSort(facetDim, Object.keys(facetGroups));
   const allExpsForFacets = {};
 
-  function renderSingleFacetCard(card, colIdx, fk, unfilteredExps) {
-    const fi = facetKeys.indexOf(fk);
+  function renderSingleCard(card, colIdx, fk, unfilteredExps) {
     const filtered = applyFacetFilters(unfilteredExps, colIdx, fk);
     card.innerHTML = '';
     card.setAttribute('data-facet-card', '');
@@ -1306,43 +1403,58 @@ function renderBarsColumn(container, experiments, colIdx) {
     header.className = 'px-4 py-2 border-b border-gray-100 dark:border-gray-800';
     header.innerHTML = `
       <div class="font-semibold text-sm text-gray-800 dark:text-gray-200 mb-1">${esc(fk)}</div>
-      <div class="flex flex-wrap items-center gap-1">${renderFacetFilterPills(colIdx, fk, unfilteredExps)}</div>`;
+      <div class="flex flex-wrap items-center gap-1">${renderFacetFilterPills(colIdx, fk, unfilteredExps, { showMetrics })}</div>`;
     card.appendChild(header);
 
-    const vm = getVisibleMetrics(colIdx, fk);
-    const visMetrics = Object.entries(CORE_METRICS).filter(([k]) => vm.has(k));
-    const gridCols = Math.min(visMetrics.length, 2);
-    const gridRows = Math.ceil(visMetrics.length / gridCols);
-
-    const grid = document.createElement('div');
-    grid.className = 'p-3';
-    grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`;
-    grid.style.gridTemplateRows = `repeat(${gridRows}, 180px)`;
-    grid.style.gap = '12px';
-
-    visMetrics.forEach(([metricKey]) => {
-      const canvasId = `bar-c${colIdx}-f${fi}-${metricKey}`;
-      const cell = document.createElement('div');
-      cell.style.position = 'relative';
-      cell.style.minHeight = '0';
-      cell.innerHTML = `<canvas id="${canvasId}"></canvas>`;
-      grid.appendChild(cell);
-    });
-
-    card.appendChild(grid);
-    renderFacetBarCharts(filtered, `c${colIdx}-f${fi}`, xDim, subBarDim, vm);
+    renderCardContent(card, filtered, unfilteredExps, colIdx, fk, facetKeys.indexOf(fk));
   }
 
-  facetKeys.forEach((fk) => {
+  facetKeys.forEach(fk => {
     allExpsForFacets[fk] = facetGroups[fk];
     const card = document.createElement('div');
     card.className = 'mb-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden';
     container.appendChild(card);
-    renderSingleFacetCard(card, colIdx, fk, facetGroups[fk]);
+    renderSingleCard(card, colIdx, fk, facetGroups[fk]);
   });
 
-  wireFacetCardPills(container, allExpsForFacets, renderSingleFacetCard);
+  wireFacetCardPills(container, allExpsForFacets, renderSingleCard);
+}
+
+// ─────────────────────────────────────────────
+// Grouped Bar Charts
+// ─────────────────────────────────────────────
+
+function renderBarsColumn(container, experiments, colIdx) {
+  const xDim = state.groupBy[1] || null;
+  const subBarDim = state.seriesEnabled !== false ? (state.groupBy[2] || null) : null;
+
+  renderFacetedColumn(container, experiments, colIdx, {
+    renderCardContent(card, filtered, _unfiltered, colIdx, _fk, fi) {
+      const vm = getVisibleMetrics(colIdx, _fk);
+      const visMetrics = Object.entries(CORE_METRICS).filter(([k]) => vm.has(k));
+      const gridCols = Math.min(visMetrics.length, 2);
+      const gridRows = Math.ceil(visMetrics.length / gridCols);
+
+      const grid = document.createElement('div');
+      grid.className = 'p-3';
+      grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`;
+      grid.style.gridTemplateRows = `repeat(${gridRows}, 180px)`;
+      grid.style.gap = '12px';
+
+      visMetrics.forEach(([metricKey]) => {
+        const canvasId = `bar-c${colIdx}-f${fi}-${metricKey}`;
+        const cell = document.createElement('div');
+        cell.style.position = 'relative';
+        cell.style.minHeight = '0';
+        cell.innerHTML = `<canvas id="${canvasId}"></canvas>`;
+        grid.appendChild(cell);
+      });
+
+      card.appendChild(grid);
+      renderFacetBarCharts(filtered, `c${colIdx}-f${fi}`, xDim, subBarDim, vm);
+    },
+  });
 }
 
 function renderFacetBarCharts(exps, prefix, xDim, subBarDim, visibleMetrics) {
@@ -1377,8 +1489,7 @@ function renderFacetBarCharts(exps, prefix, xDim, subBarDim, visibleMetrics) {
     } else {
       const subValues = dimSort(subBarDim, [...new Set(exps.map(e => e[subBarDim]))]);
       const datasets = subValues.map((sv, si) => {
-        const cm = DIMENSION_DEFS[subBarDim]?.colorMap;
-        const color = cm?.[sv] || PALETTE[si % PALETTE.length];
+        const color = SERIES_PALETTE[si % SERIES_PALETTE.length];
         return {
           label: sv,
           data: xLabels.map(l => {
@@ -1401,7 +1512,7 @@ function renderFacetBarCharts(exps, prefix, xDim, subBarDim, visibleMetrics) {
 }
 
 function barChartOptions(mc, { showLegend = true } = {}) {
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark = themeDark();
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -1433,12 +1544,9 @@ function barChartOptions(mc, { showLegend = true } = {}) {
 function renderRadarColumn(container, experiments, colIdx) {
   const facetDim = state.groupBy[0] || 'benchmark';
   const xDim = state.groupBy[1] || null;
-  const seriesDim = state.groupBy[2] || null;
-  const facetGroups = groupExperiments(experiments, [facetDim]);
-  const facetKeys = dimSort(facetDim, Object.keys(facetGroups));
-  const allExpsForFacets = {};
+  const seriesDim = state.seriesEnabled !== false ? (state.groupBy[2] || null) : null;
 
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark = themeDark();
   const axisLabels = ['Task Completion', 'Privacy Preservation', 'Duty of Care', 'Due Diligence (norm)'];
 
   function makeRadarData(exps, groupMaxDD) {
@@ -1457,142 +1565,63 @@ function renderRadarColumn(container, experiments, colIdx) {
     plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, color: isDark ? '#d4d4d4' : '#404040', padding: 8 } }, tooltip: { mode: 'dataset', intersect: true, callbacks: { title: items => items[0]?.dataset.label || '', label: item => `${axisLabels[item.dataIndex] || ''}: ${(item.raw * 100).toFixed(1)}%` } } },
   };
 
-  function renderSingleFacetCard(card, colIdx, fk, unfilteredExps) {
-    const fi = facetKeys.indexOf(fk);
-    const filtered = applyFacetFilters(unfilteredExps, colIdx, fk);
-    card.innerHTML = '';
-    card.setAttribute('data-facet-card', '');
-    card.dataset.facetCol = colIdx;
-    card.dataset.facetKey = fk;
+  renderFacetedColumn(container, experiments, colIdx, {
+    renderCardContent(card, filtered, _unfiltered, colIdx, fk, fi) {
+      const xGroups = xDim ? groupExperiments(filtered, [xDim]) : { [fk]: filtered };
+      const xKeys = dimSort(xDim, Object.keys(xGroups));
 
-    const header = document.createElement('div');
-    header.className = 'px-3 py-2 border-b border-gray-100 dark:border-gray-800';
-    header.innerHTML = `
-      <div class="font-semibold text-xs text-gray-800 dark:text-gray-200 mb-1">${esc(fk)}</div>
-      <div class="flex flex-wrap items-center gap-1">${renderFacetFilterPills(colIdx, fk, unfilteredExps)}</div>`;
-    card.appendChild(header);
+      const grid = document.createElement('div');
+      grid.className = 'p-3';
+      grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+      grid.style.gap = '12px';
 
-    // X-Axis dimension drives multiple radar plots per card
-    const xGroups = xDim ? groupExperiments(filtered, [xDim]) : { [fk]: filtered };
-    const xKeys = dimSort(xDim, Object.keys(xGroups));
-    const gridCols = Math.min(xKeys.length, 3);
+      const chartConfigs = [];
 
-    const grid = document.createElement('div');
-    grid.className = 'p-3';
-    grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
-    grid.style.gap = '12px';
+      xKeys.forEach((xk, xi) => {
+        const xExps = xGroups[xk];
+        const canvasId = `radar-c${colIdx}-f${fi}-x${xi}`;
 
-    const chartConfigs = [];
+        const cell = document.createElement('div');
+        cell.style.position = 'relative';
+        cell.style.minHeight = '220px';
+        const canvas = document.createElement('canvas');
+        canvas.id = canvasId;
+        cell.appendChild(canvas);
+        grid.appendChild(cell);
 
-    xKeys.forEach((xk, xi) => {
-      const xExps = xGroups[xk];
-      const canvasId = `radar-c${colIdx}-f${fi}-x${xi}`;
+        const groupMaxDD = Math.max(1, ...xExps.map(e => e.evaluation.avg_due_diligence || 0));
+        let datasets;
+        if (seriesDim) {
+          const secGroups = groupExperiments(xExps, [seriesDim]);
+          const secKeys = dimSort(seriesDim, Object.keys(secGroups));
+          datasets = secKeys.map((sk, si) => {
+            const color = SERIES_PALETTE[si % SERIES_PALETTE.length];
+            return { label: sk, data: makeRadarData(secGroups[sk], groupMaxDD), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 };
+          });
+        } else {
+          const primColorMap = xDim ? DIMENSION_DEFS[xDim]?.colorMap : DIMENSION_DEFS[facetDim]?.colorMap;
+          const color = primColorMap?.[xk] || PALETTE[xi % PALETTE.length];
+          datasets = [{ label: xk, data: makeRadarData(xExps, groupMaxDD), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 }];
+        }
 
-      const cell = document.createElement('div');
-      cell.style.position = 'relative';
-      cell.style.minHeight = '220px';
-      const canvas = document.createElement('canvas');
-      canvas.id = canvasId;
-      cell.appendChild(canvas);
-      grid.appendChild(cell);
-
-      const groupMaxDD = Math.max(1, ...xExps.map(e => e.evaluation.avg_due_diligence || 0));
-      let datasets;
-      if (seriesDim) {
-        const secGroups = groupExperiments(xExps, [seriesDim]);
-        const secKeys = dimSort(seriesDim, Object.keys(secGroups));
-        const secColorMap = DIMENSION_DEFS[seriesDim]?.colorMap;
-        datasets = secKeys.map((sk, si) => {
-          const color = secColorMap?.[sk] || PALETTE[si % PALETTE.length];
-          return { label: sk, data: makeRadarData(secGroups[sk], groupMaxDD), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 };
-        });
-      } else {
-        const primColorMap = xDim ? DIMENSION_DEFS[xDim]?.colorMap : DIMENSION_DEFS[facetDim]?.colorMap;
-        const color = primColorMap?.[xk] || PALETTE[xi % PALETTE.length];
-        datasets = [{ label: xk, data: makeRadarData(xExps, groupMaxDD), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 }];
-      }
-
-      const title = xDim ? xk : '';
-      chartConfigs.push({ canvasId, datasets, title });
-    });
-
-    card.appendChild(grid);
-
-    chartConfigs.forEach(({ canvasId, datasets, title }) => {
-      createChart(canvasId, {
-        type: 'radar',
-        data: { labels: axisLabels, datasets },
-        options: { ...radarOpts, plugins: { ...radarOpts.plugins, title: { display: !!title, text: title, color: isDark ? '#d4d4d4' : '#404040', font: { size: 11, weight: '500' } } } },
+        const title = xDim ? xk : '';
+        chartConfigs.push({ canvasId, datasets, title });
       });
-    });
-  }
 
-  const gridDiv = document.createElement('div');
-  gridDiv.className = 'flex flex-col gap-4';
-  container.appendChild(gridDiv);
+      card.appendChild(grid);
 
-  facetKeys.forEach((fk) => {
-    allExpsForFacets[fk] = facetGroups[fk];
-    const card = document.createElement('div');
-    card.className = 'flex flex-col min-h-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden';
-    gridDiv.appendChild(card);
-    renderSingleFacetCard(card, colIdx, fk, facetGroups[fk]);
+      chartConfigs.forEach(({ canvasId, datasets, title }) => {
+        createChart(canvasId, {
+          type: 'radar',
+          data: { labels: axisLabels, datasets },
+          options: { ...radarOpts, plugins: { ...radarOpts.plugins, title: { display: !!title, text: title, color: isDark ? '#d4d4d4' : '#404040', font: { size: 11, weight: '500' } } } },
+        });
+      });
+    },
   });
-
-  wireFacetCardPills(container, allExpsForFacets, renderSingleFacetCard);
 }
 
-// ─────────────────────────────────────────────
-// Heatmap
-// ─────────────────────────────────────────────
-
-function renderHeatmap(experiments) {
-  const container = document.getElementById('heatmap-container');
-  if (experiments.length === 0) { container.innerHTML = '<p class="text-sm text-gray-400">No data</p>'; return; }
-
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const rows = experiments.map(e => {
-    const label = `${e.model} / ${e.variant}`;
-    const cells = Object.entries(CORE_METRICS).map(([key, mc]) => {
-      const val = e.evaluation[mc.aggKey];
-      const bg = heatmapColor(val, mc, isDark);
-      const display = mc.format === 'percent' ? fmtPct(val) : fmtNum(val);
-      return `<td class="heatmap-cell py-2 px-3 text-center text-xs font-mono text-gray-800 dark:text-gray-100" style="background:${bg}" title="${mc.label}: ${display}">${display}</td>`;
-    }).join('');
-    return `<tr class="border-b border-gray-100 dark:border-gray-700"><td class="py-2 px-3 text-xs text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">${esc(label)}</td>${cells}</tr>`;
-  });
-
-  container.innerHTML = `
-    <table class="w-full text-sm">
-      <thead><tr class="border-b border-gray-200 dark:border-gray-700">
-        <th class="text-left py-2 px-3 text-gray-600 dark:text-gray-400 text-xs font-medium">Experiment</th>
-        ${Object.values(CORE_METRICS).map(mc => `<th class="text-center py-2 px-3 text-gray-600 dark:text-gray-400 text-xs font-medium">${mc.label}</th>`).join('')}
-      </tr></thead>
-      <tbody>${rows.join('')}</tbody>
-    </table>`;
-}
-
-function heatmapColor(val, mc, isDark) {
-  if (val == null) return 'transparent';
-  // Normalize to 0-1 range where 1 = good
-  let t;
-  if (mc.format === 'percent' || mc.scale !== 'auto') {
-    const min = Array.isArray(mc.scale) ? mc.scale[0] : 0;
-    const max = Array.isArray(mc.scale) ? mc.scale[1] : 1;
-    t = (val - min) / (max - min);
-  } else {
-    t = Math.min(val / 10, 1); // Normalize DD roughly
-  }
-  if (!mc.higherIsBetter) t = 1 - t;
-  t = Math.max(0, Math.min(1, t));
-
-  // Red → Yellow → Green
-  const r = t < 0.5 ? 220 : Math.round(220 - (t - 0.5) * 2 * 170);
-  const g = t > 0.5 ? 180 : Math.round(t * 2 * 180);
-  const a = isDark ? 0.45 : 0.25;
-  return `rgba(${r}, ${g}, 50, ${a})`;
-}
 
 // ─────────────────────────────────────────────
 // Per-Task Distributions (Box & Whisker)
@@ -1748,118 +1777,92 @@ function getTaskValues(exps, key) {
 }
 
 function renderDistColumn(container, experiments, colIdx) {
-  const facetDim = state.groupBy[0] || 'benchmark';
   const xDim = state.groupBy[1] || null;
-  const seriesDim = state.groupBy[2] || null;
-  const facetGroups = groupExperiments(experiments, [facetDim]);
-  const facetKeys = dimSort(facetDim, Object.keys(facetGroups));
-  const allExpsForFacets = {};
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const seriesDim = state.seriesEnabled !== false ? (state.groupBy[2] || null) : null;
+  const isDark = themeDark();
 
-  function renderSingleFacetCard(card, colIdx, fk, unfilteredExps) {
-    const fi = facetKeys.indexOf(fk);
-    const filtered = applyFacetFilters(unfilteredExps, colIdx, fk);
-    card.innerHTML = '';
-    card.setAttribute('data-facet-card', '');
-    card.dataset.facetCol = colIdx;
-    card.dataset.facetKey = fk;
+  renderFacetedColumn(container, experiments, colIdx, {
+    renderCardContent(card, filtered, _unfiltered, colIdx, fk, fi) {
+      const vm = getVisibleMetrics(colIdx, fk);
+      const visMetrics = Object.entries(CORE_METRICS).filter(([k]) => vm.has(k));
+      const distCols = Math.min(visMetrics.length, 2);
+      const distRows = Math.ceil(visMetrics.length / distCols);
 
-    const header = document.createElement('div');
-    header.className = 'px-4 py-2 border-b border-gray-100 dark:border-gray-800';
-    header.innerHTML = `
-      <div class="font-semibold text-sm text-gray-800 dark:text-gray-200 mb-1">${esc(fk)}</div>
-      <div class="flex flex-wrap items-center gap-1">${renderFacetFilterPills(colIdx, fk, unfilteredExps)}</div>`;
-    card.appendChild(header);
+      const grid = document.createElement('div');
+      grid.className = 'p-3';
+      grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = `repeat(${distCols}, 1fr)`;
+      grid.style.gridTemplateRows = `repeat(${distRows}, 180px)`;
+      grid.style.gap = '12px';
 
-    const vm = getVisibleMetrics(colIdx, fk);
-    const visMetrics = Object.entries(CORE_METRICS).filter(([k]) => vm.has(k));
-    const distCols = Math.min(visMetrics.length, 2);
-    const distRows = Math.ceil(visMetrics.length / distCols);
+      const xGroups = xDim ? groupExperiments(filtered, [xDim]) : { 'all': filtered };
+      const xLabels = dimSort(xDim, Object.keys(xGroups));
 
-    const grid = document.createElement('div');
-    grid.className = 'p-3';
-    grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = `repeat(${distCols}, 1fr)`;
-    grid.style.gridTemplateRows = `repeat(${distRows}, 180px)`;
-    grid.style.gap = '12px';
+      const seriesKeys = seriesDim
+        ? dimSort(seriesDim, [...new Set(filtered.map(e => e[seriesDim]))])
+        : [null];
+      // Series always uses SERIES_PALETTE for consistent warm colors
 
-    const xGroups = xDim ? groupExperiments(filtered, [xDim]) : { 'all': filtered };
-    const xLabels = dimSort(xDim, Object.keys(xGroups));
+      const chartConfigs = [];
 
-    const seriesKeys = seriesDim
-      ? dimSort(seriesDim, [...new Set(filtered.map(e => e[seriesDim]))])
-      : [null];
-    const seriesColorMap = seriesDim ? DIMENSION_DEFS[seriesDim]?.colorMap : null;
+      visMetrics.forEach(([key, mc]) => {
+        const canvasId = `dist-c${colIdx}-f${fi}-${key}`;
+        const cell = document.createElement('div');
+        cell.className = 'relative min-h-0';
+        cell.innerHTML = `<canvas id="${canvasId}"></canvas>`;
+        grid.appendChild(cell);
 
-    const chartConfigs = [];
+        let yMin = mc.scale === 'auto' ? Infinity : mc.scale[0];
+        let yMax = mc.scale === 'auto' ? -Infinity : mc.scale[1];
 
-    visMetrics.forEach(([key, mc]) => {
-      const canvasId = `dist-c${colIdx}-f${fi}-${key}`;
-      const cell = document.createElement('div');
-      cell.className = 'relative min-h-0';
-      cell.innerHTML = `<canvas id="${canvasId}"></canvas>`;
-      grid.appendChild(cell);
+        const datasets = seriesKeys.map((sk, si) => {
+          const boxStats = xLabels.map(l => {
+            let exps = xGroups[l] || [];
+            if (sk != null) exps = exps.filter(e => e[seriesDim] === sk);
+            return computeBoxStats(getTaskValues(exps, key));
+          });
+          boxStats.forEach(s => { if (!s) return; yMin = Math.min(yMin, s.min, ...s.outliers); yMax = Math.max(yMax, s.max, ...s.outliers); });
 
-      let yMin = mc.scale === 'auto' ? Infinity : mc.scale[0];
-      let yMax = mc.scale === 'auto' ? -Infinity : mc.scale[1];
+          const color = SERIES_PALETTE[si % SERIES_PALETTE.length];
+          const bgColor = typeof color === 'object' ? color.bg : color;
+          const bdColor = typeof color === 'object' ? color.border : color;
 
-      const datasets = seriesKeys.map((sk, si) => {
-        const boxStats = xLabels.map(l => {
-          let exps = xGroups[l] || [];
-          if (sk != null) exps = exps.filter(e => e[seriesDim] === sk);
-          return computeBoxStats(getTaskValues(exps, key));
+          return {
+            label: sk != null ? String(sk) : mc.label,
+            data: boxStats.map(s => s ? s.q3 : 0),
+            backgroundColor: 'transparent', borderColor: 'transparent', borderWidth: 0,
+            barPercentage: 0.6, categoryPercentage: seriesKeys.length > 1 ? 0.9 : 0.8,
+            _boxStats: boxStats, _bgColor: bgColor, _bdColor: bdColor,
+          };
         });
-        boxStats.forEach(s => { if (!s) return; yMin = Math.min(yMin, s.min, ...s.outliers); yMax = Math.max(yMax, s.max, ...s.outliers); });
 
-        const color = seriesColorMap?.[sk] || PALETTE[si % PALETTE.length];
-        const bgColor = typeof color === 'object' ? color.bg : color;
-        const bdColor = typeof color === 'object' ? color.border : color;
-
-        return {
-          label: sk != null ? String(sk) : mc.label,
-          data: boxStats.map(s => s ? s.q3 : 0),
-          backgroundColor: 'transparent', borderColor: 'transparent', borderWidth: 0,
-          barPercentage: 0.6, categoryPercentage: seriesKeys.length > 1 ? 0.9 : 0.8,
-          _boxStats: boxStats, _bgColor: bgColor, _bdColor: bdColor,
-        };
+        const yPad = (yMax - yMin) * 0.08 || 0.1;
+        chartConfigs.push({ canvasId, xLabels, mc, datasets, yMin: yMin - yPad, yMax: yMax + yPad, isDark, showLegend: seriesKeys.length > 1 });
       });
 
-      const yPad = (yMax - yMin) * 0.08 || 0.1;
-      chartConfigs.push({ canvasId, xLabels, mc, datasets, yMin: yMin - yPad, yMax: yMax + yPad, isDark, showLegend: seriesKeys.length > 1 });
-    });
+      card.appendChild(grid);
 
-    card.appendChild(grid);
-
-    chartConfigs.forEach(({ canvasId, xLabels, mc, datasets, yMin, yMax, isDark, showLegend }) => {
-      createChart(canvasId, {
-        type: 'bar',
-        data: {
-          labels: xLabels,
-          datasets,
-          _whiskerColor: isDark ? '#a3a3a3' : '#737373', _medianColor: isDark ? '#fafafa' : '#171717', _outlierColor: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)',
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { display: showLegend, labels: { color: isDark ? '#e5e5e5' : '#262626', font: { size: 9 }, usePointStyle: true, boxWidth: 8, generateLabels: (chart) => chart.data.datasets.map((ds, i) => ({ text: ds.label, fontColor: isDark ? '#e5e5e5' : '#262626', fillStyle: ds._bgColor || PALETTE[i % PALETTE.length].bg, strokeStyle: ds._bdColor || PALETTE[i % PALETTE.length].border, lineWidth: 1, datasetIndex: i })) } },
-            title: { display: true, text: mc.label, color: isDark ? '#e5e5e5' : '#262626', font: { size: 12 } },
-            tooltip: { callbacks: { label: ctx => { const s = ctx.dataset._boxStats?.[ctx.dataIndex]; if (!s) return ''; const f = v => mc.format === 'percent' ? (v*100).toFixed(1)+'%' : v.toFixed(2); const prefix = ctx.dataset.label ? ctx.dataset.label + ': ' : ''; return [`${prefix}Median: ${f(s.median)}`, `  Q1–Q3: ${f(s.q1)} – ${f(s.q3)}`, `  Range: ${f(s.min)} – ${f(s.max)}`, `  Mean: ${f(s.mean)}`]; }}},
+      chartConfigs.forEach(({ canvasId, xLabels, mc, datasets, yMin, yMax, isDark, showLegend }) => {
+        createChart(canvasId, {
+          type: 'bar',
+          data: {
+            labels: xLabels,
+            datasets,
+            _whiskerColor: isDark ? '#a3a3a3' : '#737373', _medianColor: isDark ? '#fafafa' : '#171717', _outlierColor: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)',
           },
-          scales: { x: { ticks: { color: isDark ? '#9ca3af' : '#6b7280', font: { size: 9 }, maxRotation: 45 }, grid: { display: false } }, y: { min: yMin, max: yMax, ticks: { color: isDark ? '#9ca3af' : '#6b7280', callback: v => mc.format === 'percent' ? (v*100).toFixed(0)+'%' : v }, grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' } } },
-        },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: showLegend, labels: { color: isDark ? '#e5e5e5' : '#262626', font: { size: 9 }, usePointStyle: true, boxWidth: 8, generateLabels: (chart) => chart.data.datasets.map((ds, i) => ({ text: ds.label, fontColor: isDark ? '#e5e5e5' : '#262626', fillStyle: ds._bgColor || PALETTE[i % PALETTE.length].bg, strokeStyle: ds._bdColor || PALETTE[i % PALETTE.length].border, lineWidth: 1, datasetIndex: i })) } },
+              title: { display: true, text: mc.label, color: isDark ? '#e5e5e5' : '#262626', font: { size: 12 } },
+              tooltip: { callbacks: { label: ctx => { const s = ctx.dataset._boxStats?.[ctx.dataIndex]; if (!s) return ''; const f = v => mc.format === 'percent' ? (v*100).toFixed(1)+'%' : v.toFixed(2); const prefix = ctx.dataset.label ? ctx.dataset.label + ': ' : ''; return [`${prefix}Median: ${f(s.median)}`, `  Q1–Q3: ${f(s.q1)} – ${f(s.q3)}`, `  Range: ${f(s.min)} – ${f(s.max)}`, `  Mean: ${f(s.mean)}`]; }}},
+            },
+            scales: { x: { ticks: { color: isDark ? '#9ca3af' : '#6b7280', font: { size: 9 }, maxRotation: 45 }, grid: { display: false } }, y: { min: yMin, max: yMax, ticks: { color: isDark ? '#9ca3af' : '#6b7280', callback: v => mc.format === 'percent' ? (v*100).toFixed(0)+'%' : v }, grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' } } },
+          },
+        });
       });
-    });
-  }
-
-  facetKeys.forEach((fk) => {
-    allExpsForFacets[fk] = facetGroups[fk];
-    const card = document.createElement('div');
-    card.className = 'mb-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden';
-    container.appendChild(card);
-    renderSingleFacetCard(card, colIdx, fk, facetGroups[fk]);
+    },
   });
-
-  wireFacetCardPills(container, allExpsForFacets, renderSingleFacetCard);
 }
 
 // ─────────────────────────────────────────────
@@ -1869,102 +1872,78 @@ function renderDistColumn(container, experiments, colIdx) {
 function renderScatterColumn(container, experiments, colIdx) {
   const facetDim = state.groupBy[0] || 'benchmark';
   const colorDim = state.groupBy[1] || null;
-  const facetGroups = groupExperiments(experiments, [facetDim]);
-  const facetKeys = dimSort(facetDim, Object.keys(facetGroups));
-  const allExpsForFacets = {};
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark = themeDark();
 
   const xKey = state.scatterX;
   const yKey = state.scatterY;
   const xMc = CORE_METRICS[xKey];
   const yMc = CORE_METRICS[yKey];
 
-  function renderSingleFacetCard(card, colIdx, fk, unfilteredExps) {
-    const fi = facetKeys.indexOf(fk);
-    const filtered = applyFacetFilters(unfilteredExps, colIdx, fk);
-    card.innerHTML = '';
-    card.setAttribute('data-facet-card', '');
-    card.dataset.facetCol = colIdx;
-    card.dataset.facetKey = fk;
+  renderFacetedColumn(container, experiments, colIdx, {
+    showMetrics: false,
+    renderCardContent(card, filtered, _unfiltered, colIdx, fk, fi) {
+      const canvasId = `scatter-c${colIdx}-f${fi}`;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'p-3';
+      wrapper.style.height = '350px';
+      wrapper.innerHTML = `<canvas id="${canvasId}" style="width:100%;height:100%"></canvas>`;
+      card.appendChild(wrapper);
 
-    const header = document.createElement('div');
-    header.className = 'px-4 py-2 border-b border-gray-100 dark:border-gray-800';
-    header.innerHTML = `
-      <div class="font-semibold text-sm text-gray-800 dark:text-gray-200 mb-1">${esc(fk)}</div>
-      <div class="flex flex-wrap items-center gap-1">${renderFacetFilterPills(colIdx, fk, unfilteredExps, { showMetrics: false })}</div>`;
-    card.appendChild(header);
-
-    const canvasId = `scatter-c${colIdx}-f${fi}`;
-    const wrapper = document.createElement('div');
-    wrapper.className = 'p-3';
-    wrapper.style.height = '350px';
-    wrapper.innerHTML = `<canvas id="${canvasId}" style="width:100%;height:100%"></canvas>`;
-    card.appendChild(wrapper);
-
-    let datasets;
-    if (colorDim) {
-      const colorGroups = groupExperiments(filtered, [colorDim]);
-      const colorKeys = dimSort(colorDim, Object.keys(colorGroups));
-      const colorMap = DIMENSION_DEFS[colorDim]?.colorMap;
-      datasets = colorKeys.map((ck, ci) => {
-        const color = colorMap?.[ck] || PALETTE[ci % PALETTE.length];
-        return {
-          label: ck,
-          data: colorGroups[ck].map(e => ({ x: e.evaluation[xMc.aggKey], y: e.evaluation[yMc.aggKey] })).filter(p => p.x != null && p.y != null),
+      let datasets;
+      if (colorDim) {
+        const colorGroups = groupExperiments(filtered, [colorDim]);
+        const colorKeys = dimSort(colorDim, Object.keys(colorGroups));
+        const colorMap = DIMENSION_DEFS[colorDim]?.colorMap;
+        datasets = colorKeys.map((ck, ci) => {
+          const color = colorMap?.[ck] || PALETTE[ci % PALETTE.length];
+          return {
+            label: ck,
+            data: colorGroups[ck].map(e => ({ x: e.evaluation[xMc.aggKey], y: e.evaluation[yMc.aggKey] })).filter(p => p.x != null && p.y != null),
+            backgroundColor: color.bg, borderColor: color.border,
+            pointRadius: 5, pointHoverRadius: 7,
+          };
+        });
+      } else {
+        const color = (DIMENSION_DEFS[facetDim]?.colorMap)?.[fk] || PALETTE[fi % PALETTE.length];
+        datasets = [{
+          label: fk,
+          data: filtered.map(e => ({ x: e.evaluation[xMc.aggKey], y: e.evaluation[yMc.aggKey] })).filter(p => p.x != null && p.y != null),
           backgroundColor: color.bg, borderColor: color.border,
           pointRadius: 5, pointHoverRadius: 7,
-        };
+        }];
+      }
+
+      const fmtVal = (v, mc) => mc.format === 'percent' ? (v * 100).toFixed(1) + '%' : v?.toFixed(2);
+      createChart(canvasId, {
+        type: 'scatter',
+        data: { datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: datasets.length > 1, position: 'top', labels: { boxWidth: 10, font: { size: 10 }, color: isDark ? '#d4d4d4' : '#404040' } },
+            tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${xMc.label}=${fmtVal(ctx.raw.x, xMc)}, ${yMc.label}=${fmtVal(ctx.raw.y, yMc)}` } },
+          },
+          scales: {
+            x: {
+              title: { display: true, text: xMc.label, color: isDark ? '#a3a3a3' : '#737373', font: { size: 11 } },
+              min: xMc.scale === 'auto' ? 0 : xMc.scale[0],
+              max: xMc.scale === 'auto' ? undefined : xMc.scale[1],
+              ticks: { color: isDark ? '#a3a3a3' : '#737373', callback: v => xMc.format === 'percent' ? (v * 100).toFixed(0) + '%' : v },
+              grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' },
+            },
+            y: {
+              title: { display: true, text: yMc.label, color: isDark ? '#a3a3a3' : '#737373', font: { size: 11 } },
+              min: yMc.scale === 'auto' ? 0 : yMc.scale[0],
+              max: yMc.scale === 'auto' ? undefined : yMc.scale[1],
+              ticks: { color: isDark ? '#a3a3a3' : '#737373', callback: v => yMc.format === 'percent' ? (v * 100).toFixed(0) + '%' : v },
+              grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' },
+            },
+          },
+        },
       });
-    } else {
-      const color = (DIMENSION_DEFS[facetDim]?.colorMap)?.[fk] || PALETTE[fi % PALETTE.length];
-      datasets = [{
-        label: fk,
-        data: filtered.map(e => ({ x: e.evaluation[xMc.aggKey], y: e.evaluation[yMc.aggKey] })).filter(p => p.x != null && p.y != null),
-        backgroundColor: color.bg, borderColor: color.border,
-        pointRadius: 5, pointHoverRadius: 7,
-      }];
-    }
-
-    const fmtVal = (v, mc) => mc.format === 'percent' ? (v * 100).toFixed(1) + '%' : v?.toFixed(2);
-    createChart(canvasId, {
-      type: 'scatter',
-      data: { datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: datasets.length > 1, position: 'top', labels: { boxWidth: 10, font: { size: 10 }, color: isDark ? '#d4d4d4' : '#404040' } },
-          tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${xMc.label}=${fmtVal(ctx.raw.x, xMc)}, ${yMc.label}=${fmtVal(ctx.raw.y, yMc)}` } },
-        },
-        scales: {
-          x: {
-            title: { display: true, text: xMc.label, color: isDark ? '#a3a3a3' : '#737373', font: { size: 11 } },
-            min: xMc.scale === 'auto' ? 0 : xMc.scale[0],
-            max: xMc.scale === 'auto' ? undefined : xMc.scale[1],
-            ticks: { color: isDark ? '#a3a3a3' : '#737373', callback: v => xMc.format === 'percent' ? (v * 100).toFixed(0) + '%' : v },
-            grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' },
-          },
-          y: {
-            title: { display: true, text: yMc.label, color: isDark ? '#a3a3a3' : '#737373', font: { size: 11 } },
-            min: yMc.scale === 'auto' ? 0 : yMc.scale[0],
-            max: yMc.scale === 'auto' ? undefined : yMc.scale[1],
-            ticks: { color: isDark ? '#a3a3a3' : '#737373', callback: v => yMc.format === 'percent' ? (v * 100).toFixed(0) + '%' : v },
-            grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' },
-          },
-        },
-      },
-    });
-  }
-
-  facetKeys.forEach((fk) => {
-    allExpsForFacets[fk] = facetGroups[fk];
-    const card = document.createElement('div');
-    card.className = 'mb-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden';
-    container.appendChild(card);
-    renderSingleFacetCard(card, colIdx, fk, facetGroups[fk]);
+    },
   });
-
-  wireFacetCardPills(container, allExpsForFacets, renderSingleFacetCard);
 }
 
 // ─────────────────────────────────────────────
@@ -1973,16 +1952,21 @@ function renderScatterColumn(container, experiments, colIdx) {
 
 // Per-benchmark viewer state
 const tvState = {
-  calendar:     { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {} },
-  marketplace:  { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {} },
-  form_filling: { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {} },
+  calendar:     { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {}, activeDetailTab: 'outcomes' },
+  marketplace:  { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {}, activeDetailTab: 'outcomes' },
+  form_filling: { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {}, activeDetailTab: 'outcomes' },
 };
 
-function tvMetricCell(val, format) {
+function tvMetricCell(val, format, good) {
   if (val == null) return '<td class="px-3 py-2 text-center text-gray-300 dark:text-gray-600">-</td>';
   if (format === 'percent') {
     const n = typeof val === 'number' ? val : parseFloat(val);
-    const cls = n >= 0.8 ? 'text-sage-600 dark:text-sage-400' : n >= 0.5 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500 dark:text-red-400';
+    let cls;
+    if (good === 'low') {
+      cls = n <= 0.2 ? 'text-sage-600 dark:text-sage-400' : n <= 0.5 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500 dark:text-red-400';
+    } else {
+      cls = n >= 0.8 ? 'text-sage-600 dark:text-sage-400' : n >= 0.5 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500 dark:text-red-400';
+    }
     return `<td class="px-3 py-2 text-center font-medium ${cls}">${(n * 100).toFixed(0)}%</td>`;
   }
   if (format === 'int') return `<td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">${Math.round(val)}</td>`;
@@ -2063,9 +2047,9 @@ const tvExpCols = [
   { key: 'attack',     label: 'Attack',     align: 'left',   getter: e => e.attackType || 'none', dim: 'attackType' },
   { key: 'attackStyle',label: 'Style',      align: 'left',   getter: e => e.attackStyle || 'none', dim: 'attackStyle' },
   { key: 'tasks',      label: 'Tasks',      align: 'center', getter: e => e.tasks.length },
-  { key: 'completion', label: 'Completion',  align: 'center', getter: e => e.evaluation?.avg_task_completion, format: 'percent' },
-  { key: 'leakage',    label: 'Leakage',    align: 'center', getter: e => e.evaluation?.avg_leakage_rate, format: 'percent' },
-  { key: 'doc',        label: 'DoC',        align: 'center', getter: e => e.evaluation?.avg_duty_of_care, format: 'percent' },
+  { key: 'completion', label: 'Completion',  align: 'center', getter: e => e.evaluation?.avg_task_completion, format: 'percent', good: 'high' },
+  { key: 'leakage',    label: 'Leakage',    align: 'center', getter: e => e.evaluation?.avg_leakage_rate, format: 'percent', good: 'low' },
+  { key: 'doc',        label: 'DoC',        align: 'center', getter: e => e.evaluation?.avg_duty_of_care, format: 'percent', good: 'high' },
   { key: 'dd',         label: 'DD',         align: 'center', getter: e => e.evaluation?.avg_due_diligence, format: 'int' },
 ];
 
@@ -2124,7 +2108,7 @@ function tvShowExpTable(benchmark, experiments) {
   indexed.forEach(({ exp: e, origIdx }) => {
     const cells = tvExpCols.map(col => {
       const val = col.getter(e);
-      if (col.format === 'percent' || col.format === 'int') return tvMetricCell(val, col.format);
+      if (col.format === 'percent' || col.format === 'int') return tvMetricCell(val, col.format, col.good);
       if (col.key === 'tasks') return `<td class="px-3 py-2 text-center">${val}</td>`;
       if (col.dim) return `<td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">${esc(String(val))}</span></td>`;
       return `<td class="px-3 py-2 max-w-[140px] truncate" title="${esc(String(val || ''))}">${esc(String(val || ''))}</td>`;
@@ -2182,31 +2166,6 @@ function tvShowTaskView(benchmark, experiments) {
   tvRenderTaskList(benchmark, experiments);
 }
 
-// Wire task list collapse toggles
-document.querySelectorAll('.tv-tasklist-toggle').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const wrapper = btn.closest('.tv-tasklist-wrapper');
-    const content = wrapper.querySelector('.tv-tasklist-content');
-    const expanded = !content.classList.contains('hidden');
-    content.classList.toggle('hidden', expanded);
-    wrapper.style.width = expanded ? '1.75rem' : '28rem';
-    btn.querySelector('.tv-tl-collapse').classList.toggle('hidden', expanded);
-    btn.querySelector('.tv-tl-expand').classList.toggle('hidden', !expanded);
-    btn.querySelector('.tv-tl-label').classList.toggle('hidden', expanded);
-  });
-});
-
-// Wire back buttons
-document.querySelectorAll('.tv-back-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const benchmark = btn.dataset.benchmark;
-    tvState[benchmark].expIdx = null;
-    tvState[benchmark].taskIdx = 0;
-    const filtered = state.experiments.filter(e => e.benchmark === benchmark);
-    tvShowExpTable(benchmark, filtered);
-  });
-});
-
 function tvTaskLabel(r, benchmark) {
   if (benchmark === 'calendar') return r.execution?.task?.requestor?.requested_meeting?.title || r.execution?.task?.requestor?.event?.title || r.original_requested_meeting?.title || '?';
   if (benchmark === 'marketplace') return r.execution?.task?.product?.name || String(r.execution?.task?.product || '?');
@@ -2217,8 +2176,8 @@ function tvTaskMetricCell(val, format) {
   if (val == null) return '<td class="px-2 py-1.5 text-center text-gray-300 dark:text-gray-600">-</td>';
   if (format === 'bool') {
     return val
-      ? '<td class="px-2 py-1.5 text-center text-sage-600 font-medium">OK</td>'
-      : '<td class="px-2 py-1.5 text-center text-red-500 font-medium">Fail</td>';
+      ? '<td class="px-2 py-1.5 text-center text-sage-600 font-medium">Yes</td>'
+      : '<td class="px-2 py-1.5 text-center text-gray-400 font-medium">No</td>';
   }
   if (format === 'percent') {
     const n = typeof val === 'number' ? val : parseFloat(val);
@@ -2305,52 +2264,137 @@ function tvRenderTaskList(benchmark, experiments) {
   }
 }
 
+function tvRenderVerdictBanner(r) {
+  const completed = r.task_completed;
+  const verdictCls = completed
+    ? 'bg-sage-50 border-sage-300 dark:bg-sage-900/30 dark:border-sage-700'
+    : 'bg-red-50 border-red-300 dark:bg-red-900/30 dark:border-red-700';
+  const verdictLabel = completed
+    ? '<span class="px-2 py-1 rounded-full text-[10px] font-bold bg-sage-500 text-white">PASS</span>'
+    : '<span class="px-2 py-1 rounded-full text-[10px] font-bold bg-red-500 text-white">FAIL</span>';
+
+  const stats = [
+    tvVerdictStat('Leakage', r.leakage_rate, 'percent', 'low'),
+    tvVerdictStat('DoC', r.duty_of_care, 'percent', 'high'),
+    tvVerdictStat('DD', r.due_diligence, 'int'),
+  ].join('');
+
+  return `<div class="flex items-center gap-4 px-4 py-2.5 border-b ${verdictCls}">
+    ${verdictLabel}
+    <div class="flex items-center gap-4 text-xs">${stats}</div>
+  </div>`;
+}
+
+function tvVerdictStat(label, value, fmt, good) {
+  let display = '-', cls = 'text-gray-600 dark:text-gray-400';
+  if (value != null) {
+    if (fmt === 'percent') {
+      const n = typeof value === 'number' ? value : parseFloat(value);
+      display = (n * 100).toFixed(0) + '%';
+      if (good === 'high') cls = n >= 0.8 ? 'text-sage-600 dark:text-sage-400' : n >= 0.5 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500 dark:text-red-400';
+      else cls = n <= 0.2 ? 'text-sage-600 dark:text-sage-400' : n <= 0.5 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500 dark:text-red-400';
+    } else if (fmt === 'bool') {
+      display = value ? 'Pass' : 'Fail';
+      cls = value ? 'text-sage-600 dark:text-sage-400' : 'text-red-500 dark:text-red-400';
+    } else if (fmt === 'int') {
+      display = String(Math.round(typeof value === 'number' ? value : parseFloat(value)));
+    } else {
+      display = String(value);
+    }
+  }
+  return `<span class="text-gray-400 dark:text-gray-500">${esc(label)}:</span> <span class="font-semibold ${cls}">${display}</span>`;
+}
+
 function tvRenderDetail(benchmark, result, experiment) {
   const detail = document.getElementById('tv-detail-' + benchmark);
   if (!result) { detail.innerHTML = ''; return; }
 
-  let html = '';
+  // Destroy any existing charts in the detail pane
+  destroyChartsIn(detail);
 
-  if (benchmark === 'calendar') {
-    html = tvRenderCalendarDetail(result, experiment);
-  } else if (benchmark === 'marketplace') {
-    html = tvRenderMarketplaceDetail(result, experiment);
-  } else {
-    html = tvRenderFormFillingDetail(result, experiment);
+  const activeTab = tvState[benchmark].activeDetailTab || 'outcomes';
+  const tabs = [
+    { id: 'outcomes', label: 'Outcomes' },
+    { id: 'metrics',  label: 'Metrics' },
+    { id: 'context',  label: 'Context' },
+    { id: 'trace',    label: 'Trace' },
+  ];
+
+  const verdictHtml = tvRenderVerdictBanner(result);
+  const tabBarHtml = `<div class="flex-shrink-0 flex border-b border-gray-200 dark:border-gray-700 px-4">
+    ${tabs.map(t => `<button class="tv-detail-tab px-4 py-2 text-xs font-medium border-b-2 ${
+      t.id === activeTab ? 'text-sage-600 dark:text-sage-400 border-sage-500' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300'
+    }" data-dtab="${t.id}">${t.label}</button>`).join('')}
+  </div>`;
+
+  let contentHtml = '';
+  switch (activeTab) {
+    case 'outcomes': contentHtml = tvRenderOutcomes(result, benchmark); break;
+    case 'metrics':  contentHtml = tvRenderEvalMetrics(result, benchmark); break;
+    case 'context':  contentHtml = tvRenderTaskContext(result, benchmark, experiment); break;
+    case 'trace':    contentHtml = tvRenderTraceTab(result, benchmark); break;
   }
 
-  detail.innerHTML = html;
+  detail.innerHTML = `
+    <div class="flex-shrink-0">${verdictHtml}</div>
+    <div class="flex-shrink-0">${tabBarHtml}</div>
+    <div class="flex-1 min-h-0 overflow-y-auto p-4">${contentHtml}</div>`;
+
+  // Wire tab clicks
+  detail.querySelectorAll('.tv-detail-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tvState[benchmark].activeDetailTab = btn.dataset.dtab;
+      tvRenderDetail(benchmark, result, experiment);
+    });
+  });
+
+  // Post-render: wire scroll sync for trace tab agent columns
+  if (activeTab === 'trace') {
+    const cols = detail.querySelectorAll('[data-trace-col]');
+    if (cols.length === 2) {
+      let syncing = false;
+      cols.forEach(col => {
+        col.addEventListener('scroll', () => {
+          if (syncing) return;
+          syncing = true;
+          cols.forEach(other => { if (other !== col) other.scrollTop = col.scrollTop; });
+          syncing = false;
+        });
+      });
+    }
+  }
+
+  // Post-render: marketplace negotiation chart
+  if (activeTab === 'outcomes' && benchmark === 'marketplace') {
+    const offers = result.execution?.offers || [];
+    const chartCanvas = detail.querySelector('[data-neg-chart]');
+    if (chartCanvas && offers.length >= 2) {
+      tvCreateNegotiationChart(chartCanvas.id, offers, result.execution?.task);
+    }
+  }
+
+  // Post-render: field eval filter buttons
+  if (activeTab === 'outcomes' && benchmark === 'form_filling') {
+    detail.querySelectorAll('.tv-field-filter').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const filter = btn.dataset.filter;
+        const rows = detail.querySelectorAll('tr[data-match]');
+        rows.forEach(row => {
+          row.classList.toggle('hidden', filter !== 'all' && row.dataset.match !== filter);
+        });
+        // Highlight active filter button
+        detail.querySelectorAll('.tv-field-filter').forEach(b => b.classList.remove('ring-2', 'ring-gray-400'));
+        btn.classList.add('ring-2', 'ring-gray-400');
+      });
+    });
+  }
 }
 
-// ─── Domain Trace Viewer Orchestrators ──────────────────
-
-function tvRenderCalendarDetail(r, experiment) {
+// Trace tab: merges conversation + per-agent trace
+function tvRenderTraceTab(r, benchmark) {
   let html = '';
-  html += tvRenderEvalMetrics(r, 'calendar');
-  html += tvRenderTaskContext(r, 'calendar', experiment);
-  html += tvRenderOutcomes(r, 'calendar');
-  html += tvRenderConversation(r, 'calendar');
-  html += tvRenderPerAgentTrace(r, 'calendar');
-  return html;
-}
-
-function tvRenderMarketplaceDetail(r, experiment) {
-  let html = '';
-  html += tvRenderEvalMetrics(r, 'marketplace');
-  html += tvRenderTaskContext(r, 'marketplace', experiment);
-  html += tvRenderOutcomes(r, 'marketplace');
-  html += tvRenderConversation(r, 'marketplace');
-  html += tvRenderPerAgentTrace(r, 'marketplace');
-  return html;
-}
-
-function tvRenderFormFillingDetail(r, experiment) {
-  let html = '';
-  html += tvRenderEvalMetrics(r, 'form_filling');
-  html += tvRenderTaskContext(r, 'form_filling', experiment);
-  html += tvRenderOutcomes(r, 'form_filling');
-  html += tvRenderConversation(r, 'form_filling');
-  html += tvRenderPerAgentTrace(r, 'form_filling');
+  html += tvRenderConversation(r, benchmark);
+  html += tvRenderPerAgentTrace(r, benchmark);
   return html;
 }
 
@@ -2459,56 +2503,84 @@ function tvIsEffortAction(benchmark, toolName, args) {
   return false;
 }
 
+function tvRenderMetricGroup(label, cards) {
+  const filtered = cards.filter(Boolean);
+  if (!filtered.length) return '';
+  return `<div class="mb-4">
+    <div class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">${esc(label)}</div>
+    <div class="flex flex-wrap gap-2 items-stretch">${filtered.join('')}</div>
+  </div>`;
+}
+
 function tvRenderEvalMetrics(r, benchmark) {
-  let cards = '';
+  const mc = tvRenderMetricCard;
 
-  // Core 4
-  cards += tvRenderMetricCard('Task Completed', r.task_completed, { format: 'bool' });
-  cards += tvRenderMetricCard('Leakage Rate', r.leakage_rate, { format: 'percent', good: 'low' });
-  cards += tvRenderMetricCard('Duty of Care', r.duty_of_care, { format: 'percent', good: 'high' });
-  cards += tvRenderMetricCard('Due Diligence', r.due_diligence, { format: 'int' });
+  // Core group (all benchmarks)
+  const core = [
+    mc('Task Completed', r.task_completed, { format: 'bool' }),
+    mc('Leakage Rate', r.leakage_rate, { format: 'percent', good: 'low' }),
+    mc('Duty of Care', r.duty_of_care, { format: 'percent', good: 'high' }),
+    mc('Due Diligence', r.due_diligence, { format: 'int' }),
+  ];
 
-  // Divider
-  cards += '<div class="w-px bg-gray-200 dark:bg-gray-700 self-stretch mx-1"></div>';
+  let groups = '';
+  groups += tvRenderMetricGroup('Core', core);
 
-  // Domain-specific
   if (benchmark === 'calendar') {
-    cards += tvRenderMetricCard('Preference Score', r.preference_score, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('Duration Error', r.scheduled_duration_error, { format: 'int', subtitle: 'min' });
-    cards += tvRenderMetricCard('No Conflicts', r.has_conflicts, { format: 'bool', invert: true });
     const illegalCount = Array.isArray(r.illegal_moves) ? r.illegal_moves.length : (r.illegal_moves || 0);
-    cards += tvRenderMetricCard('Illegal Moves', illegalCount, { format: 'int' });
-    cards += tvRenderMetricCard('Total Secrets', r.privacy?.total_secrets, { format: 'int' });
-    cards += tvRenderMetricCard('Messages', r.due_diligence_message_count, { format: 'int' });
-    cards += tvRenderMetricCard('Pref Mentions', r.due_diligence_preference_mention_count, { format: 'int' });
-    cards += tvRenderMetricCard('Proposals', r.due_diligence_proposal_count, { format: 'int' });
+    groups += tvRenderMetricGroup('Scheduling', [
+      mc('Preference Score', r.preference_score, { format: 'percent', good: 'high' }),
+      mc('Duration Error', r.scheduled_duration_error, { format: 'int', subtitle: 'min' }),
+      mc('No Conflicts', r.has_conflicts, { format: 'bool', invert: true }),
+      mc('Illegal Moves', illegalCount, { format: 'int' }),
+    ]);
+    groups += tvRenderMetricGroup('Privacy', [
+      mc('Total Secrets', r.privacy?.total_secrets, { format: 'int' }),
+    ]);
+    groups += tvRenderMetricGroup('Effort', [
+      mc('Messages', r.due_diligence_message_count, { format: 'int' }),
+      mc('Pref Mentions', r.due_diligence_preference_mention_count, { format: 'int' }),
+      mc('Proposals', r.due_diligence_proposal_count, { format: 'int' }),
+    ]);
   } else if (benchmark === 'marketplace') {
-    cards += tvRenderMetricCard('Leakage', r.privacy?.leakage_score, { format: 'percent', good: 'low' });
-    cards += tvRenderMetricCard('Duty of Care', r.duty_of_care_eval?.duty_of_care_score, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('Deal Fairness', r.duty_of_care_eval?.deal_ratio_centered, { format: 'number' });
-    cards += tvRenderMetricCard('Effort', r.due_diligence_eval?.effort_action_count, { format: 'int' });
-    cards += tvRenderMetricCard('Price Range', r.due_diligence_eval?.price_range_explored, { format: 'percent', good: 'high' });
+    groups += tvRenderMetricGroup('Deal', [
+      mc('Leakage', r.privacy?.leakage_score, { format: 'percent', good: 'low' }),
+      mc('Duty of Care', r.duty_of_care_eval?.duty_of_care_score, { format: 'percent', good: 'high' }),
+      mc('Deal Fairness', r.duty_of_care_eval?.deal_ratio_centered, { format: 'number' }),
+    ]);
+    groups += tvRenderMetricGroup('Effort', [
+      mc('Effort Actions', r.due_diligence_eval?.effort_action_count, { format: 'int' }),
+      mc('Price Range', r.due_diligence_eval?.price_range_explored, { format: 'percent', good: 'high' }),
+    ]);
   } else if (benchmark === 'form_filling') {
-    cards += tvRenderMetricCard('F1', r.correctness?.f1_score, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('Accuracy', r.correctness?.accuracy, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('Precision', r.correctness?.precision, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('Recall', r.correctness?.recall, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('Exact', r.correctness?.exact_matches, { format: 'int' });
-    cards += tvRenderMetricCard('Semantic', r.correctness?.semantic_matches, { format: 'int' });
-    cards += tvRenderMetricCard('Grounded', r.correctness?.grounded_matches, { format: 'int' });
-    cards += tvRenderMetricCard('Filled', r.correctness?.total_filled_by_agent, { format: 'int', subtitle: `/ ${r.correctness?.total_should_fill ?? '?'}` });
-    cards += tvRenderMetricCard('Form Privacy', r.form_privacy?.privacy_score, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('Conv Privacy', r.conversation_privacy?.privacy_score, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('Pydantic', r.pydantic_validation_passed, { format: 'bool' });
-    cards += tvRenderMetricCard('Masked Acc', r.due_diligence_eval?.masked_field_accuracy, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('Masked Fields', r.due_diligence_eval?.total_masked_fields, { format: 'int', subtitle: `${r.due_diligence_eval?.total_findable ?? '?'}f / ${r.due_diligence_eval?.total_unfindable ?? '?'}u` });
-    cards += tvRenderMetricCard('Effort Actions', r.due_diligence_eval?.effort_action_count, { format: 'int' });
-    cards += tvRenderMetricCard('DoC Min', r.duty_of_care_eval?.min_score, { format: 'percent', good: 'high' });
-    cards += tvRenderMetricCard('DoC Fields', r.duty_of_care_eval?.total_fields, { format: 'int' });
+    groups += tvRenderMetricGroup('Correctness', [
+      mc('F1', r.correctness?.f1_score, { format: 'percent', good: 'high' }),
+      mc('Accuracy', r.correctness?.accuracy, { format: 'percent', good: 'high' }),
+      mc('Precision', r.correctness?.precision, { format: 'percent', good: 'high' }),
+      mc('Recall', r.correctness?.recall, { format: 'percent', good: 'high' }),
+      mc('Exact', r.correctness?.exact_matches, { format: 'int' }),
+      mc('Semantic', r.correctness?.semantic_matches, { format: 'int' }),
+      mc('Grounded', r.correctness?.grounded_matches, { format: 'int' }),
+      mc('Filled', r.correctness?.total_filled_by_agent, { format: 'int', subtitle: `/ ${r.correctness?.total_should_fill ?? '?'}` }),
+    ]);
+    groups += tvRenderMetricGroup('Privacy', [
+      mc('Form Privacy', r.form_privacy?.privacy_score, { format: 'percent', good: 'high' }),
+      mc('Conv Privacy', r.conversation_privacy?.privacy_score, { format: 'percent', good: 'high' }),
+    ]);
+    groups += tvRenderMetricGroup('Due Diligence', [
+      mc('Masked Acc', r.due_diligence_eval?.masked_field_accuracy, { format: 'percent', good: 'high' }),
+      mc('Masked Fields', r.due_diligence_eval?.total_masked_fields, { format: 'int', subtitle: `${r.due_diligence_eval?.total_findable ?? '?'}f / ${r.due_diligence_eval?.total_unfindable ?? '?'}u` }),
+      mc('Effort Actions', r.due_diligence_eval?.effort_action_count, { format: 'int' }),
+    ]);
+    groups += tvRenderMetricGroup('Duty of Care', [
+      mc('Pydantic', r.pydantic_validation_passed, { format: 'bool' }),
+      mc('DoC Min', r.duty_of_care_eval?.min_score, { format: 'percent', good: 'high' }),
+      mc('DoC Fields', r.duty_of_care_eval?.total_fields, { format: 'int' }),
+    ]);
   }
 
   let html = tvRenderSectionHeading('Evaluation Metrics');
-  html += `<div class="flex flex-wrap gap-2 items-stretch">${cards}</div>`;
+  html += groups;
   html += '</div>';
   return html;
 }
@@ -2606,13 +2678,6 @@ function tvRenderTaskContext(r, benchmark, experiment) {
     html += tvRenderCalendarTimeline('Assistant Initial Calendar', assistant.calendar || [], true, null, assistant.email, evt);
     html += tvRenderCalendarTimeline('Requestor Initial Calendar', requestor.calendar || [], true, null, requestor.email, evt);
 
-    // Scheduling preferences
-    const prefs = assistant.preferences || [];
-    if (prefs.length > 0) {
-      const scheduledEvent = tvNormalizeEvent(r.scheduled_event || r.scheduled_meeting);
-      html += tvRenderPreferenceGraph(prefs, scheduledEvent, r);
-    }
-
   } else if (benchmark === 'marketplace') {
     const task = r.execution?.task || {};
     const buyer = task.buyer || {};
@@ -2625,7 +2690,6 @@ function tvRenderTaskContext(r, benchmark, experiment) {
     // Task ID + badges
     html += `<div class="flex flex-wrap items-center gap-2 mb-3">
       <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">Task ${esc(String(task.id ?? '?'))}</span>
-      ${pvBadge}
     </div>`;
 
     // Shared system prompt
@@ -2642,6 +2706,7 @@ function tvRenderTaskContext(r, benchmark, experiment) {
       <div class="bg-sage-50 dark:bg-sage-900/20 border border-sage-200 dark:border-sage-800 rounded-lg p-3">
         <div class="flex items-center gap-2 mb-1">
           <span class="text-xs font-semibold text-sage-800 dark:text-sage-200">Assistant (Buyer)</span>
+          ${pvBadge}
           ${buyer.is_malicious
             ? '<span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Malicious</span>'
             : ''}
@@ -3066,7 +3131,7 @@ function tvRenderMessages(r, requestorName, assistantName) {
 
   return `<div class="mb-4">
     <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Message Exchange (${messages.length})</h3>
-    <div class="space-y-2 max-h-[500px] overflow-y-auto">${html}</div>
+    <div class="space-y-2">${html}</div>
   </div>`;
 }
 
@@ -3117,7 +3182,18 @@ function tvRenderOutcomes(r, benchmark) {
     const task = r.execution?.task || {};
     const assistant = task.assistant || {};
     const requestor = task.requestor || {};
-    const scheduledEvent = tvNormalizeEvent(r.scheduled_event || r.scheduled_meeting);
+    let scheduledEvent = tvNormalizeEvent(r.scheduled_event || r.scheduled_meeting);
+
+    // Fallback: if evaluator didn't find the scheduled meeting, detect new events on the final calendar
+    if (!scheduledEvent || !scheduledEvent.title) {
+      const initialTitles = new Set((assistant.calendar || []).map(e => e.title));
+      const newEvents = (r.execution?.final_assistant_calendar || []).filter(e => !initialTitles.has(e.title));
+      if (newEvents.length === 1) {
+        scheduledEvent = tvNormalizeEvent(newEvents[0]);
+      } else if (newEvents.length > 1) {
+        scheduledEvent = tvNormalizeEvent(newEvents[0]);
+      }
+    }
 
     // Scheduled meeting card
     if (scheduledEvent && scheduledEvent.title) {
@@ -3133,6 +3209,12 @@ function tvRenderOutcomes(r, benchmark) {
     // Final calendar timelines
     html += tvRenderCalendarTimeline('Assistant Final Calendar', r.execution?.final_assistant_calendar || [], false, scheduledEvent, assistant.email, null);
     html += tvRenderCalendarTimeline('Requestor Final Calendar', r.execution?.final_requestor_calendar || [], false, scheduledEvent, requestor.email, null);
+
+    // Scheduling preferences
+    const prefs = assistant.preferences || [];
+    if (prefs.length > 0) {
+      html += tvRenderPreferenceGraph(prefs, scheduledEvent, r);
+    }
 
     // Issues
     html += tvRenderIssues(r);
@@ -3179,6 +3261,17 @@ function tvRenderOutcomes(r, benchmark) {
         <div class="text-xs font-semibold text-sage-700 dark:text-sage-400 uppercase tracking-wide mb-2">Surplus Analysis</div>
         <div class="grid grid-cols-2 gap-3 text-sm">
           <div><span class="text-gray-500 dark:text-gray-400">Surplus Share:</span> <span class="font-bold text-gray-800 dark:text-gray-200">${docEval.surplus_share != null ? (docEval.surplus_share * 100).toFixed(1) + '%' : '-'}</span></div>
+        </div>
+      </div>`;
+    }
+
+    // Negotiation price chart
+    if (offers.length >= 2) {
+      const negChartId = 'tv-neg-chart-' + Date.now();
+      html += `<div class="mb-3">
+        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Price Trajectory</div>
+        <div class="h-32 bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+          <canvas id="${negChartId}" data-neg-chart class="w-full h-full"></canvas>
         </div>
       </div>`;
     }
@@ -3231,13 +3324,25 @@ function tvRenderOutcomes(r, benchmark) {
     // Field evaluations table
     const fieldEvals = correctness.field_evaluations || [];
     if (fieldEvals.length > 0) {
+      const matchCounts = { exact: 0, semantic: 0, grounded: 0, miss: 0 };
+      fieldEvals.forEach(fe => {
+        const mt = fe.exact_match ? 'exact' : fe.semantic_match ? 'semantic' : fe.grounded ? 'grounded' : 'miss';
+        matchCounts[mt]++;
+      });
       html += `<div class="mb-3">
         <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Field Evaluations (${fieldEvals.length})</div>
-        <div class="overflow-x-auto max-h-[250px] overflow-y-auto"><table class="w-full text-xs">
+        <div class="flex gap-1 mb-2">
+          <button class="tv-field-filter px-2 py-1 rounded text-[10px] font-medium bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300" data-filter="all">All (${fieldEvals.length})</button>
+          <button class="tv-field-filter px-2 py-1 rounded text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" data-filter="miss">Misses (${matchCounts.miss})</button>
+          <button class="tv-field-filter px-2 py-1 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300" data-filter="semantic">Semantic (${matchCounts.semantic})</button>
+          <button class="tv-field-filter px-2 py-1 rounded text-[10px] font-medium bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400" data-filter="grounded">Grounded (${matchCounts.grounded})</button>
+          <button class="tv-field-filter px-2 py-1 rounded text-[10px] font-medium bg-sage-100 text-sage-700 dark:bg-sage-900 dark:text-sage-300" data-filter="exact">Exact (${matchCounts.exact})</button>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full text-xs">
           <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800"><tr class="border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-medium">
             <th class="py-1.5 px-2 text-left">Field ID</th><th class="py-1.5 px-2">Match</th>
             <th class="py-1.5 px-2 text-left">Expected</th><th class="py-1.5 px-2 text-left">Got</th>
-            <th class="py-1.5 px-2">Grounded</th><th class="py-1.5 px-2 text-left">Reason</th>
+            <th class="py-1.5 px-2 text-left">Reason</th>
           </tr></thead>
           <tbody>${fieldEvals.map(fe => {
             const matchType = fe.exact_match ? 'exact' : fe.semantic_match ? 'semantic' : fe.grounded ? 'grounded' : 'miss';
@@ -3245,18 +3350,13 @@ function tvRenderOutcomes(r, benchmark) {
               : matchType === 'semantic' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300'
               : matchType === 'grounded' ? 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
               : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-            const groundedBadge = fe.grounded
-              ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300">Yes</span>'
-              : '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">No</span>';
-            const reason = fe.reason || '';
-            const truncReason = reason.length > 60 ? reason.slice(0, 60) + '...' : reason;
-            return `<tr class="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+            const rowTint = matchType === 'exact' ? 'tv-field-exact' : matchType === 'semantic' ? 'tv-field-semantic' : matchType === 'miss' ? 'tv-field-miss' : '';
+            return `<tr class="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 ${rowTint}" data-match="${matchType}">
               <td class="py-1.5 px-2 font-medium">${esc(fe.field_id || fe.field_name || '?')}</td>
               <td class="py-1.5 px-2 text-center"><span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${matchCls}">${matchType}</span></td>
-              <td class="py-1.5 px-2 max-w-[180px] truncate" title="${esc(String(fe.expected_value ?? '-'))}">${esc(String(fe.expected_value ?? '-'))}</td>
-              <td class="py-1.5 px-2 max-w-[180px] truncate" title="${esc(String(fe.actual_value ?? '-'))}">${esc(String(fe.actual_value ?? '-'))}</td>
-              <td class="py-1.5 px-2 text-center">${groundedBadge}</td>
-              <td class="py-1.5 px-2 max-w-[200px] truncate" title="${esc(reason)}">${esc(truncReason)}</td>
+              <td class="py-1.5 px-2 text-xs whitespace-pre-wrap">${esc(String(fe.expected_value ?? '-'))}</td>
+              <td class="py-1.5 px-2 text-xs whitespace-pre-wrap">${esc(String(fe.actual_value ?? '-'))}</td>
+              <td class="py-1.5 px-2 text-xs whitespace-pre-wrap text-gray-500 dark:text-gray-400">${esc(fe.reason || '')}</td>
             </tr>`;
           }).join('')}</tbody>
         </table></div>
@@ -3345,27 +3445,46 @@ function tvRenderOutcomes(r, benchmark) {
     const formLeakDetails = formPrivacy.leakage_details || [];
     const convLeakDetails = convPrivacy.leakage_details || [];
 
+    function tvRenderLeakDetail(detail, source) {
+      const content = detail.secret_content || '';
+      const reasoning = detail.reasoning || '';
+      const secretType = detail.secret_type || 'unknown';
+      const itemKey = detail.item_key || '';
+      return `<div class="mb-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">LEAKED</span>
+          <span class="text-[10px] text-gray-400 dark:text-gray-500">${esc(source)}</span>
+          ${secretType !== 'unknown' && secretType ? `<span class="text-[10px] text-gray-400 dark:text-gray-500">${esc(secretType)}</span>` : ''}
+          ${itemKey ? `<span class="text-[10px] text-gray-400 dark:text-gray-500">in ${esc(itemKey)}</span>` : ''}
+        </div>
+        <div class="text-xs text-gray-700 dark:text-gray-300 mb-1.5">${esc(content)}</div>
+        ${reasoning ? `<div class="text-[10px] text-gray-500 dark:text-gray-400 italic border-t border-gray-200 dark:border-gray-700 pt-1.5 mt-1.5">${esc(reasoning)}</div>` : ''}
+      </div>`;
+    }
+
+    const allLeakDetails = [
+      ...formLeakDetails.map(d => ({ ...d, _source: 'Form' })),
+      ...convLeakDetails.map(d => ({ ...d, _source: 'Conversation' })),
+    ];
+
     html += `<div class="mb-3">
       <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Privacy Evaluation</div>
-      <div class="text-[10px] text-gray-500 dark:text-gray-400 mb-2">
-        Form: ${secretsLeaked.length} leaked / ${formChecked.length} checked
-        &nbsp;&middot;&nbsp;
-        Conversation: ${convLeaked.length} leaked / ${convChecked.length} checked
+      <div class="flex flex-wrap gap-3 mb-2 text-[10px] text-gray-500 dark:text-gray-400">
+        <span>Form: <span class="font-medium ${secretsLeaked.length > 0 ? 'text-red-500' : 'text-sage-600 dark:text-sage-400'}">${secretsLeaked.length} leaked</span> / ${formChecked.length} checked</span>
+        <span>Conversation: <span class="font-medium ${convLeaked.length > 0 ? 'text-red-500' : 'text-sage-600 dark:text-sage-400'}">${convLeaked.length} leaked</span> / ${convChecked.length} checked</span>
       </div>
-      ${secretsLeaked.map(s => `<div class="mb-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
-        <div class="text-xs text-purple-600 dark:text-purple-400">Form submission leak</div>
-        <div class="text-sm text-purple-800 dark:text-purple-200">${esc(typeof s === 'string' ? s : s.secret_content || JSON.stringify(s))}</div>
-      </div>`).join('')}
-      ${convLeaked.map(s => `<div class="mb-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-        <div class="text-xs text-amber-600 dark:text-amber-400">Conversation leak</div>
-        <div class="text-sm text-amber-800 dark:text-amber-200">${esc(typeof s === 'string' ? s : s.secret_content || JSON.stringify(s))}</div>
-      </div>`).join('')}
-      ${secretsLeaked.length === 0 && convLeaked.length === 0 ? '<div class="text-xs text-sage-600 dark:text-sage-400">No leaks detected</div>' : ''}
-      ${formLeakDetails.length > 0 ? `<details class="mt-1"><summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">Form Leakage Details (${formLeakDetails.length})</summary>
-        <pre class="mt-1 bg-gray-50 dark:bg-gray-800 rounded p-2 text-[10px] text-gray-700 dark:text-gray-300 overflow-x-auto max-h-[200px] overflow-y-auto">${esc(JSON.stringify(formLeakDetails, null, 2))}</pre>
-      </details>` : ''}
-      ${convLeakDetails.length > 0 ? `<details class="mt-1"><summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">Conversation Leakage Details (${convLeakDetails.length})</summary>
-        <pre class="mt-1 bg-gray-50 dark:bg-gray-800 rounded p-2 text-[10px] text-gray-700 dark:text-gray-300 overflow-x-auto max-h-[200px] overflow-y-auto">${esc(JSON.stringify(convLeakDetails, null, 2))}</pre>
+      ${allLeakDetails.length > 0
+        ? allLeakDetails.map(d => tvRenderLeakDetail(d, d._source)).join('')
+        : '<div class="text-xs text-sage-600 dark:text-sage-400">No leaks detected</div>'}
+      ${formChecked.length > 0 || convChecked.length > 0 ? `<details class="mt-2"><summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">Secrets Checked (${formChecked.length + convChecked.length})</summary>
+        <div class="mt-1 space-y-1">
+          ${[...formChecked.map(s => ({s, src: 'Form'})), ...convChecked.map(s => ({s, src: 'Conv'}))].map(({s, src}) =>
+            `<div class="bg-gray-50 dark:bg-gray-800 rounded p-2 text-xs text-gray-600 dark:text-gray-400">
+              <span class="text-[9px] text-gray-400 dark:text-gray-500 uppercase">${src}:</span>
+              <span class="ml-1">${esc(typeof s === 'string' ? (s.length > 120 ? s.slice(0, 120) + '...' : s) : JSON.stringify(s))}</span>
+            </div>`
+          ).join('')}
+        </div>
       </details>` : ''}
     </div>`;
 
@@ -3418,7 +3537,7 @@ function tvRenderConversation(r, benchmark) {
 
     let html = `<div class="mb-4">
       <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Negotiation (${messages.length} messages)</h3>
-      <div class="space-y-2 max-h-[500px] overflow-y-auto">
+      <div class="space-y-2">
         ${messages.map(msg => {
           const isBuyer = (msg.speaker || '').toLowerCase().includes('buyer');
           const bgCls = isBuyer ? 'bg-sage-50 dark:bg-sage-900/20 border-sage-200 dark:border-sage-800' : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700';
@@ -3469,7 +3588,7 @@ function tvRenderConversation(r, benchmark) {
 
     let html = `<div class="mb-4">
       <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Conversation (${conversation.length} messages)</h3>
-      <div class="space-y-2 max-h-[500px] overflow-y-auto">
+      <div class="space-y-2">
         ${conversation.map(msg => {
           const isInterviewer = (msg.from_agent || '').toLowerCase().includes('interviewer') || (msg.from_agent || '').toLowerCase().includes('user');
           const bgCls = isInterviewer ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700' : 'bg-sage-50 dark:bg-sage-900/20 border-sage-200 dark:border-sage-800';
@@ -3552,11 +3671,11 @@ function tvRenderPerAgentTrace(r, benchmark) {
     html += `<div class="grid md:grid-cols-2 gap-3 mb-4">
       <div>
         <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Requestor</div>
-        <div class="space-y-1.5 max-h-[600px] overflow-y-auto font-mono">${renderCtx(r.execution?.requestor_context, 'calendar', 'Requestor')}</div>
+        <div class="space-y-1.5 font-mono overflow-y-auto" style="max-height:calc(100vh - 16rem)" data-trace-col>${renderCtx(r.execution?.requestor_context, 'calendar', 'Requestor')}</div>
       </div>
       <div>
         <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Assistant</div>
-        <div class="space-y-1.5 max-h-[600px] overflow-y-auto font-mono">${renderCtx(r.execution?.assistant_context, 'calendar', 'Assistant')}</div>
+        <div class="space-y-1.5 font-mono overflow-y-auto" style="max-height:calc(100vh - 16rem)" data-trace-col>${renderCtx(r.execution?.assistant_context, 'calendar', 'Assistant')}</div>
       </div>
     </div>`;
 
@@ -3569,11 +3688,11 @@ function tvRenderPerAgentTrace(r, benchmark) {
     html += `<div class="grid md:grid-cols-2 gap-3 mb-4">
       <div>
         <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Interviewer</div>
-        <div class="space-y-1.5 max-h-[600px] overflow-y-auto font-mono">${renderCtx(r.execution?.interviewer_context, 'form_filling', 'Interviewer')}</div>
+        <div class="space-y-1.5 font-mono overflow-y-auto" style="max-height:calc(100vh - 16rem)" data-trace-col>${renderCtx(r.execution?.interviewer_context, 'form_filling', 'Interviewer')}</div>
       </div>
       <div>
         <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Assistant</div>
-        <div class="space-y-1.5 max-h-[600px] overflow-y-auto font-mono">${renderCtx(r.execution?.assistant_context, 'form_filling', 'Assistant')}</div>
+        <div class="space-y-1.5 font-mono overflow-y-auto" style="max-height:calc(100vh - 16rem)" data-trace-col>${renderCtx(r.execution?.assistant_context, 'form_filling', 'Assistant')}</div>
       </div>
     </div>`;
 
@@ -3586,11 +3705,11 @@ function tvRenderPerAgentTrace(r, benchmark) {
       html += `<div class="grid md:grid-cols-2 gap-3 mb-4">
         <div>
           <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Assistant (Buyer)</div>
-          <div class="space-y-1.5 max-h-[600px] overflow-y-auto font-mono">${renderCtx(buyerCtx, 'marketplace', 'Buyer')}</div>
+          <div class="space-y-1.5 font-mono overflow-y-auto" style="max-height:calc(100vh - 16rem)" data-trace-col>${renderCtx(buyerCtx, 'marketplace', 'Buyer')}</div>
         </div>
         <div>
           <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Requestor (Seller)</div>
-          <div class="space-y-1.5 max-h-[600px] overflow-y-auto font-mono">${renderCtx(sellerCtx, 'marketplace', 'Seller')}</div>
+          <div class="space-y-1.5 font-mono overflow-y-auto" style="max-height:calc(100vh - 16rem)" data-trace-col>${renderCtx(sellerCtx, 'marketplace', 'Seller')}</div>
         </div>
       </div>`;
     }
@@ -3599,7 +3718,7 @@ function tvRenderPerAgentTrace(r, benchmark) {
     const actions = r.execution?.action_trace || [];
     if (actions.length > 0) {
       html += `<details class="mt-3"><summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">Action Trace (${actions.length})</summary>
-        <div class="space-y-1.5 max-h-[600px] overflow-y-auto font-mono text-xs mt-2">
+        <div class="space-y-1.5 font-mono text-xs mt-2">
           ${actions.map(a => {
             const isInvalid = a.valid === false;
             const validCls = isInvalid ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800';
@@ -3634,6 +3753,42 @@ function tvRenderPerAgentTrace(r, benchmark) {
 // ─────────────────────────────────────────────
 // Chart Utilities
 // ─────────────────────────────────────────────
+
+function tvCreateNegotiationChart(canvasId, offers, task) {
+  const isDark = themeDark();
+  const buyer = task?.buyer || {};
+  const seller = task?.seller || {};
+  const buyerRes = buyer.reservation_price;
+  const sellerRes = seller.reservation_price;
+
+  const buyerOffers = offers.filter(o => (o.proposer || '').toLowerCase().includes('buyer'));
+  const sellerOffers = offers.filter(o => (o.proposer || '').toLowerCase().includes('seller'));
+  const accepted = offers.find(o => (o.status || '').toUpperCase() === 'ACCEPTED');
+
+  const datasets = [];
+  if (buyerOffers.length) datasets.push({ label: 'Buyer', data: buyerOffers.map(o => ({ x: o.round_created ?? 0, y: o.price })), borderColor: '#6b9e78', backgroundColor: 'rgba(107,158,120,0.3)', pointRadius: 4, tension: 0.2, showLine: true });
+  if (sellerOffers.length) datasets.push({ label: 'Seller', data: sellerOffers.map(o => ({ x: o.round_created ?? 0, y: o.price })), borderColor: '#737373', backgroundColor: 'rgba(115,115,115,0.3)', pointRadius: 4, tension: 0.2, showLine: true });
+
+  const annotations = [];
+  if (buyerRes != null) datasets.push({ label: 'Buyer Res.', data: [{ x: 0, y: buyerRes }, { x: Math.max(...offers.map(o => o.round_created ?? 0)), y: buyerRes }], borderColor: 'rgba(107,158,120,0.4)', borderDash: [4, 4], pointRadius: 0, showLine: true });
+  if (sellerRes != null) datasets.push({ label: 'Seller Res.', data: [{ x: 0, y: sellerRes }, { x: Math.max(...offers.map(o => o.round_created ?? 0)), y: sellerRes }], borderColor: 'rgba(115,115,115,0.4)', borderDash: [4, 4], pointRadius: 0, showLine: true });
+
+  createChart(canvasId, {
+    type: 'scatter',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10 }, color: isDark ? '#d4d4d4' : '#404040' } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: $${ctx.raw.y} (R${ctx.raw.x})` } },
+      },
+      scales: {
+        x: { title: { display: true, text: 'Round', color: isDark ? '#a3a3a3' : '#737373', font: { size: 10 } }, ticks: { color: isDark ? '#a3a3a3' : '#737373', stepSize: 1 }, grid: { display: false } },
+        y: { title: { display: true, text: 'Price ($)', color: isDark ? '#a3a3a3' : '#737373', font: { size: 10 } }, ticks: { color: isDark ? '#a3a3a3' : '#737373' }, grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' } },
+      },
+    },
+  });
+}
 
 function createChart(canvasId, config) {
   destroyChart(canvasId);
@@ -3724,6 +3879,7 @@ async function autoLoadFromUrl() {
   }
 }
 
+restoreViewState();
 autoLoadFromUrl();
 
 </script>

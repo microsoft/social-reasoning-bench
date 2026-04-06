@@ -2,7 +2,6 @@
 
 import json
 import logging
-import threading
 from typing import Any, TypeVar, cast
 
 import anthropic
@@ -17,6 +16,7 @@ from openai.types.chat.chat_completion_message_tool_call import Function
 from openai.types.completion_usage import CompletionUsage
 from pydantic import BaseModel
 
+from ..concurrency import record_usage, with_llm_retry
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionInfo, SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
@@ -24,26 +24,21 @@ from .base import SageModelProvider
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
-_thread_local = threading.local()
+_CLIENT_CACHE: dict[tuple, anthropic.AsyncAnthropic] = {}
 
 
-def _get_anthropic_clients(
-    api_key: str | None,
-) -> tuple[anthropic.Anthropic, anthropic.AsyncAnthropic]:
-    """Return a cached (sync, async) Anthropic client pair for this thread."""
+def _get_anthropic_client(api_key: str | None) -> anthropic.AsyncAnthropic:
+    """Return a cached AsyncAnthropic client."""
     cache_key = ("anthropic", api_key)
-    cache = getattr(_thread_local, "anthropic_clients", None)
-    if cache is None:
-        cache = {}
-        _thread_local.anthropic_clients = cache
-    if cache_key in cache:
-        return cache[cache_key]
+    if cache_key in _CLIENT_CACHE:
+        return _CLIENT_CACHE[cache_key]
     ck: dict[str, Any] = {}
     if api_key is not None:
         ck["api_key"] = api_key
-    pair = (anthropic.Anthropic(**ck), anthropic.AsyncAnthropic(**ck))
-    cache[cache_key] = pair
-    return pair
+    ck["max_retries"] = 0
+    client = anthropic.AsyncAnthropic(**ck)
+    _CLIENT_CACHE[cache_key] = client
+    return client
 
 
 class AnthropicMessage(SageChatCompletionMessage):
@@ -59,39 +54,10 @@ class AnthropicMessage(SageChatCompletionMessage):
 class AnthropicProvider(SageModelProvider):
     """Provider for Anthropic Claude models."""
 
-    def __init__(self, api_key: str | None = None):
-        self._client, self._async_client = _get_anthropic_clients(api_key)
+    PROVIDER_KEY = "anthropic"
 
-    def complete(
-        self,
-        model: str,
-        messages: list[SageMessage],
-        *,
-        trace: LLMTrace,
-        temperature: float | None = None,
-        max_tokens: int | None = None,
-        top_p: float | None = None,
-        stop: str | list[str] | None = None,
-        tools: list[ChatCompletionToolParam] | None = None,
-        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        reasoning_effort: str | int | None = None,
-    ) -> SageChatCompletionMessage:
-        system, anthropic_msgs = _translate_messages(messages)
-        kwargs = _build_kwargs(
-            system=system,
-            temperature=temperature,
-            max_tokens=max_tokens or 8192,
-            top_p=top_p,
-            stop=stop,
-            tools=tools,
-            tool_choice=tool_choice,
-            reasoning_effort=reasoning_effort,
-            model=model,
-        )
-        sdk_kwargs = {"model": model, "messages": anthropic_msgs, **kwargs}
-        response = self._client.messages.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
-        _fill_trace(trace, sdk_kwargs, response)
-        return _to_anthropic_message(response, model)
+    def __init__(self, api_key: str | None = None):
+        self._client = _get_anthropic_client(api_key)
 
     async def acomplete(
         self,
@@ -120,43 +86,20 @@ class AnthropicProvider(SageModelProvider):
             model=model,
         )
         sdk_kwargs = {"model": model, "messages": anthropic_msgs, **kwargs}
-        response = await self._async_client.messages.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        response, call_duration = await with_llm_retry(
+            self.PROVIDER_KEY,
+            model,
+            lambda _: self._client.messages.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
+        )
+        record_usage(
+            self.PROVIDER_KEY,
+            model,
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            call_duration,
+        )
         _fill_trace(trace, sdk_kwargs, response)
         return _to_anthropic_message(response, model)
-
-    def parse(
-        self,
-        model: str,
-        messages: list[SageMessage],
-        response_format: type[T],
-        *,
-        temperature: float | None = None,
-        max_tokens: int | None = None,
-        top_p: float | None = None,
-        stop: str | list[str] | None = None,
-        reasoning_effort: str | int | None = None,
-    ) -> T:
-        system, anthropic_msgs = _translate_messages(messages)
-        tool, tool_name = _structured_output_tool(response_format)
-        kwargs = _build_kwargs(
-            system=system,
-            temperature=temperature,
-            max_tokens=max_tokens or 8192,
-            top_p=top_p,
-            stop=stop,
-            tools=None,
-            tool_choice=None,
-            reasoning_effort=reasoning_effort,
-            model=model,
-        )
-        kwargs["tools"] = [tool]
-        kwargs["tool_choice"] = {"type": "tool", "name": tool_name}
-        sdk_kwargs = {"model": model, "messages": anthropic_msgs, **kwargs}
-        trace = LLMTrace()
-        response = self._client.messages.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
-        _fill_trace(trace, sdk_kwargs, response)
-        message = _to_anthropic_message(response, model)
-        return _extract_structured_output(message, response_format)
 
     async def aparse(
         self,
@@ -187,7 +130,18 @@ class AnthropicProvider(SageModelProvider):
         kwargs["tool_choice"] = {"type": "tool", "name": tool_name}
         sdk_kwargs = {"model": model, "messages": anthropic_msgs, **kwargs}
         trace = LLMTrace()
-        response = await self._async_client.messages.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        response, call_duration = await with_llm_retry(
+            self.PROVIDER_KEY,
+            model,
+            lambda _: self._client.messages.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
+        )
+        record_usage(
+            self.PROVIDER_KEY,
+            model,
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            call_duration,
+        )
         _fill_trace(trace, sdk_kwargs, response)
         message = _to_anthropic_message(response, model)
         return _extract_structured_output(message, response_format)

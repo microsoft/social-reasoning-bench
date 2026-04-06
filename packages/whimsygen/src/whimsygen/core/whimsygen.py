@@ -39,6 +39,7 @@ class WhimsyGen:
         model: str,
         seeds: Path | str | None = None,
         task: Path | str | None = None,
+        reasoning_effort: str | int | None = None,
     ):
         """Initialize WhimsyGen.
 
@@ -46,10 +47,11 @@ class WhimsyGen:
             model: Model identifier (e.g., "openai/gpt-4.1", "gemini/gemini-3-pro")
             seeds: Seeds directory path (optional, can set via wg.seeds.dir later)
             task: Task file path or task text (optional, can set via wg.task later)
+            reasoning_effort: Reasoning effort for the model (e.g., "medium", "high")
         """
         self._seeds = SeedManager(dir=seeds)
         self._task = TaskManager(task=task)
-        self._strategies = StrategyManager(model=model)
+        self._strategies = StrategyManager(model=model, reasoning_effort=reasoning_effort)
 
     @property
     def seeds(self) -> SeedManager:

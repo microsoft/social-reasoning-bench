@@ -42,6 +42,73 @@ class RunCancelled(Exception):
         super().__init__(f"Run cancelled. Output dir: {output_dir}")
 
 
+async def _periodic_metrics_log(interval: float = 120) -> None:
+    """Background task that logs provider throughput metrics periodically."""
+    from sage_llm import concurrency
+
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            metrics = concurrency.get_metrics()
+            if not metrics:
+                continue
+            now = time.monotonic()
+            aimd_state = concurrency.get_aimd_state()
+            for key, m in sorted(metrics.items()):
+                if m.call_count == 0:
+                    continue  # skip per-endpoint entries with no completed calls
+                bench_elapsed = (now - m.first_call_time) if m.first_call_time is not None else 0.0
+                out_tps = m.completion_tokens / bench_elapsed if bench_elapsed > 0 else 0.0
+                tot_tps = m.total_tokens / bench_elapsed if bench_elapsed > 0 else 0.0
+                aimd = aimd_state.get(key)
+                mins, secs = divmod(m.call_seconds, 60)
+                avg_dur = m.call_seconds / m.call_count if m.call_count else 0.0
+                parallelism = m.call_seconds / bench_elapsed if bench_elapsed > 0 else 0.0
+                # Per-label breakdown for this provider
+                label_metrics = concurrency.get_label_metrics().get(key, {})
+                label_lines = ""
+                if label_metrics:
+                    parts = []
+                    for label, lm in sorted(label_metrics.items()):
+                        parts.append(
+                            f"    {label}: {lm.call_count:,} calls, {lm.total_tokens:,} tokens"
+                        )
+                    label_lines = "\n" + "\n".join(parts)
+
+                logger.warning(
+                    "Throughput %s:\n"
+                    "  output tok/s : %7s  [1m: %7s  5m: %7s]\n"
+                    "  total tok/s  : %7s  [1m: %7s  5m: %7s]\n"
+                    "  avg call     : %5.1fs  [1m: %5.1fs  5m: %5.1fs]\n"
+                    "  in_flight    : %5.1f\n"
+                    "  concurrency  : %s\n"
+                    "  parallelism  : %.1fx\n"
+                    "  tokens       : %s output, %s total\n"
+                    "  calls        : %s  (%dm%04.1fs self-time)%s",
+                    key,
+                    f"{out_tps:,.0f}",
+                    f"{m.output_tps_1m.rate:,.0f}",
+                    f"{m.output_tps_5m.rate:,.0f}",
+                    f"{tot_tps:,.0f}",
+                    f"{m.total_tps_1m.rate:,.0f}",
+                    f"{m.total_tps_5m.rate:,.0f}",
+                    avg_dur,
+                    m.call_dur_1m.value,
+                    m.call_dur_5m.value,
+                    m.in_flight_ema,
+                    f"{aimd[0]}/{aimd[1]}" if aimd else "off",
+                    parallelism,
+                    f"{m.completion_tokens:,}",
+                    f"{m.total_tokens:,}",
+                    f"{m.call_count:,}",
+                    int(mins),
+                    secs,
+                    label_lines,
+                )
+        except Exception:
+            logger.exception("Periodic metrics log failed")
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Single-experiment helpers
 # ──────────────────────────────────────────────────────────────────────
@@ -106,11 +173,13 @@ class ExperimentPoolExecutor:
         batch_size: int = 100,
         cancel_event: asyncio.Event | None = None,
         benchmark_logger: BenchmarkLogger | None = None,
+        task_concurrency: int | None = None,
     ):
         self.benchmarks = benchmarks
         self.batch_size = batch_size
         self.cancel_event = cancel_event
         self.bl = benchmark_logger
+        self.task_concurrency = task_concurrency
 
         self._results_by_bm: dict[int, list] = {id(bm): [] for bm in benchmarks}
         self._task_counts: dict[int, int] = {}
@@ -177,6 +246,7 @@ class ExperimentPoolExecutor:
             on_task_complete=self._on_complete,
             task_logger=logger,
             cancel_event=self.cancel_event,
+            task_concurrency=self.task_concurrency,
         )
         await executor.run(generate_all())
 
@@ -246,6 +316,8 @@ async def run_multiple(
     patterns: list[str] | None = None,
     override_groups: list[dict] | None = None,
     batch_size: int = 100,
+    task_concurrency: int | None = None,
+    llm_concurrency: int | None = None,
     restart_exec: bool = False,
     restart_eval: bool = False,
     logger_style: str = "progress",
@@ -261,6 +333,8 @@ async def run_multiple(
         patterns: Optional list of patterns to filter experiment names (OR logic).
         override_groups: Optional list of override dicts.
         batch_size: Maximum concurrent tasks across all experiments.
+        task_concurrency: Max concurrent LLM calls per task per provider.
+        llm_concurrency: Max total concurrent LLM calls per provider.
         restart_exec: Re-run execution (ignore checkpointed execution progress).
         restart_eval: Re-run evaluation (ignore checkpointed evaluation progress).
         logger_style: Logger style — 'verbose', 'progress', or 'quiet'.
@@ -269,6 +343,12 @@ async def run_multiple(
     Returns:
         ``(success_count, skipped_count, fail_count)``
     """
+    from sage_llm import concurrency
+
+    # Configure LLM concurrency limits if specified
+    if llm_concurrency is not None or task_concurrency is not None:
+        concurrency.configure(llm_size=llm_concurrency, task_size=task_concurrency)
+
     bl = create_benchmark_logger(logger_style, log_level=log_level)
 
     raw_configs = collect_all(path, patterns, override_groups)
@@ -316,7 +396,7 @@ async def run_multiple(
             kwargs["tasks"], kwargs["file_hashes"] = task_cache[cache_key]
         bm = benchmark_factory(config, **kwargs)
         if cache_key not in task_cache:
-            task_cache[cache_key] = (bm.tasks, bm.file_hashes)
+            task_cache[cache_key] = (bm._raw_tasks, bm.file_hashes)
         prepared.append(bm)
 
     total_tasks = 0
@@ -373,9 +453,19 @@ async def run_multiple(
             batch_size=batch_size,
             cancel_event=cancel_event,
             benchmark_logger=bl,
+            task_concurrency=task_concurrency,
         )
         sweep_start = time.monotonic()
-        outputs = await pool.run()
+        metrics_interval = float(os.environ.get("SAGE_METRICS_INTERVAL", "120"))
+        metrics_task = asyncio.create_task(_periodic_metrics_log(interval=metrics_interval))
+        try:
+            outputs = await pool.run()
+        finally:
+            metrics_task.cancel()
+            try:
+                await metrics_task
+            except asyncio.CancelledError:
+                pass
         sweep_elapsed = time.monotonic() - sweep_start
 
         if cancel_event.is_set():
@@ -401,6 +491,42 @@ async def run_multiple(
                     mins, secs = divmod(elapsed, 60)
                     print(f"  {variant}: {int(mins)}m{secs:04.1f}s")
 
+        # Per-provider throughput summary
+        provider_metrics = concurrency.get_metrics()
+        provider_metrics_json: dict[str, dict] = {}
+        if provider_metrics:
+            now = time.monotonic()
+            print("\n--- Provider throughput ---")
+            for provider, m in sorted(provider_metrics.items()):
+                bench_elapsed = (now - m.first_call_time) if m.first_call_time is not None else 0.0
+                bench_out_tps = m.completion_tokens / bench_elapsed if bench_elapsed > 0 else 0.0
+                bench_tot_tps = m.total_tokens / bench_elapsed if bench_elapsed > 0 else 0.0
+                call_out_tps = m.completion_tokens / m.call_seconds if m.call_seconds > 0 else 0.0
+                call_tot_tps = m.total_tokens / m.call_seconds if m.call_seconds > 0 else 0.0
+                print(
+                    f"  {provider}: {m.call_count:,} calls, "
+                    f"{m.prompt_tokens:,} prompt + {m.completion_tokens:,} completion = {m.total_tokens:,} tokens"
+                )
+                print(
+                    f"    benchmark: {bench_out_tps:,.0f} output tok/s, {bench_tot_tps:,.0f} total tok/s"
+                )
+                print(
+                    f"    per-call:  {call_out_tps:,.0f} output tok/s, {call_tot_tps:,.0f} total tok/s"
+                )
+                print(f"    avg in-flight: {m.in_flight_ema:.1f}")
+                provider_metrics_json[provider] = {
+                    "call_count": m.call_count,
+                    "prompt_tokens": m.prompt_tokens,
+                    "completion_tokens": m.completion_tokens,
+                    "total_tokens": m.total_tokens,
+                    "call_seconds": round(m.call_seconds, 2),
+                    "benchmark_output_tps": round(bench_out_tps, 1),
+                    "benchmark_total_tps": round(bench_tot_tps, 1),
+                    "call_output_tps": round(call_out_tps, 1),
+                    "call_total_tps": round(call_tot_tps, 1),
+                    "in_flight_ema": round(m.in_flight_ema, 1),
+                }
+
         # Save sweep metadata
         all_output_dirs = [bm.run_paths.output_dir for bm in prepared]
         sweep_output_dir = (
@@ -408,12 +534,14 @@ async def run_multiple(
             if all_output_dirs
             else output_base or Path("outputs")
         )
-        sweep_meta = {
+        sweep_meta: dict[str, Any] = {
             "total_sweep_seconds": sweep_elapsed,
             "experiment_count": len(prepared),
             "skipped_tasks": pool.skipped_tasks,
             "timestamp": datetime.now().isoformat(),
         }
+        if provider_metrics_json:
+            sweep_meta["provider_metrics"] = provider_metrics_json
         sweep_meta_path = sweep_output_dir / "sweep_metadata.json"
         sweep_meta_path.parent.mkdir(parents=True, exist_ok=True)
         sweep_meta_path.write_text(json.dumps(sweep_meta, indent=2))

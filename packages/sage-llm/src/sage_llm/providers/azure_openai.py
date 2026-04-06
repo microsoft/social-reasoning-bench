@@ -1,7 +1,6 @@
 """Azure OpenAI provider — TRAPI and direct Azure deployments."""
 
 import logging
-import threading
 from typing import Any, Callable, TypeVar
 
 import openai
@@ -12,6 +11,7 @@ from openai.types.chat import (
 )
 from pydantic import BaseModel
 
+from ..concurrency import record_usage, with_llm_retry
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
@@ -27,23 +27,19 @@ T = TypeVar("T", bound=BaseModel)
 
 DEFAULT_API_VERSION = "2025-04-01-preview"
 
-_thread_local = threading.local()
+_CLIENT_CACHE: dict[tuple, openai.AsyncAzureOpenAI] = {}
 
 
-def _get_azure_clients(
+def _get_azure_client(
     azure_endpoint: str | None,
     api_key: str | None,
     azure_ad_token_provider: Callable[[], str] | None,
     api_version: str | None,
-) -> tuple[openai.AzureOpenAI, openai.AsyncAzureOpenAI]:
-    """Return a cached (sync, async) Azure client pair for this thread."""
+) -> openai.AsyncAzureOpenAI:
+    """Return a cached AsyncAzureOpenAI client."""
     cache_key = ("azure", azure_endpoint, api_key, id(azure_ad_token_provider), api_version)
-    cache = getattr(_thread_local, "azure_clients", None)
-    if cache is None:
-        cache = {}
-        _thread_local.azure_clients = cache
-    if cache_key in cache:
-        return cache[cache_key]
+    if cache_key in _CLIENT_CACHE:
+        return _CLIENT_CACHE[cache_key]
     ck: dict[str, Any] = {"api_version": api_version or DEFAULT_API_VERSION}
     if azure_endpoint is not None:
         ck["azure_endpoint"] = azure_endpoint
@@ -51,13 +47,17 @@ def _get_azure_clients(
         ck["api_key"] = api_key
     if azure_ad_token_provider is not None:
         ck["azure_ad_token_provider"] = azure_ad_token_provider
-    pair = (openai.AzureOpenAI(**ck), openai.AsyncAzureOpenAI(**ck))
-    cache[cache_key] = pair
-    return pair
+    ck["max_retries"] = 0
+    ck["timeout"] = 120.0
+    client = openai.AsyncAzureOpenAI(**ck)
+    _CLIENT_CACHE[cache_key] = client
+    return client
 
 
 class AzureProvider(SageModelProvider):
     """Provider for Azure OpenAI deployments (including TRAPI)."""
+
+    PROVIDER_KEY = "azure"
 
     def __init__(
         self,
@@ -66,40 +66,11 @@ class AzureProvider(SageModelProvider):
         azure_ad_token_provider: Callable[[], str] | None = None,
         api_version: str | None = None,
     ):
-        self._client, self._async_client = _get_azure_clients(
+        self._client = _get_azure_client(
             azure_endpoint, api_key, azure_ad_token_provider, api_version
         )
 
     # -- public API --
-
-    def complete(
-        self,
-        model: str,
-        messages: list[SageMessage],
-        *,
-        trace: LLMTrace,
-        temperature: float | None = None,
-        max_tokens: int | None = None,
-        top_p: float | None = None,
-        stop: str | list[str] | None = None,
-        tools: list[ChatCompletionToolParam] | None = None,
-        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        reasoning_effort: str | int | None = None,
-    ) -> SageChatCompletionMessage:
-        kwargs = _build_kwargs(
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-            stop=stop,
-            tools=tools,
-            tool_choice=tool_choice,
-            reasoning_effort=reasoning_effort,
-        )
-        openai_msgs = _to_openai_messages(messages)
-        sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
-        response = self._client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
-        _fill_trace(trace, sdk_kwargs, response)
-        return _to_openai_message(response)
 
     async def acomplete(
         self,
@@ -126,38 +97,21 @@ class AzureProvider(SageModelProvider):
         )
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
-        response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        response, call_duration = await with_llm_retry(
+            self.PROVIDER_KEY,
+            model,
+            lambda _: self._client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
+        )
+        if response.usage:
+            record_usage(
+                self.PROVIDER_KEY,
+                model,
+                response.usage.prompt_tokens or 0,
+                response.usage.completion_tokens or 0,
+                call_duration,
+            )
         _fill_trace(trace, sdk_kwargs, response)
         return _to_openai_message(response)
-
-    def parse(
-        self,
-        model: str,
-        messages: list[SageMessage],
-        response_format: type[T],
-        *,
-        temperature: float | None = None,
-        max_tokens: int | None = None,
-        top_p: float | None = None,
-        stop: str | list[str] | None = None,
-        reasoning_effort: str | int | None = None,
-    ) -> T:
-        kwargs = _build_kwargs(
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-            stop=stop,
-            reasoning_effort=reasoning_effort,
-        )
-        kwargs["response_format"] = _pydantic_to_json_schema(response_format)
-        openai_msgs = _to_openai_messages(messages)
-        sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
-        trace = LLMTrace()
-        response = self._client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
-        _fill_trace(trace, sdk_kwargs, response)
-        message = _to_openai_message(response)
-        assert message.content is not None
-        return response_format.model_validate_json(message.content)
 
     async def aparse(
         self,
@@ -182,7 +136,19 @@ class AzureProvider(SageModelProvider):
         openai_msgs = _to_openai_messages(messages)
         sdk_kwargs = {"model": model, "messages": openai_msgs, **kwargs}
         trace = LLMTrace()
-        response = await self._async_client.chat.completions.create(**sdk_kwargs)  # ty:ignore[no-matching-overload]
+        response, call_duration = await with_llm_retry(
+            self.PROVIDER_KEY,
+            model,
+            lambda _: self._client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
+        )
+        if response.usage:
+            record_usage(
+                self.PROVIDER_KEY,
+                model,
+                response.usage.prompt_tokens or 0,
+                response.usage.completion_tokens or 0,
+                call_duration,
+            )
         _fill_trace(trace, sdk_kwargs, response)
         message = _to_openai_message(response)
         assert message.content is not None

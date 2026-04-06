@@ -2,9 +2,10 @@
 
 import json
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import anthropic.types
+import pytest
 from openai.types.chat import (
     ChatCompletionFunctionToolParam,
     ChatCompletionToolChoiceOptionParam,
@@ -289,10 +290,10 @@ class TestStructuredOutputTool:
 
 
 class TestAnthropicProviderComplete:
-    @patch("sage_llm.providers.anthropic.anthropic.Anthropic")
+    @pytest.mark.asyncio
     @patch("sage_llm.providers.anthropic.anthropic.AsyncAnthropic")
-    def test_complete_basic(self, _mock_async_cls, mock_cls):
-        mock_client = MagicMock()
+    async def test_complete_basic(self, mock_cls):
+        mock_client = AsyncMock()
         mock_cls.return_value = mock_client
         mock_client.messages.create.return_value = _make_anthropic_response(
             content=[
@@ -302,7 +303,7 @@ class TestAnthropicProviderComplete:
 
         provider = AnthropicProvider(api_key="test-key")
         trace = LLMTrace()
-        msg = provider.complete(
+        msg = await provider.acomplete(
             "claude-sonnet-4-5",
             [{"role": "user", "content": "hello"}],
             trace=trace,
@@ -314,13 +315,13 @@ class TestAnthropicProviderComplete:
         assert msg.content == "hi"
         assert trace.provider_name == "anthropic"
 
-    @patch("sage_llm.providers.anthropic.anthropic.Anthropic")
+    @pytest.mark.asyncio
     @patch("sage_llm.providers.anthropic.anthropic.AsyncAnthropic")
-    def test_parse_uses_tool_trick(self, _mock_async_cls, mock_cls):
+    async def test_parse_uses_tool_trick(self, mock_cls):
         class Answer(BaseModel):
             text: str
 
-        mock_client = MagicMock()
+        mock_client = AsyncMock()
         mock_cls.return_value = mock_client
         mock_client.messages.create.return_value = _make_anthropic_response(
             content=[
@@ -335,7 +336,7 @@ class TestAnthropicProviderComplete:
         )
 
         provider = AnthropicProvider()
-        result = provider.parse(
+        result = await provider.aparse(
             "claude-sonnet-4-5",
             [{"role": "user", "content": "hi"}],
             Answer,

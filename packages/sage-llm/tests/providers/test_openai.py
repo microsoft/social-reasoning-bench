@@ -1,7 +1,7 @@
 """Tests for the OpenAI provider."""
 
 from typing import Literal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
@@ -128,16 +128,16 @@ class TestPydanticToJsonSchema:
 
 
 class TestOpenAIProviderComplete:
-    @patch("sage_llm.providers.openai.openai.OpenAI")
+    @pytest.mark.asyncio
     @patch("sage_llm.providers.openai.openai.AsyncOpenAI")
-    def test_complete_returns_sage_message(self, _mock_async_cls, mock_cls):
-        mock_client = MagicMock()
+    async def test_complete_returns_sage_message(self, mock_cls):
+        mock_client = AsyncMock()
         mock_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = _make_chat_completion(content="hi")
 
         provider = OpenAIProvider(api_key="test-key")
         trace = LLMTrace()
-        msg = provider.complete(
+        msg = await provider.acomplete(
             "gpt-4o",
             [{"role": "user", "content": "hello"}],
             trace=trace,
@@ -147,16 +147,16 @@ class TestOpenAIProviderComplete:
         assert isinstance(msg, OpenAIMessage)
         assert msg.content == "hi"
 
-    @patch("sage_llm.providers.openai.openai.OpenAI")
+    @pytest.mark.asyncio
     @patch("sage_llm.providers.openai.openai.AsyncOpenAI")
-    def test_complete_fills_trace(self, _mock_async_cls, mock_cls):
-        mock_client = MagicMock()
+    async def test_complete_fills_trace(self, mock_cls):
+        mock_client = AsyncMock()
         mock_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = _make_chat_completion(content="hi")
 
         provider = OpenAIProvider(api_key="test-key")
         trace = LLMTrace()
-        provider.complete("gpt-4o", [{"role": "user", "content": "hello"}], trace=trace)
+        await provider.acomplete("gpt-4o", [{"role": "user", "content": "hello"}], trace=trace)
 
         assert trace.provider_name == "openai"
         assert trace.provider_request != {}
@@ -165,20 +165,20 @@ class TestOpenAIProviderComplete:
         assert trace.completion_tokens == 5
         assert trace.total_tokens == 15
 
-    @patch("sage_llm.providers.openai.openai.OpenAI")
+    @pytest.mark.asyncio
     @patch("sage_llm.providers.openai.openai.AsyncOpenAI")
-    def test_parse_adds_response_format(self, _mock_async_cls, mock_cls):
+    async def test_parse_adds_response_format(self, mock_cls):
         class Answer(BaseModel):
             text: str
 
-        mock_client = MagicMock()
+        mock_client = AsyncMock()
         mock_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = _make_chat_completion(
             content='{"text": "hello"}'
         )
 
         provider = OpenAIProvider()
-        result = provider.parse("gpt-4o", [{"role": "user", "content": "hi"}], Answer)
+        result = await provider.aparse("gpt-4o", [{"role": "user", "content": "hi"}], Answer)
 
         assert isinstance(result, Answer)
         assert result.text == "hello"
@@ -186,9 +186,8 @@ class TestOpenAIProviderComplete:
 
 class TestOpenAIProviderAsync:
     @pytest.mark.asyncio
-    @patch("sage_llm.providers.openai.openai.OpenAI")
     @patch("sage_llm.providers.openai.openai.AsyncOpenAI")
-    async def test_acomplete_returns_sage_message(self, mock_async_cls, _mock_cls):
+    async def test_acomplete_returns_sage_message(self, mock_async_cls):
         mock_async_client = AsyncMock()
         mock_async_cls.return_value = mock_async_client
         mock_async_client.chat.completions.create.return_value = _make_chat_completion(

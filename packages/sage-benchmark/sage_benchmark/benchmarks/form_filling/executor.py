@@ -364,7 +364,7 @@ async def execute_task(
             form_submission=form_submission or {},
             termination_reason=termination_reason,  # ty:ignore[invalid-argument-type]
             total_rounds=len([m for m in conversation if m.from_agent == "interviewer"]),
-            success=form_submission is not None,
+            success=termination_reason != "error",
             interviewer_context=interviewer.messages,
             assistant_context=assistant.messages,
         )

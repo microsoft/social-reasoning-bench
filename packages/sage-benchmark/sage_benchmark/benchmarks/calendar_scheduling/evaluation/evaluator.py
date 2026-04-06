@@ -1,5 +1,6 @@
 """Evaluation logic for iTIP-style calendar scheduling tasks."""
 
+import asyncio
 import logging
 import time
 import traceback
@@ -28,7 +29,11 @@ async def evaluate_single_task(
     judge_votes: int = 3,
     benchmark_logger: BenchmarkLogger | None = None,
 ) -> CalendarEvaluationResult:
-    """Evaluate a single task execution result."""
+    """Evaluate a single task execution result.
+
+    Runs task completion first (needed by duty of care), then runs
+    privacy and due diligence evaluations concurrently.
+    """
     if benchmark_logger is None:
         benchmark_logger = VerboseLogger(logger)
 
@@ -39,54 +44,71 @@ async def evaluate_single_task(
     eval_t0 = time.monotonic()
     timings: dict[str, float] = {}
 
+    from sage_llm.concurrency import prompt_label
+
     try:
-        # Evaluate task completion (meeting scheduled, conflicts, illegal moves)
+        # 1. Task completion first (duty_of_care depends on it)
         t0 = time.monotonic()
-        completion_result = await evaluate_task_completion(
-            execution_result, judge_model, judge_client
-        )
+        _tok = prompt_label.set("cal_completion_judge")
+        try:
+            completion_result = await evaluate_task_completion(
+                execution_result, judge_model, judge_client
+            )
+        finally:
+            prompt_label.reset(_tok)
         timings["task_completion"] = time.monotonic() - t0
 
-        # Evaluate privacy leakage
-        t0 = time.monotonic()
-        leaked_secrets = await evaluate_privacy_leakage(
-            execution_result, judge_model, judge_client, n_votes=judge_votes
+        # 2. Run privacy, due diligence, and duty of care concurrently
+        async def _privacy():
+            t = time.monotonic()
+            _t = prompt_label.set("cal_privacy_judge")
+            try:
+                result = await evaluate_privacy_leakage(
+                    execution_result, judge_model, judge_client, n_votes=judge_votes
+                )
+            finally:
+                prompt_label.reset(_t)
+            timings["privacy"] = time.monotonic() - t
+            return result
+
+        async def _due_diligence():
+            t = time.monotonic()
+            _t = prompt_label.set("cal_due_diligence_judge")
+            try:
+                result = await evaluate_due_diligence(execution_result, judge_model, judge_client)
+            finally:
+                prompt_label.reset(_t)
+            timings["due_diligence"] = time.monotonic() - t
+            return result
+
+        def _duty_of_care():
+            t = time.monotonic()
+            final_calendar = AgentCalendar(
+                owner=task.assistant.email,
+                meetings=execution_result.final_assistant_calendar,
+            )
+            result = evaluate_duty_of_care(
+                completion_result.scheduled_meeting,
+                task.assistant.preferences,
+                final_calendar,
+                task_satisfiable=task.satisfiable,
+                has_conflicts=completion_result.has_conflicts,
+                requestor_is_malicious=task.requestor.is_malicious,
+            )
+            timings["duty_of_care"] = time.monotonic() - t
+            return result
+
+        leaked_secrets, due_diligence_result, duty_of_care_result = await asyncio.gather(
+            _privacy(),
+            _due_diligence(),
+            asyncio.to_thread(_duty_of_care),
         )
-        timings["privacy"] = time.monotonic() - t0
-        total_secrets = sum(1 for m in execution_result.task.assistant.calendar if m.is_secret)
+
+        total_secrets = sum(1 for m in task.assistant.calendar if m.is_secret)
         privacy_eval = CalendarPrivacyEvaluation(
             leaked_secrets=leaked_secrets,
             total_secrets=total_secrets,
         )
-
-        # Evaluate duty of care (preference adherence)
-        t0 = time.monotonic()
-        final_calendar = AgentCalendar(
-            owner=task.assistant.email,
-            meetings=execution_result.final_assistant_calendar,
-        )
-        duty_of_care_result = evaluate_duty_of_care(
-            completion_result.scheduled_meeting,
-            task.assistant.preferences,
-            final_calendar,
-            task_satisfiable=task.satisfiable,
-            has_conflicts=completion_result.has_conflicts,
-            requestor_is_malicious=task.requestor.is_malicious,
-        )
-        timings["duty_of_care"] = time.monotonic() - t0
-        preference_score = duty_of_care_result.preference_score
-        assistant_duty_of_care_score = duty_of_care_result.assistant_duty_of_care_score
-        preference_explanation = duty_of_care_result.preference_explanation
-
-        # Get scheduled duration error from completion result
-        scheduled_duration_error = completion_result.scheduled_duration_error
-
-        # Evaluate due diligence (message count, preference mentions, proposals)
-        t0 = time.monotonic()
-        due_diligence_result = await evaluate_due_diligence(
-            execution_result, judge_model, judge_client
-        )
-        timings["due_diligence"] = time.monotonic() - t0
 
         eval_wall = time.monotonic() - eval_t0
         profile = ", ".join(f"{k}={v:.1f}s" for k, v in timings.items())
@@ -100,10 +122,10 @@ async def evaluate_single_task(
             illegal_moves=completion_result.illegal_moves,
             requestor_is_malicious=completion_result.requestor_is_malicious,
             privacy=privacy_eval,
-            preference_score=preference_score,
-            assistant_duty_of_care_score=assistant_duty_of_care_score,
-            scheduled_duration_error=scheduled_duration_error,
-            preference_explanation=preference_explanation,
+            preference_score=duty_of_care_result.preference_score,
+            assistant_duty_of_care_score=duty_of_care_result.assistant_duty_of_care_score,
+            scheduled_duration_error=completion_result.scheduled_duration_error,
+            preference_explanation=duty_of_care_result.preference_explanation,
             effort_action_count=due_diligence_result.effort_action_count,
             due_diligence_message_count=due_diligence_result.message_count,
             due_diligence_preference_mention_count=due_diligence_result.preference_mention_count,

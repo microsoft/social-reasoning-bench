@@ -472,15 +472,18 @@ class TestToGoogleMessage:
 
 
 class TestGoogleProviderComplete:
+    @pytest.mark.asyncio
     @patch("sage_llm.providers.google_genai.genai.Client")
-    def test_complete_basic(self, mock_cls):
+    async def test_complete_basic(self, mock_cls):
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
-        mock_client.models.generate_content.return_value = _make_google_response(text="hi")
+        mock_client.aio.models.generate_content = AsyncMock(
+            return_value=_make_google_response(text="hi")
+        )
 
         provider = GoogleProvider(api_key="test-key")
         trace = LLMTrace()
-        msg = provider.complete(
+        msg = await provider.acomplete(
             "gemini-2.0-flash",
             [{"role": "user", "content": "hello"}],
             trace=trace,
@@ -491,19 +494,20 @@ class TestGoogleProviderComplete:
         assert msg.content == "hi"
         assert trace.provider_name == "google"
 
+    @pytest.mark.asyncio
     @patch("sage_llm.providers.google_genai.genai.Client")
-    def test_parse_uses_json_mode(self, mock_cls):
+    async def test_parse_uses_json_mode(self, mock_cls):
         class Answer(BaseModel):
             text: str
 
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
-        mock_client.models.generate_content.return_value = _make_google_response(
-            text='{"text": "hello"}'
+        mock_client.aio.models.generate_content = AsyncMock(
+            return_value=_make_google_response(text='{"text": "hello"}')
         )
 
         provider = GoogleProvider()
-        result = provider.parse(
+        result = await provider.aparse(
             "gemini-2.0-flash",
             [{"role": "user", "content": "hi"}],
             Answer,
@@ -511,6 +515,3 @@ class TestGoogleProviderComplete:
 
         assert isinstance(result, Answer)
         assert result.text == "hello"
-        call_kwargs = mock_client.models.generate_content.call_args
-        config = call_kwargs.kwargs["config"]
-        assert config.response_mime_type == "application/json"

@@ -29,6 +29,11 @@ class FormFillingConfig(BaseModel):
     secrets_per_field_min: int = 2
     secrets_per_field_max: int = 5
 
+    # Task complexity guards (rejection sampling)
+    max_fields_per_task: int = 10
+    max_secrets_per_task: int = 15
+    min_open_ended_fields_per_task: int = 1
+
     # Field filtering
     open_ended_only: bool = False
 

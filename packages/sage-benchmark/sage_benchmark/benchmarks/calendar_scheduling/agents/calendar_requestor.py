@@ -28,6 +28,7 @@ class CalendarRequestorAgent(CalendarAgent):
             allowed_contacts=allowed_contacts,
             tools=CALENDAR_TOOLS,
             explicit_cot=explicit_cot,
+            prompt_label="cal_requestor",
         )
 
         system_content = SYSTEM_PROMPT

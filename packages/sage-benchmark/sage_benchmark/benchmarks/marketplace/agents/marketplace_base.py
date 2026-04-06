@@ -54,6 +54,7 @@ class MarketplaceAgent(BaseAgent):
             model_client=model_client,
             tools=list(MARKETPLACE_TOOLS),
             explicit_cot=explicit_cot,
+            prompt_label=f"mkt_{role}",
         )
 
         self._role = role

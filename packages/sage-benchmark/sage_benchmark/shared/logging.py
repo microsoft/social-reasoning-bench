@@ -202,6 +202,7 @@ class ProgressLogger(BenchmarkLogger):
             desc=f"Running ({params.total_experiments} experiments)",
             unit="task",
             dynamic_ncols=True,
+            smoothing=0,  # global average rate/ETA instead of instantaneous
         )
 
     def on_sweep_complete(self, params: SweepCompleteParams) -> None:

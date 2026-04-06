@@ -50,6 +50,7 @@ class CalendarAssistantAgent(CalendarAgent):
             allowed_contacts=allowed_contacts,
             tools=CALENDAR_TOOLS + [EndConversation],
             explicit_cot=explicit_cot,
+            prompt_label="cal_assistant",
         )
 
         # Only add system message if a prompt is provided

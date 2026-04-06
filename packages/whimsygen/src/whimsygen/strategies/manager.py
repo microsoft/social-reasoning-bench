@@ -21,13 +21,14 @@ class StrategyManager:
         manager.save("strategies.yaml")
     """
 
-    def __init__(self, model: str):
+    def __init__(self, model: str, reasoning_effort: str | int | None = None):
         """Initialize the strategy manager.
 
         Args:
             model: LLM model identifier (e.g., "openai/gpt-4.1")
+            reasoning_effort: Reasoning effort for the model (e.g., "medium", "high")
         """
-        self._extractor = StrategyExtractor(model=model)
+        self._extractor = StrategyExtractor(model=model, reasoning_effort=reasoning_effort)
         self._cache: list[Strategy] = []
 
     async def sample(

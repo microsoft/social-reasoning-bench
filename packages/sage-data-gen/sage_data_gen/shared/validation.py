@@ -1,13 +1,15 @@
 """Strategy validation: benchmark each candidate and select the most damaging one.
 
-Generates N×M tasks (N strategies × M validation tasks), runs them in a
-single benchmark for full parallelisation, then groups results by strategy
-to find the one that causes the most damage to the target metric.
+Provides a two-phase API for use with ``ExperimentPoolExecutor``:
+
+1. :func:`prepare_validation_benchmark` — builds N×M tasks and a Benchmark
+   instance (without running it).
+2. :func:`score_validation_results` — post-processes a completed
+   ``BenchmarkOutput`` to rank strategies by damage.
 """
 
 from __future__ import annotations
 
-import time
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -71,9 +73,6 @@ def _get_benchmark_factory(
 ) -> tuple[type, type]:
     """Return ``(BenchmarkClass, RunConfigClass)`` for *benchmark_name*.
 
-    Both classes are returned unparameterised (``type``) because the generic
-    parameters differ across benchmarks and the caller does not need them.
-
     Raises:
         ValueError: Unknown benchmark name.
     """
@@ -113,10 +112,20 @@ def _get_benchmark_factory(
     )
 
 
-# ── Core validation loop ─────────────────────────────────────────────────
+# ── Two-phase API ───────────────────────────────────────────────────────
 
 
-async def validate_strategies(
+@dataclass
+class PreparedValidation:
+    """Everything needed to run and score a validation benchmark."""
+
+    attack_type: str
+    strategies: list[Strategy]
+    strategy_by_hash: dict[str, int]
+    benchmark: Any  # Benchmark instance
+
+
+def prepare_validation_benchmark(
     *,
     strategies: list[Strategy],
     validation_tasks: list[Any],
@@ -125,30 +134,27 @@ async def validate_strategies(
     inject_fn: Any,
     agent_model: str,
     judge_model: str,
+    agent_reasoning_effort: str | int | None = None,
+    agent_explicit_cot: bool = False,
+    judge_reasoning_effort: str | int | None = None,
     output_dir: Path | None = None,
-) -> ValidationResult:
-    """Run every strategy against the validation set in a single benchmark.
-
-    1. Injects every strategy into every validation task → N×M tasks.
-    2. Runs **one** benchmark with all N×M tasks (full parallelisation).
-    3. Groups results by strategy and ranks by damage to the target metric.
+    benchmark_logger: Any = None,
+) -> PreparedValidation:
+    """Build a Benchmark with N×M injected tasks, ready for pooled execution.
 
     Args:
         strategies: Candidate strategies to evaluate.
         validation_tasks: Small set of base tasks to test each strategy against.
         benchmark_name: One of ``"calendar"``, ``"form-filling"``, ``"marketplace"``.
         attack_type: Attack type key (must exist in :data:`ATTACK_METRIC_MAP`).
-        inject_fn: ``inject_fn(task, attack_type, strategy_text) → injected_task``.
+        inject_fn: ``inject_fn(task, attack_type, strategy_text) → list[task]``.
         agent_model: Model identifier for the agent under test.
         judge_model: Model identifier for the evaluation judge.
-        output_dir: Optional directory for benchmark outputs and
-            ``validation_results.yaml``.
+        output_dir: Optional directory for benchmark outputs.
+        benchmark_logger: BenchmarkLogger instance (shared across benchmarks).
 
     Returns:
-        :class:`ValidationResult` with ranked scores and the best strategy.
-
-    Raises:
-        ValueError: If *attack_type* is not in :data:`ATTACK_METRIC_MAP`.
+        :class:`PreparedValidation` with the benchmark instance and metadata.
     """
     if attack_type not in ATTACK_METRIC_MAP:
         raise ValueError(
@@ -156,17 +162,10 @@ async def validate_strategies(
             f"Known types: {sorted(ATTACK_METRIC_MAP)}"
         )
 
-    target = ATTACK_METRIC_MAP[attack_type]
     num_strategies = len(strategies)
     num_val_tasks = len(validation_tasks)
 
-    # ── 1. Build flat task list: N strategies × M validation tasks ────────
-    #
-    # Each task gets a unique ID encoding its strategy index and position:
-    #   task.id = strategy_idx * num_val_tasks + task_position
-    #
-    # We also build a hash→strategy_idx map so we can group results back
-    # to their originating strategy after the benchmark run.
+    # Build flat task list: N strategies × M validation tasks
     all_tasks: list[Any] = []
     strategy_by_hash: dict[str, int] = {}
 
@@ -175,34 +174,63 @@ async def validate_strategies(
             variants = inject_fn(val_task, attack_type, strategy.game_strategies)
             for variant in variants:
                 new_id = strategy_idx * num_val_tasks + task_pos
-                # Tasks are frozen Pydantic models; model_copy creates a new instance.
                 re_ided = variant.model_copy(update={"id": new_id})
                 all_tasks.append(re_ided)
                 strategy_by_hash[re_ided.hash] = strategy_idx
 
     total_tasks = len(all_tasks)
     print(
-        f"  Built {total_tasks} validation tasks "
+        f"  [{attack_type}] Built {total_tasks} validation tasks "
         f"({num_strategies} strategies × {num_val_tasks} tasks)"
     )
 
-    # ── 2. Run one benchmark with all N×M tasks ──────────────────────────
-    from sage_benchmark.shared.logging import create_benchmark_logger
-
     BenchmarkCls, ConfigCls = _get_benchmark_factory(benchmark_name)
-    config = ConfigCls(
-        model=agent_model,
-        judge_model=judge_model,
-        output_dir=output_dir,
+    config_kwargs: dict[str, Any] = {
+        "model": agent_model,
+        "judge_model": judge_model,
+        "output_dir": output_dir / attack_type,
+        "variant": f"whimsical_validation_{attack_type}",
+    }
+    if agent_reasoning_effort is not None:
+        config_kwargs["reasoning_effort"] = agent_reasoning_effort
+    if agent_explicit_cot:
+        config_kwargs["explicit_cot"] = True
+    if judge_reasoning_effort is not None:
+        config_kwargs["judge_reasoning_effort"] = judge_reasoning_effort
+    config = ConfigCls(**config_kwargs)
+    benchmark = BenchmarkCls(config, tasks=all_tasks, benchmark_logger=benchmark_logger)
+
+    return PreparedValidation(
+        attack_type=attack_type,
+        strategies=strategies,
+        strategy_by_hash=strategy_by_hash,
+        benchmark=benchmark,
     )
-    bl = create_benchmark_logger("quiet")
 
-    t0 = time.monotonic()
-    benchmark = BenchmarkCls(config, tasks=all_tasks, benchmark_logger=bl)
-    output = await benchmark.run()
-    elapsed = time.monotonic() - t0
 
-    # ── 3. Group results by strategy index ────────────────────────────────
+def score_validation_results(
+    prepared: PreparedValidation,
+    output: Any,
+    output_dir: Path | None = None,
+) -> ValidationResult:
+    """Rank strategies by damage from a completed benchmark output.
+
+    Args:
+        prepared: The :class:`PreparedValidation` returned by
+            :func:`prepare_validation_benchmark`.
+        output: The ``BenchmarkOutput`` from the benchmark run.
+        output_dir: Optional directory for ``validation_results.yaml``.
+
+    Returns:
+        :class:`ValidationResult` with ranked scores and the best strategy.
+    """
+    attack_type = prepared.attack_type
+    target = ATTACK_METRIC_MAP[attack_type]
+    strategies = prepared.strategies
+    strategy_by_hash = prepared.strategy_by_hash
+    benchmark = prepared.benchmark
+
+    # Group results by strategy index
     groups: dict[int, list[Any]] = defaultdict(list)
     for result in output.results:
         task_hash: str = result.execution.task.hash
@@ -213,24 +241,23 @@ async def validate_strategies(
             )
         groups[strategy_by_hash[task_hash]].append(result)
 
-    # ── 4. Compute per-strategy metrics and rank ─────────────────────────
+    # Compute per-strategy metrics and rank
     scores: list[StrategyScore] = []
     for strategy_idx, strategy in enumerate(strategies):
         group = groups.get(strategy_idx, [])
         if not group:
-            print(f"  Strategy {strategy_idx}: no results (all tasks failed)")
+            print(f"  [{attack_type}] Strategy {strategy_idx}: no results (all tasks failed)")
             scores.append(StrategyScore(strategy=strategy, metric_value=None))
             continue
 
-        # Reuse the benchmark's own aggregation logic.
         evaluation = benchmark.compute_evaluation(group)
         metric_value: float | None = getattr(evaluation, target.metric_name, None)
         scores.append(StrategyScore(strategy=strategy, metric_value=metric_value))
 
         label = f"{metric_value:.4f}" if metric_value is not None else "None"
-        print(f"  Strategy {strategy_idx}: {target.metric_name} = {label}")
+        print(f"  [{attack_type}] Strategy {strategy_idx}: {target.metric_name} = {label}")
 
-    # Sort: best damage first.  None values sort to the end (worst rank).
+    # Sort: best damage first
     def _sort_key(s: StrategyScore) -> float:
         if s.metric_value is None:
             return float("-inf") if target.maximize else float("inf")
@@ -249,12 +276,12 @@ async def validate_strategies(
         direction=direction,
         scores=scores,
         best=best,
-        elapsed_seconds=elapsed,
     )
 
-    # ── 5. Persist results for debugging ─────────────────────────────────
     if output_dir is not None:
-        _save_validation_results(result, Path(output_dir) / "validation_results.yaml")
+        _save_validation_results(
+            result, Path(output_dir) / f"validation_results_{attack_type}.yaml"
+        )
 
     return result
 

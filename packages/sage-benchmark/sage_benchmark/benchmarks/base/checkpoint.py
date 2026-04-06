@@ -61,11 +61,23 @@ class CheckpointManager(Generic[TExecResult, TEvalResult]):
         self,
         config: BaseRunConfig | None = None,
         file_hashes: dict[str, str] | None = None,
+        prior_exec_results: list[TExecResult] | None = None,
+        prior_eval_results: list[TEvalResult] | None = None,
     ) -> None:
+        exec_results = list(prior_exec_results or [])
+        eval_results = list(prior_eval_results or [])
+        exec_keys = [r.task.hash for r in exec_results]
+        eval_keys = [r.execution.task.hash for r in eval_results]
         self._data = CheckpointData(
             config=config,
             source_file_hashes=file_hashes or {},
+            execution_results=exec_results,
+            evaluation_results=eval_results,
+            completed_task_keys=exec_keys,
+            completed_eval_keys=eval_keys,
         )
+        self._exec_keys = set(exec_keys)
+        self._eval_keys = set(eval_keys)
 
     def save(self) -> None:
         if self._data is None:

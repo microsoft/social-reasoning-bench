@@ -1,7 +1,8 @@
 """Tests for the Azure provider."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from openai.types.chat.chat_completion import Choice
 from openai.types.completion_usage import CompletionUsage
@@ -29,10 +30,10 @@ def _make_chat_completion(content="Hello!") -> ChatCompletion:
 
 
 class TestAzureProviderComplete:
-    @patch("sage_llm.providers.azure_openai.openai.AzureOpenAI")
+    @pytest.mark.asyncio
     @patch("sage_llm.providers.azure_openai.openai.AsyncAzureOpenAI")
-    def test_complete_basic(self, _mock_async_cls, mock_cls):
-        mock_client = MagicMock()
+    async def test_complete_basic(self, mock_cls):
+        mock_client = AsyncMock()
         mock_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = _make_chat_completion("hi")
 
@@ -41,7 +42,7 @@ class TestAzureProviderComplete:
             api_key="test-key",
         )
         trace = LLMTrace()
-        msg = provider.complete(
+        msg = await provider.acomplete(
             "gpt-4.1",
             [{"role": "user", "content": "hello"}],
             trace=trace,
@@ -51,28 +52,26 @@ class TestAzureProviderComplete:
         assert msg.content == "hi"
         assert trace.provider_name == "azure_openai"
 
-    @patch("sage_llm.providers.azure_openai.openai.AzureOpenAI")
+    @pytest.mark.asyncio
     @patch("sage_llm.providers.azure_openai.openai.AsyncAzureOpenAI")
-    def test_default_no_retries(self, _mock_async_cls, mock_cls):
-        mock_client = MagicMock()
+    async def test_default_no_retries(self, mock_cls):
+        mock_client = AsyncMock()
         mock_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = _make_chat_completion()
 
         provider = AzureProvider(azure_endpoint="https://test.openai.azure.com")
         trace = LLMTrace()
-        provider.complete("gpt-4.1", [{"role": "user", "content": "hi"}], trace=trace)
+        await provider.acomplete("gpt-4.1", [{"role": "user", "content": "hi"}], trace=trace)
         assert mock_client.chat.completions.create.call_count == 1
 
-    @patch("sage_llm.providers.azure_openai.openai.AzureOpenAI")
     @patch("sage_llm.providers.azure_openai.openai.AsyncAzureOpenAI")
-    def test_api_version_default(self, mock_async_cls, _mock_cls):
+    def test_api_version_default(self, mock_async_cls):
         AzureProvider(azure_endpoint="https://test.openai.azure.com")
         call_kwargs = mock_async_cls.call_args.kwargs
         assert "api_version" in call_kwargs
 
-    @patch("sage_llm.providers.azure_openai.openai.AzureOpenAI")
     @patch("sage_llm.providers.azure_openai.openai.AsyncAzureOpenAI")
-    def test_token_provider_passed(self, mock_async_cls, _mock_cls):
+    def test_token_provider_passed(self, mock_async_cls):
         token_fn = lambda: "token123"  # noqa: E731
         AzureProvider(
             azure_endpoint="https://test.openai.azure.com",

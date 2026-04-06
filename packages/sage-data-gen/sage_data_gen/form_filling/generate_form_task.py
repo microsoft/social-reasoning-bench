@@ -232,16 +232,25 @@ async def generate_form_task(
                 f"({open_ended_count} open-ended + {len(masked_field_ids)} masked)"
             )
 
-            if open_ended_count == 0:
-                raise ValueError(
-                    f"Form {form_id} has no open-ended fields — unusable with open_ended_only=True"
-                )
-
             # Regenerate form_model.py with only the kept fields
             kept_field_ids = set(groundtruth.keys())
             form_model_code = _prune_form_model(form_model_code, kept_field_ids)
             form_model_path.write_text(form_model_code, encoding="utf-8")
             print(f"  Pruned form_model.py to {len(kept_field_ids)} fields")
+
+        # ── Rejection-sampling guards ──
+        if len(groundtruth) > config.max_fields_per_task:
+            raise ValueError(
+                f"Form {form_id} has {len(groundtruth)} fields "
+                f"(max {config.max_fields_per_task}) — skipping"
+            )
+
+        open_ended_count = sum(1 for info in groundtruth.values() if info.get("is_open_ended"))
+        if open_ended_count < config.min_open_ended_fields_per_task:
+            raise ValueError(
+                f"Form {form_id} has {open_ended_count} open-ended fields "
+                f"(min {config.min_open_ended_fields_per_task}) — skipping"
+            )
 
         # Stage 3: Generate scenario (persona + secrets + negative info)
         # Use masked ground truth so the agent doesn't see masked values
@@ -451,6 +460,12 @@ async def generate_form_task(
         # Build FormTask and write task.json
         total_secrets = len(flat_secrets)
         due_diligence_fields = masked_fields
+
+        if total_secrets > config.max_secrets_per_task:
+            raise ValueError(
+                f"Form {form_id} has {total_secrets} secrets "
+                f"(max {config.max_secrets_per_task}) — skipping"
+            )
 
         if not due_diligence_fields:
             raise ValueError("Task has no due diligence fields (no masked fields)")

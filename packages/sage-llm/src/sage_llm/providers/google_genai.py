@@ -2,7 +2,6 @@
 
 import json
 import logging
-import threading
 import time
 from typing import Any, TypeVar, cast
 
@@ -18,6 +17,7 @@ from openai.types.chat.chat_completion_message_tool_call import Function
 from openai.types.completion_usage import CompletionUsage
 from pydantic import BaseModel
 
+from ..concurrency import record_usage, with_llm_retry
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionInfo, SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
@@ -25,23 +25,19 @@ from .base import SageModelProvider
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
-_thread_local = threading.local()
+_CLIENT_CACHE: dict[tuple, genai.Client] = {}
 
 
 def _get_google_client(api_key: str | None) -> genai.Client:
-    """Return a cached genai.Client for this thread and api_key."""
+    """Return a cached genai.Client."""
     cache_key = ("google", api_key)
-    cache = getattr(_thread_local, "google_clients", None)
-    if cache is None:
-        cache = {}
-        _thread_local.google_clients = cache
-    if cache_key in cache:
-        return cache[cache_key]
+    if cache_key in _CLIENT_CACHE:
+        return _CLIENT_CACHE[cache_key]
     ck: dict[str, Any] = {}
     if api_key is not None:
         ck["api_key"] = api_key
     client = genai.Client(**ck)
-    cache[cache_key] = client
+    _CLIENT_CACHE[cache_key] = client
     return client
 
 
@@ -54,41 +50,10 @@ class GoogleMessage(SageChatCompletionMessage):
 class GoogleProvider(SageModelProvider):
     """Provider for Google Gemini models."""
 
+    PROVIDER_KEY = "google"
+
     def __init__(self, api_key: str | None = None):
         self._client = _get_google_client(api_key)
-
-    def complete(
-        self,
-        model: str,
-        messages: list[SageMessage],
-        *,
-        trace: LLMTrace,
-        temperature: float | None = None,
-        max_tokens: int | None = None,
-        top_p: float | None = None,
-        stop: str | list[str] | None = None,
-        tools: list[ChatCompletionToolParam] | None = None,
-        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        reasoning_effort: str | int | None = None,
-    ) -> SageChatCompletionMessage:
-        contents, config = _translate_request(
-            messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-            stop=stop,
-            tools=tools,
-            tool_choice=tool_choice,
-            reasoning_effort=reasoning_effort,
-        )
-        sdk_kwargs = _serialize_sdk_kwargs(model, contents, config)
-        response = self._client.models.generate_content(
-            model=model,
-            contents=cast(types.ContentListUnionDict, contents),
-            config=config,
-        )
-        _fill_trace(trace, sdk_kwargs, response)
-        return _to_google_message(response, model)
 
     async def acomplete(
         self,
@@ -115,46 +80,26 @@ class GoogleProvider(SageModelProvider):
             reasoning_effort=reasoning_effort,
         )
         sdk_kwargs = _serialize_sdk_kwargs(model, contents, config)
-        response = await self._client.aio.models.generate_content(
-            model=model,
-            contents=cast(types.ContentListUnionDict, contents),
-            config=config,
+        response, call_duration = await with_llm_retry(
+            self.PROVIDER_KEY,
+            model,
+            lambda _: self._client.aio.models.generate_content(
+                model=model,
+                contents=cast(types.ContentListUnionDict, contents),
+                config=config,
+            ),
         )
+        if response.usage_metadata:
+            um = response.usage_metadata
+            record_usage(
+                self.PROVIDER_KEY,
+                model,
+                getattr(um, "prompt_token_count", 0) or 0,
+                getattr(um, "candidates_token_count", 0) or 0,
+                call_duration,
+            )
         _fill_trace(trace, sdk_kwargs, response)
         return _to_google_message(response, model)
-
-    def parse(
-        self,
-        model: str,
-        messages: list[SageMessage],
-        response_format: type[T],
-        *,
-        temperature: float | None = None,
-        max_tokens: int | None = None,
-        top_p: float | None = None,
-        stop: str | list[str] | None = None,
-        reasoning_effort: str | int | None = None,
-    ) -> T:
-        contents, config = _translate_request(
-            messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-            stop=stop,
-            reasoning_effort=reasoning_effort,
-            response_format=response_format,
-        )
-        sdk_kwargs = _serialize_sdk_kwargs(model, contents, config)
-        trace = LLMTrace()
-        response = self._client.models.generate_content(
-            model=model,
-            contents=cast(types.ContentListUnionDict, contents),
-            config=config,
-        )
-        _fill_trace(trace, sdk_kwargs, response)
-        message = _to_google_message(response, model)
-        assert message.content is not None
-        return response_format.model_validate_json(message.content)
 
     async def aparse(
         self,
@@ -179,11 +124,24 @@ class GoogleProvider(SageModelProvider):
         )
         sdk_kwargs = _serialize_sdk_kwargs(model, contents, config)
         trace = LLMTrace()
-        response = await self._client.aio.models.generate_content(
-            model=model,
-            contents=cast(types.ContentListUnionDict, contents),
-            config=config,
+        response, call_duration = await with_llm_retry(
+            self.PROVIDER_KEY,
+            model,
+            lambda _: self._client.aio.models.generate_content(
+                model=model,
+                contents=cast(types.ContentListUnionDict, contents),
+                config=config,
+            ),
         )
+        if response.usage_metadata:
+            um = response.usage_metadata
+            record_usage(
+                self.PROVIDER_KEY,
+                model,
+                getattr(um, "prompt_token_count", 0) or 0,
+                getattr(um, "candidates_token_count", 0) or 0,
+                call_duration,
+            )
         _fill_trace(trace, sdk_kwargs, response)
         message = _to_google_message(response, model)
         assert message.content is not None

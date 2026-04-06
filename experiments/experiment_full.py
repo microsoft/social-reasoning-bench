@@ -35,16 +35,21 @@ ATTACK_TYPES = ["privacy", "duty_of_care", "due_diligence"]
 PRIVACY_LEVELS = ["none", "simple", "strong", "ci"]
 
 # Fixed strong counterparty model (requestor, interviewer, seller)
-COUNTERPARTY_MODEL = "phyagi/gpt-5.2"
+COUNTERPARTY_MODEL = "azure_pool/gpt-5.4"
 COUNTERPARTY_REASONING_EFFORT = "medium"
+
+# ── Run parameters ─────────────────────────────────────────────────
+MAX_ROUNDS = 20
+MAX_STEPS_PER_TURN = 10
+JUDGE_VOTES = 1
 
 # Non-reasoning models get explicit_cot=True and explicit_cot=False variants.
 # Reasoning models get a reasoning_effort sweep instead.
 NON_REASONING_MODELS = [
-    "gpt-4.1",
+    "azure_pool/gpt-4.1",
 ]
 REASONING_MODELS = [
-    "gpt-5.4",
+    "azure_pool/gpt-5.4",
     "google/gemini-3.1-pro-preview",
     "anthropic/claude-sonnet-4.6",
 ]
@@ -54,7 +59,7 @@ REASONING_MODELS = [
 # "none" disables reasoning entirely (the value is not sent to the API).
 REASONING_EFFORTS: dict[str, list[tuple[str | int, str]]] = {
     # (effort_value, variant_tag) pairs
-    "gpt-5.4": [("none", "think_off"), ("medium", "think_med"), ("high", "think_high")],
+    "azure_pool/gpt-5.4": [("none", "think_off"), ("medium", "think_med"), ("high", "think_high")],
     "google/gemini-3.1-pro-preview": [
         ("none", "think_off"),
         ("medium", "think_med"),
@@ -105,6 +110,9 @@ def _cal(
         reasoning_effort=reasoning_effort,
         assistant_explicit_cot=assistant_explicit_cot,
         attack_types=attack_types,
+        max_rounds=MAX_ROUNDS,
+        max_steps_per_turn=MAX_STEPS_PER_TURN,
+        judge_votes=JUDGE_VOTES,
     )
 
 
@@ -185,6 +193,9 @@ def _mkt(
         reasoning_effort=reasoning_effort,
         explicit_cot=explicit_cot,
         attack_types=attack_types,
+        max_rounds=MAX_ROUNDS,
+        max_steps_per_turn=MAX_STEPS_PER_TURN,
+        judge_votes=JUDGE_VOTES,
     )
 
 
@@ -264,6 +275,9 @@ def _ff(
         reasoning_effort=reasoning_effort,
         explicit_cot=explicit_cot,
         attack_types=attack_types,
+        max_rounds=MAX_ROUNDS,
+        max_steps_per_turn=MAX_STEPS_PER_TURN,
+        judge_votes=JUDGE_VOTES,
     )
 
 

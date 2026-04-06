@@ -40,6 +40,7 @@ class StrategyProvider:
         max_strategies_per_seed: int | None = None,
         prefetch_seeds: int | None = None,
         prefetch_strategies: int | None = None,
+        reasoning_effort: str | int | None = None,
     ):
         self.model = model
         self.seeds = Path(seeds) if seeds else None
@@ -52,46 +53,67 @@ class StrategyProvider:
         self.max_strategies_per_seed = max_strategies_per_seed
         self.prefetch_seeds = prefetch_seeds
         self.prefetch_strategies = prefetch_strategies
+        self.reasoning_effort = reasoning_effort
         self._strategies_list: list[Strategy] = []
         self._index = 0
         self._wg: WhimsyGen | None = None
 
     def _get_whimsygen(self) -> WhimsyGen:
         if self._wg is None:
-            self._wg = WhimsyGen(model=self.model, seeds=self.seeds, task=self.task)
+            self._wg = WhimsyGen(
+                model=self.model,
+                seeds=self.seeds,
+                task=self.task,
+                reasoning_effort=self.reasoning_effort,
+            )
         return self._wg
 
-    async def load_or_generate(self, count: int) -> list[Strategy]:
-        """Load cached strategies or generate new ones up to *count*."""
+    async def load_or_generate(self, count: int, label: str = "") -> list[Strategy]:
+        """Load cached strategies or generate new ones up to *count*.
+
+        Args:
+            count: Number of strategies to return.
+            label: Optional prefix for log messages (e.g. "[privacy]").
+        """
+        prefix = f"{label} " if label else ""
         wg = self._get_whimsygen()
         if self.strategies and self.strategies.exists():
             self._strategies_list = wg.strategies.load(self.strategies)
             if len(self._strategies_list) >= count:
-                print(f"Loaded {len(self._strategies_list)} strategies from {self.strategies}")
+                print(
+                    f"{prefix}Loaded {len(self._strategies_list)} strategies from {self.strategies}"
+                )
                 return self._strategies_list[:count]
             print(
-                f"Cache has {len(self._strategies_list)} strategies, need {count}. Generating more..."
+                f"{prefix}Cache has {len(self._strategies_list)} strategies, "
+                f"need {count}. Generating more..."
             )
 
-        print(f"Generating {count} strategies using {self.model}...")
-        sample_kwargs: dict = {
-            "n": count,
+        isample_kwargs: dict = {
             "topics": self.topics,
             "chunk_size": self.chunk_size,
             "max_chunks_per_seed": self.max_chunks_per_seed,
             "max_strategies_per_chunk": self.max_strategies_per_chunk,
             "max_strategies_per_seed": self.max_strategies_per_seed,
+            "max_strategies": count,
         }
         if self.prefetch_seeds is not None:
-            sample_kwargs["prefetch_seeds"] = self.prefetch_seeds
+            isample_kwargs["prefetch_seeds"] = self.prefetch_seeds
         if self.prefetch_strategies is not None:
-            sample_kwargs["prefetch_strategies"] = self.prefetch_strategies
-        self._strategies_list = await wg.sample(**sample_kwargs)
+            isample_kwargs["prefetch_strategies"] = self.prefetch_strategies
+
+        from tqdm import tqdm
+
+        self._strategies_list = []
+        with tqdm(total=count, desc=f"{prefix}Strategies", unit="strat") as pbar:
+            async for strategy in wg.isample(**isample_kwargs):
+                self._strategies_list.append(strategy)
+                pbar.update(1)
 
         if self.strategies and self._strategies_list:
             self.strategies.parent.mkdir(parents=True, exist_ok=True)
             wg.strategies.save(self.strategies)
-            print(f"Saved {len(self._strategies_list)} strategies to {self.strategies}")
+            print(f"{prefix}Saved {len(self._strategies_list)} strategies to {self.strategies}")
 
         return self._strategies_list
 
@@ -275,6 +297,7 @@ def _provider_from_args(args, task_description: str) -> StrategyProvider:
         max_strategies_per_seed=getattr(args, "max_strategies_per_seed", None),
         prefetch_seeds=getattr(args, "prefetch_seeds", None),
         prefetch_strategies=getattr(args, "prefetch_strategies", None),
+        reasoning_effort=getattr(args, "reasoning_effort", None),
     )
 
 
@@ -287,11 +310,7 @@ async def run_injection(
     *,
     benchmark_name: str | None = None,
 ) -> None:
-    """Shared CLI runner for whimsical injection.
-
-    When ``args.validate`` is set, delegates to
-    :func:`_run_injection_with_validation` which generates N strategies,
-    benchmarks each on a validation set, and injects the best into all tasks.
+    """Shared CLI runner for whimsical injection (non-validation path).
 
     Args:
         args: Parsed CLI args (from :func:`build_injection_arg_parser`).
@@ -299,22 +318,8 @@ async def run_injection(
         load_fn: ``load_fn([path]) -> list[task]``.
         inject_fn: ``inject_fn(task, attack_type, strategy_text) -> list[task]``.
         save_fn: ``save_fn(tasks, output_path)``.
-        benchmark_name: Required when ``--validate`` is used.  One of
-            ``"calendar"``, ``"form-filling"``, ``"marketplace"``.
+        benchmark_name: Unused (kept for signature compat).
     """
-    if getattr(args, "validate", False):
-        _check_validation_args(args, benchmark_name)
-        assert benchmark_name is not None  # validated by _check_validation_args
-        await _run_injection_with_validation(
-            args,
-            task_description,
-            benchmark_name,
-            load_fn,
-            inject_fn,
-            save_fn,
-        )
-        return
-
     input_path = Path(args.input)
     if args.output:
         output_path = args.output
@@ -357,57 +362,37 @@ async def run_injection(
 # ---------------------------------------------------------------------------
 
 
-def _check_validation_args(
+async def run_pooled_validation(
     args: argparse.Namespace,
-    benchmark_name: str | None,
-) -> None:
-    """Raise if required validation flags are missing.
-
-    ``--agent-model`` and ``--judge-model`` default to ``-m/--model``
-    (the strategy generation model) when not explicitly provided.
-    """
-    # Default agent/judge model to the strategy generation model.
-    if not getattr(args, "agent_model", None):
-        args.agent_model = getattr(args, "model", None)
-    if not getattr(args, "judge_model", None):
-        args.judge_model = getattr(args, "model", None)
-
-    missing: list[str] = []
-    if benchmark_name is None:
-        missing.append("benchmark_name (internal — caller must pass it)")
-    if not args.agent_model:
-        missing.append("--agent-model (or -m/--model)")
-    if not args.judge_model:
-        missing.append("--judge-model (or -m/--model)")
-    if not getattr(args, "val_tasks_data", None):
-        missing.append("--val-tasks-data")
-    if missing:
-        raise ValueError(f"--validate requires the following: {', '.join(missing)}")
-
-
-async def _run_injection_with_validation(
-    args: argparse.Namespace,
-    task_description: str,
+    attack_types: list[str],
     benchmark_name: str,
     load_fn: Callable[[Sequence[Path]], list[T]],
     inject_fn: Callable[[T, str, str], list[T]],
     save_fn: Callable[[list[T], Path], None],
 ) -> None:
-    """Generate strategies, validate against benchmark, inject best into full task set."""
-    from .validation import validate_strategies
+    """Validate all attack types in a single ExperimentPoolExecutor.
+
+    1. Generates strategies per attack type.
+    2. Prepares one Benchmark per attack type (N×M tasks each).
+    3. Pools all benchmarks in one ExperimentPoolExecutor run.
+    4. Post-processes results per attack type: rank, select best, inject.
+    """
+    import asyncio
+    import os
+    import time
+
+    from sage_benchmark.experiments.runner import ExperimentPoolExecutor, _periodic_metrics_log
+    from sage_benchmark.shared.logging import create_benchmark_logger
+
+    from .validation import prepare_validation_benchmark, score_validation_results
 
     input_path = Path(args.input)
-    if args.output:
-        output_path = args.output
-    else:
-        output_path = input_path.parent / f"{input_path.stem}-whimsical-{args.attack_type}.yaml"
 
-    # 1. Load full task set (for final injection)
+    # 1. Load full task set and validation tasks (shared across attack types)
     print(f"Loading tasks from {input_path}")
     tasks = load_fn([input_path])
     print(f"Loaded {len(tasks)} tasks")
 
-    # 2. Load validation tasks
     val_data_path = Path(args.val_tasks_data)
     print(f"Loading validation tasks from {val_data_path}")
     val_tasks = load_fn([val_data_path])
@@ -416,40 +401,117 @@ async def _run_injection_with_validation(
         val_tasks = val_tasks[:val_limit]
     print(f"Using {len(val_tasks)} validation tasks")
 
-    # 3. Generate N candidate strategies
-    # --n-strategies overrides -n/--count when --validate is set.
     n_strategies: int = getattr(args, "n_strategies", None) or args.count
-    provider = _provider_from_args(args, task_description)
-    print(f"Generating {n_strategies} candidate strategies (model: {args.model})...")
-    strategies = await provider.load_or_generate(n_strategies)
+    output_dir = getattr(args, "val_output_dir", None) or Path(
+        f"outputs/whimsical_validation/{benchmark_name}"
+    )
+    output_dir = Path(output_dir)
+    logger_style = getattr(args, "logger", "progress")
+    log_level = getattr(args, "log_level", "info")
+    bl = create_benchmark_logger(logger_style, log_level=log_level)
 
-    # 4. Validate: single benchmark run with N × M tasks
-    print(f"\nValidating {len(strategies)} strategies against {len(val_tasks)} tasks...")
-    result = await validate_strategies(
-        strategies=strategies,
-        validation_tasks=val_tasks,
-        benchmark_name=benchmark_name,
-        attack_type=args.attack_type,
-        inject_fn=inject_fn,
-        agent_model=args.agent_model,
-        judge_model=args.judge_model,
-        output_dir=getattr(args, "val_output_dir", None),
+    # 2. Generate strategies for all attack types in parallel
+    #    Each attack type gets its own cache file so re-runs skip generation.
+    cache_dir = Path(output_dir)
+    task_descriptions = _get_task_descriptions(benchmark_name)
+    providers = []
+    for attack_type in attack_types:
+        task_desc = task_descriptions[attack_type]
+        provider = _provider_from_args(args, task_desc)
+        provider.strategies = cache_dir / f"strategies_{attack_type}.yaml"
+        providers.append((attack_type, provider))
+
+    strategy_lists = await asyncio.gather(
+        *(prov.load_or_generate(n_strategies, label=f"[{at}]") for at, prov in providers)
     )
 
-    # 5. Report winner
-    best = result.best
-    print(f"\nBest strategy (rank 1/{len(strategies)}):")
-    print(f"  Source seed : {best.strategy.source_seed}")
-    print(f"  {result.target_metric} = {best.metric_value}")
-    print(f"  Direction   : {result.direction}")
-    print(f"  Elapsed     : {result.elapsed_seconds:.1f}s")
+    # 3. Prepare benchmarks per attack type
+    preparations = []
+    for (attack_type, _), strategies in zip(providers, strategy_lists):
+        prepared = prepare_validation_benchmark(
+            strategies=strategies,
+            validation_tasks=val_tasks,
+            benchmark_name=benchmark_name,
+            attack_type=attack_type,
+            inject_fn=inject_fn,
+            agent_model=args.agent_model,
+            judge_model=args.judge_model,
+            agent_reasoning_effort=getattr(args, "agent_reasoning_effort", None),
+            agent_explicit_cot=getattr(args, "agent_cot", False),
+            judge_reasoning_effort=getattr(args, "judge_reasoning_effort", None),
+            output_dir=output_dir,
+            benchmark_logger=bl,
+        )
+        preparations.append(prepared)
 
-    # 6. Inject best strategy into ALL tasks
-    injected: list[T] = []
-    for task in tasks:
-        injected.extend(inject_fn(task, args.attack_type, best.strategy.game_strategies))
+    # 3. Pool all benchmarks in one ExperimentPoolExecutor
+    from sage_llm import concurrency
 
-    # 7. Save
-    print(f"\nSaving {len(injected)} tasks to {output_path}")
-    save_fn(injected, output_path)
-    print(f"\nDone!\n  Input:  {input_path}\n  Output: {output_path}\n  Tasks:  {len(injected)}")
+    batch_size = getattr(args, "batch_size", 100) or 100
+    llm_concurrency = getattr(args, "llm_concurrency", None)
+    task_concurrency = getattr(args, "task_concurrency", None)
+    concurrency.configure(llm_size=llm_concurrency, task_size=task_concurrency)
+
+    benchmarks = [p.benchmark for p in preparations]
+    total_tasks = sum(len(bm.tasks) for bm in benchmarks)
+    print(
+        f"\nRunning {total_tasks} validation tasks across {len(preparations)} attack types "
+        f"(batch_size={batch_size})..."
+    )
+
+    t0 = time.monotonic()
+    metrics_interval = float(os.environ.get("SAGE_METRICS_INTERVAL", "120"))
+    metrics_task = asyncio.create_task(_periodic_metrics_log(interval=metrics_interval))
+    pool = ExperimentPoolExecutor(
+        benchmarks=benchmarks,
+        batch_size=batch_size,
+        benchmark_logger=bl,
+        task_concurrency=task_concurrency,
+    )
+    try:
+        outputs = await pool.run()
+    finally:
+        metrics_task.cancel()
+        try:
+            await metrics_task
+        except asyncio.CancelledError:
+            pass
+    elapsed = time.monotonic() - t0
+
+    # 4. Score and inject per attack type
+    for prepared, output in zip(preparations, outputs):
+        attack_type = prepared.attack_type
+        result = score_validation_results(prepared, output, output_dir=output_dir)
+        result.elapsed_seconds = elapsed
+
+        best = result.best
+        print(f"\n[{attack_type}] Best strategy (rank 1/{len(prepared.strategies)}):")
+        print(f"  Source seed : {best.strategy.source_seed}")
+        print(f"  {result.target_metric} = {best.metric_value}")
+        print(f"  Direction   : {result.direction}")
+
+        # Inject best strategy into ALL tasks
+        if args.output:
+            output_path = args.output
+        else:
+            output_path = input_path.parent / f"{input_path.stem}-whimsical-{attack_type}.yaml"
+
+        injected: list[T] = []
+        for task in tasks:
+            injected.extend(inject_fn(task, attack_type, best.strategy.game_strategies))
+
+        print(f"  Saving {len(injected)} tasks to {output_path}")
+        save_fn(injected, output_path)
+
+    print(f"\nDone! Total elapsed: {elapsed:.1f}s")
+
+
+def _get_task_descriptions(benchmark_name: str) -> dict[str, str]:
+    """Get TASK_DESCRIPTIONS dict for the benchmark."""
+    if benchmark_name == "calendar":
+        from sage_data_gen.calendar_scheduling.malicious import TASK_DESCRIPTIONS
+    elif benchmark_name == "form-filling":
+        from sage_data_gen.form_filling.malicious import TASK_DESCRIPTIONS
+    else:
+        from sage_data_gen.marketplace.malicious import TASK_DESCRIPTIONS
+    return TASK_DESCRIPTIONS

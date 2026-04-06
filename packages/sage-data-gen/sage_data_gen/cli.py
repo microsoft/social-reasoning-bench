@@ -45,6 +45,9 @@ def _build_malicious_parser() -> argparse.ArgumentParser:
     # Whimsical options
     whim = parser.add_argument_group("whimsical options")
     whim.add_argument("-m", "--model", default=None, help="Model for strategy generation")
+    whim.add_argument(
+        "--reasoning-effort", default=None, help="Reasoning effort for strategy generation model"
+    )
     whim.add_argument("-n", "--count", type=int, default=1, help="Strategies to generate")
     whim.add_argument(
         "--strategy-assignment",
@@ -77,16 +80,48 @@ def _build_malicious_parser() -> argparse.ArgumentParser:
         help="Number of candidate strategies to generate for validation",
     )
     val.add_argument("--agent-model", default=None, help="Model for the agent under test")
+    val.add_argument("--agent-reasoning-effort", default=None, help="Reasoning effort for agent")
+    val.add_argument(
+        "--agent-cot",
+        action="store_true",
+        default=False,
+        help="Enable explicit chain-of-thought for agent",
+    )
     val.add_argument("--judge-model", default=None, help="Model for the evaluation judge")
+    val.add_argument("--judge-reasoning-effort", default=None, help="Reasoning effort for judge")
     val.add_argument("--val-tasks-data", type=Path, default=None, help="Validation task YAML")
     val.add_argument("--val-tasks-limit", type=int, default=None, help="Max validation tasks")
     val.add_argument("--val-output-dir", type=Path, default=None, help="Validation output dir")
+    val.add_argument(
+        "--batch-size", type=int, default=100, help="Max concurrent tasks (default: 100)"
+    )
+    val.add_argument(
+        "--task-concurrency", type=int, default=None, help="Max concurrent LLM calls per task"
+    )
+    val.add_argument(
+        "--llm-concurrency",
+        type=int,
+        default=None,
+        help="Max total concurrent LLM calls per provider",
+    )
+    val.add_argument(
+        "--logger",
+        default="progress",
+        choices=["progress", "verbose", "quiet"],
+        help="Logger style for validation benchmark (default: progress)",
+    )
+    val.add_argument(
+        "--log-level",
+        default="info",
+        choices=["debug", "info", "warning", "error"],
+        help="Python log level for benchmark loggers (default: info)",
+    )
 
     return parser
 
 
 async def _run_whimsical(benchmark: str, attack_type: str, args: argparse.Namespace) -> None:
-    """Run whimsical injection for a single (benchmark, attack_type)."""
+    """Run whimsical injection for a single (benchmark, attack_type) — non-validation path."""
     from sage_data_gen.shared.whimsical import run_injection
 
     mod = _get_malicious_module(benchmark)
@@ -97,6 +132,7 @@ async def _run_whimsical(benchmark: str, attack_type: str, args: argparse.Namesp
         output=args.output,
         attack_type=attack_type,
         model=args.model,
+        reasoning_effort=args.reasoning_effort,
         count=args.count,
         strategy_assignment=args.strategy_assignment,
         seeds_dir=args.seeds_dir,
@@ -109,14 +145,6 @@ async def _run_whimsical(benchmark: str, attack_type: str, args: argparse.Namesp
         prefetch_strategies=args.prefetch_strategies,
         strategies_file=args.strategies_file,
         rng_seed=args.rng_seed,
-        # Validation fields
-        validate=args.validate,
-        n_strategies=args.n_strategies,
-        agent_model=args.agent_model,
-        judge_model=args.judge_model,
-        val_tasks_data=args.val_tasks_data,
-        val_tasks_limit=args.val_tasks_limit,
-        val_output_dir=args.val_output_dir,
     )
     await run_injection(
         injection_args,
@@ -130,13 +158,18 @@ async def _run_whimsical(benchmark: str, attack_type: str, args: argparse.Namesp
 
 def _malicious_main():
     """``sagegen malicious {benchmark} [opts]``."""
-    from sage_benchmark.shared import TaskPoolExecutor
-
     parser = _build_malicious_parser()
     args = parser.parse_args()
 
     if not args.model:
         parser.error("-m/--model is required for whimsical generation")
+
+    if args.attack_type is None and args.output is not None:
+        parser.error("--output cannot be used when running all attack types")
+
+    mod = _get_malicious_module(args.benchmark)
+    attack_types = mod.WHIMSICAL_ATTACK_TYPES
+    types = [args.attack_type] if args.attack_type else attack_types
 
     if args.validate:
         # Default agent/judge model to -m/--model when not explicitly set.
@@ -147,15 +180,25 @@ def _malicious_main():
         if not args.val_tasks_data:
             parser.error("--val-tasks-data is required when --validate is used")
 
-    if args.attack_type is None and args.output is not None:
-        parser.error("--output cannot be used when running all attack types")
+        # Pooled validation: all attack types in one ExperimentPoolExecutor
+        from sage_data_gen.shared.whimsical import run_pooled_validation
 
-    # Get attack types from the benchmark module
-    mod = _get_malicious_module(args.benchmark)
+        asyncio.run(
+            run_pooled_validation(
+                args,
+                attack_types=list(types),
+                benchmark_name=args.benchmark,
+                load_fn=mod.load,
+                inject_fn=mod.inject_whimsical,
+                save_fn=mod.save,
+            )
+        )
+        return
 
-    attack_types = mod.WHIMSICAL_ATTACK_TYPES
-    types = [args.attack_type] if args.attack_type else attack_types
-    combos: list[str] = list(types)
+    # Non-validation: run each attack type independently
+    from sage_benchmark.shared import TaskPoolExecutor
+
+    combos = list(types)
 
     async def _run_combo(attack_type: str) -> str:
         label = f"{args.benchmark} / whimsical / {attack_type}"

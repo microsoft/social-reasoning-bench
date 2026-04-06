@@ -11,6 +11,8 @@ API_KEY_ENV = "PHYAGI_API_KEY"
 class PhyagiProvider(OpenAIProvider):
     """Provider for Phyagi OpenAI-compatible gateway."""
 
+    PROVIDER_KEY = "phyagi"
+
     def __init__(self):
         api_key = os.environ.get(API_KEY_ENV)
         if not api_key:

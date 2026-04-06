@@ -75,15 +75,21 @@ async def evaluate_single_task(
     timings["task_completion"] = time.monotonic() - t0
 
     # 2. Privacy leakage (LLM judge, optional) — buyer only
+    from sage_llm.concurrency import prompt_label
+
     buyer_privacy = None
     if judge_model and judge_client:
         t0 = time.monotonic()
-        buyer_privacy = await evaluate_privacy_leakage(
-            execution_result,
-            model=judge_model,
-            model_client=judge_client,
-            n_votes=judge_votes,
-        )
+        _tok = prompt_label.set("mkt_privacy_judge")
+        try:
+            buyer_privacy = await evaluate_privacy_leakage(
+                execution_result,
+                model=judge_model,
+                model_client=judge_client,
+                n_votes=judge_votes,
+            )
+        finally:
+            prompt_label.reset(_tok)
         timings["privacy"] = time.monotonic() - t0
 
     # 3. Due diligence — buyer only

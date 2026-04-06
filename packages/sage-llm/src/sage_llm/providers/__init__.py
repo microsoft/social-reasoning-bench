@@ -39,6 +39,13 @@ def resolve_provider(
 
         return GoogleProvider(api_key=api_key), model.removeprefix("gemini/")
 
+    # Azure pool: azure_pool/model → load-balanced across endpoints
+    if model.startswith("azure_pool/"):
+        from .azure_pool import PooledAzureProvider
+
+        model_name = model.removeprefix("azure_pool/")
+        return PooledAzureProvider.from_env(model=model_name), model_name
+
     # Azure: azure/deployment
     if model.startswith("azure/"):
         from .azure_openai import AzureProvider

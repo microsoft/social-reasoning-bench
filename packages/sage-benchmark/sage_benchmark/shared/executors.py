@@ -10,6 +10,8 @@ from typing import (
     TypeVar,
 )
 
+from sage_llm.concurrency import task_scope
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
@@ -41,6 +43,7 @@ class TaskPoolExecutor:
         task_logger: logging.Logger | None = None,
         quiet_cancel: bool = False,
         cancel_event: asyncio.Event | None = None,
+        task_concurrency: int | None = None,
     ):
         """Initialize the executor.
 
@@ -52,6 +55,9 @@ class TaskPoolExecutor:
             quiet_cancel: If True, suppress cancellation log messages (for nested executors).
             cancel_event: Optional event for cooperative cancellation. When set,
                 the executor stops pulling new tasks and waits for running tasks to drain.
+            task_concurrency: Optional per-task LLM concurrency limit. When set,
+                each task is wrapped in ``sage_llm.concurrency.task_scope(task_concurrency)``
+                so that LLM calls within a single task are throttled independently.
         """
         self.batch_size = batch_size
         self._on_task_complete = on_task_complete
@@ -59,6 +65,7 @@ class TaskPoolExecutor:
         self._logger = task_logger or logger
         self._quiet_cancel = quiet_cancel
         self._cancel_event = cancel_event
+        self._task_concurrency = task_concurrency
 
     async def run(
         self,
@@ -119,6 +126,8 @@ class TaskPoolExecutor:
                     try:
                         # Get next unawaited coroutine
                         coro = next(tasks_iter)
+                        if self._task_concurrency is not None:
+                            coro = self._wrap_with_task_scope(coro)
                         pending.add(asyncio.create_task(coro))
                     except StopIteration:
                         # Reached end of tasks_iter
@@ -207,3 +216,8 @@ class TaskPoolExecutor:
                 cancel_waiter.cancel()
 
         return results
+
+    async def _wrap_with_task_scope(self, coro: Coroutine[Any, Any, T]) -> T:
+        """Wrap a coroutine in a per-task concurrency scope."""
+        async with task_scope(task_size=self._task_concurrency):
+            return await coro

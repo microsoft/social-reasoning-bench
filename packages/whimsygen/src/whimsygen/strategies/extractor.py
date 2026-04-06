@@ -18,14 +18,15 @@ class StrategyExtractor:
             print(strategy.game_strategies)
     """
 
-    def __init__(self, model: str):
+    def __init__(self, model: str, reasoning_effort: str | int | None = None):
         """Initialize the strategy extractor.
 
         Args:
             model: LLM model identifier (e.g., "openai/gpt-4.1")
+            reasoning_effort: Reasoning effort for the model (e.g., "medium", "high")
         """
         self.model = model
-        self._client = SageModelClient()
+        self._client = SageModelClient(reasoning_effort=reasoning_effort)
 
     async def sample(
         self,

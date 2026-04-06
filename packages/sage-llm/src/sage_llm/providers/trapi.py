@@ -84,6 +84,8 @@ def _get_deployment(model_name: str) -> str:
 class TrapiProvider(AzureProvider):
     """Provider for Microsoft TRAPI (Azure OpenAI with AD token auth)."""
 
+    PROVIDER_KEY = "trapi"
+
     def __init__(self, api_path: str = DEFAULT_API_PATH):
         super().__init__(
             azure_endpoint=f"https://trapi.research.microsoft.com/{api_path}",

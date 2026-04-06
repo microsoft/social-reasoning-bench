@@ -1,43 +1,59 @@
-"""Integration tests for the TRAPI provider.
+"""Integration tests for the PooledAzureProvider.
 
-These tests make real API calls to TRAPI and require Azure CLI authentication.
+These tests make real API calls to Azure OpenAI endpoints and require:
+  - Azure CLI authentication (``az login``)
+  - SAGE_AZURE_POOL_PATH pointing to config directory with gpt-4.1.json
+
 Skip them with: pytest -m "not integration"
-Run only these: pytest -m integration
+Run only these: pytest -m integration tests/providers/test_azure_pool_integration.py
 """
+
+import os
 
 import pytest
 from openai.types.chat import ChatCompletionToolParam
 from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMessageToolCall
 from pydantic import BaseModel, ConfigDict
 from sage_llm.client import SageModelClient
-from sage_llm.providers.trapi import TrapiProvider
+from sage_llm.concurrency import configure, get_metrics, reset
+from sage_llm.providers.azure_pool import PooledAzureProvider
 from sage_llm.tracing import LLMTrace
 
-MODEL = "trapi/gpt-4.1-nano"
+MODEL_NAME = "gpt-4.1"
+CLIENT_MODEL = f"azure_pool/{MODEL_NAME}"
 
 
-def _can_auth() -> bool:
-    """Check if TRAPI authentication is available."""
+def _can_create_provider() -> bool:
+    """Check if pool config and Azure auth are available."""
+    if not os.environ.get("SAGE_AZURE_POOL_PATH"):
+        return False
     try:
-        TrapiProvider()
+        PooledAzureProvider.from_env(MODEL_NAME)
         return True
     except Exception:
         return False
 
 
-requires_trapi = pytest.mark.skipif(not _can_auth(), reason="TRAPI auth not available")
+requires_pool = pytest.mark.skipif(not _can_create_provider(), reason="Azure pool not configured")
 integration = pytest.mark.integration
 
 
-@requires_trapi
+@pytest.fixture(autouse=True)
+def _reset_state():
+    configure(llm_size=8)
+    yield
+    reset()
+
+
+@requires_pool
 @integration
-class TestTrapiComplete:
+class TestPooledAzureComplete:
     @pytest.mark.asyncio
-    async def test_async_complete(self):
-        provider = TrapiProvider()
+    async def test_acomplete(self):
+        provider = PooledAzureProvider.from_env(MODEL_NAME)
         trace = LLMTrace()
         msg = await provider.acomplete(
-            "gpt-4.1-nano_2025-04-14",
+            MODEL_NAME,
             [{"role": "user", "content": "Reply with exactly: hello"}],
             trace=trace,
             max_tokens=16,
@@ -45,39 +61,57 @@ class TestTrapiComplete:
         assert msg.content is not None
         assert len(msg.content) > 0
         assert msg.role == "assistant"
-        assert trace.provider_name == "azure_openai"
+        assert trace.provider_name == "azure_pool"
         assert trace.prompt_tokens is not None
         assert trace.prompt_tokens > 0
 
     @pytest.mark.asyncio
-    async def test_async_complete_tokens(self):
-        provider = TrapiProvider()
+    async def test_acomplete_tokens_recorded(self):
+        provider = PooledAzureProvider.from_env(MODEL_NAME)
         trace = LLMTrace()
         msg = await provider.acomplete(
-            "gpt-4.1-nano_2025-04-14",
+            MODEL_NAME,
             [{"role": "user", "content": "Reply with exactly: hello"}],
             trace=trace,
             max_tokens=16,
         )
         assert msg.content is not None
-        assert len(msg.content) > 0
         assert trace.total_tokens is not None
         assert trace.total_tokens > 0
 
-
-@requires_trapi
-@integration
-class TestTrapiParse:
     @pytest.mark.asyncio
-    async def test_async_parse(self):
+    async def test_acomplete_metrics(self):
+        """Metrics should be recorded after a successful call."""
+        provider = PooledAzureProvider.from_env(MODEL_NAME)
+        trace = LLMTrace()
+        await provider.acomplete(
+            MODEL_NAME,
+            [{"role": "user", "content": "Reply with exactly: hello"}],
+            trace=trace,
+            max_tokens=16,
+        )
+        metrics = get_metrics()
+        key = f"azure_pool/{MODEL_NAME}"
+        assert key in metrics
+        m = metrics[key]
+        assert m.call_count >= 1
+        assert m.completion_tokens > 0
+        assert m.call_seconds > 0
+
+
+@requires_pool
+@integration
+class TestPooledAzureParse:
+    @pytest.mark.asyncio
+    async def test_aparse(self):
         class Sentiment(BaseModel):
             model_config = ConfigDict(extra="forbid")
             label: str
             score: float
 
-        provider = TrapiProvider()
+        provider = PooledAzureProvider.from_env(MODEL_NAME)
         result = await provider.aparse(
-            "gpt-4.1-nano_2025-04-14",
+            MODEL_NAME,
             [
                 {
                     "role": "user",
@@ -91,27 +125,10 @@ class TestTrapiParse:
         assert result.label != ""
         assert 0.0 <= result.score <= 1.0
 
-    @pytest.mark.asyncio
-    async def test_async_parse_color(self):
-        class Color(BaseModel):
-            model_config = ConfigDict(extra="forbid")
-            name: str
-            hex: str
 
-        provider = TrapiProvider()
-        result = await provider.aparse(
-            "gpt-4.1-nano_2025-04-14",
-            [{"role": "user", "content": "Return the color red with its hex code."}],
-            Color,
-            max_tokens=64,
-        )
-        assert isinstance(result, Color)
-        assert result.name.lower() == "red"
-
-
-@requires_trapi
+@requires_pool
 @integration
-class TestTrapiToolCalling:
+class TestPooledAzureToolCalling:
     @pytest.mark.asyncio
     async def test_tool_call(self):
         tools: list[ChatCompletionToolParam] = [
@@ -130,10 +147,10 @@ class TestTrapiToolCalling:
                 },
             }
         ]
-        provider = TrapiProvider()
+        provider = PooledAzureProvider.from_env(MODEL_NAME)
         trace = LLMTrace()
         msg = await provider.acomplete(
-            "gpt-4.1-nano_2025-04-14",
+            MODEL_NAME,
             [{"role": "user", "content": "What's the weather in Seattle?"}],
             trace=trace,
             tools=tools,
@@ -146,25 +163,31 @@ class TestTrapiToolCalling:
         assert tc.function.name == "get_weather"
 
 
-@requires_trapi
+@requires_pool
 @integration
-class TestTrapiViaClient:
+class TestPooledAzureViaClient:
     @pytest.mark.asyncio
     async def test_client_acomplete(self):
         client = SageModelClient()
         msg = await client.acomplete(
-            MODEL,
+            CLIENT_MODEL,
             [{"role": "user", "content": "Reply with exactly: ok"}],
             max_tokens=8,
         )
         assert msg.content is not None
 
     @pytest.mark.asyncio
-    async def test_client_acomplete_2(self):
-        client = SageModelClient()
-        msg = await client.acomplete(
-            MODEL,
-            [{"role": "user", "content": "Reply with exactly: ok"}],
-            max_tokens=8,
-        )
-        assert msg.content is not None
+    async def test_multiple_calls_distribute(self):
+        """Multiple calls should hit different endpoints (round-robin)."""
+        provider = PooledAzureProvider.from_env(MODEL_NAME)
+        for _ in range(3):
+            trace = LLMTrace()
+            msg = await provider.acomplete(
+                MODEL_NAME,
+                [{"role": "user", "content": "Reply with exactly: ok"}],
+                trace=trace,
+                max_tokens=8,
+            )
+            assert msg.content is not None
+        # Verify round-robin advanced
+        assert provider._next >= 3

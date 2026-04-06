@@ -152,6 +152,15 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         """
         return [self.config.model or "unknown"]
 
+    def expand_tasks(self, tasks: list[TTask]) -> list[TTask]:
+        """Hook for expanding tasks after loading (e.g., hand-crafted injection).
+
+        Called from ``__init__`` after tasks are set, regardless of whether
+        they came from cache or a fresh ``load_tasks()`` call. Override in
+        subclasses that need config-dependent task expansion.
+        """
+        return tasks
+
     def load_tasks(self) -> tuple[list[TTask], dict[str, str]]:
         """Load tasks from ``self.config``.
 
@@ -277,10 +286,11 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
 
         # -- tasks --
         if tasks is not None:
-            self.tasks = tasks
+            self._raw_tasks = list(tasks)
             fh = file_hashes or {}
         else:
-            self.tasks, fh = self.load_tasks()
+            self._raw_tasks, fh = self.load_tasks()
+        self.tasks = self.expand_tasks(list(self._raw_tasks))
 
         # reeval mode: reconstruct tasks from prior exec results
         if not self.tasks and self.prior_exec_results:
@@ -316,8 +326,14 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
                     r for r in self.prior_eval_results if r.execution.task.hash in current_hashes
                 ]
 
-        # -- init checkpoint data --
-        self.checkpoint_mgr.initialize(config, fh)
+        # -- init checkpoint data (carry forward prior results so the on-disk
+        #    checkpoint is never emptied during a resumed run) --
+        self.checkpoint_mgr.initialize(
+            config,
+            fh,
+            prior_exec_results=self.prior_exec_results,
+            prior_eval_results=self.prior_eval_results,
+        )
 
         # -- domain setup --
         self.setup(config)
@@ -356,6 +372,7 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
             on_task_complete=on_complete,
             task_logger=logger,
             cancel_event=cancel_event,
+            task_concurrency=self.config.task_concurrency,
         )
         t0 = time.monotonic()
         await executor.run(generate_tasks())
