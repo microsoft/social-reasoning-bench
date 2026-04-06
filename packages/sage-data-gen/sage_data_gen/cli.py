@@ -183,6 +183,7 @@ def _malicious_main():
         # Pooled validation: all attack types in one ExperimentPoolExecutor
         from sage_data_gen.shared.whimsical import run_pooled_validation
 
+        sample_fn = getattr(mod, "sample_validation_tasks", None)
         asyncio.run(
             run_pooled_validation(
                 args,
@@ -191,6 +192,7 @@ def _malicious_main():
                 load_fn=mod.load,
                 inject_fn=mod.inject_whimsical,
                 save_fn=mod.save,
+                sample_fn=sample_fn,
             )
         )
         return

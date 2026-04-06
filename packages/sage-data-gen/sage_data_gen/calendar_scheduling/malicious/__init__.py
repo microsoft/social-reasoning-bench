@@ -3,6 +3,7 @@
 Exports the common API consumed by the ``sagegen malicious`` CLI.
 """
 
+import random
 from pathlib import Path
 
 import yaml
@@ -32,10 +33,100 @@ def save(tasks: list[CalendarTask], output_path: Path) -> None:
         )
 
 
+def sample_validation_tasks(
+    tasks: list[CalendarTask],
+    attack_type: str,
+    limit: int | None,
+    rng: random.Random,
+) -> list[CalendarTask]:
+    """Sample validation tasks with calendar-aware stratification.
+
+    Ensures the sample contains a mix of satisfiable and unsatisfiable tasks,
+    stratified by ``free_slots_count`` buckets.  Attack-type-specific rules:
+
+    * **due_diligence / duty_of_care** — at least 2/3 of the sample should be
+      satisfiable so the agent has scheduling options to explore or protect.
+    * **privacy** — balanced mix; leakage can happen regardless of satisfiability.
+    """
+    if limit is None or limit >= len(tasks):
+        return list(tasks)
+
+    satisfiable = [t for t in tasks if t.satisfiable]
+    unsatisfiable = [t for t in tasks if not t.satisfiable]
+
+    if attack_type in ("due_diligence", "duty_of_care"):
+        # Favour satisfiable tasks so strategies have room to exploit.
+        n_sat = max(1, (limit * 2 + 2) // 3)  # ceil(2/3 * limit)
+        n_unsat = limit - n_sat
+    else:
+        # Privacy: balanced split.
+        n_sat = max(1, limit // 2)
+        n_unsat = limit - n_sat
+
+    # Clamp to available counts and redistribute overflow.
+    n_sat = min(n_sat, len(satisfiable))
+    n_unsat = min(n_unsat, len(unsatisfiable))
+    remaining = limit - n_sat - n_unsat
+    if remaining > 0 and len(satisfiable) > n_sat:
+        extra = min(remaining, len(satisfiable) - n_sat)
+        n_sat += extra
+        remaining -= extra
+    if remaining > 0 and len(unsatisfiable) > n_unsat:
+        n_unsat += min(remaining, len(unsatisfiable) - n_unsat)
+
+    # Stratified pick within each group by free_slots_count buckets.
+    picked_sat = _stratified_pick(satisfiable, n_sat, rng)
+    picked_unsat = _stratified_pick(unsatisfiable, n_unsat, rng)
+
+    result = picked_sat + picked_unsat
+    rng.shuffle(result)
+    return result
+
+
+def _stratified_pick(
+    tasks: list[CalendarTask],
+    n: int,
+    rng: random.Random,
+) -> list[CalendarTask]:
+    """Pick *n* tasks spread across ``free_slots_count`` buckets."""
+    if n <= 0 or not tasks:
+        return []
+    if n >= len(tasks):
+        return list(tasks)
+
+    # Group by free_slots_count.
+    buckets: dict[int | None, list[CalendarTask]] = {}
+    for t in tasks:
+        buckets.setdefault(t.free_slots_count, []).append(t)
+
+    # Round-robin one from each bucket until we reach n.
+    picked: list[CalendarTask] = []
+    bucket_keys = sorted(buckets.keys(), key=lambda k: (k is None, k))
+    # Shuffle within each bucket for randomness.
+    for k in bucket_keys:
+        rng.shuffle(buckets[k])
+    idx = {k: 0 for k in bucket_keys}
+
+    while len(picked) < n:
+        added_this_round = False
+        for k in bucket_keys:
+            if len(picked) >= n:
+                break
+            if idx[k] < len(buckets[k]):
+                picked.append(buckets[k][idx[k]])
+                idx[k] += 1
+                added_this_round = True
+        if not added_this_round:
+            break
+
+    return picked
+
+
 __all__ = [
     "WHIMSICAL_ATTACK_TYPES",
     "TASK_DESCRIPTIONS",
     "load",
     "save",
     "inject_whimsical",
+    "sample_validation_tasks",
 ]

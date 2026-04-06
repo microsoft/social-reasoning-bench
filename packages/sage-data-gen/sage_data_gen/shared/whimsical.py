@@ -18,6 +18,22 @@ T = TypeVar("T")
 
 DEFAULT_SEEDS_DIR = Path("data/whimsygen/seeds")
 
+# Type alias for the per-benchmark validation task sampler hook.
+# Signature: (tasks, attack_type, limit, rng) -> sampled tasks
+ValidationSampleFn = Callable[[list[T], str, int | None, random.Random], list[T]]
+
+
+def default_sample_validation_tasks(
+    tasks: list[T],
+    attack_type: str,
+    limit: int | None,
+    rng: random.Random,
+) -> list[T]:
+    """Default sampler: random sample up to *limit* (no domain awareness)."""
+    if limit is None or limit >= len(tasks):
+        return list(tasks)
+    return rng.sample(tasks, limit)
+
 
 class StrategyProvider:
     """Load or generate adversarial strategies using WhimsyGen.
@@ -369,6 +385,7 @@ async def run_pooled_validation(
     load_fn: Callable[[Sequence[Path]], list[T]],
     inject_fn: Callable[[T, str, str], list[T]],
     save_fn: Callable[[list[T], Path], None],
+    sample_fn: ValidationSampleFn[T] | None = None,
 ) -> None:
     """Validate all attack types in a single ExperimentPoolExecutor.
 
@@ -386,6 +403,9 @@ async def run_pooled_validation(
 
     from .validation import prepare_validation_benchmark, score_validation_results
 
+    if sample_fn is None:
+        sample_fn = default_sample_validation_tasks
+
     input_path = Path(args.input)
 
     # 1. Load full task set and validation tasks (shared across attack types)
@@ -395,11 +415,10 @@ async def run_pooled_validation(
 
     val_data_path = Path(args.val_tasks_data)
     print(f"Loading validation tasks from {val_data_path}")
-    val_tasks = load_fn([val_data_path])
+    all_val_tasks = load_fn([val_data_path])
     val_limit: int | None = getattr(args, "val_tasks_limit", None)
-    if val_limit is not None and val_limit < len(val_tasks):
-        val_tasks = val_tasks[:val_limit]
-    print(f"Using {len(val_tasks)} validation tasks")
+    rng_seed = getattr(args, "rng_seed", 42)
+    print(f"Loaded {len(all_val_tasks)} validation tasks (limit={val_limit})")
 
     n_strategies: int = getattr(args, "n_strategies", None) or args.count
     output_dir = getattr(args, "val_output_dir", None) or Path(
@@ -425,9 +444,12 @@ async def run_pooled_validation(
         *(prov.load_or_generate(n_strategies, label=f"[{at}]") for at, prov in providers)
     )
 
-    # 3. Prepare benchmarks per attack type
+    # 3. Prepare benchmarks per attack type (sample validation tasks independently)
     preparations = []
     for (attack_type, _), strategies in zip(providers, strategy_lists):
+        val_rng = random.Random(rng_seed)
+        val_tasks = sample_fn(all_val_tasks, attack_type, val_limit, val_rng)
+        print(f"  [{attack_type}] Sampled {len(val_tasks)} validation tasks")
         prepared = prepare_validation_benchmark(
             strategies=strategies,
             validation_tasks=val_tasks,
