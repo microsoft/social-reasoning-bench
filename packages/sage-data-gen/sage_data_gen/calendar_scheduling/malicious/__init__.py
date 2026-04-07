@@ -47,6 +47,16 @@ def sample_validation_tasks(
     * **due_diligence / duty_of_care** — at least 2/3 of the sample should be
       satisfiable so the agent has scheduling options to explore or protect.
     * **privacy** — balanced mix; leakage can happen regardless of satisfiability.
+
+    Args:
+        tasks: Full list of calendar tasks to sample from.
+        attack_type: Attack category (e.g. 'due_diligence', 'privacy') controlling
+            the satisfiable/unsatisfiable ratio.
+        limit: Maximum number of tasks to return, or None for all tasks.
+        rng: Seeded random instance for reproducible sampling.
+
+    Returns:
+        Shuffled list of sampled tasks, stratified by satisfiability and fullness.
     """
     if limit is None or limit >= len(tasks):
         return list(tasks)
@@ -88,7 +98,17 @@ def _stratified_pick(
     n: int,
     rng: random.Random,
 ) -> list[CalendarTask]:
-    """Pick *n* tasks spread across ``free_slots_count`` buckets."""
+    """Pick *n* tasks spread across ``free_slots_count`` buckets.
+
+    Args:
+        tasks: Pool of calendar tasks to pick from.
+        n: Number of tasks to select.
+        rng: Seeded random instance for shuffling within buckets.
+
+    Returns:
+        List of up to *n* tasks distributed across free_slots_count buckets
+        via round-robin.
+    """
     if n <= 0 or not tasks:
         return []
     if n >= len(tasks):

@@ -50,7 +50,16 @@ def _classify_findability(
     masked_fields: list[dict],
     config: FormFillingConfig,
 ) -> FieldFindabilityClassification:
-    """Randomly assign findable/unfindable to each masked field."""
+    """Randomly assign findable/unfindable to each masked field.
+
+    Args:
+        masked_fields: List of ``{field_id, original_value}`` dicts.
+        config: Pipeline configuration (uses ``filesystem_findable_ratio``
+            and ``random_seed``).
+
+    Returns:
+        FieldFindabilityClassification with findable and unfindable fields.
+    """
     rng = random.Random(config.random_seed)
 
     findable_fields = []
@@ -103,7 +112,19 @@ async def _generate_search_terms(
     client: SageModelClient,
     config: FormFillingConfig,
 ) -> list[FieldFindability]:
-    """Generate BM25 search terms for each findable field."""
+    """Generate BM25 search terms for each findable field.
+
+    Args:
+        findable_fields: List of FieldFindability objects to generate
+            search terms for.
+        persona: Expanded persona for contextual search term generation.
+        client: SageModelClient instance.
+        config: Pipeline configuration.
+
+    Returns:
+        Updated list of FieldFindability objects with populated
+        ``suggested_search_terms``.
+    """
     persona_text = translate_persona2text(persona)
     updated = []
 
@@ -192,6 +213,17 @@ def _distribute_secrets_and_neginfo(
 
     Total slots per field = 1 + N_scenarios*N_per_scenario (findable)
                           = N_scenarios*N_per_scenario     (unfindable)
+
+    Args:
+        all_secrets: Generated secrets to distribute.
+        negative_info: Optional negative info to distribute.
+        num_findable: Number of findable fields.
+        num_unfindable: Number of unfindable fields.
+        config: Pipeline configuration (uses distractor counts and seed).
+
+    Returns:
+        Tuple of (secrets_per_slot, neginfo_per_slot) where each is a list
+        of lists, one per artifact slot.
     """
     n_distractor = config.filesystem_distractor_scenarios * config.filesystem_artifacts_per_scenario
 
@@ -259,7 +291,20 @@ async def _generate_answer_artifact(
     client: SageModelClient,
     config: FormFillingConfig,
 ) -> FileSystemArtifact:
-    """Generate exactly 1 artifact containing the correct answer for a findable field."""
+    """Generate exactly 1 artifact containing the correct answer for a findable field.
+
+    Args:
+        field: FieldFindability for the target field.
+        persona: Expanded persona for context.
+        secrets_to_embed: Secret dicts to weave into the artifact.
+        neginfo_to_embed: Negative info dicts to weave into the artifact.
+        artifact_id: Unique identifier for the generated artifact.
+        client: SageModelClient instance.
+        config: Pipeline configuration.
+
+    Returns:
+        FileSystemArtifact containing the correct answer and embedded secrets.
+    """
     field_label = field.field_id.replace("_", " ").replace(".", " > ")
 
     result = await client.aparse(

@@ -40,6 +40,7 @@ from ..tracing import LLMTrace
 from ..types import SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
 from .openai import (
+    _extract_token_details,
     _pydantic_to_json_schema,
     _to_openai_message,
     _to_openai_messages,
@@ -91,7 +92,16 @@ class PoolConfig(BaseModel):
 
 
 def _load_pool_config(raw_path: str, model: str) -> PoolConfig | None:
-    """Search PATH-like *raw_path* for a config file matching *model*."""
+    """Search PATH-like *raw_path* for a config file matching *model*.
+
+    Args:
+        raw_path: Colon-delimited search path (directories or files).
+        model: Model name used to match config file stems
+            (e.g. ``"gpt-4.1"`` matches ``gpt-4.1.json``).
+
+    Returns:
+        Parsed :class:`PoolConfig` if a matching file is found, otherwise ``None``.
+    """
     from pathlib import Path as P
 
     candidates: list[P] = []
@@ -123,6 +133,9 @@ def _get_ad_token_provider() -> Any:
     or an ``async`` callable returning a string.  Azure's
     ``get_bearer_token_provider`` returns a *sync* callable, so we wrap
     it in an async wrapper.
+
+    Returns:
+        An async callable that returns a bearer token string.
     """
     from azure.identity import (
         AzureCliCredential,
@@ -168,6 +181,13 @@ def _get_client(
 
     *api_key* can be a string or a callable token provider — the OpenAI
     SDK accepts both.
+
+    Args:
+        base_url: The Azure ``/openai/v1/`` base URL for this endpoint.
+        api_key: API key string or async callable token provider.
+
+    Returns:
+        A cached :class:`openai.AsyncOpenAI` instance.
     """
     if base_url in _CLIENT_CACHE:
         return _CLIENT_CACHE[base_url]
@@ -297,12 +317,15 @@ class PooledAzureProvider(SageModelProvider):
             max_retries=len(self._endpoints),
         )
         if response.usage:
+            cached, reasoning = _extract_token_details(response)
             record_usage(
                 self.PROVIDER_KEY,
                 model,
                 response.usage.prompt_tokens or 0,
                 response.usage.completion_tokens or 0,
                 call_duration,
+                cached_tokens=cached,
+                reasoning_tokens=reasoning,
             )
         _fill_trace(trace, {"model": model, **base_kwargs}, response)
         return _to_openai_message(response)
@@ -338,12 +361,15 @@ class PooledAzureProvider(SageModelProvider):
             max_retries=len(self._endpoints),
         )
         if response.usage:
+            cached, reasoning = _extract_token_details(response)
             record_usage(
                 self.PROVIDER_KEY,
                 model,
                 response.usage.prompt_tokens or 0,
                 response.usage.completion_tokens or 0,
                 call_duration,
+                cached_tokens=cached,
+                reasoning_tokens=reasoning,
             )
         _fill_trace(trace, {"model": model, **base_kwargs}, response)
         message = _to_openai_message(response)
@@ -357,6 +383,10 @@ class PooledAzureProvider(SageModelProvider):
 
         Two-pass: first prefer endpoints with free semaphore slots,
         then fall back to any healthy endpoint (may block on semaphore).
+
+        Returns:
+            The selected :class:`_EndpointState`, or ``None`` if all
+            endpoints are unhealthy.
         """
         n = len(self._endpoints)
         start = self._next
@@ -377,7 +407,15 @@ class PooledAzureProvider(SageModelProvider):
 
     @asynccontextmanager
     async def _endpoint_gate(self, provider_key: str, model: str):  # noqa: ARG002
-        """Custom gate: pick healthy endpoint, acquire per-endpoint AIMD semaphore."""
+        """Custom gate: pick healthy endpoint, acquire per-endpoint AIMD semaphore.
+
+        Args:
+            provider_key: Provider identifier (``"azure_pool"``).
+            model: Model/deployment name.
+
+        Raises:
+            RuntimeError: If all endpoints are currently unhealthy.
+        """
         ep = self._pick_healthy()
         if ep is None:
             raise RuntimeError(f"azure_pool: all {len(self._endpoints)} endpoints unhealthy")

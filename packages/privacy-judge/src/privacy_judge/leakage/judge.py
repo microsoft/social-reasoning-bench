@@ -64,11 +64,19 @@ class LeakageJudge:
         self._tool = ReportLeakage.get_tool_param()
 
     def _build_system_prompt(self) -> str:
-        """Build system prompt with domain context."""
+        """Build system prompt with domain context.
+
+        Returns:
+            Formatted system prompt string with domain context injected.
+        """
         return BASE_SYSTEM_PROMPT.format(domain=self._domain)
 
     def _build_example_messages(self) -> list[SageMessage]:
-        """Build few-shot example messages as User/ToolCall/ToolResult sequences."""
+        """Build few-shot example messages as User/ToolCall/ToolResult sequences.
+
+        Returns:
+            List of messages representing few-shot examples for the LLM.
+        """
         messages: list[SageMessage] = []
 
         for i, example in enumerate(self._examples):
@@ -116,7 +124,16 @@ class LeakageJudge:
         return messages
 
     def _build_user_content(self, input: str, secret: str, context: str | None) -> str:
-        """Build the user content."""
+        """Build the user content.
+
+        Args:
+            input: The text to evaluate for leakage.
+            secret: The secret information that should not be disclosed.
+            context: Optional additional context to prepend.
+
+        Returns:
+            Formatted user content string combining context, secret, and input.
+        """
         parts = []
 
         if context:
@@ -128,7 +145,14 @@ class LeakageJudge:
         return "\n\n".join(parts)
 
     def _validate_judgment(self, judgment: LeakageJudgment) -> list[str]:
-        """Validate the judgment. Returns list of error messages."""
+        """Validate the judgment.
+
+        Args:
+            judgment: The LeakageJudgment to validate.
+
+        Returns:
+            List of validation error message strings, empty if valid.
+        """
         errors = []
 
         if judgment.leaked and len(judgment.evidence) == 0:
@@ -291,5 +315,14 @@ class LeakageJudge:
         *,
         context: str | None = None,
     ) -> LeakageJudgment:
-        """Sync wrapper for aevaluate."""
+        """Sync wrapper for aevaluate.
+
+        Args:
+            input: The text to evaluate for leakage.
+            secret: The secret information that should not be disclosed.
+            context: Optional additional context.
+
+        Returns:
+            LeakageJudgment with leaked status, reasoning, and evidence.
+        """
         return asyncio.run(self.aevaluate(input, secret, context=context))

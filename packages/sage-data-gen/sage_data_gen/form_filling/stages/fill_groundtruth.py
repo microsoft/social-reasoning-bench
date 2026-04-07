@@ -20,12 +20,28 @@ from sage_data_gen.form_filling.utils import (
 
 
 def _get_form_schema(form_class) -> str:
-    """Get form schema as a formatted string."""
+    """Get form schema as a formatted string.
+
+    Args:
+        form_class: Pydantic BaseModel class for the form.
+
+    Returns:
+        JSON string of the form's model JSON schema.
+    """
     return json.dumps(form_class.model_json_schema(), indent=2)
 
 
 async def _fill_form_with_llm(form_class, client: SageModelClient, model: str) -> dict:
-    """Fill a form using LLM structured output."""
+    """Fill a form using LLM structured output.
+
+    Args:
+        form_class: Pydantic BaseModel class for the form.
+        client: SageModelClient instance.
+        model: Model name for filling.
+
+    Returns:
+        Filled form data dict with signature fields cleared.
+    """
     class_name = form_class.__name__
     form_title = class_name.replace("_", " ").title()
     if form_class.__doc__:

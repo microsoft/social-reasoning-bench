@@ -114,12 +114,20 @@ class BaseAgent:
 
     @property
     def messages(self) -> list[SageMessage]:
-        """Return the current message history (read-only view)."""
+        """Return the current message history (read-only view).
+
+        Returns:
+            A shallow copy of the internal message list.
+        """
         return list(self._messages)
 
     @property
     def tools(self) -> list[ChatCompletionFunctionToolParam]:
-        """Return the tool definitions in OpenAI format."""
+        """Return the tool definitions in OpenAI format.
+
+        Returns:
+            A list of OpenAI-compatible function tool parameter definitions.
+        """
         return list(self._openai_tools)
 
     # ------------------------------------------------------------------ #
@@ -215,6 +223,9 @@ class BaseAgent:
         """Return the user message to send when the LLM produces no tool calls.
 
         Override to customize the retry prompt for your benchmark.
+
+        Returns:
+            A user-role message string instructing the model to produce a tool call.
         """
         return (
             "You must call exactly one tool. If you have completed the task, "
@@ -228,6 +239,9 @@ class BaseAgent:
 
         Args:
             error: The exception that caused the retry.
+
+        Returns:
+            A user-role message string describing the validation error and requesting a valid tool call.
         """
         return f"Your previous response was invalid: {error}. Return exactly one valid tool call."
 

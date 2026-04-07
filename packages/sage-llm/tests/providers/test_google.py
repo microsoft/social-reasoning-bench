@@ -108,7 +108,16 @@ class TestTranslateRequest:
 
 
 def _tool_msg(content: str, tool_call_id: str, **extra: str) -> ChatCompletionToolMessageParam:
-    """Build a tool message dict with proper typing."""
+    """Build a tool message dict with proper typing.
+
+    Args:
+        content: Tool result content string.
+        tool_call_id: ID of the tool call this result corresponds to.
+        **extra: Additional fields to include (e.g. ``name``).
+
+    Returns:
+        A :class:`ChatCompletionToolMessageParam` dict.
+    """
     return cast(
         ChatCompletionToolMessageParam,
         {"role": "tool", "content": content, "tool_call_id": tool_call_id, **extra},
@@ -116,7 +125,16 @@ def _tool_msg(content: str, tool_call_id: str, **extra: str) -> ChatCompletionTo
 
 
 def _get_fr(content: types.Content, index: int = 0) -> types.FunctionResponse:
-    """Extract a FunctionResponse from Content, with assertions."""
+    """Extract a FunctionResponse from Content, with assertions.
+
+    Args:
+        content: A :class:`types.Content` expected to contain a
+            ``FunctionResponse`` part.
+        index: Part index to extract from.
+
+    Returns:
+        The :class:`types.FunctionResponse` at the given index.
+    """
     assert content.parts is not None
     fr = content.parts[index].function_response
     assert fr is not None

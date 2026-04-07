@@ -1,4 +1,4 @@
-"""The Benchmark ABC — concrete lifecycle with abstract domain hooks."""
+"""The Benchmark ABC -- concrete lifecycle with abstract domain hooks."""
 
 from __future__ import annotations
 
@@ -26,7 +26,17 @@ logger = logging.getLogger(__name__)
 
 
 def _parse_bool(value: str) -> bool:
-    """Argparse ``type`` function for boolean flags."""
+    """Argparse ``type`` function for boolean flags.
+
+    Args:
+        value: String value to parse (e.g. ``'true'``, ``'false'``, ``'1'``, ``'0'``).
+
+    Returns:
+        The parsed boolean value.
+
+    Raises:
+        argparse.ArgumentTypeError: If *value* is not a recognized boolean string.
+    """
     if value.lower() in ("true", "1", "yes"):
         return True
     if value.lower() in ("false", "0", "no"):
@@ -62,19 +72,34 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
     @classmethod
     @abstractmethod
     def benchmark_name(cls) -> str:
-        """Short snake_case name (e.g. ``'calendar_scheduling'``)."""
+        """Short snake_case name (e.g. ``'calendar_scheduling'``).
+
+        Returns:
+            The benchmark's canonical name used in output paths and logging.
+        """
         ...
 
     @classmethod
     @abstractmethod
     def add_benchmark_args(cls, parser: argparse.ArgumentParser) -> None:
-        """Add benchmark-specific CLI flags to *parser*."""
+        """Add benchmark-specific CLI flags to *parser*.
+
+        Args:
+            parser: The argument parser to extend with benchmark-specific flags.
+        """
         ...
 
     @classmethod
     @abstractmethod
     def create_config(cls, args: argparse.Namespace) -> TConfig:
-        """Build a run config from parsed CLI args."""
+        """Build a run config from parsed CLI args.
+
+        Args:
+            args: Parsed command-line arguments from :meth:`create_parser`.
+
+        Returns:
+            A fully populated run configuration for this benchmark.
+        """
         ...
 
     @abstractmethod
@@ -83,6 +108,9 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
 
         Store anything the executor / evaluator needs as instance
         attributes (e.g. ``self.judge_client``).
+
+        Args:
+            config: The run configuration for this benchmark instance.
         """
         ...
 
@@ -92,7 +120,15 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         task: TTask,
         cancel_event: asyncio.Event | None = None,
     ) -> TExecResult:
-        """Run a single task and return the execution result."""
+        """Run a single task and return the execution result.
+
+        Args:
+            task: The task to execute.
+            cancel_event: Optional event for cooperative cancellation.
+
+        Returns:
+            The execution result containing the task outcome.
+        """
         ...
 
     @abstractmethod
@@ -102,12 +138,26 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         Called when :meth:`execute_task` raises.  The subclass knows
         which fields are required on its concrete ``TExecResult`` and
         can populate safe defaults alongside the error.
+
+        Args:
+            task: The task that failed during execution.
+            error: The exception raised during execution.
+
+        Returns:
+            An error-state execution result with safe defaults for all required fields.
         """
         ...
 
     @abstractmethod
     async def evaluate_task(self, exec_result: TExecResult) -> TEvalResult:
-        """Evaluate a single execution result."""
+        """Evaluate a single execution result.
+
+        Args:
+            exec_result: The completed execution result to evaluate.
+
+        Returns:
+            The evaluation result with scores across all enforced dimensions.
+        """
         ...
 
     @abstractmethod
@@ -119,6 +169,13 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         Called when :meth:`evaluate_task` raises.  The subclass knows
         which fields are required on its concrete ``TEvalResult`` and
         can populate safe defaults alongside the error.
+
+        Args:
+            exec_result: The execution result that was being evaluated.
+            error: The exception raised during evaluation.
+
+        Returns:
+            An error-state evaluation result with safe defaults for all required fields.
         """
         ...
 
@@ -127,17 +184,32 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         self,
         eval_results: list[TEvalResult],
     ) -> TBenchmarkEvalResult:
-        """Aggregate per-task results into a benchmark-level evaluation."""
+        """Aggregate per-task results into a benchmark-level evaluation.
+
+        Args:
+            eval_results: List of per-task evaluation results to aggregate.
+
+        Returns:
+            A benchmark-level evaluation with averaged metrics across all tasks.
+        """
         ...
 
     @abstractmethod
     def print_per_task_summary(self, eval_results: list[TEvalResult]) -> None:
-        """Print a per-task table to stdout."""
+        """Print a per-task table to stdout.
+
+        Args:
+            eval_results: List of per-task evaluation results to display.
+        """
         ...
 
     @abstractmethod
     def print_evaluation_summary(self, evaluation: TBenchmarkEvalResult) -> None:
-        """Print aggregate statistics to stdout."""
+        """Print aggregate statistics to stdout.
+
+        Args:
+            evaluation: The benchmark-level evaluation to summarize.
+        """
         ...
 
     # ==================================================================
@@ -149,23 +221,41 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
 
         Override to list the agent models relevant to this benchmark
         (e.g. ``[config.resolved_buyer_model, ...]``).
+
+        Returns:
+            List of model name strings for directory naming.
         """
         return [self.config.model or "unknown"]
 
-    def expand_tasks(self, tasks: list[TTask]) -> list[TTask]:
-        """Hook for expanding tasks after loading (e.g., hand-crafted injection).
+    def prepare_tasks(self, tasks: list[TTask]) -> list[TTask]:
+        """Hook for preparing tasks after loading (e.g., hand-crafted injection).
 
         Called from ``__init__`` after tasks are set, regardless of whether
         they came from cache or a fresh ``load_tasks()`` call. Override in
-        subclasses that need config-dependent task expansion.
+        subclasses that need config-dependent task preparation.
+
+        Args:
+            tasks: The loaded tasks to potentially expand or transform.
+
+        Returns:
+            The (possibly expanded) list of tasks.
         """
         return tasks
 
     def load_tasks(self) -> tuple[list[TTask], dict[str, str]]:
         """Load tasks from ``self.config``.
 
-        Default implementation raises — override or pass tasks to
+        Default implementation raises -- override or pass tasks to
         :pymethod:`__init__` via *tasks*.
+
+        Returns:
+            A tuple of ``(tasks, file_hashes)`` where ``tasks`` is a list of
+            loaded task objects and ``file_hashes`` maps source file paths to
+            their content hashes.
+
+        Raises:
+            NotImplementedError: If the subclass does not override this method
+                and no tasks were passed to ``__init__``.
         """
         raise NotImplementedError(
             f"{type(self).__name__} must override load_tasks() or pass tasks to __init__"
@@ -218,7 +308,7 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         all_eval_results: dict[str, TEvalResult] = {}
 
         # Load prior results from checkpoint (in-progress) or results.json (completed).
-        # Checkpoint is authoritative when it exists — a checkpoint means the run
+        # Checkpoint is authoritative when it exists -- a checkpoint means the run
         # was interrupted or re-run, so results.json may be stale.
         if self.run_paths.checkpoint_path.exists():
             loaded = self.checkpoint_mgr.load()
@@ -290,7 +380,7 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
             fh = file_hashes or {}
         else:
             self._raw_tasks, fh = self.load_tasks()
-        self.tasks = self.expand_tasks(list(self._raw_tasks))
+        self.tasks = self.prepare_tasks(list(self._raw_tasks))
 
         # reeval mode: reconstruct tasks from prior exec results
         if not self.tasks and self.prior_exec_results:
@@ -339,14 +429,23 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         self.setup(config)
 
     # ------------------------------------------------------------------
-    # run() — the main entry point
+    # run() -- the main entry point
     # ------------------------------------------------------------------
 
     async def run(
         self,
         cancel_event: asyncio.Event | None = None,
     ) -> BenchmarkOutput[TConfig, TBenchmarkEvalResult, TEvalResult]:
-        """Execute + evaluate all tasks, produce output."""
+        """Execute + evaluate all tasks, produce output.
+
+        Args:
+            cancel_event: Optional event for cooperative cancellation. When set,
+                the executor stops pulling new tasks and saves a checkpoint.
+
+        Returns:
+            A ``BenchmarkOutput`` containing the config, aggregate evaluation,
+            and all per-task evaluation results.
+        """
         from ...shared.executors import TaskPoolExecutor
 
         prior_exec_by_key: dict[str, TExecResult] = {
@@ -390,7 +489,7 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         return output
 
     # ------------------------------------------------------------------
-    # _exec_and_eval_single — coupled exec+eval with skip-set logic
+    # _exec_and_eval_single -- coupled exec+eval with skip-set logic
     # ------------------------------------------------------------------
 
     async def _exec_and_eval_single(
@@ -444,7 +543,7 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
             return None
 
         if error_msg is not None:
-            # Execution failed — skip evaluation, create error eval result directly
+            # Execution failed -- skip evaluation, create error eval result directly
             eval_result = self.make_evaluation_error_result(
                 exec_result, Exception(f"Execution failed: {error_msg}")
             )
@@ -496,7 +595,11 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         )
 
     def _load_prior_output(self) -> list[TEvalResult]:
-        """Load eval results from a prior results.json."""
+        """Load eval results from a prior results.json.
+
+        Returns:
+            List of evaluation results deserialized from the results file.
+        """
         output = self._output_type.model_validate_json(self.run_paths.results_path.read_text())
         return output.results
 
@@ -519,7 +622,11 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
 
     @classmethod
     def create_parser(cls) -> argparse.ArgumentParser:
-        """Build a full argument parser (shared flags + benchmark-specific)."""
+        """Build a full argument parser (shared flags + benchmark-specific).
+
+        Returns:
+            An ``ArgumentParser`` with both base and benchmark-specific arguments.
+        """
         parser = cls._create_base_parser()
         cls.add_benchmark_args(parser)
         return parser

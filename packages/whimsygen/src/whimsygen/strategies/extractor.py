@@ -76,7 +76,16 @@ class StrategyExtractor:
                 continue
 
     def _chunk_text(self, text: str, chunk_size: int, overlap: int = 500) -> list[str]:
-        """Split text into overlapping chunks."""
+        """Split text into overlapping chunks.
+
+        Args:
+            text: The text to split.
+            chunk_size: Maximum size of each chunk.
+            overlap: Number of overlapping characters between chunks.
+
+        Returns:
+            List of text chunks.
+        """
         chunks = []
         start = 0
 
@@ -100,7 +109,18 @@ class StrategyExtractor:
         total_chunks: int,
         task: str,
     ) -> str:
-        """Build the extraction prompt."""
+        """Build the extraction prompt.
+
+        Args:
+            title: Wikipedia article title.
+            chunk: Text chunk to process.
+            chunk_num: Current chunk number.
+            total_chunks: Total number of chunks.
+            task: Task description for strategy context.
+
+        Returns:
+            The formatted prompt string for the LLM.
+        """
         return f"""You are an expert game strategist. Given the following article content and a game description, identify UNORTHODOX, UNEXPECTED, and CREATIVE ideas from the content that are applicable to playing this game.
 
 IMPORTANT: Avoid generic or obvious strategies. Focus on finding strategies that are:
@@ -143,7 +163,16 @@ strategies:
 """
 
     def _parse_response(self, response: str, seed_title: str, chunk_num: int) -> list[Strategy]:
-        """Parse LLM response into Strategy objects."""
+        """Parse LLM response into Strategy objects.
+
+        Args:
+            response: Raw LLM response text.
+            seed_title: Title of the source Wikipedia article.
+            chunk_num: Chunk number the response was generated from.
+
+        Returns:
+            List of parsed Strategy objects.
+        """
         # Extract YAML from markdown
         if "```yaml" in response:
             yaml_start = response.find("```yaml") + 7

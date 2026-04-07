@@ -55,17 +55,29 @@ class WhimsyGen:
 
     @property
     def seeds(self) -> SeedManager:
-        """Seeds manager."""
+        """Seeds manager.
+
+        Returns:
+            The SeedManager instance.
+        """
         return self._seeds
 
     @property
     def task(self) -> TaskManager:
-        """Task manager."""
+        """Task manager.
+
+        Returns:
+            The TaskManager instance.
+        """
         return self._task
 
     @property
     def strategies(self) -> StrategyManager:
-        """Strategies manager."""
+        """Strategies manager.
+
+        Returns:
+            The StrategyManager instance.
+        """
         return self._strategies
 
     async def sample(

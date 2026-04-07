@@ -85,7 +85,11 @@ class SamplingPipeline:
 
     @property
     def stopped(self) -> bool:
-        """Check if pipeline has been stopped."""
+        """Check if pipeline has been stopped.
+
+        Returns:
+            True if the stop event has been set.
+        """
         return self._stop_event.is_set()
 
     async def produce_seeds(self) -> None:
@@ -156,6 +160,9 @@ class SamplingPipeline:
 
         Launches producer tasks, yields strategies from the queue, and ensures
         proper cleanup on exit (whether normal completion or early termination).
+
+        Yields:
+            Strategy objects as they are produced by the pipeline.
         """
         tasks = [
             asyncio.create_task(self.produce_seeds()),

@@ -15,7 +15,15 @@ class _FakeError(Exception):
 
 
 def _make_response(prompt_tokens=10, completion_tokens=5):
-    """Create a minimal mock ChatCompletion."""
+    """Create a minimal mock ChatCompletion.
+
+    Args:
+        prompt_tokens: Number of prompt tokens for the mock usage.
+        completion_tokens: Number of completion tokens for the mock usage.
+
+    Returns:
+        A :class:`MagicMock` mimicking a ChatCompletion response.
+    """
     usage = MagicMock()
     usage.prompt_tokens = prompt_tokens
     usage.completion_tokens = completion_tokens
@@ -39,7 +47,14 @@ def _make_response(prompt_tokens=10, completion_tokens=5):
 
 
 def _make_provider(n_endpoints=3):
-    """Create a PooledAzureProvider with mock clients."""
+    """Create a PooledAzureProvider with mock clients.
+
+    Args:
+        n_endpoints: Number of mock endpoints to create.
+
+    Returns:
+        A :class:`PooledAzureProvider` with mock endpoint states.
+    """
     provider = PooledAzureProvider.__new__(PooledAzureProvider)
     provider._endpoints = []
     provider._next = 0

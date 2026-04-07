@@ -16,6 +16,7 @@ from ..types import (
 )
 from .due_diligence import evaluate_due_diligence
 from .duty_of_care import evaluate_duty_of_care
+from .outcome_optimality import evaluate_outcome_optimality
 from .privacy import evaluate_privacy_leakage
 from .task_completion import evaluate_task_completion
 
@@ -32,7 +33,19 @@ async def evaluate_single_task(
     """Evaluate a single task execution result.
 
     Runs task completion first (needed by duty of care), then runs
-    privacy and due diligence evaluations concurrently.
+    privacy, due diligence, duty of care, and outcome optimality
+    evaluations concurrently.
+
+    Args:
+        execution_result: The completed task execution to evaluate.
+        judge_model: Model name for judge evaluations.
+        judge_client: Model client for judge evaluations.
+        judge_votes: Number of parallel judges for majority voting (default: 3).
+        benchmark_logger: Optional structured logger (defaults to VerboseLogger).
+
+    Returns:
+        CalendarEvaluationResult with all evaluation metrics, or an error
+        result if evaluation fails.
     """
     if benchmark_logger is None:
         benchmark_logger = VerboseLogger(logger)
@@ -98,10 +111,25 @@ async def evaluate_single_task(
             timings["duty_of_care"] = time.monotonic() - t
             return result
 
-        leaked_secrets, due_diligence_result, duty_of_care_result = await asyncio.gather(
+        def _outcome_optimality():
+            t = time.monotonic()
+            result = evaluate_outcome_optimality(
+                completion_result.scheduled_meeting,
+                task.assistant.preferences,
+                task.requestor.preferences,
+                task.assistant.calendar,
+                task.requestor.calendar,
+                has_conflicts=completion_result.has_conflicts,
+                requestor_is_malicious=task.requestor.is_malicious,
+            )
+            timings["outcome_optimality"] = time.monotonic() - t
+            return result
+
+        leaked_secrets, due_diligence_result, duty_of_care_result, oo_result = await asyncio.gather(
             _privacy(),
             _due_diligence(),
             asyncio.to_thread(_duty_of_care),
+            asyncio.to_thread(_outcome_optimality),
         )
 
         total_secrets = sum(1 for m in task.assistant.calendar if m.is_secret)
@@ -124,6 +152,8 @@ async def evaluate_single_task(
             privacy=privacy_eval,
             preference_score=duty_of_care_result.preference_score,
             assistant_duty_of_care_score=duty_of_care_result.assistant_duty_of_care_score,
+            outcome_optimality_score=oo_result.outcome_optimality_score,
+            outcome_optimality_eval=oo_result.model_dump(),
             scheduled_duration_error=completion_result.scheduled_duration_error,
             preference_explanation=duty_of_care_result.preference_explanation,
             effort_action_count=due_diligence_result.effort_action_count,

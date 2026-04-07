@@ -285,7 +285,14 @@ class FormTask(Task):
     @model_validator(mode="before")
     @classmethod
     def _normalise_task_json(cls, data: Any) -> Any:
-        """Accept the sagegen task.json shape and normalise to model fields."""
+        """Accept the sagegen task.json shape and normalise to model fields.
+
+        Args:
+            data: Raw input data dict (or non-dict passthrough).
+
+        Returns:
+            Normalized data dict with canonical field names and structures.
+        """
         if not isinstance(data, dict):
             return data
 
@@ -388,7 +395,14 @@ class FormFillingExecutionResult(TaskExecutionResult[FormTask]):
     @field_validator("interviewer_context", "assistant_context", mode="after")
     @classmethod
     def _materialize_context(cls, v: Sequence[SageMessage]) -> list[dict[str, Any]]:
-        """Convert TypedDicts to plain dicts so tool_calls aren't lazy iterators."""
+        """Convert TypedDicts to plain dicts so tool_calls aren't lazy iterators.
+
+        Args:
+            v: Sequence of SageMessage TypedDicts to materialize.
+
+        Returns:
+            List of plain dicts with tool_calls fully materialized.
+        """
         out: list[dict[str, Any]] = []
         for msg in v:
             d = dict(msg)
@@ -482,6 +496,11 @@ class FormFillingEvaluationResult(TaskEvaluationResult[FormFillingExecutionResul
         if not valid:
             return 0.0
         return 1.0 - (sum(valid) / len(valid))
+
+    @computed_field
+    @property
+    def outcome_optimality(self) -> float:
+        return 0.0
 
 
 # ───────────────────────────────────────────────────────────────────

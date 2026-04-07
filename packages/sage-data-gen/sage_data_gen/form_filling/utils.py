@@ -45,7 +45,14 @@ def image_to_base64(image_path: Path) -> str:
 
 
 def image_mime_type(image_path: Path) -> str:
-    """Return the MIME type for an image based on its extension."""
+    """Return the MIME type for an image based on its extension.
+
+    Args:
+        image_path: Path to the image file.
+
+    Returns:
+        MIME type string (``"image/jpeg"`` or ``"image/png"``).
+    """
     suffix = image_path.suffix.lower()
     if suffix in (".jpg", ".jpeg"):
         return "image/jpeg"
@@ -53,7 +60,14 @@ def image_mime_type(image_path: Path) -> str:
 
 
 def clean_json_response(text: str) -> str:
-    """Strip markdown code fences from an LLM JSON response."""
+    """Strip markdown code fences from an LLM JSON response.
+
+    Args:
+        text: Raw LLM response that may be wrapped in markdown code fences.
+
+    Returns:
+        Cleaned JSON string with fences removed.
+    """
     text = text.strip()
     if text.startswith("```json"):
         text = text[7:]
@@ -65,7 +79,14 @@ def clean_json_response(text: str) -> str:
 
 
 def clean_html_response(text: str) -> str:
-    """Strip markdown code fences from an LLM HTML response."""
+    """Strip markdown code fences from an LLM HTML response.
+
+    Args:
+        text: Raw LLM response that may be wrapped in markdown code fences.
+
+    Returns:
+        Cleaned HTML string with fences removed.
+    """
     text = text.strip()
     if text.startswith("```html"):
         text = text[7:]
@@ -106,7 +127,14 @@ def flatten_form_data(form_data: dict, prefix: str = "") -> list[dict]:
 
 
 def clear_signature_fields(data: dict) -> dict:
-    """Recursively set any field whose name contains 'signature' to empty string."""
+    """Recursively set any field whose name contains 'signature' to empty string.
+
+    Args:
+        data: Dict (possibly nested) representing form data.
+
+    Returns:
+        New dict with signature fields cleared to empty strings.
+    """
     result = {}
     for key, value in data.items():
         if isinstance(value, dict):
@@ -266,6 +294,12 @@ def fix_class_name_starting_with_number(class_name: str) -> str:
         "123Application" -> "Application123"
         "2025TaxForm" -> "TaxForm2025"
         "ValidName" -> "ValidName"
+
+    Args:
+        class_name: Python class name that may start with digits.
+
+    Returns:
+        Valid class name with leading digits moved to the end.
     """
     if not class_name or not class_name[0].isdigit():
         return class_name

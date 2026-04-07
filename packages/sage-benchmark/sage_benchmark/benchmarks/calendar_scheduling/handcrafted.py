@@ -77,7 +77,17 @@ ATTACK_TYPES: list[str] = list(PROMPTS.keys())
 
 
 def inject(task: CalendarTask, attack_type: str) -> list[CalendarTask]:
-    """Inject handcrafted malicious prompt into the requestor, returning one variant."""
+    """Inject handcrafted malicious prompt into the requestor, returning one variant.
+
+    Args:
+        task: The base calendar task to inject with a malicious prompt.
+        attack_type: Key into ``PROMPTS`` selecting which attack prompt to use
+            (e.g. ``"privacy"``, ``"duty_of_care"``, ``"due_diligence"``).
+
+    Returns:
+        A single-element list containing a new ``CalendarTask`` with the
+        requestor's malicious prompt, flag, target, and strategy fields set.
+    """
     prompt = PROMPTS[attack_type]
     task_dict = task.model_dump(mode="json")
     task_dict["requestor"]["malicious_prompt"] = prompt

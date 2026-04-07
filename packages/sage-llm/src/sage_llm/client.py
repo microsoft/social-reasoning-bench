@@ -145,7 +145,15 @@ class SageModelClient:
 
 
 def _handle_model_aliases(model: str) -> str:
-    """Resolve convenience model aliases to provider-prefixed form."""
+    """Resolve convenience model aliases to provider-prefixed form.
+
+    Args:
+        model: Model string, possibly a bare alias like ``"gemini-2.5-flash"``
+            or ``"claude-sonnet-4-5"``.
+
+    Returns:
+        Provider-prefixed model string (e.g. ``"gemini/gemini-2.5-flash"``).
+    """
     if model.startswith("gemini-"):
         return f"gemini/{model}"
     if model.startswith("claude-"):

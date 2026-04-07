@@ -23,7 +23,11 @@ class AgentEmail:
 
     @property
     def owner(self) -> str:
-        """Return the email address of this agent."""
+        """Return the email address of this agent.
+
+        Returns:
+            The email address string of this agent.
+        """
         return self._owner
 
     def send(
@@ -33,7 +37,17 @@ class AgentEmail:
         body: str | None = None,
         event: str | None = None,
     ) -> None:
-        """Send an email (optionally with calendar event attachment)."""
+        """Send an email (optionally with calendar event attachment).
+
+        Args:
+            to: Recipient email address.
+            subject: Email subject line.
+            body: Optional email body text.
+            event: Optional calendar event attachment string.
+
+        Raises:
+            ToolError: If attempting to send an email to yourself.
+        """
         if to == self._owner:
             raise ToolError("Cannot send an email to yourself.")
 
@@ -47,7 +61,11 @@ class AgentEmail:
         self._deliver(email)
 
     def get_unread(self) -> list[Email]:
-        """Retrieve unread emails for this agent."""
+        """Retrieve unread emails for this agent.
+
+        Returns:
+            List of unread Email objects for this agent.
+        """
         return self._get_unread()
 
 
@@ -59,7 +77,15 @@ class EmailManager:
         self._read_indices: dict[str, int] = {}
 
     def create_email(self, owner: str) -> AgentEmail:
-        """Factory: creates AgentEmail with callbacks wired to this manager."""
+        """Factory: creates AgentEmail with callbacks wired to this manager.
+
+        Args:
+            owner: Email address of the agent.
+
+        Returns:
+            A new AgentEmail instance with delivery and retrieval callbacks
+            configured.
+        """
         self._read_indices[owner] = 0
 
         def deliver(email: Email) -> None:
@@ -74,5 +100,9 @@ class EmailManager:
         return AgentEmail(owner, deliver, get_unread)
 
     def get_all_emails(self) -> list[Email]:
-        """Get all emails sent (for evaluation/debugging)."""
+        """Get all emails sent (for evaluation/debugging).
+
+        Returns:
+            A copy of the list of all emails sent through the manager.
+        """
         return list(self._emails)

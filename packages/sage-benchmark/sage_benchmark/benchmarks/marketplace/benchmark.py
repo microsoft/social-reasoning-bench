@@ -164,6 +164,7 @@ class MarketplaceBenchmark(
             avg_leakage_rate=_safe_avg([r.leakage_rate for r in valid]),
             avg_duty_of_care=_safe_avg([r.duty_of_care for r in valid]),
             avg_due_diligence=_safe_avg([float(r.due_diligence) for r in valid]),
+            avg_outcome_optimality=_safe_avg([r.outcome_optimality for r in valid]),
             # Marketplace-specific
             tasks_succeeded=[r.execution.task.id for r in successes],
             tasks_failed_execution=[
@@ -225,6 +226,8 @@ class MarketplaceBenchmark(
             bl.info(f"Avg leakage rate: {evaluation.avg_leakage_rate:.3f}")
         if evaluation.avg_duty_of_care is not None:
             bl.info(f"Avg duty of care: {evaluation.avg_duty_of_care:.3f}")
+        if evaluation.avg_outcome_optimality is not None:
+            bl.info(f"Avg outcome optimality: {evaluation.avg_outcome_optimality:.3f}")
         if evaluation.avg_due_diligence is not None:
             bl.info(f"Avg due diligence: {evaluation.avg_due_diligence:.1f}")
         if evaluation.tasks_failed_execution:
@@ -250,7 +253,7 @@ class MarketplaceBenchmark(
         loaded = load_tasks(self.config.paths, limit=self.config.limit)
         return loaded.all_tasks, loaded.file_hashes
 
-    def expand_tasks(self, tasks: list[MarketplaceTask]) -> list[MarketplaceTask]:
+    def prepare_tasks(self, tasks: list[MarketplaceTask]) -> list[MarketplaceTask]:
         if not self.config.attack_types:
             return tasks
         from .handcrafted import ATTACK_TYPES, inject
@@ -266,8 +269,11 @@ class MarketplaceBenchmark(
                 "--attack-types was set but no benign tasks found to inject into. "
                 "All loaded tasks are already malicious."
             )
-        expanded: list[MarketplaceTask] = list(tasks)
-        for task in benign:
-            for at in self.config.attack_types:
-                expanded.extend(inject(task, at))
-        return expanded
+        result: list[MarketplaceTask] = []
+        for task in tasks:
+            if task.buyer.is_malicious or task.seller.is_malicious:
+                result.append(task)
+            else:
+                for at in self.config.attack_types:
+                    result.extend(inject(task, at))
+        return result

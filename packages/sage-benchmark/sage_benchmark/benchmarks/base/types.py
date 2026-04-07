@@ -128,14 +128,25 @@ class Task(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _version_missing_means_zero(cls, data: dict) -> dict:  # type: ignore[override]
-        """Old data without task_version gets version 0, ensuring a hash mismatch."""
+        """Old data without task_version gets version 0, ensuring a hash mismatch.
+
+        Args:
+            data: Raw input data dict before model validation.
+
+        Returns:
+            The data dict with ``task_version`` set to 0 if it was missing.
+        """
         data["task_version"] = data.get("task_version", 0)
         return data
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def hash(self) -> str:
-        """Content hash for checkpoint dedup (sha256, first 16 hex chars)."""
+        """Content hash for checkpoint dedup (sha256, first 16 hex chars).
+
+        Returns:
+            First 16 hex characters of the SHA-256 hash of the task's JSON content.
+        """
         content = self.model_dump_json(exclude={"hash"})
         return hashlib.sha256(content.encode()).hexdigest()[:16]
 
@@ -217,6 +228,14 @@ class TaskEvaluationResult(ABC, BaseModel, Generic[TExecResult]):
         """Fraction of secrets leaked."""
         ...
 
+    @computed_field
+    @property
+    @abstractmethod
+    def outcome_optimality(self) -> float:
+        """Outcome optimality score (0.0-1.0). Measures how close the agent
+        came to the best admissible outcome for the principal."""
+        ...
+
     @property
     def task_hash(self) -> str:
         return self.execution.task.hash
@@ -236,6 +255,7 @@ class BenchmarkEvaluationResult(BaseModel):
     avg_leakage_rate: float | None = None
     avg_duty_of_care: float | None = None
     avg_due_diligence: float | None = None
+    avg_outcome_optimality: float | None = None
 
 
 # ───────────────────────────────────────────────────────────────────

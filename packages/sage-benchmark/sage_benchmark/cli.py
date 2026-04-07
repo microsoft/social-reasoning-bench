@@ -15,6 +15,7 @@ import argparse
 import asyncio
 import sys
 from pathlib import Path
+from typing import Any
 
 from .benchmarks.base.benchmark import Benchmark
 from .benchmarks.base.types import BaseRunConfig
@@ -40,7 +41,19 @@ _BENCHMARK_BY_NAME: dict[str, type[Benchmark]] = {
 
 
 def _benchmark_factory(config: BaseRunConfig, **kwargs) -> Benchmark:
-    """Create the right Benchmark subclass for a given config."""
+    """Create the right Benchmark subclass for a given config.
+
+    Args:
+        config: A run configuration whose type determines the benchmark class.
+        **kwargs: Additional keyword arguments forwarded to the benchmark constructor
+            (e.g. ``restart_exec``, ``restart_eval``, ``benchmark_logger``).
+
+    Returns:
+        An instantiated ``Benchmark`` subclass matching the config type.
+
+    Raises:
+        ValueError: If no benchmark is registered for the given config type.
+    """
     for config_cls, benchmark_cls in _CONFIG_TO_BENCHMARK.items():
         if isinstance(config, config_cls):
             return benchmark_cls(config, **kwargs)
@@ -54,7 +67,12 @@ def _benchmark_factory(config: BaseRunConfig, **kwargs) -> Benchmark:
 
 
 def _run_benchmark(argv: list[str]) -> None:
-    """Parse args and run a single benchmark."""
+    """Parse args and run a single benchmark.
+
+    Args:
+        argv: Command-line arguments after ``sagebench benchmark``, where the
+            first element is the benchmark name (e.g. ``'calendar'``).
+    """
     if not argv or argv[0] not in _BENCHMARK_BY_NAME:
         names = ", ".join(_BENCHMARK_BY_NAME)
         print(f"Usage: sagebench benchmark {{{names}}} [options]", file=sys.stderr)
@@ -77,6 +95,12 @@ def _split_on_and(argv: list[str]) -> list[list[str]]:
 
         ['experiments/', '--set', 'model=X', '--and', '--set', 'model=Y']
         -> [['experiments/', '--set', 'model=X'], ['--set', 'model=Y']]
+
+    Args:
+        argv: Raw command-line arguments to split.
+
+    Returns:
+        A list of argument groups, split at each ``--and`` separator.
     """
     groups: list[list[str]] = [[]]
     for arg in argv:
@@ -87,23 +111,104 @@ def _split_on_and(argv: list[str]) -> list[list[str]]:
     return groups
 
 
-def _parse_set_overrides(argv: list[str]) -> dict[str, str]:
-    """Extract ``--set KEY=VALUE`` pairs from an argv group."""
-    overrides: dict[str, str] = {}
+def _parse_set_overrides(argv: list[str]) -> dict[str, Any]:
+    """Extract ``--set KEY=VALUE`` pairs from an argv group.
+
+    Values that look like JSON (lists, dicts, numbers, booleans, null)
+    are parsed as such. Everything else is kept as a string.
+
+    Args:
+        argv: A single argument group (already split on ``--and``).
+
+    Returns:
+        A dict mapping override keys to their coerced values.
+    """
+    import json
+
+    overrides: dict[str, Any] = {}
     i = 0
     while i < len(argv):
         if argv[i] == "--set" and i + 1 < len(argv):
             key, _, value = argv[i + 1].partition("=")
             if value:
-                overrides[key] = value
+                overrides[key] = _coerce_value(value)
             i += 2
         else:
             i += 1
     return overrides
 
 
+def _coerce_value(value: str) -> Any:
+    """Try to parse a CLI value as JSON; fall back to string.
+
+    Handles CLI-friendly bracket syntax like ``[a,b,c]`` (without quotes)
+    by auto-quoting items before JSON parsing.
+
+    Args:
+        value: Raw string value from the command line.
+
+    Returns:
+        The parsed value as a Python object (list, dict, int, float, bool, None,
+        or the original string if no conversion applies).
+    """
+    import json
+    import re
+
+    stripped = value.strip()
+
+    # Handle bracket-list syntax: [a, b, c] → ["a", "b", "c"]
+    if stripped.startswith("[") and stripped.endswith("]"):
+        inner = stripped[1:-1].strip()
+        if not inner:
+            return []
+        # If already valid JSON, use it directly
+        try:
+            return json.loads(stripped)
+        except (json.JSONDecodeError, ValueError):
+            pass
+        # Auto-quote unquoted items: split on commas, quote each
+        items = [item.strip() for item in inner.split(",")]
+        quoted = ", ".join(item if item.startswith('"') else f'"{item}"' for item in items if item)
+        try:
+            return json.loads(f"[{quoted}]")
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Handle dict/object syntax
+    if stripped.startswith("{") and stripped.endswith("}"):
+        try:
+            return json.loads(stripped)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Handle booleans and null
+    if stripped == "true":
+        return True
+    if stripped == "false":
+        return False
+    if stripped == "null":
+        return None
+
+    # Try numeric
+    try:
+        if "." in stripped:
+            return float(stripped)
+        return int(stripped)
+    except ValueError:
+        pass
+
+    return value
+
+
 def _strip_set_args(argv: list[str]) -> list[str]:
-    """Remove ``--set KEY=VALUE`` pairs so argparse doesn't choke."""
+    """Remove ``--set KEY=VALUE`` pairs so argparse doesn't choke.
+
+    Args:
+        argv: Raw command-line arguments that may contain ``--set`` pairs.
+
+    Returns:
+        A new argument list with all ``--set KEY=VALUE`` pairs removed.
+    """
     cleaned: list[str] = []
     i = 0
     while i < len(argv):
@@ -116,7 +221,13 @@ def _strip_set_args(argv: list[str]) -> list[str]:
 
 
 def _run_experiment(argv: list[str]) -> None:
-    """Collect experiment files and run them."""
+    """Collect experiment files and run them.
+
+    Args:
+        argv: Command-line arguments after ``sagebench experiment``, including
+            the experiment path, ``--set`` overrides, ``--and`` separators,
+            and other flags like ``--collect`` or ``-k``.
+    """
     from .experiments.runner import run_multiple
 
     # Split on --and before argparse sees anything
@@ -245,7 +356,11 @@ def _run_experiment(argv: list[str]) -> None:
 
 
 def _run_dashboard(argv: list[str]) -> None:
-    """Open the interactive results dashboard in the default browser."""
+    """Open the interactive results dashboard in the default browser.
+
+    Args:
+        argv: Command-line arguments after ``sagebench dashboard`` (currently unused).
+    """
     import webbrowser
 
     from .dashboard import get_dashboard_path

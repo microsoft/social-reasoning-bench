@@ -82,14 +82,28 @@ _EXTENSION_MAP = {
 
 
 def _tokenize(text: str) -> list[str]:
-    """Tokenize text for BM25 indexing."""
+    """Tokenize text for BM25 indexing.
+
+    Args:
+        text: Raw text to tokenize.
+
+    Returns:
+        List of lowercase tokens with stopwords and punctuation removed.
+    """
     text = text.lower()
     tokens = re.split(r"[\s" + re.escape(string.punctuation) + r"]+", text)
     return [t for t in tokens if t and t not in STOPWORDS]
 
 
 def _build_index_text(artifact: dict) -> str:
-    """Build indexed text from an artifact dict (metadata + content)."""
+    """Build indexed text from an artifact dict (metadata + content).
+
+    Args:
+        artifact: Artifact dictionary with metadata and content keys.
+
+    Returns:
+        Concatenated string of metadata fields and content for indexing.
+    """
     parts = []
     metadata = artifact.get("metadata", {})
     for key in ("subject", "title", "sender", "recipient", "location"):
@@ -104,14 +118,29 @@ def _build_index_text(artifact: dict) -> str:
 
 
 def _snippet(content: str, max_len: int = 10) -> str:
-    """Extract a snippet from content."""
+    """Extract a snippet from content.
+
+    Args:
+        content: Full text content to extract a snippet from.
+        max_len: Maximum character length for the snippet.
+
+    Returns:
+        Truncated content string, with ellipsis appended if truncated.
+    """
     if len(content) <= max_len:
         return content
     return content[:max_len].rsplit(" ", 1)[0] + "..."
 
 
 def _artifact_id_with_ext(artifact: dict) -> str:
-    """Return artifact ID with file extension appended."""
+    """Return artifact ID with file extension appended.
+
+    Args:
+        artifact: Artifact dictionary with id and artifact_type keys.
+
+    Returns:
+        Artifact ID string with the appropriate file extension (.eml, .ics, or .txt).
+    """
     base_id = artifact["id"]
     ext = _EXTENSION_MAP.get(artifact.get("artifact_type", ""), ".txt")
     if ext and not base_id.endswith(ext):
@@ -152,6 +181,9 @@ class BM25Index:
         """Search all artifacts by keyword query. Returns top k results.
 
         Merges email and calendar results by BM25 score.
+
+        Args:
+            query: Keyword search query string.
 
         Returns:
             List of result dicts with id, type, and type-specific metadata.
@@ -195,6 +227,9 @@ class BM25Index:
 
     def read_file(self, artifact_id: str) -> dict | None:
         """Read the full content of a file by ID.
+
+        Args:
+            artifact_id: Artifact identifier, with or without file extension.
 
         Returns:
             Dict with full artifact content or None if not found.

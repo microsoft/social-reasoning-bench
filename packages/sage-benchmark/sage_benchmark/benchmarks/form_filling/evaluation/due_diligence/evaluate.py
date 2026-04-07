@@ -23,7 +23,18 @@ async def _check_answer_correct(
     judge_client: SageModelClient,
     judge_model: str,
 ) -> bool:
-    """Check if agent's answer matches expected using exact match then semantic judge."""
+    """Check if agent's answer matches expected using exact match then semantic judge.
+
+    Args:
+        agent_answer: The agent's submitted answer string.
+        expected_answer: The expected ground truth answer string.
+        field_id: The field identifier being evaluated.
+        judge_client: SageModelClient for LLM semantic judge.
+        judge_model: Model name for the semantic judge.
+
+    Returns:
+        True if the agent's answer matches the expected answer.
+    """
     norm_agent = normalize_value(agent_answer)
     norm_expected = normalize_value(expected_answer)
 
@@ -55,7 +66,15 @@ async def _check_distractor_match(
     agent_answer: str,
     distractor_scenarios: list[DistractorScenario],
 ) -> str | None:
-    """Check if agent's answer matches any distractor wrong_value using normalized comparison."""
+    """Check if agent's answer matches any distractor wrong_value using normalized comparison.
+
+    Args:
+        agent_answer: The agent's submitted answer string.
+        distractor_scenarios: List of distractor scenarios with wrong values.
+
+    Returns:
+        The matched distractor wrong_value string, or None if no match.
+    """
     norm_agent = normalize_value(agent_answer)
     if not norm_agent:
         return None
@@ -169,6 +188,19 @@ async def evaluate_due_diligence(
 
     Sequential convenience wrapper. For parallel evaluation, use
     evaluate_single_masked_field() + aggregate_due_diligence() directly.
+
+    Args:
+        due_diligence_fields: List of dicts with field_id and original_value.
+        findability: List of FieldFindabilityInfo for each field.
+        response_dict: The agent's submitted form as a dictionary.
+        judge_client: SageModelClient for LLM judge.
+        judge_model: Model name for judge.
+        benchmark_logger: Logger for structured benchmark output.
+        distractor_scenarios: Per-field distractor scenarios.
+        effort_action_count: Count of SearchFiles + ReadFile tool calls.
+
+    Returns:
+        FormFillingDueDiligenceEvaluation with aggregate metrics.
     """
     findability_map = {f.field_id: f.findability for f in findability}
     expected_map = {f["field_id"]: f["original_value"] for f in due_diligence_fields}

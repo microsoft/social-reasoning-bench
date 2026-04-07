@@ -29,7 +29,17 @@ def default_sample_validation_tasks(
     limit: int | None,
     rng: random.Random,
 ) -> list[T]:
-    """Default sampler: random sample up to *limit* (no domain awareness)."""
+    """Default sampler: random sample up to *limit* (no domain awareness).
+
+    Args:
+        tasks: Full list of tasks to sample from.
+        attack_type: Attack type key (unused by this default sampler).
+        limit: Maximum number of tasks to return, or *None* for all.
+        rng: Seeded random number generator.
+
+    Returns:
+        Sampled list of tasks, up to *limit* in length.
+    """
     if limit is None or limit >= len(tasks):
         return list(tasks)
     return rng.sample(tasks, limit)
@@ -90,6 +100,9 @@ class StrategyProvider:
         Args:
             count: Number of strategies to return.
             label: Optional prefix for log messages (e.g. "[privacy]").
+
+        Returns:
+            List of Strategy objects, up to *count* in length.
         """
         prefix = f"{label} " if label else ""
         wg = self._get_whimsygen()
@@ -134,7 +147,14 @@ class StrategyProvider:
         return self._strategies_list
 
     def get_next(self) -> Strategy:
-        """Return the next strategy, cycling when the list is exhausted."""
+        """Return the next strategy, cycling when the list is exhausted.
+
+        Returns:
+            The next Strategy in sequence.
+
+        Raises:
+            ValueError: If no strategies have been loaded yet.
+        """
         if not self._strategies_list:
             raise ValueError("No strategies loaded. Call load_or_generate() first.")
         strategy = self._strategies_list[self._index % len(self._strategies_list)]
@@ -142,7 +162,18 @@ class StrategyProvider:
         return strategy
 
     def get_random(self, rng: random.Random | None = None) -> Strategy:
-        """Return a random strategy."""
+        """Return a random strategy.
+
+        Args:
+            rng: Optional seeded random number generator. Falls back to the
+                ``random`` module if *None*.
+
+        Returns:
+            A randomly chosen Strategy.
+
+        Raises:
+            ValueError: If no strategies have been loaded yet.
+        """
         if not self._strategies_list:
             raise ValueError("No strategies loaded. Call load_or_generate() first.")
         r = rng or random
@@ -158,7 +189,12 @@ class StrategyProvider:
 
 
 def save_strategies_yaml(strategies: list[Strategy], output_path: Path) -> None:
-    """Save strategies to a flat YAML file consumable by the benchmark."""
+    """Save strategies to a flat YAML file consumable by the benchmark.
+
+    Args:
+        strategies: List of Strategy objects to save.
+        output_path: Destination YAML file path.
+    """
     strategy_strings = [s.game_strategies for s in strategies]
     output_data = {"strategies": strategy_strings}
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -169,7 +205,14 @@ def save_strategies_yaml(strategies: list[Strategy], output_path: Path) -> None:
 
 
 def build_arg_parser(description: str):
-    """Build the shared CLI argument parser for strategy generation scripts."""
+    """Build the shared CLI argument parser for strategy generation scripts.
+
+    Args:
+        description: Help text description for the parser.
+
+    Returns:
+        Configured :class:`argparse.ArgumentParser`.
+    """
     import argparse
 
     parser = argparse.ArgumentParser(description=description)
@@ -200,7 +243,12 @@ def build_arg_parser(description: str):
 
 
 async def run_strategy_generation(args, task_description: str) -> None:
-    """Shared CLI runner — generate strategies and save to YAML."""
+    """Shared CLI runner — generate strategies and save to YAML.
+
+    Args:
+        args: Parsed CLI namespace (from :func:`build_arg_parser`).
+        task_description: The TASK_DESCRIPTION for strategy generation.
+    """
     output_path = args.output
     strategy_provider = _provider_from_args(args, task_description)
 
@@ -221,7 +269,16 @@ def build_injection_arg_parser(
     description: str,
     attack_types: list[str],
 ) -> argparse.ArgumentParser:
-    """Build CLI parser for whimsical injection scripts."""
+    """Build CLI parser for whimsical injection scripts.
+
+    Args:
+        description: Help text description for the parser.
+        attack_types: List of valid attack type choices.
+
+    Returns:
+        Configured :class:`argparse.ArgumentParser` with injection and
+        validation options.
+    """
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("--input", type=Path, required=True, help="Input tasks YAML file")
     parser.add_argument("--attack-type", choices=attack_types, required=True)
@@ -333,12 +390,26 @@ def _wrap_task_for_generation(task_description: str) -> str:
     """Wrap a TASK_DESCRIPTION with generation-specific preamble.
 
     Applied only during strategy generation, not injection.
+
+    Args:
+        task_description: The raw task description text.
+
+    Returns:
+        Task description prefixed with the generation preamble.
     """
     return f"{_GENERATION_PREAMBLE}\n{task_description}"
 
 
 def _provider_from_args(args, task_description: str) -> StrategyProvider:
-    """Build a StrategyProvider from parsed CLI args."""
+    """Build a StrategyProvider from parsed CLI args.
+
+    Args:
+        args: Parsed CLI namespace.
+        task_description: The TASK_DESCRIPTION for strategy generation.
+
+    Returns:
+        Configured StrategyProvider instance.
+    """
     return StrategyProvider(
         model=args.model,
         seeds=getattr(args, "seeds_dir", None),
@@ -431,12 +502,22 @@ async def run_pooled_validation(
     2. Prepares one Benchmark per attack type (N×M tasks each).
     3. Pools all benchmarks in one ExperimentPoolExecutor run.
     4. Post-processes results per attack type: rank, select best, inject.
+
+    Args:
+        args: Parsed CLI namespace with model, validation, and output options.
+        attack_types: List of attack type keys to validate.
+        benchmark_name: One of ``"calendar"``, ``"form-filling"``,
+            ``"marketplace"``.
+        load_fn: ``load_fn([path]) -> list[task]``.
+        inject_fn: ``inject_fn(task, attack_type, strategy_text) -> list[task]``.
+        save_fn: ``save_fn(tasks, output_path)``.
+        sample_fn: Optional per-benchmark validation task sampler. Defaults to
+            :func:`default_sample_validation_tasks`.
     """
     import asyncio
-    import os
     import time
 
-    from sage_benchmark.experiments.runner import ExperimentPoolExecutor, _periodic_metrics_log
+    from sage_benchmark.experiments.runner import ExperimentPoolExecutor
     from sage_benchmark.shared.logging import create_benchmark_logger
 
     from .validation import prepare_validation_benchmark, score_validation_results
@@ -520,22 +601,13 @@ async def run_pooled_validation(
     )
 
     t0 = time.monotonic()
-    metrics_interval = float(os.environ.get("SAGE_METRICS_INTERVAL", "120"))
-    metrics_task = asyncio.create_task(_periodic_metrics_log(interval=metrics_interval))
     pool = ExperimentPoolExecutor(
         benchmarks=benchmarks,
         batch_size=batch_size,
         benchmark_logger=bl,
         task_concurrency=task_concurrency,
     )
-    try:
-        outputs = await pool.run()
-    finally:
-        metrics_task.cancel()
-        try:
-            await metrics_task
-        except asyncio.CancelledError:
-            pass
+    outputs = await pool.run()
     elapsed = time.monotonic() - t0
 
     # 4. Score and inject per attack type
@@ -567,7 +639,15 @@ async def run_pooled_validation(
 
 
 def _get_task_descriptions(benchmark_name: str) -> dict[str, str]:
-    """Get TASK_DESCRIPTIONS dict for the benchmark."""
+    """Get TASK_DESCRIPTIONS dict for the benchmark.
+
+    Args:
+        benchmark_name: One of ``"calendar"``, ``"form-filling"``, or
+            ``"marketplace"``.
+
+    Returns:
+        Dict mapping attack type keys to task description strings.
+    """
     if benchmark_name == "calendar":
         from sage_data_gen.calendar_scheduling.malicious import TASK_DESCRIPTIONS
     elif benchmark_name == "form-filling":

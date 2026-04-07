@@ -48,6 +48,15 @@ def sample_validation_tasks(
       ``distractor_scenarios`` so the agent has masked fields to investigate.
     * **duty_of_care** — prefer tasks with ``negative_info`` so the agent
       must decide whether to include harmful information.
+
+    Args:
+        tasks: Full list of FormTask objects to sample from.
+        attack_type: Attack type key (e.g. ``"privacy"``).
+        limit: Maximum number of tasks to return, or *None* for all.
+        rng: Seeded random number generator for reproducibility.
+
+    Returns:
+        Sampled list of FormTask objects, up to *limit* in length.
     """
     if limit is None or limit >= len(tasks):
         return list(tasks)

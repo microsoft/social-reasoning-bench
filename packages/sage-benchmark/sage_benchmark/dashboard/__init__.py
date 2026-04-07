@@ -5,7 +5,11 @@ from pathlib import Path
 
 
 def get_dashboard_path() -> Path:
-    """Return a concrete filesystem path to the dashboard HTML file."""
+    """Return a concrete filesystem path to the dashboard HTML file.
+
+    Returns:
+        Path to the ``index.html`` dashboard file resolved from the package resources.
+    """
     ref = files(__package__ or __name__).joinpath("index.html")
     # as_file gives a real Path even for zipped packages
     ctx = as_file(ref)

@@ -9,7 +9,7 @@ Sweeps:
       Reasoning: {gpt-5.4, gemini-3.1-pro, claude-sonnet-4.6} × {think_off, think_med, think_high}  (9)
 
 Counterparty agents (requestor, interviewer, seller) use a fixed strong
-model: phyagi/gpt-5.2 with medium reasoning effort across all sweeps.
+model: azure_pool/gpt-5.4 with medium reasoning effort across all sweeps.
 
 Usage::
 
@@ -75,12 +75,27 @@ REASONING_EFFORTS: dict[str, list[tuple[str | int, str]]] = {
 
 
 def _model_tag(model: str) -> str:
-    """'gpt-4.1' -> 'gpt-4.1'"""
+    """'gpt-4.1' -> 'gpt-4.1'
+
+    Args:
+        model: Fully-qualified or slash-separated model identifier.
+
+    Returns:
+        The last segment after splitting on '/'.
+    """
     return model.split("/")[-1]
 
 
 def _variant(benchmark: str, *parts: str) -> str:
-    """Build variant name from non-empty parts."""
+    """Build variant name from non-empty parts.
+
+    Args:
+        benchmark: Benchmark prefix (e.g. 'calendar', 'marketplace').
+        *parts: Additional name segments; empty strings are filtered out.
+
+    Returns:
+        Underscore-joined variant name.
+    """
     return "_".join(p for p in (benchmark, *parts) if p)
 
 
@@ -98,7 +113,21 @@ def _cal(
     assistant_explicit_cot=None,
     attack_types=None,
 ):
-    """Create a single calendar config."""
+    """Create a single calendar config.
+
+    Args:
+        paths: List of YAML data file paths for the calendar scenario.
+        variant: Unique variant name for this configuration.
+        model: Model identifier for the assistant agent.
+        privacy: Privacy prompt level.
+        reasoning_effort: Optional reasoning effort budget for reasoning models.
+        assistant_explicit_cot: Optional flag enabling explicit chain-of-thought
+            for the assistant agent.
+        attack_types: Optional list of attack type strings to apply.
+
+    Returns:
+        A configured CalendarRunConfig instance.
+    """
     return CalendarRunConfig(
         paths=paths,
         variant=variant,
@@ -117,7 +146,16 @@ def _cal(
 
 
 def _cal_attacks(model, privacy, tag, reasoning_effort=None, assistant_explicit_cot=None):
-    """Yield normal + all attack variants for one calendar config."""
+    """Yield normal + all attack variants for one calendar config.
+
+    Args:
+        model: Model identifier for the assistant agent.
+        privacy: Privacy prompt level.
+        tag: Human-readable tag included in the variant name.
+        reasoning_effort: Optional reasoning effort budget for reasoning models.
+        assistant_explicit_cot: Optional flag enabling explicit chain-of-thought
+            for the assistant agent.
+    """
     yield _cal(
         [f"{CAL_DIR}/small.yaml"],
         _variant("calendar", tag, privacy, "normal"),
@@ -182,7 +220,21 @@ def experiment_calendar():
 def _mkt(
     paths, variant, model, privacy, reasoning_effort=None, explicit_cot=None, attack_types=None
 ):
-    """Create a single marketplace config."""
+    """Create a single marketplace config.
+
+    Args:
+        paths: List of YAML data file paths for the marketplace scenario.
+        variant: Unique variant name for this configuration.
+        model: Model identifier for the buyer agent.
+        privacy: Privacy prompt level.
+        reasoning_effort: Optional reasoning effort budget for reasoning models.
+        explicit_cot: Optional flag enabling explicit chain-of-thought for both
+            buyer and seller agents.
+        attack_types: Optional list of attack type strings to apply.
+
+    Returns:
+        A configured MarketplaceRunConfig instance.
+    """
     return MarketplaceRunConfig(
         paths=paths,
         variant=variant,
@@ -200,7 +252,16 @@ def _mkt(
 
 
 def _mkt_attacks(model, privacy, tag, reasoning_effort=None, explicit_cot=None):
-    """Yield normal + all attack variants for one marketplace config."""
+    """Yield normal + all attack variants for one marketplace config.
+
+    Args:
+        model: Model identifier for the buyer agent.
+        privacy: Privacy prompt level.
+        tag: Human-readable tag included in the variant name.
+        reasoning_effort: Optional reasoning effort budget for reasoning models.
+        explicit_cot: Optional flag enabling explicit chain-of-thought for both
+            buyer and seller agents.
+    """
     yield _mkt(
         [f"{MKT_DIR}/small.yaml"],
         _variant("marketplace", tag, privacy, "normal"),
@@ -264,7 +325,20 @@ def experiment_marketplace():
 def _ff(
     paths, variant, model, privacy, reasoning_effort=None, explicit_cot=None, attack_types=None
 ):
-    """Create a single form-filling config."""
+    """Create a single form-filling config.
+
+    Args:
+        paths: List of YAML data file paths for the form-filling scenario.
+        variant: Unique variant name for this configuration.
+        model: Model identifier for the form-filling agent.
+        privacy: Privacy prompt level.
+        reasoning_effort: Optional reasoning effort budget for reasoning models.
+        explicit_cot: Optional flag enabling explicit chain-of-thought.
+        attack_types: Optional list of attack type strings to apply.
+
+    Returns:
+        A configured FormFillingRunConfig instance.
+    """
     return FormFillingRunConfig(
         paths=paths,
         variant=variant,
@@ -282,7 +356,15 @@ def _ff(
 
 
 def _ff_attacks(model, privacy, tag, reasoning_effort=None, explicit_cot=None):
-    """Yield normal + all attack variants for one form-filling config."""
+    """Yield normal + all attack variants for one form-filling config.
+
+    Args:
+        model: Model identifier for the form-filling agent.
+        privacy: Privacy prompt level.
+        tag: Human-readable tag included in the variant name.
+        reasoning_effort: Optional reasoning effort budget for reasoning models.
+        explicit_cot: Optional flag enabling explicit chain-of-thought.
+    """
     yield _ff(
         [f"{FF_DIR}/tasks.yaml"],
         _variant("form_filling", tag, privacy, "normal"),

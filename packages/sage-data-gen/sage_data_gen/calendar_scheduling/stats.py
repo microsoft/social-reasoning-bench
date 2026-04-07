@@ -12,6 +12,7 @@ def compute_stats(tasks: list[CalendarTask]) -> dict:
 
     total_events = 0
     total_secret = 0
+    total_requestor_events = 0
     unique_assistants: set[str] = set()
     requestor_domains: dict[str, int] = {"same_company": 0, "external": 0}
     free_slots_dist: dict[int, int] = {}
@@ -23,6 +24,10 @@ def compute_stats(tasks: list[CalendarTask]) -> dict:
             total_events += 1
             if m.is_secret:
                 total_secret += 1
+
+        for m in task.requestor.calendar:
+            if "sleep" not in m.uid and "personal" not in m.uid:
+                total_requestor_events += 1
 
         assistant_domain = task.assistant.email.split("@")[1]
         requestor_domain = task.requestor.email.split("@")[1]
@@ -42,8 +47,9 @@ def compute_stats(tasks: list[CalendarTask]) -> dict:
         "unsatisfiable": total - satisfiable,
         "unique_assistants": len(unique_assistants),
         "events": {
-            "total": total_events,
+            "total_assistant": total_events,
             "secret": total_secret,
+            "total_requestor_working": total_requestor_events,
         },
         "requestor_types": requestor_domains,
     }
@@ -72,12 +78,13 @@ def print_stats(tasks: list[CalendarTask]) -> dict:
     print(f"Unsatisfiable:      {unsatisfiable} ({unsatisfiable / total:.0%})")
     print(f"Unique assistants:  {stats['unique_assistants']}")
     print(f"\nEvents (across all task calendars):")
-    print(f"  Total:   {events['total']}")
+    print(f"  Assistant total: {events['total_assistant']}")
     print(
-        f"  Secret:  {events['secret']} ({events['secret'] / events['total']:.0%})"
-        if events["total"] > 0
-        else "  Secret:  0"
+        f"  Assistant secret: {events['secret']} ({events['secret'] / events['total_assistant']:.0%})"
+        if events["total_assistant"] > 0
+        else "  Assistant secret: 0"
     )
+    print(f"  Requestor working: {events['total_requestor_working']}")
     print(f"\nRequestor types:")
     print(f"  Same company: {req['same_company']}")
     print(f"  External:     {req['external']}")

@@ -23,19 +23,37 @@ from sage_benchmark.benchmarks.calendar_scheduling.types import (
 
 @pytest.fixture
 def environment():
-    """Create a fresh CalendarSchedulingEnvironment for each test."""
+    """Create a fresh CalendarSchedulingEnvironment for each test.
+
+    Returns:
+        A new CalendarSchedulingEnvironment instance.
+    """
     return CalendarSchedulingEnvironment()
 
 
 @pytest.fixture
 def alice_resources(environment):
-    """Create resources for alice@example.com."""
+    """Create resources for alice@example.com.
+
+    Args:
+        environment: The shared CalendarSchedulingEnvironment fixture.
+
+    Returns:
+        AgentResources for alice@example.com with allowed_date 2024-01-15.
+    """
     return environment.create_agent_resources("alice@example.com", allowed_date="2024-01-15")
 
 
 @pytest.fixture
 def bob_resources(environment):
-    """Create resources for bob@example.com."""
+    """Create resources for bob@example.com.
+
+    Args:
+        environment: The shared CalendarSchedulingEnvironment fixture.
+
+    Returns:
+        AgentResources for bob@example.com with allowed_date 2024-01-15.
+    """
     return environment.create_agent_resources("bob@example.com", allowed_date="2024-01-15")
 
 
@@ -43,7 +61,12 @@ class TestSendEmail:
     """Tests for SendEmail action."""
 
     def test_send_email_success(self, alice_resources, bob_resources):
-        """Test sending an email to another agent."""
+        """Test sending an email to another agent.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         action = SendEmail(to="bob@example.com", message="Hello Bob!")
         result = alice_resources.execute(action)
 
@@ -56,7 +79,11 @@ class TestSendEmail:
         assert "Hello Bob!" in emails_result
 
     def test_send_email_to_nonexistent_agent(self, alice_resources):
-        """Test sending email to agent without resources still succeeds."""
+        """Test sending email to agent without resources still succeeds.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+        """
         action = SendEmail(to="unknown@example.com", message="Hello!")
         result = alice_resources.execute(action)
 
@@ -67,14 +94,23 @@ class TestGetEmails:
     """Tests for GetEmails action."""
 
     def test_get_emails_empty(self, alice_resources):
-        """Test getting emails when inbox is empty."""
+        """Test getting emails when inbox is empty.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+        """
         action = GetEmails()
         result = alice_resources.execute(action)
 
         assert result == "No unread emails."
 
     def test_get_emails_with_messages(self, alice_resources, bob_resources):
-        """Test getting emails after receiving some."""
+        """Test getting emails after receiving some.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Bob sends an email to Alice
         bob_resources.execute(SendEmail(to="alice@example.com", message="Hi Alice!"))
 
@@ -86,7 +122,12 @@ class TestGetEmails:
         assert "Hi Alice!" in result
 
     def test_get_emails_marks_as_read(self, alice_resources, bob_resources):
-        """Test that getting emails marks them as read."""
+        """Test that getting emails marks them as read.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Bob sends an email
         bob_resources.execute(SendEmail(to="alice@example.com", message="First message"))
 
@@ -110,14 +151,22 @@ class TestListMeetings:
     """Tests for ListMeetings action."""
 
     def test_list_meetings_empty(self, alice_resources):
-        """Test listing meetings when calendar is empty."""
+        """Test listing meetings when calendar is empty.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+        """
         action = ListMeetings()
         result = alice_resources.execute(action)
 
         assert result == "No meetings on your calendar."
 
     def test_list_meetings_with_meetings(self, environment):
-        """Test listing meetings after adding some."""
+        """Test listing meetings after adding some.
+
+        Args:
+            environment: The shared CalendarSchedulingEnvironment fixture.
+        """
         meeting = Meeting(
             uid="test-meeting-1",
             title="Team Standup",
@@ -144,7 +193,12 @@ class TestRequestMeeting:
     """Tests for RequestMeeting action."""
 
     def test_request_meeting_basic(self, alice_resources, bob_resources):
-        """Test creating a basic meeting request."""
+        """Test creating a basic meeting request.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         action = RequestMeeting(
             message="Let's discuss the project",
             uid="alice-project-meeting",
@@ -174,7 +228,12 @@ class TestRequestMeeting:
         assert "Meeting Request: Project Discussion" in bob_emails
 
     def test_request_meeting_flexible_date_formats(self, alice_resources, bob_resources):
-        """Test that various date/time formats are accepted."""
+        """Test that various date/time formats are accepted.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         action = RequestMeeting(
             message="Meeting",
             uid="flexible-meeting",
@@ -197,7 +256,11 @@ class TestRequestMeeting:
         assert "15:30" in alice_meetings
 
     def test_request_meeting_invalid_date(self, alice_resources):
-        """Test that invalid date format raises ToolError."""
+        """Test that invalid date format raises ToolError.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+        """
         action = RequestMeeting(
             message="Meeting",
             uid="invalid-meeting",
@@ -213,7 +276,11 @@ class TestRequestMeeting:
             alice_resources.execute(action)
 
     def test_request_meeting_invalid_time(self, alice_resources):
-        """Test that invalid time format raises ToolError."""
+        """Test that invalid time format raises ToolError.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+        """
         action = RequestMeeting(
             message="Meeting",
             uid="invalid-meeting",
@@ -229,7 +296,11 @@ class TestRequestMeeting:
             alice_resources.execute(action)
 
     def test_request_meeting_organizer_auto_added(self, alice_resources):
-        """Test that organizer is automatically added as ACCEPTED attendee."""
+        """Test that organizer is automatically added as ACCEPTED attendee.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+        """
         action = RequestMeeting(
             message="Meeting",
             uid="auto-add-test",
@@ -249,7 +320,12 @@ class TestRequestMeeting:
         assert "ACCEPTED" in alice_meetings
 
     def test_request_meeting_organizer_status_updated(self, alice_resources, bob_resources):
-        """Test that if organizer is in attendees list, status is set to ACCEPTED."""
+        """Test that if organizer is in attendees list, status is set to ACCEPTED.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         action = RequestMeeting(
             message="Meeting",
             uid="status-update-test",
@@ -268,7 +344,11 @@ class TestRequestMeeting:
         assert "alice@example.com (ACCEPTED)" in alice_meetings
 
     def test_request_meeting_wrong_date_rejected(self, environment):
-        """Test that scheduling on wrong date raises ToolError when allowed_date is set."""
+        """Test that scheduling on wrong date raises ToolError when allowed_date is set.
+
+        Args:
+            environment: The shared CalendarSchedulingEnvironment fixture.
+        """
         resources = environment.create_agent_resources(
             "alice@example.com",
             allowed_date="2024-01-15",
@@ -288,7 +368,11 @@ class TestRequestMeeting:
             resources.execute(action)
 
     def test_request_meeting_correct_date_allowed(self, environment):
-        """Test that scheduling on correct date works when allowed_date is set."""
+        """Test that scheduling on correct date works when allowed_date is set.
+
+        Args:
+            environment: The shared CalendarSchedulingEnvironment fixture.
+        """
         resources = environment.create_agent_resources(
             "alice@example.com",
             allowed_date="2024-01-15",
@@ -312,7 +396,12 @@ class TestCancelMeeting:
     """Tests for CancelMeeting action."""
 
     def test_cancel_meeting_success(self, alice_resources, bob_resources):
-        """Test cancelling an existing meeting."""
+        """Test cancelling an existing meeting.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # First create a meeting
         alice_resources.execute(
             RequestMeeting(
@@ -353,7 +442,11 @@ class TestCancelMeeting:
         assert "Cancelled" in bob_emails
 
     def test_cancel_meeting_not_found(self, alice_resources):
-        """Test cancelling a non-existent meeting raises ToolError."""
+        """Test cancelling a non-existent meeting raises ToolError.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+        """
         action = CancelMeeting(
             message="Cancel",
             meeting_uid="nonexistent-meeting",
@@ -362,7 +455,12 @@ class TestCancelMeeting:
             alice_resources.execute(action)
 
     def test_cancel_meeting_non_organizer_rejected(self, alice_resources, bob_resources):
-        """Test that non-organizer cannot cancel a meeting."""
+        """Test that non-organizer cannot cancel a meeting.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Alice creates a meeting with Bob
         alice_resources.execute(
             RequestMeeting(
@@ -388,7 +486,12 @@ class TestCancelMeeting:
             )
 
     def test_cancel_meeting_only_notifies_active_attendees(self, alice_resources, bob_resources):
-        """Test that cancelled meetings only notify AWAITING-RESPONSE and ACCEPTED attendees."""
+        """Test that cancelled meetings only notify AWAITING-RESPONSE and ACCEPTED attendees.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Create meeting
         alice_resources.execute(
             RequestMeeting(
@@ -434,7 +537,12 @@ class TestReplyMeeting:
     """Tests for ReplyMeeting action."""
 
     def test_reply_meeting_accept(self, alice_resources, bob_resources):
-        """Test accepting a meeting invitation."""
+        """Test accepting a meeting invitation.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Alice creates meeting
         alice_resources.execute(
             RequestMeeting(
@@ -478,7 +586,12 @@ class TestReplyMeeting:
         assert "bob@example.com (ACCEPTED)" in alice_meetings
 
     def test_reply_meeting_decline(self, alice_resources, bob_resources):
-        """Test declining a meeting invitation."""
+        """Test declining a meeting invitation.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Alice creates meeting
         alice_resources.execute(
             RequestMeeting(
@@ -518,7 +631,11 @@ class TestReplyMeeting:
         assert "DECLINED" in alice_emails
 
     def test_reply_meeting_not_found(self, bob_resources):
-        """Test replying to a non-existent meeting raises ToolError."""
+        """Test replying to a non-existent meeting raises ToolError.
+
+        Args:
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         action = ReplyMeeting(
             message="Reply",
             meeting_uid="nonexistent-meeting",
@@ -532,7 +649,11 @@ class TestWait:
     """Tests for Wait action."""
 
     def test_wait(self, alice_resources):
-        """Test the Wait action."""
+        """Test the Wait action.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+        """
         action = Wait()
         result = alice_resources.execute(action)
 
@@ -543,7 +664,11 @@ class TestEndConversation:
     """Tests for EndConversation action."""
 
     def test_end_conversation_success(self, alice_resources):
-        """Test ending conversation when no pending requests."""
+        """Test ending conversation when no pending requests.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+        """
         action = EndConversation(reason="Task completed")
         result = alice_resources.execute(action)
 
@@ -551,7 +676,12 @@ class TestEndConversation:
         assert "Task completed" in result
 
     def test_end_conversation_with_pending_requests(self, alice_resources, bob_resources):
-        """Test that ending conversation raises ToolError when there are pending meeting requests."""
+        """Test that ending conversation raises ToolError when there are pending meeting requests.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Bob sends Alice a meeting request
         bob_resources.execute(
             RequestMeeting(
@@ -573,7 +703,12 @@ class TestEndConversation:
             alice_resources.execute(action)
 
     def test_end_conversation_after_accepting(self, alice_resources, bob_resources):
-        """Test that ending conversation succeeds after responding to all requests."""
+        """Test that ending conversation succeeds after responding to all requests.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Bob sends Alice a meeting request
         bob_resources.execute(
             RequestMeeting(
@@ -605,7 +740,12 @@ class TestEndConversation:
         assert "Conversation ended" in result
 
     def test_end_conversation_after_declining(self, alice_resources, bob_resources):
-        """Test that ending conversation succeeds after declining all requests."""
+        """Test that ending conversation succeeds after declining all requests.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Bob sends Alice a meeting request
         bob_resources.execute(
             RequestMeeting(
@@ -641,7 +781,14 @@ class TestExecuteUnknownAction:
     """Tests for handling unknown actions."""
 
     def test_unknown_action_raises_error(self, alice_resources):
-        """Test that unknown action types raise ValueError."""
+        """Test that unknown action types raise ValueError.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+
+        Returns:
+            None. Asserts that ValueError is raised for unknown actions.
+        """
 
         class UnknownAction(SendEmail):
             @classmethod
@@ -658,7 +805,12 @@ class TestReplyMeetingCounter:
     """Tests for ReplyMeeting with COUNTER status."""
 
     def test_reply_meeting_counter_success(self, alice_resources, bob_resources):
-        """Test sending a counter-proposal via ReplyMeeting updates calendars."""
+        """Test sending a counter-proposal via ReplyMeeting updates calendars.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Bob sends Alice a meeting request for 2pm
         bob_resources.execute(
             RequestMeeting(
@@ -715,7 +867,12 @@ class TestReplyMeetingCounter:
         assert bob_meetings.count("counter-test") == 1
 
     def test_reply_meeting_counter_then_accept(self, alice_resources, bob_resources):
-        """Test full counter-proposal workflow: request -> counter -> accept."""
+        """Test full counter-proposal workflow: request -> counter -> accept.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Bob sends Alice a meeting request for 2pm
         bob_resources.execute(
             RequestMeeting(
@@ -770,7 +927,11 @@ class TestReplyMeetingCounter:
         assert "bob@example.com (ACCEPTED)" in bob_meetings
 
     def test_reply_meeting_counter_not_found(self, alice_resources):
-        """Test counter-proposal for non-existent meeting raises ToolError."""
+        """Test counter-proposal for non-existent meeting raises ToolError.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+        """
         with pytest.raises(ToolError, match="not found"):
             alice_resources.execute(
                 ReplyMeeting(
@@ -784,7 +945,12 @@ class TestReplyMeetingCounter:
             )
 
     def test_reply_meeting_counter_missing_fields(self, alice_resources, bob_resources):
-        """Test counter-proposal without required fields raises ToolError."""
+        """Test counter-proposal without required fields raises ToolError.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Bob sends Alice a meeting request
         bob_resources.execute(
             RequestMeeting(
@@ -811,7 +977,12 @@ class TestReplyMeetingCounter:
             )
 
     def test_reply_meeting_counter_invalid_time(self, alice_resources, bob_resources):
-        """Test counter-proposal with invalid time raises ToolError."""
+        """Test counter-proposal with invalid time raises ToolError.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
         # Bob sends Alice a meeting request
         bob_resources.execute(
             RequestMeeting(
@@ -840,7 +1011,11 @@ class TestReplyMeetingCounter:
             )
 
     def test_reply_meeting_counter_wrong_date_rejected(self, environment):
-        """Test that counter-proposal on wrong date raises ToolError when allowed_date is set."""
+        """Test that counter-proposal on wrong date raises ToolError when allowed_date is set.
+
+        Args:
+            environment: The shared CalendarSchedulingEnvironment fixture.
+        """
         # Create Bob with allowed_date constraint
         bob_resources = environment.create_agent_resources(
             "bob@example.com", allowed_date="2024-01-15"

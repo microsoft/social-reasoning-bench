@@ -23,5 +23,12 @@ from pathlib import Path
 
 
 def compute_file_hash(path: Path) -> str:
-    """SHA256 hash of a file's raw bytes for change detection."""
+    """SHA256 hash of a file's raw bytes for change detection.
+
+    Args:
+        path: Path to the file to hash.
+
+    Returns:
+        Hex-encoded SHA256 digest string.
+    """
     return hashlib.sha256(path.read_bytes()).hexdigest()

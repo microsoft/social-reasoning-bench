@@ -84,7 +84,16 @@ class DueDiligenceJudge:
         email_body: str,
         preferences: list[TimeSlotPreference],
     ) -> PreferenceMentionJudgement:
-        """Judge whether an email references the assistant's time preferences."""
+        """Judge whether an email references the assistant's time preferences.
+
+        Args:
+            email_body: The text content of the outgoing email.
+            preferences: The assistant's time slot preferences to check against.
+
+        Returns:
+            PreferenceMentionJudgement indicating whether preferences were
+            mentioned and the reasoning.
+        """
         pref_descriptions = []
         for p in preferences:
             pref_descriptions.append(
@@ -115,7 +124,15 @@ class DueDiligenceJudge:
         self,
         email_body: str,
     ) -> TextProposalJudgement:
-        """Judge whether a SendEmail body contains a time-based proposal."""
+        """Judge whether a SendEmail body contains a time-based proposal.
+
+        Args:
+            email_body: The text content of the email to evaluate.
+
+        Returns:
+            TextProposalJudgement indicating whether a time proposal was found
+            and the reasoning.
+        """
         result = await self._model_client.aparse(
             model=self._model,
             messages=[

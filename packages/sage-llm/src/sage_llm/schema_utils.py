@@ -46,7 +46,15 @@ def _inline_node(
     node: dict[str, Any],
     defs: dict[str, Any],
 ) -> dict[str, Any]:
-    """Resolve a single schema node, recursing into children."""
+    """Resolve a single schema node, recursing into children.
+
+    Args:
+        node: A JSON schema node dict.
+        defs: Top-level ``$defs`` definitions for resolving ``$ref`` pointers.
+
+    Returns:
+        A new schema dict with ``$ref`` nodes resolved and children inlined.
+    """
     # Resolve $ref: inline the definition and merge sibling keys.
     if "$ref" in node:
         ref_name = node["$ref"].rsplit("/", 1)[-1]
@@ -103,7 +111,16 @@ def _strict_node(
     node: dict[str, Any],
     defs: dict[str, Any],
 ) -> dict[str, Any]:
-    """Resolve + strictify a single schema node, recursing into children."""
+    """Resolve + strictify a single schema node, recursing into children.
+
+    Args:
+        node: A JSON schema node dict.
+        defs: Top-level ``$defs`` definitions for resolving ``$ref`` pointers.
+
+    Returns:
+        A new schema dict with ``$ref`` resolved, ``additionalProperties: false``
+        added, and ``required`` listing all properties on every object.
+    """
     # Resolve $ref first.
     if "$ref" in node:
         ref_name = node["$ref"].rsplit("/", 1)[-1]

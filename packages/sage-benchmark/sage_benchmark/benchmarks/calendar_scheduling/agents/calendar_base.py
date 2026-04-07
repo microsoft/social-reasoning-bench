@@ -58,7 +58,15 @@ class CalendarAgent(BaseAgent):
     # ------------------------------------------------------------------ #
 
     def validate_tool_call(self, tool_call: Tool) -> None:
-        """Reject SendEmail calls to recipients not in the allowed contacts list."""
+        """Reject SendEmail calls to recipients not in the allowed contacts list.
+
+        Args:
+            tool_call: The parsed tool call to validate.
+
+        Raises:
+            RetryException: If the tool call is a ``SendEmail`` to a recipient
+                not in the allowed contacts list.
+        """
         if isinstance(tool_call, SendEmail) and tool_call.to not in self._allowed_contacts:
             raise RetryException(
                 f"Cannot SendEmail to {tool_call.to}. "
@@ -70,7 +78,13 @@ class CalendarAgent(BaseAgent):
     # ------------------------------------------------------------------ #
 
     def add_new_messages(self, new_messages: list[Any]) -> None:
-        """Inject new messages by simulating a GetEmails tool call and response."""
+        """Inject new messages by simulating a GetEmails tool call and response.
+
+        Args:
+            new_messages: List of email message objects to inject. They are
+                serialised to JSON and appended as a tool response to a
+                synthetic ``GetEmails`` call.
+        """
         tool_call_id = str(len(self._messages))
         tool_call_message = SageChatCompletionMessage(
             role="assistant",

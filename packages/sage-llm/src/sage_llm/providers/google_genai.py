@@ -29,7 +29,15 @@ _CLIENT_CACHE: dict[tuple, genai.Client] = {}
 
 
 def _get_google_client(api_key: str | None) -> genai.Client:
-    """Return a cached genai.Client."""
+    """Return a cached genai.Client.
+
+    Args:
+        api_key: Optional Google API key. If ``None``, the SDK uses
+            its default credential resolution.
+
+    Returns:
+        A cached :class:`genai.Client` instance.
+    """
     cache_key = ("google", api_key)
     if cache_key in _CLIENT_CACHE:
         return _CLIENT_CACHE[cache_key]
@@ -97,6 +105,8 @@ class GoogleProvider(SageModelProvider):
                 getattr(um, "prompt_token_count", 0) or 0,
                 getattr(um, "candidates_token_count", 0) or 0,
                 call_duration,
+                cached_tokens=getattr(um, "cached_content_token_count", 0) or 0,
+                reasoning_tokens=getattr(um, "thoughts_token_count", 0) or 0,
             )
         _fill_trace(trace, sdk_kwargs, response)
         return _to_google_message(response, model)
@@ -141,6 +151,8 @@ class GoogleProvider(SageModelProvider):
                 getattr(um, "prompt_token_count", 0) or 0,
                 getattr(um, "candidates_token_count", 0) or 0,
                 call_duration,
+                cached_tokens=getattr(um, "cached_content_token_count", 0) or 0,
+                reasoning_tokens=getattr(um, "thoughts_token_count", 0) or 0,
             )
         _fill_trace(trace, sdk_kwargs, response)
         message = _to_google_message(response, model)
@@ -219,6 +231,13 @@ def _extract_text(content: Any) -> str:
     """Extract plain text from a message content field.
 
     Handles str, list of content parts (extracts text parts), and None.
+
+    Args:
+        content: Message content — a string, list of content-part dicts,
+            or ``None``.
+
+    Returns:
+        Extracted plain text string (empty string for ``None``).
     """
     if isinstance(content, str):
         return content
@@ -234,7 +253,16 @@ def _extract_text(content: Any) -> str:
 
 
 def _translate_assistant_parts(msg: SageChatCompletionMessage) -> list[types.Part]:
-    """Translate an assistant SageChatCompletionMessage to Google Part list."""
+    """Translate an assistant SageChatCompletionMessage to Google Part list.
+
+    Args:
+        msg: An assistant-role message (possibly a :class:`GoogleMessage`
+            with thought parts).
+
+    Returns:
+        List of :class:`types.Part` including thought parts, text, and
+        function calls.
+    """
     parts: list[types.Part] = []
 
     # Inject thought parts from previous GoogleMessage turns
@@ -259,7 +287,18 @@ def _translate_tool_result(
     msg: ChatCompletionToolMessageParam,
     tc_id_to_name: dict[str, str] | None = None,
 ) -> types.Content:
-    """Translate a tool-role message dict to a Google FunctionResponse Content."""
+    """Translate a tool-role message dict to a Google FunctionResponse Content.
+
+    Args:
+        msg: OpenAI-format tool message dict with ``content`` and
+            ``tool_call_id``.
+        tc_id_to_name: Optional mapping from tool_call_id to function name
+            for resolving names when the ``name`` field is absent.
+
+    Returns:
+        A :class:`types.Content` with role ``"user"`` wrapping a
+        ``FunctionResponse`` part.
+    """
     content = str(msg.get("content", ""))
     # Resolve function name: explicit "name" field, or look up via tool_call_id.
     name = str(msg.get("name", ""))
@@ -378,6 +417,13 @@ def _json_schema_to_google_schema(
     Handles $ref/$defs inlining, strips unsupported keys, and sanitises
     values (e.g. empty enum strings) so the result is always valid for
     the Gemini API.
+
+    Args:
+        schema: JSON Schema dict (e.g. from ``BaseModel.model_json_schema()``).
+        defs: Definitions dict. If ``None``, extracted from ``schema["$defs"]``.
+
+    Returns:
+        A :class:`types.Schema` instance suitable for the Gemini API.
     """
     if defs is None:
         defs = schema.get("$defs", {})
@@ -560,7 +606,17 @@ def _serialize_sdk_kwargs(
     contents: types.ContentListUnion,
     config: types.GenerateContentConfig,
 ) -> dict[str, Any]:
-    """Serialize request args for tracing. Best-effort dict conversion."""
+    """Serialize request args for tracing. Best-effort dict conversion.
+
+    Args:
+        model: Model name string.
+        contents: Google-format content list sent to the API.
+        config: Generation configuration object.
+
+    Returns:
+        Dict with ``model``, ``contents``, and ``config`` keys suitable
+        for JSON tracing.
+    """
     try:
         if isinstance(contents, list):
             contents_serialized = [str(c) for c in contents]
@@ -580,7 +636,14 @@ def _serialize_sdk_kwargs(
 
 
 def _serialize_response(response: types.GenerateContentResponse) -> dict[str, Any]:
-    """Best-effort serialization of Google response for tracing."""
+    """Best-effort serialization of Google response for tracing.
+
+    Args:
+        response: Raw :class:`types.GenerateContentResponse` from the API.
+
+    Returns:
+        JSON-safe dict representation of the response.
+    """
     try:
         if hasattr(response, "model_dump"):
             return response.model_dump(mode="json")
@@ -602,7 +665,13 @@ def _fill_trace(
     sdk_kwargs: dict[str, Any],
     response: types.GenerateContentResponse,
 ) -> None:
-    """Fill provider-side trace fields from a Google response."""
+    """Fill provider-side trace fields from a Google response.
+
+    Args:
+        trace: Trace object to populate with provider-specific data.
+        sdk_kwargs: Serialized SDK keyword arguments for the request.
+        response: Raw :class:`types.GenerateContentResponse` from the API.
+    """
     trace.provider_name = "google"
     trace.provider_request = sdk_kwargs
     trace.provider_response = _serialize_response(response)

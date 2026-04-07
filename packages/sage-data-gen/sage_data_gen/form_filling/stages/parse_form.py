@@ -45,7 +45,17 @@ BLANK_HINT = (
 async def _call_llm(
     client: SageModelClient, system_prompt: str, user_message: str, model: str
 ) -> str:
-    """Helper to call LLM with system prompt and return content."""
+    """Helper to call LLM with system prompt and return content.
+
+    Args:
+        client: SageModelClient instance.
+        system_prompt: System message for the LLM.
+        user_message: User message for the LLM.
+        model: Model name to use.
+
+    Returns:
+        Stripped string content from the LLM response.
+    """
     response = await client.acomplete(
         model=model,
         messages=[
@@ -234,7 +244,14 @@ Example output:
 
 
 def _generate_field_code(field: FormField) -> list[str]:
-    """Generate code lines for a single Pydantic field."""
+    """Generate code lines for a single Pydantic field.
+
+    Args:
+        field: FormField describing the field metadata.
+
+    Returns:
+        List of Python code lines (without leading indentation for the class body).
+    """
     lines = []
 
     if field.type == "boolean":
@@ -365,7 +382,14 @@ def generate_pydantic_code(parsed_form: ParsedForm, class_name: str = "Generated
 
 
 def validate_generated_code(code: str) -> bool:
-    """Validate that generated Python code is syntactically correct."""
+    """Validate that generated Python code is syntactically correct.
+
+    Args:
+        code: Python source code string.
+
+    Returns:
+        *True* if the code parses without syntax errors.
+    """
     import ast
 
     try:
@@ -377,7 +401,16 @@ def validate_generated_code(code: str) -> bool:
 
 
 async def shorten_class_name_with_llm(long_name: str, client: SageModelClient, model: str) -> str:
-    """Use LLM to generate a shorter class name (max 64 chars)."""
+    """Use LLM to generate a shorter class name (max 64 chars).
+
+    Args:
+        long_name: The overly long class name to shorten.
+        client: SageModelClient instance.
+        model: Model name to use.
+
+    Returns:
+        Shortened PascalCase class name (max 64 characters).
+    """
     prompt = f"""Given this long class name: "{long_name}"
 
 Generate a shorter, meaningful class name that:
@@ -474,6 +507,8 @@ async def generate_form_model(
         client: SageModelClient instance.
         config: Pipeline configuration.
         form_id: Form identifier (fallback for class name).
+        form_summary: Optional FormSummary (purpose + recipient). If None,
+            it will be extracted from the text.
 
     Returns:
         Tuple of (form_model_code, class_name, form_title, form_summary).
@@ -579,6 +614,11 @@ async def parse_form_image(
     extract_text_from_image() + generate_form_model() separately
     for independent caching.
 
+    Args:
+        image_path: Path to the form image (PNG/JPEG).
+        client: SageModelClient instance.
+        config: Pipeline configuration.
+
     Returns:
         Tuple of (extracted_text, form_model_code, class_name, form_title).
     """
@@ -598,7 +638,14 @@ async def parse_form_image(
 
 
 def extract_form_id(image_path) -> str:
-    """Extract form ID from image path (local import to avoid circular)."""
+    """Extract form ID from image path (local import to avoid circular).
+
+    Args:
+        image_path: Path to the form image file.
+
+    Returns:
+        String form ID extracted from the filename.
+    """
     from pathlib import Path
 
     from sage_data_gen.form_filling.utils import extract_form_id as _extract_form_id

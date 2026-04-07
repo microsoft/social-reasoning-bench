@@ -34,7 +34,11 @@ class TaskManager:
 
     @property
     def current(self) -> str | None:
-        """Get the current task definition."""
+        """Get the current task definition.
+
+        Returns:
+            The task string, or ``None`` if no task has been set.
+        """
         return self._task
 
     def load(self, path: Path | str) -> str:
@@ -66,6 +70,9 @@ class TaskManager:
 
         Returns:
             Path to saved file
+
+        Raises:
+            ValueError: If no task has been set.
         """
         if self._task is None:
             raise ValueError("No task to save. Call load() or set() first.")

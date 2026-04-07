@@ -44,7 +44,18 @@ def _make_example_meeting(
     start_time: str = "14:00",
     end_time: str = "15:00",
 ) -> Meeting:
-    """Create a Meeting object for few-shot examples."""
+    """Create a Meeting object for few-shot examples.
+
+    Args:
+        title: Title of the meeting.
+        description: Optional description of the meeting.
+        date: Meeting date in ISO format.
+        start_time: Meeting start time in HH:MM format.
+        end_time: Meeting end time in HH:MM format.
+
+    Returns:
+        A Meeting object configured for use in few-shot examples.
+    """
     return Meeting(
         uid="secret-example",
         title=title,

@@ -38,7 +38,16 @@ from pathlib import Path
 
 
 def run_az(args: list[str], timeout: int = 30) -> list[dict]:
-    """Run an az CLI command and return parsed JSON."""
+    """Run an az CLI command and return parsed JSON.
+
+    Args:
+        args: Arguments to pass to the ``az`` CLI (excluding ``-o json``).
+        timeout: Maximum seconds to wait for the command to complete.
+
+    Returns:
+        Parsed JSON output as a list of dictionaries, or an empty list on
+        error or empty output.
+    """
     result = subprocess.run(
         ["az", *args, "-o", "json"],
         capture_output=True,
@@ -52,7 +61,15 @@ def run_az(args: list[str], timeout: int = 30) -> list[dict]:
 
 
 def list_accounts(subscription: str, prefix: str) -> list[dict]:
-    """List cognitive services accounts matching prefix."""
+    """List cognitive services accounts matching prefix.
+
+    Args:
+        subscription: Azure subscription ID or name.
+        prefix: Name prefix used to filter cognitive services accounts.
+
+    Returns:
+        List of matching account dicts with name, resource group, and endpoint.
+    """
     return run_az(
         [
             "cognitiveservices",
@@ -67,7 +84,16 @@ def list_accounts(subscription: str, prefix: str) -> list[dict]:
 
 
 def list_deployments(account_name: str, resource_group: str, subscription: str) -> list[dict]:
-    """List non-batch deployments for a cognitive services account."""
+    """List non-batch, non-image, and non-embedding deployments for a cognitive services account.
+
+    Args:
+        account_name: Name of the Azure Cognitive Services account.
+        resource_group: Azure resource group containing the account.
+        subscription: Azure subscription ID or name.
+
+    Returns:
+        A list of dicts with ``name`` and ``model`` keys for each deployment.
+    """
     return run_az(
         [
             "cognitiveservices",
@@ -87,7 +113,15 @@ def list_deployments(account_name: str, resource_group: str, subscription: str) 
 
 
 def discover_all(subscription: str, prefix: str) -> dict[str, list[dict]]:
-    """Discover all deployments grouped by model name."""
+    """Discover all deployments grouped by model name.
+
+    Args:
+        subscription: Azure subscription ID or name.
+        prefix: Name prefix used to filter cognitive services accounts.
+
+    Returns:
+        Dictionary mapping model names to lists of endpoint/deployment dicts.
+    """
     accounts = list_accounts(subscription, prefix)
     print(f"Found {len(accounts)} accounts matching '{prefix}*'")
 
@@ -115,7 +149,15 @@ def write_configs(
     api_version: str,
     models: list[str] | None = None,
 ) -> None:
-    """Write per-model JSON config files."""
+    """Write per-model JSON config files.
+
+    Args:
+        by_model: Mapping of model names to lists of endpoint/deployment dicts.
+        output_dir: Directory where per-model JSON files are written.
+        api_version: Azure API version string included in each config entry.
+        models: Optional list of model names to write configs for. If ``None``,
+            all discovered models are written.
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     target_models = models if models else sorted(by_model.keys())
 

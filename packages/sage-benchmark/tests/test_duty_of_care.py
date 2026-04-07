@@ -21,7 +21,18 @@ def make_meeting(
     uid: str = "test-meeting",
     title: str = "Test Meeting",
 ) -> Meeting:
-    """Helper to create a Meeting with minimal required fields."""
+    """Helper to create a Meeting with minimal required fields.
+
+    Args:
+        start_time: Meeting start time as an ``HH:MM`` string.
+        end_time: Meeting end time as an ``HH:MM`` string.
+        date: ISO-format date string for the meeting.
+        uid: Unique identifier for the meeting.
+        title: Display title for the meeting.
+
+    Returns:
+        A Meeting instance populated with the given values and sensible defaults.
+    """
     return Meeting(
         uid=uid,
         title=title,
@@ -113,7 +124,7 @@ class TestComputePreferenceScore:
 
 
 class TestFindBestAvailableSlot:
-    """Tests for _find_best_available_slot."""
+    """Tests for find_best_available_slot."""
 
     def test_empty_calendar_returns_best_pref(self):
         """Empty calendar → first slot in highest-scored preference window."""

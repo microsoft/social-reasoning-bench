@@ -42,73 +42,6 @@ class RunCancelled(Exception):
         super().__init__(f"Run cancelled. Output dir: {output_dir}")
 
 
-async def _periodic_metrics_log(interval: float = 120) -> None:
-    """Background task that logs provider throughput metrics periodically."""
-    from sage_llm import concurrency
-
-    while True:
-        await asyncio.sleep(interval)
-        try:
-            metrics = concurrency.get_metrics()
-            if not metrics:
-                continue
-            now = time.monotonic()
-            aimd_state = concurrency.get_aimd_state()
-            for key, m in sorted(metrics.items()):
-                if m.call_count == 0:
-                    continue  # skip per-endpoint entries with no completed calls
-                bench_elapsed = (now - m.first_call_time) if m.first_call_time is not None else 0.0
-                out_tps = m.completion_tokens / bench_elapsed if bench_elapsed > 0 else 0.0
-                tot_tps = m.total_tokens / bench_elapsed if bench_elapsed > 0 else 0.0
-                aimd = aimd_state.get(key)
-                mins, secs = divmod(m.call_seconds, 60)
-                avg_dur = m.call_seconds / m.call_count if m.call_count else 0.0
-                parallelism = m.call_seconds / bench_elapsed if bench_elapsed > 0 else 0.0
-                # Per-label breakdown for this provider
-                label_metrics = concurrency.get_label_metrics().get(key, {})
-                label_lines = ""
-                if label_metrics:
-                    parts = []
-                    for label, lm in sorted(label_metrics.items()):
-                        parts.append(
-                            f"    {label}: {lm.call_count:,} calls, {lm.total_tokens:,} tokens"
-                        )
-                    label_lines = "\n" + "\n".join(parts)
-
-                logger.warning(
-                    "Throughput %s:\n"
-                    "  output tok/s : %7s  [1m: %7s  5m: %7s]\n"
-                    "  total tok/s  : %7s  [1m: %7s  5m: %7s]\n"
-                    "  avg call     : %5.1fs  [1m: %5.1fs  5m: %5.1fs]\n"
-                    "  in_flight    : %5.1f\n"
-                    "  concurrency  : %s\n"
-                    "  parallelism  : %.1fx\n"
-                    "  tokens       : %s output, %s total\n"
-                    "  calls        : %s  (%dm%04.1fs self-time)%s",
-                    key,
-                    f"{out_tps:,.0f}",
-                    f"{m.output_tps_1m.rate:,.0f}",
-                    f"{m.output_tps_5m.rate:,.0f}",
-                    f"{tot_tps:,.0f}",
-                    f"{m.total_tps_1m.rate:,.0f}",
-                    f"{m.total_tps_5m.rate:,.0f}",
-                    avg_dur,
-                    m.call_dur_1m.value,
-                    m.call_dur_5m.value,
-                    m.in_flight_ema,
-                    f"{aimd[0]}/{aimd[1]}" if aimd else "off",
-                    parallelism,
-                    f"{m.completion_tokens:,}",
-                    f"{m.total_tokens:,}",
-                    f"{m.call_count:,}",
-                    int(mins),
-                    secs,
-                    label_lines,
-                )
-        except Exception:
-            logger.exception("Periodic metrics log failed")
-
-
 # ──────────────────────────────────────────────────────────────────────
 # Single-experiment helpers
 # ──────────────────────────────────────────────────────────────────────
@@ -117,7 +50,17 @@ async def _periodic_metrics_log(interval: float = 120) -> None:
 async def run_single_async(
     benchmark: Benchmark,
 ) -> BenchmarkOutput:
-    """Run a single benchmark with signal handling."""
+    """Run a single benchmark with signal handling.
+
+    Args:
+        benchmark: The prepared ``Benchmark`` instance to execute.
+
+    Returns:
+        The ``BenchmarkOutput`` containing config, evaluation, and per-task results.
+
+    Raises:
+        RunCancelled: If the run is interrupted via SIGINT/SIGTERM.
+    """
     loop = asyncio.get_event_loop()
     cancel_event = asyncio.Event()
 
@@ -150,7 +93,14 @@ async def run_single_async(
 
 
 def run_single(benchmark: Benchmark) -> BenchmarkOutput:
-    """Run a single benchmark synchronously.  See :func:`run_single_async`."""
+    """Run a single benchmark synchronously.  See :func:`run_single_async`.
+
+    Args:
+        benchmark: The prepared ``Benchmark`` instance to execute.
+
+    Returns:
+        The ``BenchmarkOutput`` containing config, evaluation, and per-task results.
+    """
     return asyncio.run(run_single_async(benchmark))
 
 
@@ -189,7 +139,12 @@ class ExperimentPoolExecutor:
         self.skipped_tasks: int = 0
 
     async def run(self) -> list[BenchmarkOutput]:
-        """Run all benchmarks and return their outputs."""
+        """Run all benchmarks and return their outputs.
+
+        Returns:
+            A list of ``BenchmarkOutput`` objects, one per benchmark. Returns an
+            empty list if the run was cancelled.
+        """
         self._start_time = time.monotonic()
 
         total_all = 0
@@ -456,16 +411,7 @@ async def run_multiple(
             task_concurrency=task_concurrency,
         )
         sweep_start = time.monotonic()
-        metrics_interval = float(os.environ.get("SAGE_METRICS_INTERVAL", "120"))
-        metrics_task = asyncio.create_task(_periodic_metrics_log(interval=metrics_interval))
-        try:
-            outputs = await pool.run()
-        finally:
-            metrics_task.cancel()
-            try:
-                await metrics_task
-            except asyncio.CancelledError:
-                pass
+        outputs = await pool.run()
         sweep_elapsed = time.monotonic() - sweep_start
 
         if cancel_event.is_set():
@@ -542,7 +488,8 @@ async def run_multiple(
         }
         if provider_metrics_json:
             sweep_meta["provider_metrics"] = provider_metrics_json
-        sweep_meta_path = sweep_output_dir / "sweep_metadata.json"
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        sweep_meta_path = sweep_output_dir / f"sweep_metadata_{ts}.json"
         sweep_meta_path.parent.mkdir(parents=True, exist_ok=True)
         sweep_meta_path.write_text(json.dumps(sweep_meta, indent=2))
 

@@ -267,7 +267,16 @@ Rules:
 async def _generate_form_summary(
     form_text: str, client: SageModelClient, config: FormFillingConfig
 ) -> FormSummary:
-    """Generate form summary with purpose and intended recipient."""
+    """Generate form summary with purpose and intended recipient.
+
+    Args:
+        form_text: Extracted form text.
+        client: SageModelClient instance.
+        config: Pipeline configuration.
+
+    Returns:
+        FormSummary with ``form_purpose`` and ``intended_recipient``.
+    """
     print(f"  Generating form summary...")
 
     result = await client.aparse(
@@ -302,6 +311,18 @@ async def _generate_secrets_for_question(
 
     The number of secrets is controlled by ``config.secrets_per_field_min``
     and ``config.secrets_per_field_max`` (default 2-5).
+
+    Args:
+        question_id: Field ID of the open-ended question.
+        question_text: Human-readable label of the question.
+        question_value: Ground-truth answer for the question.
+        form_summary: Summary with form purpose and recipient.
+        persona: Expanded persona for context.
+        client: SageModelClient instance.
+        config: Pipeline configuration.
+
+    Returns:
+        List of SecretDetail objects for the question.
     """
     print(f"    Generating secrets for: {question_text[:60]}...")
 

@@ -34,6 +34,15 @@ class LeakageJudgment(BaseModel):
 
         Ties are resolved by defaulting to leaked=True (conservative approach).
         Returns the first judgment matching the majority vote.
+
+        Args:
+            judgments: List of LeakageJudgment instances to aggregate.
+
+        Returns:
+            The first LeakageJudgment matching the majority vote outcome.
+
+        Raises:
+            ValueError: If judgments list is empty.
         """
         if not judgments:
             raise ValueError("Cannot aggregate empty list of judgments")

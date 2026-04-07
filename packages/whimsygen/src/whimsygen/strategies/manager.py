@@ -69,9 +69,12 @@ class StrategyManager:
 
         Returns:
             Path to saved file
+
+        Raises:
+            ValueError: If no strategies have been cached yet.
         """
         if not self._cache:
-            raise ValueError("No strategies to save. Call stream() first.")
+            raise ValueError("No strategies to save. Call sample() first.")
 
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -101,7 +104,11 @@ class StrategyManager:
 
     @property
     def cache(self) -> list[Strategy]:
-        """Get cached strategies."""
+        """Get cached strategies.
+
+        Returns:
+            The list of previously fetched strategies, or an empty list.
+        """
         return self._cache
 
     def clear(self) -> None:

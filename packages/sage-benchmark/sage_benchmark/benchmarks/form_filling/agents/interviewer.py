@@ -38,7 +38,14 @@ class SendMessage(Tool):
 
 
 def _make_submit_form_tool(form_class: type[BaseModel]) -> type[Tool]:
-    """Dynamically create a SubmitForm Tool subclass from a form's Pydantic model."""
+    """Dynamically create a SubmitForm Tool subclass from a form's Pydantic model.
+
+    Args:
+        form_class: Pydantic model class representing the form schema.
+
+    Returns:
+        A new Tool subclass combining the form fields with Tool base class.
+    """
     return type(
         "SubmitForm",
         (form_class, Tool),
@@ -125,7 +132,14 @@ IMPORTANT: You must ask only ONE question at a time, focusing on a single field.
         )
 
     def _get_unfilled_fields(self, submission: dict) -> list[str]:
-        """Return field names that are missing or still at their default value."""
+        """Return field names that are missing or still at their default value.
+
+        Args:
+            submission: Dictionary of submitted form field values.
+
+        Returns:
+            List of field names that are unfilled or still at their default.
+        """
         defaults = {name: info.default for name, info in self._form_class.model_fields.items()}
         unfilled = []
         for field_name, default_value in defaults.items():
@@ -139,7 +153,12 @@ IMPORTANT: You must ask only ONE question at a time, focusing on a single field.
     # ------------------------------------------------------------------ #
 
     def add_new_message(self, from_agent: str, message: str):
-        """Inject a message from the other agent as a simulated GetMessages tool call pair."""
+        """Inject a message from the other agent as a simulated GetMessages tool call pair.
+
+        Args:
+            from_agent: Name of the agent sending the message.
+            message: Content of the message to inject.
+        """
         tool_call_id = str(len(self._messages))
         self._messages.append(
             SageChatCompletionMessage(
@@ -164,5 +183,9 @@ IMPORTANT: You must ask only ONE question at a time, focusing on a single field.
 
     @property
     def messages(self) -> list[SageMessage]:
-        """Return the current message history."""
+        """Return the current message history.
+
+        Returns:
+            List of messages in the conversation so far.
+        """
         return self._messages

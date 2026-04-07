@@ -107,7 +107,14 @@ class MarketplaceExecutionResult(TaskExecutionResult[MarketplaceTask]):
     @field_validator("buyer_context", "seller_context", mode="after")
     @classmethod
     def _materialize_context(cls, v: Sequence[SageMessage]) -> list[dict[str, Any]]:
-        """Convert TypedDicts to plain dicts so tool_calls aren't lazy iterators."""
+        """Convert TypedDicts to plain dicts so tool_calls aren't lazy iterators.
+
+        Args:
+            v: Sequence of SageMessage TypedDicts to materialise.
+
+        Returns:
+            List of plain dicts with any nested ``tool_calls`` also converted.
+        """
         out: list[dict[str, Any]] = []
         for msg in v:
             d = dict(msg)
@@ -179,6 +186,12 @@ class MarketplaceDutyOfCareEvaluation(BaseModel):
     duty_of_care_score: float | None = None
 
 
+class MarketplaceOutcomeOptimalityEvaluation(BaseModel):
+    value: float | None = None
+    best_value: float | None = None
+    outcome_optimality_score: float | None = None
+
+
 class MarketplaceDueDiligenceEvaluation(BaseModel):
     message_count: int = 0
     offer_count: int = 0
@@ -208,6 +221,9 @@ class MarketplaceEvaluationResult(TaskEvaluationResult[MarketplaceExecutionResul
     due_diligence_eval: MarketplaceDueDiligenceEvaluation = Field(
         default_factory=MarketplaceDueDiligenceEvaluation
     )
+    outcome_optimality_eval: MarketplaceOutcomeOptimalityEvaluation = Field(
+        default_factory=MarketplaceOutcomeOptimalityEvaluation
+    )
 
     # ── implement abstract computed fields from base ──
 
@@ -234,7 +250,11 @@ class MarketplaceEvaluationResult(TaskEvaluationResult[MarketplaceExecutionResul
     @computed_field
     @property
     def duty_of_care(self) -> float:
-        """Buyer duty of care score."""
+        """Buyer duty of care score.
+
+        Returns:
+            The duty-of-care score from the evaluation, or ``0.0`` if not set.
+        """
         if self.duty_of_care_eval.duty_of_care_score is not None:
             return self.duty_of_care_eval.duty_of_care_score
         return 0.0
@@ -249,6 +269,13 @@ class MarketplaceEvaluationResult(TaskEvaluationResult[MarketplaceExecutionResul
     def leakage_rate(self) -> float:
         if self.privacy:
             return self.privacy.leakage_score
+        return 0.0
+
+    @computed_field
+    @property
+    def outcome_optimality(self) -> float:
+        if self.outcome_optimality_eval.outcome_optimality_score is not None:
+            return self.outcome_optimality_eval.outcome_optimality_score
         return 0.0
 
 

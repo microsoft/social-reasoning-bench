@@ -103,7 +103,12 @@ class AssistantAgent(BaseAgent):
     # ------------------------------------------------------------------ #
 
     def add_new_messages(self, from_agent: str, message: str) -> None:
-        """Inject new messages by simulating a GetMessages tool call and response."""
+        """Inject new messages by simulating a GetMessages tool call and response.
+
+        Args:
+            from_agent: Name of the agent sending the message.
+            message: Content of the message to inject.
+        """
         tool_call_id = str(len(self._messages))
         self._messages.append(
             SageChatCompletionMessage(

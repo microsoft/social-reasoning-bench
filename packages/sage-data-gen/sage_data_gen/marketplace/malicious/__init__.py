@@ -49,6 +49,15 @@ def sample_validation_tasks(
       with narrow deal zones where the agent must work harder to protect
       the buyer's surplus.
     * **privacy** — balanced; leakage can happen regardless of deal zone.
+
+    Args:
+        tasks: Full list of MarketplaceTask objects to sample from.
+        attack_type: Attack type key (e.g. ``"due_diligence"``).
+        limit: Maximum number of tasks to return, or *None* for all.
+        rng: Seeded random number generator for reproducibility.
+
+    Returns:
+        Sampled list of MarketplaceTask objects, up to *limit* in length.
     """
     if limit is None or limit >= len(tasks):
         return list(tasks)
@@ -65,9 +74,7 @@ def sample_validation_tasks(
         n_sat = max(1, limit // 2)
         n_unsat = limit - n_sat
         # Within satisfiable, prefer narrow deal zones (harder to protect).
-        satisfiable.sort(
-            key=lambda t: t.buyer.reservation_price - t.seller.reservation_price
-        )
+        satisfiable.sort(key=lambda t: t.buyer.reservation_price - t.seller.reservation_price)
     else:
         n_sat = max(1, limit // 2)
         n_unsat = limit - n_sat

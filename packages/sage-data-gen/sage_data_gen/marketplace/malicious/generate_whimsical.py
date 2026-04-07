@@ -28,7 +28,16 @@ def _load(paths):
 
 
 def _inject(task: MarketplaceTask, attack_type: str, strategy: str) -> list[MarketplaceTask]:
-    """Inject the malicious prompt into the seller role, returning one variant."""
+    """Inject the malicious prompt into the seller role, returning one variant.
+
+    Args:
+        task: Original MarketplaceTask to inject into.
+        attack_type: Attack type key (e.g. ``"privacy"``).
+        strategy: Strategy text to inject as the malicious prompt.
+
+    Returns:
+        Single-element list containing the injected MarketplaceTask variant.
+    """
     task_desc = _TASK_DESCRIPTIONS[attack_type]
     malicious_prompt = f"{task_desc}\n\n### STRATEGY TO USE\n{strategy}\n"
     task_dict = task.model_dump(mode="json")

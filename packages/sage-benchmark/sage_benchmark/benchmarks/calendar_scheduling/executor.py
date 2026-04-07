@@ -111,8 +111,15 @@ def _force_initial_request(
     This ensures the simulation starts with a concrete request rather than
     relying on the LLM to initiate.
 
+    Args:
+        requestor_agent: The requestor agent to record the forced actions on.
+        requestor_resources: The agent's environment resources used to execute
+            the request and wait actions.
+        task: The calendar task containing the requested meeting details.
+        assistant_email: Email address of the assistant to include as attendee.
+
     Returns:
-        List of tool calls made (RequestMeeting + Wait)
+        List of tool calls made (RequestMeeting + Wait).
     """
     requested_meeting = task.requestor.requested_meeting
 
@@ -211,9 +218,25 @@ async def execute_task(
         allowed_date=task.requestor.requested_meeting.date,
     )
 
+    # Convert LabeledMeetings to Meetings for requestor's calendar
+    # (strip the is_movable and is_secret fields that are hidden from the LLM)
+    requestor_initial_meetings = [
+        Meeting(
+            uid=m.uid,
+            title=m.title,
+            description=m.description,
+            organizer=m.organizer,
+            date=m.date,
+            start_time=m.start_time,
+            end_time=m.end_time,
+            attendees=list(m.attendees),
+        )
+        for m in task.requestor.calendar
+    ]
+
     requestor_resources = environment.create_agent_resources(
         owner=requestor_email,
-        initial_meetings=[],  # Requestor starts with empty calendar
+        initial_meetings=requestor_initial_meetings,
         allowed_date=task.requestor.requested_meeting.date,
     )
 

@@ -85,8 +85,8 @@ def _initialize_agents(
         privacy_prompt: Privacy level ("none", "simple", "strong", "ci")
         single_field_mode: If True, interviewer asks only one question per turn
         temperature: Sampling temperature for assistant generation
-        form_fill_client: Separate client for form filling (defaults to interviewer client)
-        form_fill_model: Separate model for form filling (defaults to interviewer model)
+        form_fill_client: Separate client for form filling (currently unused)
+        form_fill_model: Separate model for form filling (currently unused)
         assistant_explicit_cot: If True, enable explicit chain-of-thought for assistant
         interviewer_explicit_cot: If True, enable explicit chain-of-thought for interviewer
 
@@ -138,6 +138,13 @@ async def _run_interviewer_turn(
     rejected (feedback appended) and the step is consumed. SendMessage
     ends the turn and hands control to the assistant.
 
+    Args:
+        interviewer: The interviewer agent instance.
+        assistant: The assistant agent instance.
+        conversation: Mutable list of conversation messages to append to.
+        round_num: Current conversation round number.
+        max_steps_per_turn: Maximum number of LLM calls per turn.
+
     Returns:
         ("form_submitted", arguments) if the form was accepted.
         ("continue", None) if a SendMessage was sent (assistant's turn next).
@@ -183,6 +190,14 @@ async def _run_assistant_turn(
     bm25_index: BM25Index | None = None,
 ) -> tuple[str, None]:
     """Run one assistant turn (up to max_steps_per_turn steps).
+
+    Args:
+        interviewer: The interviewer agent instance.
+        assistant: The assistant agent instance.
+        conversation: Mutable list of conversation messages to append to.
+        round_num: Current conversation round number.
+        max_steps_per_turn: Maximum number of LLM calls per turn.
+        bm25_index: Optional BM25Index for file-system tool execution.
 
     Returns:
         ("assistant_ended", None) if the assistant called EndConversation.
@@ -241,6 +256,16 @@ async def _run_conversation_loop(
 
     Each round gives the interviewer a multi-step turn, then the assistant
     a multi-step turn, both bounded by ``max_steps_per_turn``.
+
+    Args:
+        interviewer: The interviewer agent instance.
+        assistant: The assistant agent instance.
+        conversation: Mutable list of conversation messages to append to.
+        max_rounds: Maximum number of conversation rounds.
+        task_id: Task identifier for logging.
+        benchmark_logger: Logger for structured benchmark output.
+        bm25_index: Optional BM25Index for file-system tool execution.
+        max_steps_per_turn: Maximum tool calls per agent turn.
 
     Returns:
         Tuple of (termination_reason, form_submission).
@@ -311,6 +336,8 @@ async def execute_task(
         privacy_prompt: Privacy level ("none", "simple", "strong", "ci")
         single_field_mode: If True, interviewer asks only one question per turn
         temperature: Sampling temperature for assistant generation
+        form_fill_client: Separate client for form filling (currently unused)
+        form_fill_model: Separate model for form filling (currently unused)
         max_steps_per_turn: Maximum tool calls per assistant turn (default: 5)
         assistant_explicit_cot: If True, enable explicit chain-of-thought for assistant
         interviewer_explicit_cot: If True, enable explicit chain-of-thought for interviewer

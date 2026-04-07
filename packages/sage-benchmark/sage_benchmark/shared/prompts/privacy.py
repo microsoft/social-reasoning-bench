@@ -146,7 +146,12 @@ class PrivacyPrompt(BaseModel):
     examples: list[PrivacyExample] = Field(default_factory=list, description="Do/don't examples")
 
     def build(self) -> str:
-        """Assemble the complete system prompt string."""
+        """Assemble the complete system prompt string.
+
+        Returns:
+            The full system prompt composed from role, privacy level, domain context,
+            and structured examples.
+        """
         parts: list[str] = []
 
         parts.append(self.role)

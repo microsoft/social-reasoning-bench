@@ -351,10 +351,11 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
 function themeDark() { return document.documentElement.classList.contains('dark'); }
 
 const CORE_METRICS = {
-  task_completion: { label: 'Task Completion', aggKey: 'avg_task_completion', taskKey: 'task_completed', format: 'percent', higherIsBetter: true, scale: [0, 1] },
-  leakage_rate:    { label: 'Leakage Rate',    aggKey: 'avg_leakage_rate',    taskKey: 'leakage_rate',   format: 'percent', higherIsBetter: false, scale: [0, 1] },
-  duty_of_care:    { label: 'Duty of Care',    aggKey: 'avg_duty_of_care',    taskKey: 'duty_of_care',   format: 'percent', higherIsBetter: true,  scale: [-1, 1] },
-  due_diligence:   { label: 'Due Diligence',   aggKey: 'avg_due_diligence',   taskKey: 'due_diligence',  format: 'number',  higherIsBetter: true,  scale: 'auto' },
+  task_completion:      { label: 'Task Completion',      aggKey: 'avg_task_completion',      taskKey: 'task_completed',      format: 'percent', higherIsBetter: true, scale: [0, 1] },
+  outcome_optimality:   { label: 'Outcome Optimality',   aggKey: 'avg_outcome_optimality',   taskKey: 'outcome_optimality',  format: 'percent', higherIsBetter: true, scale: [0, 1] },
+  leakage_rate:         { label: 'Leakage Rate',         aggKey: 'avg_leakage_rate',         taskKey: 'leakage_rate',        format: 'percent', higherIsBetter: false, scale: [0, 1] },
+  duty_of_care:         { label: 'Duty of Care',         aggKey: 'avg_duty_of_care',         taskKey: 'duty_of_care',        format: 'percent', higherIsBetter: true,  scale: [-1, 1] },
+  due_diligence:        { label: 'Due Diligence',        aggKey: 'avg_due_diligence',        taskKey: 'due_diligence',       format: 'number',  higherIsBetter: true,  scale: 'auto' },
 };
 
 const BENCHMARK_COLORS = {
@@ -576,7 +577,30 @@ function extractReasoningConfig(cfg) {
 
 function extractPrivacyLevel(cfg) {
   // Privacy prompt level from whichever config field the benchmark uses
-  return cfg.assistant_system_prompt || cfg.system_prompt || cfg.prompt_type || 'none';
+  return cfg.privacy_prompt || cfg.assistant_system_prompt || cfg.system_prompt || cfg.prompt_type || 'none';
+}
+
+function extractRoleModels(cfg, benchmark) {
+  const fallback = displayModel(cfg.model);
+  if (benchmark === 'calendar') {
+    return {
+      assistantModel: displayModel(cfg.assistant_model) || fallback,
+      counterpartyModel: displayModel(cfg.requestor_model) || fallback,
+      counterpartyRole: 'Requestor',
+    };
+  } else if (benchmark === 'marketplace') {
+    return {
+      assistantModel: displayModel(cfg.assistant_model || cfg.buyer_model) || fallback,
+      counterpartyModel: displayModel(cfg.seller_model) || fallback,
+      counterpartyRole: 'Seller',
+    };
+  } else {
+    return {
+      assistantModel: displayModel(cfg.assistant_model) || fallback,
+      counterpartyModel: displayModel(cfg.interviewer_model) || fallback,
+      counterpartyRole: 'Interviewer',
+    };
+  }
 }
 
 function parseResultsFile(json, filename) {
@@ -587,8 +611,9 @@ function parseResultsFile(json, filename) {
   const model = displayModel(cfg.model);
   const privacyLevel = extractPrivacyLevel(cfg);
   const reasoningConfig = extractReasoningConfig(cfg);
+  const roleModels = extractRoleModels(cfg, benchmark);
 
-  return {
+  return backfillEvaluation({
     id: filename + '_' + Date.now(),
     filename,
     benchmark,
@@ -597,6 +622,7 @@ function parseResultsFile(json, filename) {
     model,
     privacyLevel,
     reasoningConfig,
+    ...roleModels,
     variant,
     timestamp: json.timestamp,
     elapsedSeconds: json.elapsed_seconds || 0,
@@ -607,12 +633,26 @@ function parseResultsFile(json, filename) {
       leakageRate: r.leakage_rate,
       dutyOfCare: r.duty_of_care,
       dueDiligence: r.due_diligence,
+      outcomeOptimality: r.outcome_optimality,
       privacyLeaks: r.privacy_leaks || [],
       _raw: r,
     })),
     _rawConfig: cfg,
     _rawEvaluation: json.evaluation || {},
-  };
+  });
+}
+
+function backfillEvaluation(exp) {
+  // Recompute any missing avg_* fields from task-level data
+  const n = exp.tasks.length;
+  if (n === 0) return exp;
+  const ev = exp.evaluation;
+  if (ev.avg_task_completion == null) ev.avg_task_completion = exp.tasks.reduce((s, t) => s + (t.taskCompleted ? 1 : 0), 0) / n;
+  if (ev.avg_outcome_optimality == null) ev.avg_outcome_optimality = exp.tasks.reduce((s, t) => s + (t.outcomeOptimality || 0), 0) / n;
+  if (ev.avg_leakage_rate == null) ev.avg_leakage_rate = exp.tasks.reduce((s, t) => s + (t.leakageRate || 0), 0) / n;
+  if (ev.avg_duty_of_care == null) ev.avg_duty_of_care = exp.tasks.reduce((s, t) => s + (t.dutyOfCare || 0), 0) / n;
+  if (ev.avg_due_diligence == null) ev.avg_due_diligence = exp.tasks.reduce((s, t) => s + (t.dueDiligence || 0), 0) / n;
+  return exp;
 }
 
 function isCheckpointFile(json) {
@@ -627,6 +667,7 @@ function parseCheckpointFile(json, filename) {
   const model = displayModel(cfg.model);
   const privacyLevel = extractPrivacyLevel(cfg);
   const reasoningConfig = extractReasoningConfig(cfg);
+  const roleModels = extractRoleModels(cfg, benchmark);
 
   const evalResults = json.evaluation_results || [];
   const tasks = evalResults.map(r => ({
@@ -644,6 +685,7 @@ function parseCheckpointFile(json, filename) {
   const evaluation = { total_tasks: n };
   if (n > 0) {
     evaluation.avg_task_completion = tasks.reduce((s, t) => s + (t.taskCompleted ? 1 : 0), 0) / n;
+    evaluation.avg_outcome_optimality = tasks.reduce((s, t) => s + (t.outcomeOptimality || 0), 0) / n;
     evaluation.avg_leakage_rate = tasks.reduce((s, t) => s + (t.leakageRate || 0), 0) / n;
     evaluation.avg_duty_of_care = tasks.reduce((s, t) => s + (t.dutyOfCare || 0), 0) / n;
     evaluation.avg_due_diligence = tasks.reduce((s, t) => s + (t.dueDiligence || 0), 0) / n;
@@ -651,7 +693,7 @@ function parseCheckpointFile(json, filename) {
 
   const totalExpected = (json.completed_task_keys || []).length || n;
 
-  return {
+  return backfillEvaluation({
     id: filename + '_' + Date.now(),
     filename,
     benchmark,
@@ -660,6 +702,7 @@ function parseCheckpointFile(json, filename) {
     model,
     privacyLevel,
     reasoningConfig,
+    ...roleModels,
     variant,
     timestamp: json.last_updated || '',
     elapsedSeconds: 0,
@@ -669,7 +712,7 @@ function parseCheckpointFile(json, filename) {
     checkpointProgress: { evaluated: n, total: totalExpected },
     _rawConfig: cfg,
     _rawEvaluation: evaluation,
-  };
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -1547,12 +1590,13 @@ function renderRadarColumn(container, experiments, colIdx) {
   const seriesDim = state.seriesEnabled !== false ? (state.groupBy[2] || null) : null;
 
   const isDark = themeDark();
-  const axisLabels = ['Task Completion', 'Privacy Preservation', 'Duty of Care', 'Due Diligence (norm)'];
+  const axisLabels = ['Task Completion', 'Outcome Optimality', 'Privacy Preservation', 'Duty of Care', 'Due Diligence (norm)'];
 
   function makeRadarData(exps, groupMaxDD) {
     const agg = aggregateExperiments(exps);
     return [
       agg.task_completion ?? 0,
+      agg.outcome_optimality ?? 0,
       1 - (agg.leakage_rate ?? 0),
       ((agg.duty_of_care ?? 0) + 1) / 2,
       Math.min((agg.due_diligence ?? 0) / groupMaxDD, 1),
@@ -1769,6 +1813,7 @@ Chart.register(scatter2DBoxPlugin);
 
 function getTaskValues(exps, key) {
   return exps.flatMap(e => e.tasks.map(t => {
+    if (key === 'outcome_optimality') return t.outcomeOptimality;
     if (key === 'leakage_rate') return t.leakageRate;
     if (key === 'duty_of_care') return t.dutyOfCare;
     if (key === 'due_diligence') return t.dueDiligence;
@@ -2041,13 +2086,15 @@ function renderBenchmarkTab(benchmark, experiments) {
 }
 
 const tvExpCols = [
-  { key: 'model',      label: 'Model',      align: 'left',   getter: e => e.model, dim: 'model' },
+  { key: 'assistant',  label: 'Assistant',  align: 'left',   getter: e => e.assistantModel || e.model },
+  { key: 'counterparty', label: 'Counterparty', align: 'left', getter: e => e.counterpartyModel || e.model },
   { key: 'privacy',    label: 'Privacy',    align: 'left',   getter: e => e.privacyLevel || 'none', dim: 'privacyLevel' },
   { key: 'reasoning',  label: 'Reasoning',  align: 'left',   getter: e => e.reasoningConfig || 'none', dim: 'reasoningConfig' },
   { key: 'attack',     label: 'Attack',     align: 'left',   getter: e => e.attackType || 'none', dim: 'attackType' },
   { key: 'attackStyle',label: 'Style',      align: 'left',   getter: e => e.attackStyle || 'none', dim: 'attackStyle' },
   { key: 'tasks',      label: 'Tasks',      align: 'center', getter: e => e.tasks.length },
   { key: 'completion', label: 'Completion',  align: 'center', getter: e => e.evaluation?.avg_task_completion, format: 'percent', good: 'high' },
+  { key: 'oo',         label: 'OO',          align: 'center', getter: e => e.evaluation?.avg_outcome_optimality, format: 'percent', good: 'high' },
   { key: 'leakage',    label: 'Leakage',    align: 'center', getter: e => e.evaluation?.avg_leakage_rate, format: 'percent', good: 'low' },
   { key: 'doc',        label: 'DoC',        align: 'center', getter: e => e.evaluation?.avg_duty_of_care, format: 'percent', good: 'high' },
   { key: 'dd',         label: 'DD',         align: 'center', getter: e => e.evaluation?.avg_due_diligence, format: 'int' },
@@ -2225,6 +2272,7 @@ function tvRenderTaskList(benchmark, experiments) {
     <th class="px-2 py-1.5 text-left">#</th>
     <th class="px-2 py-1.5 text-left">${benchmark === 'calendar' ? 'Event' : benchmark === 'marketplace' ? 'Product' : 'Task'}</th>
     <th class="px-2 py-1.5 text-center">Comp</th>
+    <th class="px-2 py-1.5 text-center">OO</th>
     <th class="px-2 py-1.5 text-center">Leak</th>
     <th class="px-2 py-1.5 text-center">DoC</th>
     <th class="px-2 py-1.5 text-center">DD</th>
@@ -2237,6 +2285,7 @@ function tvRenderTaskList(benchmark, experiments) {
       <td class="px-2 py-1.5 text-gray-400 dark:text-gray-500">${r.execution?.task?.id ?? idx}</td>
       <td class="px-2 py-1.5 max-w-[120px] truncate" title="${esc(label)}">${esc(label)}</td>
       ${tvTaskMetricCell(r.task_completed, 'bool')}
+      ${tvTaskMetricCell(r.outcome_optimality, 'percent')}
       ${tvTaskMetricCell(r.leakage_rate, 'percent')}
       ${tvTaskMetricCell(r.duty_of_care, 'percent')}
       ${tvTaskMetricCell(r.due_diligence, 'int')}
@@ -2274,6 +2323,7 @@ function tvRenderVerdictBanner(r) {
     : '<span class="px-2 py-1 rounded-full text-[10px] font-bold bg-red-500 text-white">FAIL</span>';
 
   const stats = [
+    tvVerdictStat('OO', r.outcome_optimality, 'percent', 'high'),
     tvVerdictStat('Leakage', r.leakage_rate, 'percent', 'low'),
     tvVerdictStat('DoC', r.duty_of_care, 'percent', 'high'),
     tvVerdictStat('DD', r.due_diligence, 'int'),
@@ -2518,6 +2568,7 @@ function tvRenderEvalMetrics(r, benchmark) {
   // Core group (all benchmarks)
   const core = [
     mc('Task Completed', r.task_completed, { format: 'bool' }),
+    mc('Outcome Optimality', r.outcome_optimality, { format: 'percent', good: 'high' }),
     mc('Leakage Rate', r.leakage_rate, { format: 'percent', good: 'low' }),
     mc('Duty of Care', r.duty_of_care, { format: 'percent', good: 'high' }),
     mc('Due Diligence', r.due_diligence, { format: 'int' }),
@@ -2528,12 +2579,21 @@ function tvRenderEvalMetrics(r, benchmark) {
 
   if (benchmark === 'calendar') {
     const illegalCount = Array.isArray(r.illegal_moves) ? r.illegal_moves.length : (r.illegal_moves || 0);
+    const ooEval = r.outcome_optimality_eval || {};
     groups += tvRenderMetricGroup('Scheduling', [
       mc('Preference Score', r.preference_score, { format: 'percent', good: 'high' }),
       mc('Duration Error', r.scheduled_duration_error, { format: 'int', subtitle: 'min' }),
       mc('No Conflicts', r.has_conflicts, { format: 'bool', invert: true }),
       mc('Illegal Moves', illegalCount, { format: 'int' }),
     ]);
+    groups += tvRenderMetricGroup('Outcome Optimality', [
+      mc('V(o)', ooEval.value, { format: 'number' }),
+      mc('V*', ooEval.best_value, { format: 'number' }),
+      mc('OO Score', ooEval.outcome_optimality_score, { format: 'percent', good: 'high' }),
+    ]);
+    if (ooEval.explanation) {
+      groups += `<div class="mb-4 text-[10px] text-gray-500 dark:text-gray-400 italic -mt-2">${esc(ooEval.explanation)}</div>`;
+    }
     groups += tvRenderMetricGroup('Privacy', [
       mc('Total Secrets', r.privacy?.total_secrets, { format: 'int' }),
     ]);
@@ -2996,7 +3056,7 @@ function tvRenderCalendarTimeline(title, events, isInitial, scheduledEvent, owne
   </div>`;
 }
 
-function tvRenderPreferenceGraph(prefs, scheduledEvent, r) {
+function tvRenderPreferenceGraph(title, prefs, scheduledEvent, r) {
   let barsHtml = '';
   prefs.forEach(p => {
     const startMins = tvParseTimeMinutes(p.start_time);
@@ -3043,7 +3103,7 @@ function tvRenderPreferenceGraph(prefs, scheduledEvent, r) {
   }
 
   return `<div class="mb-4">
-    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Scheduling Preferences</h3>
+    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">${esc(title)}</h3>
     <div class="bg-gray-50 dark:bg-gray-800 rounded relative" style="height:5rem">${barsHtml}</div>
     <div class="relative h-4 mt-0.5">${ticks}</div>
     <div class="flex flex-wrap gap-3 mt-1 text-[10px] text-gray-400 dark:text-gray-500">
@@ -3211,9 +3271,13 @@ function tvRenderOutcomes(r, benchmark) {
     html += tvRenderCalendarTimeline('Requestor Final Calendar', r.execution?.final_requestor_calendar || [], false, scheduledEvent, requestor.email, null);
 
     // Scheduling preferences
-    const prefs = assistant.preferences || [];
-    if (prefs.length > 0) {
-      html += tvRenderPreferenceGraph(prefs, scheduledEvent, r);
+    const assistantPrefs = assistant.preferences || [];
+    if (assistantPrefs.length > 0) {
+      html += tvRenderPreferenceGraph('Assistant Preferences', assistantPrefs, scheduledEvent, r);
+    }
+    const requestorPrefs = requestor.preferences || [];
+    if (requestorPrefs.length > 0) {
+      html += tvRenderPreferenceGraph('Requestor Preferences', requestorPrefs, scheduledEvent, r);
     }
 
     // Issues

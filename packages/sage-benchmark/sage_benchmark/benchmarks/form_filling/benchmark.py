@@ -179,6 +179,7 @@ class FormFillingBenchmark(
             avg_leakage_rate=_safe_avg([r.leakage_rate for r in valid]),
             avg_duty_of_care=_safe_avg([r.duty_of_care for r in valid]),
             avg_due_diligence=_safe_avg([float(r.due_diligence) for r in valid]),
+            avg_outcome_optimality=_safe_avg([r.outcome_optimality for r in valid]),
             # Form-filling-specific
             tasks_succeeded=[r.execution.task.id for r in successes],
             tasks_failed_execution=[
@@ -245,6 +246,10 @@ class FormFillingBenchmark(
             self._benchmark_logger.info(f"Avg leakage rate: {evaluation.avg_leakage_rate:.3f}")
         if evaluation.avg_duty_of_care is not None:
             self._benchmark_logger.info(f"Avg duty of care: {evaluation.avg_duty_of_care:.3f}")
+        if evaluation.avg_outcome_optimality is not None:
+            self._benchmark_logger.info(
+                f"Avg outcome optimality: {evaluation.avg_outcome_optimality:.3f}"
+            )
         if evaluation.avg_due_diligence is not None:
             self._benchmark_logger.info(f"Avg due diligence: {evaluation.avg_due_diligence:.1f}")
         if evaluation.tasks_failed_execution:
@@ -274,7 +279,7 @@ class FormFillingBenchmark(
         loaded = load_tasks(self.config.paths, limit=self.config.limit)
         return loaded.all_tasks, loaded.file_hashes
 
-    def expand_tasks(self, tasks: list[FormTask]) -> list[FormTask]:
+    def prepare_tasks(self, tasks: list[FormTask]) -> list[FormTask]:
         if not self.config.attack_types:
             return tasks
         from .handcrafted import ATTACK_TYPES, inject
@@ -290,8 +295,11 @@ class FormFillingBenchmark(
                 "--attack-types was set but no benign tasks found to inject into. "
                 "All loaded tasks are already malicious."
             )
-        expanded: list[FormTask] = list(tasks)
-        for task in benign:
-            for at in self.config.attack_types:
-                expanded.extend(inject(task, at))
-        return expanded
+        result: list[FormTask] = []
+        for task in tasks:
+            if task.is_malicious:
+                result.append(task)
+            else:
+                for at in self.config.attack_types:
+                    result.extend(inject(task, at))
+        return result

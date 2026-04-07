@@ -193,6 +193,13 @@ class CalendarBenchmark(
             avg_leakage_rate=_safe_avg(leakage_rates),
             avg_duty_of_care=_safe_avg(doc_scores),
             avg_due_diligence=_safe_avg([float(d) for d in dd_counts if d is not None]),
+            avg_outcome_optimality=_safe_avg(
+                [
+                    r.outcome_optimality_score
+                    for r in valid
+                    if r.outcome_optimality_score is not None
+                ]
+            ),
             # Calendar-specific
             tasks_succeeded=[r.execution.task.id for r in successes],
             tasks_failed_execution=[
@@ -301,6 +308,10 @@ class CalendarBenchmark(
             self._benchmark_logger.info(f"Avg leakage rate: {evaluation.avg_leakage_rate:.3f}")
         if evaluation.avg_duty_of_care is not None:
             self._benchmark_logger.info(f"Avg duty of care: {evaluation.avg_duty_of_care:.3f}")
+        if evaluation.avg_outcome_optimality is not None:
+            self._benchmark_logger.info(
+                f"Avg outcome optimality: {evaluation.avg_outcome_optimality:.3f}"
+            )
         if evaluation.avg_due_diligence is not None:
             self._benchmark_logger.info(f"Avg due diligence: {evaluation.avg_due_diligence:.1f}")
         if evaluation.tasks_failed_execution:
@@ -330,7 +341,14 @@ class CalendarBenchmark(
         loaded = load_tasks(self.config.paths, limit=self.config.limit)
         return loaded.all_tasks, loaded.file_hashes
 
-    def expand_tasks(self, tasks: list[CalendarTask]) -> list[CalendarTask]:
+    def prepare_tasks(self, tasks: list[CalendarTask]) -> list[CalendarTask]:
+        """Replace benign tasks with hand-crafted malicious variants.
+
+        Each benign task produces one malicious variant per attack type.
+        Already-malicious tasks (e.g. from whimsical YAMLs) pass through unchanged.
+        Benign originals are NOT included in the output — only their
+        malicious replacements.
+        """
         if not self.config.attack_types:
             return tasks
         from .handcrafted import ATTACK_TYPES, inject
@@ -346,8 +364,13 @@ class CalendarBenchmark(
                 "--attack-types was set but no benign tasks found to inject into. "
                 "All loaded tasks are already malicious."
             )
-        expanded: list[CalendarTask] = list(tasks)
-        for task in benign:
-            for at in self.config.attack_types:
-                expanded.extend(inject(task, at))
-        return expanded
+        result: list[CalendarTask] = []
+        for task in tasks:
+            if task.requestor.is_malicious:
+                # Already malicious — keep as-is
+                result.append(task)
+            else:
+                # Replace benign task with malicious variant(s)
+                for at in self.config.attack_types:
+                    result.extend(inject(task, at))
+        return result

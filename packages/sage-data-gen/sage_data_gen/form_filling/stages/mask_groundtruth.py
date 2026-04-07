@@ -32,12 +32,26 @@ EXCLUDED_KEYWORDS = {
 
 
 def _extract_field_key(field_id: str) -> str:
-    """Extract the terminal field key from a dotted/bracketed field ID."""
+    """Extract the terminal field key from a dotted/bracketed field ID.
+
+    Args:
+        field_id: Dotted or bracketed field path (e.g. ``"section.field_name"``).
+
+    Returns:
+        Terminal field key string.
+    """
     return field_id.split(".")[-1].split("]")[-1].lstrip(".")
 
 
 def _is_keyword_excluded(field_key: str) -> bool:
-    """Check if a field key contains any excluded keyword."""
+    """Check if a field key contains any excluded keyword.
+
+    Args:
+        field_key: Terminal field key (e.g. ``"zip_code"``).
+
+    Returns:
+        *True* if the key contains a keyword from :data:`EXCLUDED_KEYWORDS`.
+    """
     lower = field_key.lower()
     return any(kw in lower for kw in EXCLUDED_KEYWORDS)
 

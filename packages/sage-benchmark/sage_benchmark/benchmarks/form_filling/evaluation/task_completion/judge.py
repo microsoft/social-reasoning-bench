@@ -6,7 +6,14 @@ from pydantic import BaseModel, Field
 
 
 def normalize_value(value: Any) -> str:
-    """Normalize a value for exact matching."""
+    """Normalize a value for exact matching.
+
+    Args:
+        value: The value to normalize (any type).
+
+    Returns:
+        Lowercase, stripped string representation, or empty string for None/N/A values.
+    """
     if value is None or value == "" or str(value).strip().lower() in ["n/a", "none"]:
         return ""
     return str(value).strip().lower()

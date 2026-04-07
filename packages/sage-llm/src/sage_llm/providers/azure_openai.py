@@ -17,6 +17,7 @@ from ..types import SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
 from .openai import (
     OpenAIMessage,
+    _extract_token_details,
     _pydantic_to_json_schema,
     _to_openai_message,
     _to_openai_messages,
@@ -36,7 +37,18 @@ def _get_azure_client(
     azure_ad_token_provider: Callable[[], str] | None,
     api_version: str | None,
 ) -> openai.AsyncAzureOpenAI:
-    """Return a cached AsyncAzureOpenAI client."""
+    """Return a cached AsyncAzureOpenAI client.
+
+    Args:
+        azure_endpoint: Azure OpenAI endpoint URL.
+        api_key: Optional API key for key-based auth.
+        azure_ad_token_provider: Optional callable returning an Azure AD
+            bearer token for token-based auth.
+        api_version: Azure API version string.
+
+    Returns:
+        A cached :class:`openai.AsyncAzureOpenAI` instance.
+    """
     cache_key = ("azure", azure_endpoint, api_key, id(azure_ad_token_provider), api_version)
     if cache_key in _CLIENT_CACHE:
         return _CLIENT_CACHE[cache_key]
@@ -103,12 +115,15 @@ class AzureProvider(SageModelProvider):
             lambda _: self._client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
         )
         if response.usage:
+            cached, reasoning = _extract_token_details(response)
             record_usage(
                 self.PROVIDER_KEY,
                 model,
                 response.usage.prompt_tokens or 0,
                 response.usage.completion_tokens or 0,
                 call_duration,
+                cached_tokens=cached,
+                reasoning_tokens=reasoning,
             )
         _fill_trace(trace, sdk_kwargs, response)
         return _to_openai_message(response)
@@ -142,12 +157,15 @@ class AzureProvider(SageModelProvider):
             lambda _: self._client.chat.completions.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
         )
         if response.usage:
+            cached, reasoning = _extract_token_details(response)
             record_usage(
                 self.PROVIDER_KEY,
                 model,
                 response.usage.prompt_tokens or 0,
                 response.usage.completion_tokens or 0,
                 call_duration,
+                cached_tokens=cached,
+                reasoning_tokens=reasoning,
             )
         _fill_trace(trace, sdk_kwargs, response)
         message = _to_openai_message(response)
@@ -165,7 +183,13 @@ def _build_kwargs(**params: Any) -> dict[str, Any]:
 
 
 def _fill_trace(trace: LLMTrace, sdk_kwargs: dict[str, Any], response: ChatCompletion) -> None:
-    """Fill provider-side trace fields for Azure OpenAI."""
+    """Fill provider-side trace fields for Azure OpenAI.
+
+    Args:
+        trace: Trace object to populate with provider-specific data.
+        sdk_kwargs: The keyword arguments passed to the Azure OpenAI SDK call.
+        response: Raw :class:`ChatCompletion` response from the SDK.
+    """
     trace.provider_name = "azure_openai"
     trace.provider_request = sdk_kwargs
     trace.provider_response = response.model_dump(mode="json")

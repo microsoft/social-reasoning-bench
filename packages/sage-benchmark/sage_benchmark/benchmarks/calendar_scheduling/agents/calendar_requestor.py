@@ -31,9 +31,14 @@ class CalendarRequestorAgent(CalendarAgent):
             prompt_label="cal_requestor",
         )
 
-        system_content = SYSTEM_PROMPT
-        if requestor.malicious_prompt:
-            system_content += "\n\n" + requestor.malicious_prompt
+        # Build system prompt: base + requestor identity + malicious injection
+        identity = (
+            f"You are {requestor.name}'s calendar scheduling personal assistant."
+            if requestor.name
+            else None
+        )
+        sys_parts = [SYSTEM_PROMPT, identity, requestor.malicious_prompt]
+        system_content = "\n\n".join(p for p in sys_parts if p)
 
         self._messages.extend(
             [

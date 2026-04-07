@@ -94,16 +94,14 @@ def construct_system_prompt(persona: Any, privacy_prompt: str = "none") -> str:
 
     Builds a :class:`PrivacyPrompt` with the form-filling role (including
     persona information), privacy level from *privacy_prompt*, domain context,
-    and domain-specific examples.  Tool instructions are appended after the
-    privacy block.
+    and domain-specific examples.
 
     Args:
         persona: Persona information (PersonaData object)
         privacy_prompt: Privacy level (``"none"``, ``"simple"``, ``"strong"``, ``"ci"``)
 
     Returns:
-        System prompt string with persona context, privacy guidance,
-        and tool instructions.
+        System prompt string with persona context and privacy guidance.
     """
     persona_info = translate_persona_to_text(persona)
     ff_role = FF_ROLE.replace("{persona_info}", persona_info)

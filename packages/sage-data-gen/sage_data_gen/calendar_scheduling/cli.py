@@ -5,6 +5,7 @@ from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
+from pydantic import BaseModel
 from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarTask
 from sage_llm import SageModelClient
 
@@ -17,7 +18,7 @@ from .generate_calendars import (
 )
 from .generate_company import generate_companies
 from .generate_employees import generate_employees
-from .generate_preferences import sample_preferences
+from .models import CalendarEvent, Company
 from .generate_tasks import generate_task_for_archetype
 from .models import Employee
 from .stats import print_stats
@@ -25,15 +26,60 @@ from .validate import validate_output
 from .verify import verify_tasks
 
 
+# ── Pipeline checkpoint models ──────────────────────────
+
+class CompaniesCheckpoint(BaseModel):
+    companies: list[Company]
+
+class EmployeesCheckpoint(BaseModel):
+    employees_by_company: dict[str, list[Employee]]
+
+class CalendarsCheckpoint(BaseModel):
+    calendars_by_email: dict[str, list[CalendarEvent]]
+
+class TasksCheckpoint(BaseModel):
+    tasks_by_email: dict[str, list[CalendarTask]]
+
+
 def _outputs_dir(config: PipelineConfig) -> Path:
     return Path(config.output_dir) / "_pipeline_outputs"
 
 
-def _save_step(outputs_dir: Path, step: int, name: str, data: dict | list) -> None:
+def _save_step(outputs_dir: Path, step: int, name: str, data: dict | list | BaseModel) -> None:
     outputs_dir.mkdir(parents=True, exist_ok=True)
-    path = outputs_dir / f"{step}_{name}.yaml"
-    with open(path, "w") as f:
-        yaml.dump(data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    path = outputs_dir / f"{step}_{name}.json"
+    if isinstance(data, BaseModel):
+        path.write_text(data.model_dump_json(indent=2))
+    else:
+        import json
+        path.write_text(json.dumps(data, indent=2, default=str))
+
+
+def _load_checkpoint(outputs_dir: Path, step: int, name: str, model: type[BaseModel]) -> BaseModel | None:
+    """Load a previously saved pipeline checkpoint, or return None if not found.
+
+    Args:
+        outputs_dir: Directory containing pipeline checkpoint files.
+        step: Step number in the pipeline (e.g. 1, 2, 3).
+        name: Checkpoint name (e.g. 'companies', 'employees').
+        model: Pydantic model class to validate the loaded data against.
+
+    Returns:
+        Validated checkpoint model instance, or None if no checkpoint file exists.
+    """
+    path = outputs_dir / f"{step}_{name}.json"
+    if not path.exists():
+        # Also check for legacy YAML files
+        yaml_path = outputs_dir / f"{step}_{name}.yaml"
+        if not yaml_path.exists():
+            return None
+        print(f"  [cached] Loading step {step} ({name}) from {yaml_path}")
+        with open(yaml_path) as f:
+            raw = yaml.safe_load(f)
+        # Legacy format doesn't match new models — skip it
+        return None
+    print(f"  [cached] Loading step {step} ({name}) from {path}")
+    return model.model_validate_json(path.read_text())
 
 
 def write_tasks_yaml(tasks: list[CalendarTask], path: Path) -> None:
@@ -46,7 +92,16 @@ def write_tasks_yaml(tasks: list[CalendarTask], path: Path) -> None:
 def stratified_subset(
     tasks: list[CalendarTask], n_per_level: int, fullness_levels: list[int]
 ) -> list[CalendarTask]:
-    """Take first n_per_level tasks per fullness level."""
+    """Take first n_per_level tasks per fullness level.
+
+    Args:
+        tasks: All assembled calendar tasks.
+        n_per_level: Maximum number of tasks to include per fullness level.
+        fullness_levels: List of fullness levels to stratify by.
+
+    Returns:
+        Subset of tasks with at most n_per_level tasks per level.
+    """
     by_level: dict[int, list[CalendarTask]] = {lvl: [] for lvl in fullness_levels}
     for task in tasks:
         lvl = task.free_slots_count
@@ -70,143 +125,128 @@ async def run_pipeline(config: PipelineConfig) -> None:
     )
 
     # Step 1: Generate companies
-    print("Step 1: Generating companies...")
-    companies = await generate_companies(client, config)
-    _save_step(debug_dir, 1, "companies", [c.model_dump() for c in companies])
+    ckpt1 = _load_checkpoint(debug_dir, 1, "companies", CompaniesCheckpoint)
+    if ckpt1 is not None:
+        companies = ckpt1.companies
+    else:
+        print("Step 1: Generating companies...")
+        companies = await generate_companies(client, config)
+        _save_step(debug_dir, 1, "companies", CompaniesCheckpoint(companies=companies))
 
     # Step 2: Generate employees for each company
-    print("\nStep 2: Generating employees...")
-    company_employees: dict[str, list[Employee]] = {}
-    employee_results = await asyncio.gather(
-        *[generate_employees(client, company, config) for company in companies]
-    )
-    for company, emps in zip(companies, employee_results):
-        company_employees[company.name] = emps
-    _save_step(
-        debug_dir,
-        2,
-        "employees",
-        {name: [e.model_dump() for e in emps] for name, emps in company_employees.items()},
-    )
+    ckpt2 = _load_checkpoint(debug_dir, 2, "employees", EmployeesCheckpoint)
+    if ckpt2 is not None:
+        company_employees = ckpt2.employees_by_company
+    else:
+        print("\nStep 2: Generating employees...")
+        company_employees: dict[str, list[Employee]] = {}
+        employee_results = await asyncio.gather(
+            *[generate_employees(client, company, config) for company in companies]
+        )
+        for company, emps in zip(companies, employee_results):
+            company_employees[company.name] = emps
+        _save_step(debug_dir, 2, "employees", EmployeesCheckpoint(employees_by_company=company_employees))
 
     # Step 3: Generate base full calendar per employee (LLM, parallel)
-    print("\nStep 3: Generating base full calendars...")
-    base_calendar_coros = []
-    calendar_keys: list[str] = []
+    ckpt3 = _load_checkpoint(debug_dir, 3, "base_calendars", CalendarsCheckpoint)
+    if ckpt3 is not None:
+        employee_base_calendars = ckpt3.calendars_by_email
+    else:
+        print("\nStep 3: Generating base full calendars...")
+        base_calendar_coros = []
+        calendar_keys: list[str] = []
 
-    for company in companies:
-        for emp in company_employees[company.name]:
-            base_calendar_coros.append(
-                generate_calendar(client, emp, company, company_employees[company.name], config)
-            )
-            calendar_keys.append(emp.email)
+        for company in companies:
+            for emp in company_employees[company.name]:
+                base_calendar_coros.append(
+                    generate_calendar(client, emp, company, company_employees[company.name], config)
+                )
+                calendar_keys.append(emp.email)
 
-    base_calendar_results = await asyncio.gather(*base_calendar_coros)
-    employee_base_calendars = {}
-    for key, cal in zip(calendar_keys, base_calendar_results):
-        employee_base_calendars[key] = cal
-        print(f"  {key}: {len(cal)} slots")
+        base_calendar_results = await asyncio.gather(*base_calendar_coros)
+        employee_base_calendars = {}
+        for key, cal in zip(calendar_keys, base_calendar_results):
+            employee_base_calendars[key] = cal
+            print(f"  {key}: {len(cal)} slots")
 
-    _save_step(
-        debug_dir,
-        3,
-        "base_calendars",
-        {email: [e.model_dump() for e in cal] for email, cal in employee_base_calendars.items()},
-    )
-
-    # Step 3b: Generate preferences (needed for step 4 validation)
-    print("\nStep 3b: Generating scheduling preferences...")
-    employee_profiles: dict[str, str] = {}
-    for company in companies:
-        for emp in company_employees[company.name]:
-            profile = "morning" if hash(emp.email) % 2 == 0 else "afternoon"
-            employee_profiles[emp.email] = profile
+        _save_step(debug_dir, 3, "base_calendars", CalendarsCheckpoint(calendars_by_email=employee_base_calendars))
 
     # Step 4: Generate + label tasks (per employee × archetype)
-    print(f"\nStep 4: Generating tasks ({NUM_ARCHETYPES} archetypes per employee)...")
-    task_coros = []
-    task_keys: list[tuple[str, str]] = []  # (employee_email, archetype_name)
+    ckpt4 = _load_checkpoint(debug_dir, 4, "tasks_pre_assembly", TasksCheckpoint)
+    if ckpt4 is not None:
+        all_employee_tasks = ckpt4.tasks_by_email
+        print(f"  [cached] {sum(len(t) for t in all_employee_tasks.values())} tasks for {len(all_employee_tasks)} employees")
+    else:
+        print(f"\nStep 4: Generating tasks ({NUM_ARCHETYPES} archetypes per employee)...")
+        task_coros = []
+        task_keys: list[tuple[str, str]] = []  # (employee_email, archetype_name)
 
-    for company in companies:
-        for emp in company_employees[company.name]:
-            base_events = employee_base_calendars[emp.email]
-            profile = employee_profiles[emp.email]
+        for company in companies:
+            for emp in company_employees[company.name]:
+                base_events = employee_base_calendars[emp.email]
 
-            coworker_email_map = {
-                e.first_name.lower(): e.email for e in company_employees[company.name]
-            }
-            labeled_calendar = create_base_labeled_calendar(
-                base_events, emp, config, coworker_email_map
-            )
-
-            for archetype in ARCHETYPES:
-                task_coros.append(
-                    generate_task_for_archetype(
-                        client=client,
-                        employee=emp,
-                        working_events=base_events,
-                        labeled_calendar=labeled_calendar,
-                        company=company,
-                        company_employees=company_employees[company.name],
-                        archetype=archetype,
-                        config=config,
-                        profile=profile,
-                        coworker_email_map=coworker_email_map,
-                        retry_limit=config.task_retry_limit,
-                    )
+                coworker_email_map = {
+                    e.first_name.lower(): e.email for e in company_employees[company.name]
+                }
+                labeled_calendar = create_base_labeled_calendar(
+                    base_events, emp, config, coworker_email_map
                 )
-                task_keys.append((emp.email, archetype.name))
 
-    task_results = await asyncio.gather(*task_coros)
+                for archetype in ARCHETYPES:
+                    task_coros.append(
+                        generate_task_for_archetype(
+                            client=client,
+                            employee=emp,
+                            working_events=base_events,
+                            labeled_calendar=labeled_calendar,
+                            company=company,
+                            company_employees=company_employees[company.name],
+                            archetype=archetype,
+                            config=config,
+                            coworker_email_map=coworker_email_map,
+                            retry_limit=config.task_retry_limit,
+                        )
+                    )
+                    task_keys.append((emp.email, archetype.name))
 
-    # Group tasks by employee, assign preferences
-    all_employee_tasks: dict[str, list[CalendarTask]] = {}
-    failed_count = 0
-    for (email, _), task in zip(task_keys, task_results):
-        if task is None:
-            failed_count += 1
-            continue
-        # Assign preferences to each task
-        profile = employee_profiles[email]
-        prefs = sample_preferences(profile=profile)
-        task = task.model_copy(
-            update={"assistant": task.assistant.model_copy(update={"preferences": prefs})}
-        )
-        all_employee_tasks.setdefault(email, []).append(task)
+        task_results = await asyncio.gather(*task_coros)
 
-    # Validate we got exactly 7 per employee
-    incomplete_employees = []
-    for email, tasks in list(all_employee_tasks.items()):
-        if len(tasks) != NUM_ARCHETYPES:
-            print(
-                f"  Warning: {email} has {len(tasks)}/{NUM_ARCHETYPES} tasks, "
-                f"will be excluded from assembly"
-            )
-            incomplete_employees.append(email)
-            del all_employee_tasks[email]
+        # Group tasks by employee (preferences are assigned later in assembly)
+        all_employee_tasks: dict[str, list[CalendarTask]] = {}
+        failed_count = 0
+        for (email, _), task in zip(task_keys, task_results):
+            if task is None:
+                failed_count += 1
+                continue
+            all_employee_tasks.setdefault(email, []).append(task)
 
-    total_tasks = sum(len(tasks) for tasks in all_employee_tasks.values())
-    print(f"  Generated {total_tasks} tasks for {len(all_employee_tasks)} employees")
-    if failed_count > 0:
-        print(f"  ({failed_count} tasks failed generation)")
-    if incomplete_employees:
-        print(f"  ({len(incomplete_employees)} employees excluded due to incomplete archetypes)")
+        # Validate we got exactly 7 per employee
+        incomplete_employees = []
+        for email, tasks in list(all_employee_tasks.items()):
+            if len(tasks) != NUM_ARCHETYPES:
+                print(
+                    f"  Warning: {email} has {len(tasks)}/{NUM_ARCHETYPES} tasks, "
+                    f"will be excluded from assembly"
+                )
+                incomplete_employees.append(email)
+                del all_employee_tasks[email]
 
-    _save_step(
-        debug_dir,
-        4,
-        "tasks_pre_assembly",
-        {
-            "total": total_tasks,
-            "employees": len(all_employee_tasks),
-            "failed": failed_count,
-            "incomplete_employees": incomplete_employees,
-        },
-    )
+        total_tasks = sum(len(tasks) for tasks in all_employee_tasks.values())
+        print(f"  Generated {total_tasks} tasks for {len(all_employee_tasks)} employees")
+        if failed_count > 0:
+            print(f"  ({failed_count} tasks failed generation)")
+        if incomplete_employees:
+            print(f"  ({len(incomplete_employees)} employees excluded due to incomplete archetypes)")
+
+        # Only cache if we have tasks (don't cache failures)
+        if total_tasks > 0:
+            _save_step(debug_dir, 4, "tasks_pre_assembly", TasksCheckpoint(tasks_by_email=all_employee_tasks))
 
     # Step 5: Deterministic assembly
     print("\nStep 5: Assembling tasks (fullness assignment + meeting placement + trimming)...")
-    all_tasks = assemble_tasks(all_employee_tasks, config.fullness_levels, config.seed)
+    all_tasks = assemble_tasks(
+        all_employee_tasks, config.fullness_levels, config.requestor_fullness, config.seed
+    )
     print(f"  Assembled {len(all_tasks)} tasks")
 
     # Step 6: Verify invariants
@@ -275,8 +315,8 @@ def parse_args() -> PipelineConfig:
     parser.add_argument(
         "--fullness-levels",
         type=str,
-        default="0,1,3,5,7,9,11",
-        help="Comma-separated list of free slot counts (default: 0,1,3,5,7,9,11)",
+        default="1,2,3,5,7,9,10",
+        help="Comma-separated list of free slot counts (default: 1,2,3,5,7,9,10)",
     )
     parser.add_argument(
         "--medium-size",
@@ -295,6 +335,12 @@ def parse_args() -> PipelineConfig:
         type=int,
         default=3,
         help="Max retries per task when validation fails (default: 3)",
+    )
+    parser.add_argument(
+        "--requestor-fullness",
+        type=int,
+        default=5,
+        help="Fixed number of free working-hour slots in requestor calendars (default: 5)",
     )
     parser.add_argument("--model", required=True, help="Model for generation")
     parser.add_argument(
@@ -328,6 +374,7 @@ def parse_args() -> PipelineConfig:
         medium_size=args.medium_size,
         small_size=args.small_size,
         task_retry_limit=args.task_retry_limit,
+        requestor_fullness=args.requestor_fullness,
         model=args.model,
         output_dir=args.output_dir,
         generate_preferences=not args.no_generate_preferences,

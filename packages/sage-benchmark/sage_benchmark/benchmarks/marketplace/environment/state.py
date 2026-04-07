@@ -18,7 +18,12 @@ class MarketplaceState:
         return None
 
     def expire_offers_from(self, proposer: str) -> None:
-        """Expire all OPEN offers made by *proposer* (superseded by a new offer)."""
+        """Expire all OPEN offers made by *proposer* (superseded by a new offer).
+
+        Args:
+            proposer: The role (``"buyer"`` or ``"seller"``) whose open offers
+                should be marked as ``"EXPIRED"``.
+        """
         for offer in self.offers:
             if offer.status == "OPEN" and offer.proposer == proposer:
                 offer.status = "EXPIRED"

@@ -15,13 +15,21 @@ TASK = "Test task: Generate strategies for testing AI assistants."
 
 @pytest.fixture
 def wg():
-    """Create a WhimsyGen instance for testing."""
+    """Create a WhimsyGen instance for testing.
+
+    Returns:
+        A ``WhimsyGen`` instance configured with test defaults.
+    """
     return WhimsyGen(model=MODEL, seeds=SEEDS_DIR, task=TASK)
 
 
 @pytest.mark.asyncio
 async def test_sample_returns_n_strategies(wg):
-    """sample(n) should return exactly n strategies."""
+    """sample(n) should return exactly n strategies.
+
+    Args:
+        wg: WhimsyGen fixture instance.
+    """
     n = 2
     strategies = await wg.sample(n)
     assert len(strategies) == n
@@ -29,7 +37,11 @@ async def test_sample_returns_n_strategies(wg):
 
 @pytest.mark.asyncio
 async def test_max_strategies_limits_total(wg):
-    """max_strategies should limit the total number of strategies returned."""
+    """max_strategies should limit the total number of strategies returned.
+
+    Args:
+        wg: WhimsyGen fixture instance.
+    """
     max_strategies = 2
 
     strategies = [s async for s in wg.isample(max_strategies=max_strategies)]
@@ -39,7 +51,11 @@ async def test_max_strategies_limits_total(wg):
 
 @pytest.mark.asyncio
 async def test_max_seeds_limits_seeds_processed(wg):
-    """max_seeds should limit how many seeds are processed."""
+    """max_seeds should limit how many seeds are processed.
+
+    Args:
+        wg: WhimsyGen fixture instance.
+    """
     max_seeds = 1
     max_strategies = 10  # High enough to not be the limiting factor
 
@@ -52,7 +68,11 @@ async def test_max_seeds_limits_seeds_processed(wg):
 
 @pytest.mark.asyncio
 async def test_max_strategies_per_seed_limits_per_seed(wg):
-    """max_strategies_per_seed should limit strategies extracted from each seed."""
+    """max_strategies_per_seed should limit strategies extracted from each seed.
+
+    Args:
+        wg: WhimsyGen fixture instance.
+    """
     max_strategies_per_seed = 1
     max_seeds = 3
     max_strategies = 10  # High enough to not be the limiting factor
@@ -79,7 +99,11 @@ async def test_max_strategies_per_seed_limits_per_seed(wg):
 
 @pytest.mark.asyncio
 async def test_max_strategies_stops_iteration_early(wg):
-    """Iteration should stop as soon as max_strategies is reached."""
+    """Iteration should stop as soon as max_strategies is reached.
+
+    Args:
+        wg: WhimsyGen fixture instance.
+    """
     max_strategies = 1
 
     count = 0
@@ -91,7 +115,11 @@ async def test_max_strategies_stops_iteration_early(wg):
 
 @pytest.mark.asyncio
 async def test_combined_controls(wg):
-    """Multiple controls should work together correctly."""
+    """Multiple controls should work together correctly.
+
+    Args:
+        wg: WhimsyGen fixture instance.
+    """
     max_seeds = 2
     max_strategies_per_seed = 2
     max_strategies = 3  # Less than max_seeds * max_strategies_per_seed
@@ -115,7 +143,11 @@ async def test_combined_controls(wg):
 
 @pytest.mark.asyncio
 async def test_no_limits_returns_multiple_strategies(wg):
-    """Without limits, should return multiple strategies."""
+    """Without limits, should return multiple strategies.
+
+    Args:
+        wg: WhimsyGen fixture instance.
+    """
     # Use a small max to avoid long test runs
     max_strategies = 5
 

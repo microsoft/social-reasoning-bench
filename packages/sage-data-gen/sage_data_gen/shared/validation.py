@@ -73,8 +73,15 @@ def _get_benchmark_factory(
 ) -> tuple[type, type]:
     """Return ``(BenchmarkClass, RunConfigClass)`` for *benchmark_name*.
 
+    Args:
+        benchmark_name: One of ``"calendar"``, ``"form-filling"``, or
+            ``"marketplace"``.
+
+    Returns:
+        Tuple of (BenchmarkClass, RunConfigClass) for the benchmark.
+
     Raises:
-        ValueError: Unknown benchmark name.
+        ValueError: If *benchmark_name* is not recognised.
     """
     if benchmark_name == "calendar":
         from sage_benchmark.benchmarks.calendar_scheduling.benchmark import (
@@ -290,7 +297,12 @@ def score_validation_results(
 
 
 def _save_validation_results(result: ValidationResult, path: Path) -> None:
-    """Write all strategy scores to YAML for debugging and reproducibility."""
+    """Write all strategy scores to YAML for debugging and reproducibility.
+
+    Args:
+        result: ValidationResult containing ranked strategy scores.
+        path: Output YAML file path.
+    """
     data: dict[str, Any] = {
         "attack_type": result.attack_type,
         "target_metric": result.target_metric,

@@ -47,7 +47,12 @@ DEFAULT_API_PATH = "msraif/shared"
 
 
 def _get_token_provider():
-    """Get a bearer token provider for TRAPI authentication."""
+    """Get a bearer token provider for TRAPI authentication.
+
+    Returns:
+        A sync callable that returns a bearer token string for the
+        TRAPI scope.
+    """
     cred = ChainedTokenCredential(
         AzureCliCredential(),
         DefaultAzureCredential(
@@ -65,7 +70,19 @@ def _get_token_provider():
 
 
 def _parse_model(model: str) -> tuple[str, str]:
-    """Parse trapi/[apiPath/]model → (api_path, model_name)."""
+    """Parse trapi/[apiPath/]model → (api_path, model_name).
+
+    Args:
+        model: Full TRAPI model string (e.g. ``"trapi/msraif/shared/gpt-4.1"``
+            or ``"trapi/gpt-4.1"``).
+
+    Returns:
+        Tuple of ``(api_path, model_name)``.
+
+    Raises:
+        ValueError: If the model string has no model component after the
+            ``trapi/`` prefix.
+    """
     parts = model.split("/")
     if parts[0] == "trapi":
         parts = parts[1:]
@@ -77,7 +94,15 @@ def _parse_model(model: str) -> tuple[str, str]:
 
 
 def _get_deployment(model_name: str) -> str:
-    """Map model name to Azure deployment name."""
+    """Map model name to Azure deployment name.
+
+    Args:
+        model_name: Short model name (e.g. ``"gpt-4.1"``).
+
+    Returns:
+        Azure deployment name from the :data:`DEPLOYMENTS` lookup, or
+        *model_name* unchanged if no mapping exists.
+    """
     return DEPLOYMENTS.get(model_name, model_name)
 
 
@@ -96,7 +121,11 @@ class TrapiProvider(AzureProvider):
     def resolve_model(model: str) -> tuple[str, str]:
         """Parse trapi model string and resolve deployment name.
 
-        Returns (api_path, deployment_name).
+        Args:
+            model: Full TRAPI model string (e.g. ``"trapi/gpt-4.1"``).
+
+        Returns:
+            Tuple of ``(api_path, deployment_name)``.
         """
         api_path, model_name = _parse_model(model)
         return api_path, _get_deployment(model_name)

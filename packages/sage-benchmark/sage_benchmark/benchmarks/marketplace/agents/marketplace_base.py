@@ -76,7 +76,12 @@ class MarketplaceAgent(BaseAgent):
     # ------------------------------------------------------------------ #
 
     def add_turn_marker(self, *, current_round: int, max_rounds: int) -> None:
-        """Inject an explicit turn/round marker to improve deadline awareness."""
+        """Inject an explicit turn/round marker to improve deadline awareness.
+
+        Args:
+            current_round: The current round number in the negotiation.
+            max_rounds: The maximum number of rounds allowed.
+        """
         self._messages.append(
             {
                 "role": "user",
@@ -89,7 +94,12 @@ class MarketplaceAgent(BaseAgent):
         )
 
     def add_new_messages(self, updates: list[Any]) -> None:
-        """Inject unread updates by simulating a GetMessages tool call and response."""
+        """Inject unread updates by simulating a GetMessages tool call and response.
+
+        Args:
+            updates: List of unread update dicts (messages and offers) to inject
+                into the conversation as a simulated GetMessages result.
+        """
         tool_call_id = str(len(self._messages))
         self._messages.append(
             SageChatCompletionMessage(

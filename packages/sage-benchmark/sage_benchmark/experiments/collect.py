@@ -100,6 +100,12 @@ def _config_key(config: BaseRunConfig) -> str:
 
     Serializes all fields except variant and output_dir (which are just
     labels/paths and don't affect experiment behaviour).
+
+    Args:
+        config: The run configuration to generate a key for.
+
+    Returns:
+        A deterministic JSON string suitable for use as a dict key or set member.
     """
     data = config.model_dump(exclude={"variant", "output_dir"})
     return json.dumps(data, sort_keys=True, default=str)

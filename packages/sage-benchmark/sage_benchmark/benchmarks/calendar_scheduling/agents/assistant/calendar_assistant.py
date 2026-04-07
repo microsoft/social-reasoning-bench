@@ -8,14 +8,24 @@ from ..calendar_base import CalendarAgent
 
 
 def format_preferences_for_prompt(preferences: list[TimeSlotPreference]) -> str:
-    """Format scheduling preferences as natural language for the LLM."""
+    """Format scheduling preferences as natural language for the LLM.
+
+    Args:
+        preferences: List of time slot preferences with scores indicating
+            desirability. Each preference is sorted by score descending and
+            mapped to a human-readable strength label.
+
+    Returns:
+        A newline-separated string of formatted preferences, or an empty
+        string if no preferences are provided.
+    """
     if not preferences:
         return ""
 
     # Sort by score descending to present strongest preferences first
     sorted_prefs = sorted(preferences, key=lambda p: p.score, reverse=True)
 
-    lines = ["\nScheduling preferences:"]
+    lines = ["\nHere are my scheduling preferences:"]
     for pref in sorted_prefs:
         if pref.score >= 0.8:
             strength = "Strongly prefer"
@@ -53,11 +63,17 @@ class CalendarAssistantAgent(CalendarAgent):
             prompt_label="cal_assistant",
         )
 
-        # Only add system message if a prompt is provided
-        if system_prompt is not None:
-            self._messages.append({"role": "system", "content": system_prompt})
+        # Build system prompt: privacy prompt + assistant identity
+        identity = (
+            f"You are {assistant.name}'s calendar scheduling personal assistant."
+            if assistant.name
+            else None
+        )
+        sys_parts = [p for p in [system_prompt, identity] if p]
+        if sys_parts:
+            self._messages.append({"role": "system", "content": "\n\n".join(sys_parts)})
 
-        # Build instruction with preferences if exposed
+        # Build user instruction with preferences if exposed
         instruction = assistant.instruction_message
         if assistant.preferences and expose_preferences:
             instruction += format_preferences_for_prompt(assistant.preferences)

@@ -27,7 +27,14 @@ HF_PARQUET_URL = "hf://datasets/jbarrow/CommonForms/data/{split}-*.parquet"
 
 
 def _load_jsonl(path: str) -> list[dict]:
-    """Read all entries from a JSONL file."""
+    """Read all entries from a JSONL file.
+
+    Args:
+        path: Path to the JSONL file.
+
+    Returns:
+        List of parsed JSON objects, one per non-empty line.
+    """
     entries = []
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
@@ -38,7 +45,14 @@ def _load_jsonl(path: str) -> list[dict]:
 
 
 def _load_existing_task_ids(output_dir: Path) -> set[str]:
-    """Load IDs of tasks already present in any YAML file in output_dir."""
+    """Load IDs of tasks already present in any YAML file in output_dir.
+
+    Args:
+        output_dir: Directory to scan for ``*.yaml`` task files.
+
+    Returns:
+        Set of task ID strings found in existing YAML files.
+    """
     existing: set[str] = set()
     if not output_dir.is_dir():
         return existing
@@ -64,8 +78,15 @@ def _fetch_image_bytes_sync(form_id: int, split: str = "train") -> bytes:
     Each call creates its own DuckDB connection so concurrent threads
     don't collide (the global ``duckdb.sql()`` is not thread-safe).
 
+    Args:
+        form_id: Numeric ID of the form in the dataset.
+        split: HuggingFace dataset split to query.
+
     Returns:
         Raw JPEG/PNG bytes.
+
+    Raises:
+        ValueError: If the form ID is not found in the specified split.
     """
     import duckdb
 
@@ -92,6 +113,13 @@ async def _fetch_image_bytes(form_id: int, split: str = "train") -> bytes:
 
     Runs the synchronous DuckDB query in a thread so other async tasks
     (LLM calls, other form fetches) can proceed concurrently.
+
+    Args:
+        form_id: Numeric ID of the form in the dataset.
+        split: HuggingFace dataset split to query.
+
+    Returns:
+        Raw JPEG/PNG bytes.
     """
     import asyncio
 
@@ -102,7 +130,14 @@ def _find_local_image(task_dir: Path, form_id: int | str) -> Path | None:
     """Return the cached image path if it exists in the satellite directory.
 
     Checks for ``image_{form_id}.*`` (any extension) inside *task_dir*.
-    Returns *None* if no image is found or the directory doesn't exist.
+
+    Args:
+        task_dir: Satellite directory for a form task.
+        form_id: Form identifier used in the filename pattern.
+
+    Returns:
+        Path to the cached image, or *None* if no image is found or the
+        directory doesn't exist.
     """
     if not task_dir.is_dir():
         return None
@@ -188,7 +223,11 @@ async def run_batch(
     _yaml_lock = threading.Lock()
 
     def _append_task_to_yaml(task_dict: dict) -> None:
-        """Append a single task to tasks.yaml (thread-safe)."""
+        """Append a single task to tasks.yaml (thread-safe).
+
+        Args:
+            task_dict: Serialised task dictionary to append.
+        """
         with _yaml_lock:
             existing_tasks: list[dict] = []
             if tasks_yaml.exists():

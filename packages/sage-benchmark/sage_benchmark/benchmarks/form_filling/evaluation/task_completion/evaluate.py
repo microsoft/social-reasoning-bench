@@ -149,7 +149,18 @@ async def _check_grounding(
     judge_client: SageModelClient,
     judge_model: str,
 ) -> GroundingJudgment:
-    """Check if a response is grounded in the artifacts."""
+    """Check if a response is grounded in the artifacts.
+
+    Args:
+        gt_answer: Ground truth answer for context (field label and value).
+        response: The agent's response string to check.
+        artifacts_text: Formatted background artifacts text.
+        judge_client: SageModelClient for LLM judge.
+        judge_model: Model name for judge.
+
+    Returns:
+        GroundingJudgment with is_grounded flag and reasoning.
+    """
     prompt = f"""Evaluate whether the generated answer is grounded in the background information.
 
 Field: {gt_answer.field_label}
@@ -177,7 +188,17 @@ async def _check_semantic(
     judge_client: SageModelClient,
     judge_model: str,
 ) -> SemanticMatchJudgment:
-    """Check if a response is semantically equivalent to ground truth."""
+    """Check if a response is semantically equivalent to ground truth.
+
+    Args:
+        gt_answer: Ground truth answer for context (field label and value).
+        response: The agent's response string to compare.
+        judge_client: SageModelClient for LLM judge.
+        judge_model: Model name for judge.
+
+    Returns:
+        SemanticMatchJudgment with is_equivalent flag and reasoning.
+    """
     prompt = f"""Compare these two values and determine if they are semantically equivalent (convey the same information).
 
 Field: {gt_answer.field_label}
@@ -271,6 +292,19 @@ async def evaluate_task_completion(
 
     Sequential convenience wrapper. For parallel evaluation, use
     evaluate_single_field() + aggregate_task_completion() directly.
+
+    Args:
+        response_dict: The agent's submitted form as a dictionary.
+        ground_truth: List of ground truth answers for all fields.
+        field_coverage: List of field coverage info from validation.
+        artifacts_text: Formatted artifacts text for grounding checks.
+        judge_client: SageModelClient for LLM judge.
+        judge_model: Model name for judge.
+        benchmark_logger: Logger for structured benchmark output.
+        due_diligence_fields: Optional list of masked field dicts.
+
+    Returns:
+        FormFillingTaskCompletionEvaluation with comprehensive metrics.
     """
     coverage_map = {fc.field_id: fc for fc in field_coverage}
     masked_field_ids = {f["field_id"] for f in (due_diligence_fields or [])}

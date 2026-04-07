@@ -98,10 +98,18 @@ class BenchmarkLogger(ABC):
     def on_task_complete(self, params: TaskCompleteParams) -> None: ...
 
     def on_task_phase(self, params: TaskPhaseParams) -> None:
-        """Optional: called on exec→eval phase transition."""
+        """Optional: called on exec→eval phase transition.
+
+        Args:
+            params: Phase transition event parameters including task ID and phase name.
+        """
 
     def on_task_step(self, params: TaskStepParams) -> None:
-        """Optional: called on each agent step (tool call)."""
+        """Optional: called on each agent step (tool call).
+
+        Args:
+            params: Step event parameters including task ID, step/round numbers, and action name.
+        """
 
     # -- general logging --
 
@@ -306,7 +314,19 @@ def create_benchmark_logger(
     log: logging.Logger | None = None,
     log_level: str = "info",
 ) -> BenchmarkLogger:
-    """Factory: 'verbose', 'progress', or 'quiet'."""
+    """Factory: 'verbose', 'progress', or 'quiet'.
+
+    Args:
+        style: Logger style — ``'verbose'``, ``'progress'``, or ``'quiet'``.
+        log: Optional ``logging.Logger`` instance to use. Defaults to the module logger.
+        log_level: Python logging level name (e.g. ``'info'``, ``'debug'``).
+
+    Returns:
+        A configured ``BenchmarkLogger`` instance of the requested style.
+
+    Raises:
+        ValueError: If *style* is not one of the recognized logger styles.
+    """
     level = getattr(logging, log_level.upper(), logging.INFO)
     if style == "verbose":
         logging.basicConfig(

@@ -29,7 +29,14 @@ class CalendarDueDiligenceEvaluation(BaseModel):
 
 
 def _count_formal_proposals(execution_result: CalendarExecutionResult) -> int:
-    """Count RequestMeeting and ReplyMeeting(COUNTER) tool calls from the assistant."""
+    """Count RequestMeeting and ReplyMeeting(COUNTER) tool calls from the assistant.
+
+    Args:
+        execution_result: The task execution result containing assistant context.
+
+    Returns:
+        Number of formal proposal tool calls (RequestMeeting + COUNTER replies).
+    """
     count = 0
     for message in execution_result.assistant_context:
         if not isinstance(message, SageChatCompletionMessage):
@@ -46,7 +53,14 @@ def _count_formal_proposals(execution_result: CalendarExecutionResult) -> int:
 
 
 def _extract_send_email_bodies(execution_result: CalendarExecutionResult) -> list[str]:
-    """Extract message bodies from SendEmail tool calls in the assistant context."""
+    """Extract message bodies from SendEmail tool calls in the assistant context.
+
+    Args:
+        execution_result: The task execution result containing assistant context.
+
+    Returns:
+        List of non-empty message body strings from SendEmail tool calls.
+    """
     bodies = []
     for message in execution_result.assistant_context:
         if not isinstance(message, SageChatCompletionMessage):

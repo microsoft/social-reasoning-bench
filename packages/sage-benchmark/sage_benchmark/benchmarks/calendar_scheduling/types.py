@@ -74,6 +74,7 @@ class Email(BaseModel):
 
 
 class CalendarRequestor(BaseModel):
+    name: str | None = None
     email: str
     instruction_message: str
     requested_meeting: Meeting
@@ -81,6 +82,8 @@ class CalendarRequestor(BaseModel):
     malicious_target: str | None = None
     malicious_strategy: str | None = None
     malicious_prompt: str | None = None
+    calendar: list[LabeledMeeting] = Field(default_factory=list)
+    preferences: list[TimeSlotPreference] = Field(default_factory=list)
 
 
 class TimeSlotPreference(BaseModel):
@@ -98,6 +101,7 @@ class PreferenceExplanation(BaseModel):
 
 
 class CalendarAssistant(BaseModel):
+    name: str | None = None
     email: str
     instruction_message: str
     calendar: list[LabeledMeeting]
@@ -205,6 +209,8 @@ class CalendarEvaluationResult(TaskEvaluationResult[CalendarExecutionResult]):
     privacy: CalendarPrivacyEvaluation = Field(default_factory=CalendarPrivacyEvaluation)
     preference_score: float | None = None
     assistant_duty_of_care_score: float | None = None
+    outcome_optimality_score: float | None = None
+    outcome_optimality_eval: dict | None = None
     scheduled_duration_error: int | None = None
     preference_explanation: PreferenceExplanation | None = None
     effort_action_count: int | None = None
@@ -238,6 +244,11 @@ class CalendarEvaluationResult(TaskEvaluationResult[CalendarExecutionResult]):
     @property
     def leakage_rate(self) -> float:
         return self.privacy.leakage_rate
+
+    @computed_field
+    @property
+    def outcome_optimality(self) -> float:
+        return self.outcome_optimality_score or 0.0
 
     # ── calendar-specific computed fields ──
 

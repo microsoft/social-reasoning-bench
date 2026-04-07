@@ -119,14 +119,29 @@ DOMAINS = [
 
 
 def pil_image_to_base64(image) -> str:
-    """Convert a PIL Image to a base64-encoded PNG string."""
+    """Convert a PIL Image to a base64-encoded PNG string.
+
+    Args:
+        image: PIL Image object.
+
+    Returns:
+        Base64-encoded PNG string.
+    """
     buffered = BytesIO()
     image.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode()
 
 
 def _parse_form_content(text: str | None) -> str | None:
-    """Extract content between <form> and </form> tags."""
+    """Extract content between <form> and </form> tags.
+
+    Args:
+        text: Raw text that may contain ``<form>...</form>`` tags.
+
+    Returns:
+        Extracted text between the tags, or the original text if no tags
+        are found. Returns *None* if *text* is falsy.
+    """
     if not text:
         return None
     match = re.search(r"<form>(.*?)</form>", text, re.DOTALL | re.IGNORECASE)
@@ -139,7 +154,16 @@ def _parse_form_content(text: str | None) -> str | None:
 
 
 async def _is_english(image, client: SageModelClient, config: FormFillingConfig) -> bool:
-    """Return True if the image contains English-only text."""
+    """Return True if the image contains English-only text.
+
+    Args:
+        image: PIL Image of the form.
+        client: SageModelClient instance for vision API calls.
+        config: Pipeline configuration.
+
+    Returns:
+        *True* if the image text is English, *False* otherwise or on error.
+    """
     try:
         b64 = pil_image_to_base64(image)
         response = await client.acomplete(
@@ -169,7 +193,16 @@ async def _is_english(image, client: SageModelClient, config: FormFillingConfig)
 
 
 async def _extract_text(image, client: SageModelClient, config: FormFillingConfig) -> str | None:
-    """Extract all text content from a form image."""
+    """Extract all text content from a form image.
+
+    Args:
+        image: PIL Image of the form.
+        client: SageModelClient instance for vision API calls.
+        config: Pipeline configuration.
+
+    Returns:
+        Extracted text wrapped in ``<form>`` tags, or *None* on error.
+    """
     try:
         b64 = pil_image_to_base64(image)
         response = await client.acomplete(
@@ -209,7 +242,16 @@ async def _extract_text(image, client: SageModelClient, config: FormFillingConfi
 async def _evaluate_completeness(
     text: str, client: SageModelClient, config: FormFillingConfig
 ) -> FormCompletenessEvaluation:
-    """Check whether the form image shows the first page."""
+    """Check whether the form image shows the first page.
+
+    Args:
+        text: Extracted form text.
+        client: SageModelClient instance.
+        config: Pipeline configuration.
+
+    Returns:
+        FormCompletenessEvaluation with ``starts_from_beginning`` flag.
+    """
     prompt = f"""You are evaluating whether a form image shows the BEGINNING of a form.
 
 Since forms are provided as images, the image might show page 2, 3, or 4 of a multi-page form.
@@ -252,7 +294,16 @@ Provide your evaluation."""
 async def _evaluate_open_ended(
     text: str, client: SageModelClient, config: FormFillingConfig
 ) -> OpenEndedQuestionsEvaluation:
-    """Evaluate whether the form has good open-ended questions."""
+    """Evaluate whether the form has good open-ended questions.
+
+    Args:
+        text: Extracted form text.
+        client: SageModelClient instance.
+        config: Pipeline configuration.
+
+    Returns:
+        OpenEndedQuestionsEvaluation with question counts and reasoning.
+    """
     prompt = f"""You are evaluating a form to determine if it contains at least one good open-ended question.
 
 A **good open-ended question** is one that:
@@ -306,7 +357,16 @@ Provide your evaluation."""
 async def _categorize_domain(
     text: str, client: SageModelClient, config: FormFillingConfig
 ) -> FormCategorizationEvaluation:
-    """Categorize the form into domain categories."""
+    """Categorize the form into domain categories.
+
+    Args:
+        text: Extracted form text.
+        client: SageModelClient instance.
+        config: Pipeline configuration.
+
+    Returns:
+        FormCategorizationEvaluation with primary and secondary categories.
+    """
     domains_list = "\n".join(f"{i + 1}. {d}" for i, d in enumerate(DOMAINS))
     prompt = f"""You are categorizing a form into domain categories. Analyze the form and determine which domain(s) it belongs to.
 
@@ -356,7 +416,17 @@ async def _evaluate_over_disclosure(
     client: SageModelClient,
     config: FormFillingConfig,
 ) -> OverDisclosureEvaluation:
-    """Evaluate over-disclosure privacy risk for the form."""
+    """Evaluate over-disclosure privacy risk for the form.
+
+    Args:
+        form_text: Extracted form text.
+        categories: List of domain categories the form belongs to.
+        client: SageModelClient instance.
+        config: Pipeline configuration.
+
+    Returns:
+        OverDisclosureEvaluation with risk level and specific risks.
+    """
     prompt = f"""You are evaluating a form for over-disclosure privacy risk. The form is categorized as: {", ".join(categories)}.
 
 **Over-disclosure** occurs when forms request or encourage users to share MORE information than necessary for the form's purpose.
@@ -429,7 +499,19 @@ async def _process_single_form(
     config: FormFillingConfig,
     dataset_split: str,
 ) -> dict | None:
-    """Run all filter steps on one form. Returns result dict or None if discarded."""
+    """Run all filter steps on one form. Returns result dict or None if discarded.
+
+    Args:
+        data: Raw dataset row dict containing at least ``"image"`` and ``"id"`` keys.
+        idx: Index of the form in the dataset (used for logging).
+        client: SageModelClient instance.
+        config: Pipeline configuration.
+        dataset_split: HuggingFace dataset split name (e.g. ``"train"``).
+
+    Returns:
+        Result dict with evaluation data if the form passes all filters,
+        or *None* if the form is discarded at any step.
+    """
 
     # Step 0: Check sufficient objects
     if "objects" in data and "id" in data["objects"]:

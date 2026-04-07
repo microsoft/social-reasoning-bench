@@ -112,7 +112,15 @@ class ArtifactGenerator:
         self.config = config
 
     async def generate_for_task(self, task_index: int, task: CalendarTask) -> TaskArtifacts:
-        """Generate artifacts for a single task."""
+        """Generate artifacts for a single task.
+
+        Args:
+            task_index: Zero-based index of the task being processed.
+            task: The calendar task to generate artifacts for.
+
+        Returns:
+            TaskArtifacts containing generated email threads and notes.
+        """
         print(f"[Task {task_index}] generating...")
         events_context = []
         for event in task.assistant.calendar:
@@ -150,7 +158,14 @@ class ArtifactGenerator:
         return TaskArtifacts(task_index=task_index, artifacts=result.artifacts)
 
     async def generate_all(self, tasks: list[CalendarTask]) -> list[TaskArtifacts]:
-        """Generate artifacts for all tasks concurrently."""
+        """Generate artifacts for all tasks concurrently.
+
+        Args:
+            tasks: List of calendar tasks to generate artifacts for.
+
+        Returns:
+            List of TaskArtifacts, one per input task.
+        """
         coros = [self.generate_for_task(i, task) for i, task in enumerate(tasks)]
         return await asyncio.gather(*coros)
 

@@ -47,12 +47,20 @@ class Tool(BaseModel):
 
     @classmethod
     def get_name(cls) -> str:
-        """Return the tool name (defaults to the class name)."""
+        """Return the tool name (defaults to the class name).
+
+        Returns:
+            The tool name string, which is the class name by default.
+        """
         return cls.__name__
 
     @classmethod
     def get_description(cls) -> str:
-        """Return the tool description (defaults to the class docstring)."""
+        """Return the tool description (defaults to the class docstring).
+
+        Returns:
+            The tool description string, taken from the class docstring.
+        """
         return cls.__doc__ or ""
 
     @classmethod
@@ -65,6 +73,10 @@ class Tool(BaseModel):
         For tools with no parameters, returns a minimal ``{"type": "object",
         "properties": {}}`` schema that satisfies both Gemini and Anthropic
         API requirements.
+
+        Returns:
+            A JSON Schema dict describing the tool's parameters, with ``$defs``
+            and ``title`` keys removed.
         """
         schema = cls.model_json_schema()
         # Remove $defs from top level and inline if needed
@@ -86,6 +98,10 @@ class Tool(BaseModel):
         This produces a ``ChatCompletionFunctionToolParam`` TypedDict suitable
         for passing directly to the ``tools`` argument of the OpenAI chat
         completions API (or compatible wrappers like ``SageModelClient``).
+
+        Returns:
+            A ``ChatCompletionFunctionToolParam`` TypedDict with the tool's
+            name, description, and parameter schema.
         """
         return ChatCompletionFunctionToolParam(
             type="function",

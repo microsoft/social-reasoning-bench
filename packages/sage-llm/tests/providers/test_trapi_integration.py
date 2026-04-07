@@ -17,7 +17,12 @@ MODEL = "trapi/gpt-4.1-nano"
 
 
 def _can_auth() -> bool:
-    """Check if TRAPI authentication is available."""
+    """Check if TRAPI authentication is available.
+
+    Returns:
+        ``True`` if a :class:`TrapiProvider` can be instantiated
+        without errors.
+    """
     try:
         TrapiProvider()
         return True

@@ -28,7 +28,15 @@ _CLIENT_CACHE: dict[tuple, anthropic.AsyncAnthropic] = {}
 
 
 def _get_anthropic_client(api_key: str | None) -> anthropic.AsyncAnthropic:
-    """Return a cached AsyncAnthropic client."""
+    """Return a cached AsyncAnthropic client.
+
+    Args:
+        api_key: Optional Anthropic API key. If ``None``, the SDK uses
+            its default credential resolution.
+
+    Returns:
+        A cached :class:`anthropic.AsyncAnthropic` instance.
+    """
     cache_key = ("anthropic", api_key)
     if cache_key in _CLIENT_CACHE:
         return _CLIENT_CACHE[cache_key]
@@ -97,6 +105,7 @@ class AnthropicProvider(SageModelProvider):
             response.usage.input_tokens,
             response.usage.output_tokens,
             call_duration,
+            cached_tokens=getattr(response.usage, "cache_read_input_tokens", 0) or 0,
         )
         _fill_trace(trace, sdk_kwargs, response)
         return _to_anthropic_message(response, model)
@@ -141,6 +150,7 @@ class AnthropicProvider(SageModelProvider):
             response.usage.input_tokens,
             response.usage.output_tokens,
             call_duration,
+            cached_tokens=getattr(response.usage, "cache_read_input_tokens", 0) or 0,
         )
         _fill_trace(trace, sdk_kwargs, response)
         message = _to_anthropic_message(response, model)
@@ -159,6 +169,14 @@ def _translate_messages(
 
     Returns (system, messages). Thinking blocks from previous AnthropicMessage
     turns are injected into the assistant message content.
+
+    Args:
+        messages: List of Sage-typed messages to translate.
+
+    Returns:
+        Tuple of ``(system, anthropic_messages)`` where *system* is the
+        system prompt (or ``NOT_GIVEN``) and *anthropic_messages* is the
+        translated message list.
     """
     system: str | anthropic.NotGiven = anthropic.NOT_GIVEN
     out: list[dict[str, Any]] = []
@@ -189,6 +207,13 @@ def _extract_text(content: Any) -> str:
     """Extract plain text from a message content field.
 
     Handles str, list of content parts (extracts text parts), and None.
+
+    Args:
+        content: Message content — a string, list of content-part dicts,
+            or ``None``.
+
+    Returns:
+        Extracted plain text string (empty string for ``None``).
     """
     if isinstance(content, str):
         return content
@@ -204,7 +229,15 @@ def _extract_text(content: Any) -> str:
 
 
 def _translate_assistant(msg: SageChatCompletionMessage) -> dict[str, Any]:
-    """Translate an assistant message, injecting thinking blocks and tool_use."""
+    """Translate an assistant message, injecting thinking blocks and tool_use.
+
+    Args:
+        msg: An assistant-role :class:`SageChatCompletionMessage` (possibly
+            an :class:`AnthropicMessage` with thinking blocks).
+
+    Returns:
+        Anthropic-format message dict with role ``"assistant"``.
+    """
     blocks: list[dict[str, Any]] = []
 
     # Inject thinking blocks if this is an AnthropicMessage with them
@@ -230,7 +263,15 @@ def _translate_assistant(msg: SageChatCompletionMessage) -> dict[str, Any]:
 
 
 def _translate_tool(msg: ChatCompletionToolMessageParam) -> dict[str, Any]:
-    """Translate a tool-role message to Anthropic tool_result."""
+    """Translate a tool-role message to Anthropic tool_result.
+
+    Args:
+        msg: OpenAI-format tool message dict containing ``content``
+            and ``tool_call_id``.
+
+    Returns:
+        Anthropic-format user message dict wrapping a ``tool_result`` block.
+    """
     content = str(msg.get("content", ""))
     tool_call_id = str(msg.get("tool_call_id", ""))
 
@@ -327,7 +368,14 @@ def _translate_tool_choice(openai_choice: ChatCompletionToolChoiceOptionParam) -
 
 
 def _structured_output_tool(model_class: type[BaseModel]) -> tuple[dict, str]:
-    """Create a synthetic tool for structured output. Returns (tool_def, tool_name)."""
+    """Create a synthetic tool for structured output. Returns (tool_def, tool_name).
+
+    Args:
+        model_class: Pydantic model whose JSON schema defines the tool input.
+
+    Returns:
+        Tuple of ``(tool_definition_dict, tool_name)``.
+    """
     name = f"output_{model_class.__name__}"
     return {
         "name": name,
@@ -337,7 +385,16 @@ def _structured_output_tool(model_class: type[BaseModel]) -> tuple[dict, str]:
 
 
 def _extract_structured_output(msg: SageChatCompletionMessage, response_format: type[T]) -> T:
-    """Extract structured output from a tool-use response."""
+    """Extract structured output from a tool-use response.
+
+    Args:
+        msg: Assistant message that may contain a tool call with the
+            structured output payload.
+        response_format: Pydantic model class to validate the output against.
+
+    Returns:
+        Validated instance of *response_format*.
+    """
     if msg.tool_calls:
         tc = msg.tool_calls[0]
         if isinstance(tc, ChatCompletionMessageToolCall):
@@ -419,7 +476,13 @@ def _fill_trace(
     sdk_kwargs: dict[str, Any],
     response: anthropic.types.Message,
 ) -> None:
-    """Fill provider-side trace fields from an Anthropic Message."""
+    """Fill provider-side trace fields from an Anthropic Message.
+
+    Args:
+        trace: Trace object to populate with provider-specific data.
+        sdk_kwargs: The keyword arguments passed to the Anthropic SDK call.
+        response: Raw Anthropic :class:`Message` response.
+    """
     trace.provider_name = "anthropic"
     trace.provider_request = sdk_kwargs
     trace.provider_response = response.model_dump(mode="json")

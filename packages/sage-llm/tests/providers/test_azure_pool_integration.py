@@ -24,7 +24,12 @@ CLIENT_MODEL = f"azure_pool/{MODEL_NAME}"
 
 
 def _can_create_provider() -> bool:
-    """Check if pool config and Azure auth are available."""
+    """Check if pool config and Azure auth are available.
+
+    Returns:
+        ``True`` if ``SAGE_AZURE_POOL_PATH`` is set and a provider can
+        be instantiated.
+    """
     if not os.environ.get("SAGE_AZURE_POOL_PATH"):
         return False
     try:

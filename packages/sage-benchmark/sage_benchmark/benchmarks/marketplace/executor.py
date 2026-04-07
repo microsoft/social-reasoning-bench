@@ -33,7 +33,19 @@ async def _run_agent_turn(
     action_trace: list[ActionTrace | dict],
     benchmark_logger: BenchmarkLogger | None = None,
 ) -> tuple[int, bool]:
-    """Run one agent turn until Wait, EndConversation, or max_steps."""
+    """Run one agent turn until Wait, EndConversation, or max_steps.
+
+    Args:
+        agent: The marketplace agent whose turn is being executed.
+        resources: The agent's environment resources for executing actions.
+        max_steps: Maximum number of tool calls allowed in this turn.
+        action_trace: Mutable list to which action trace entries are appended.
+        benchmark_logger: Optional logger for benchmark diagnostics.
+
+    Returns:
+        A tuple of (invalid_action_count, ended) where *ended* is ``True`` if the
+        negotiation terminated (via EndConversation, deal reached, or generation error).
+    """
     invalid_actions = 0
     for _ in range(max_steps):
         try:

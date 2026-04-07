@@ -158,7 +158,14 @@ Return a JSON object:
 
 
 def _is_empty_answer(answer: str) -> bool:
-    """Check if an answer is empty or N/A (should not be scored by LLM judge)."""
+    """Check if an answer is empty or N/A (should not be scored by LLM judge).
+
+    Args:
+        answer: The answer string to check.
+
+    Returns:
+        True if the answer is empty, whitespace-only, or a N/A variant.
+    """
     stripped = answer.strip()
     if not stripped:
         return True
@@ -166,7 +173,15 @@ def _is_empty_answer(answer: str) -> bool:
 
 
 def _extract_field_answer(response_dict: dict, field_id: str) -> str:
-    """Extract the agent's answer for a field from the response dict."""
+    """Extract the agent's answer for a field from the response dict.
+
+    Args:
+        response_dict: The filled form as a dictionary.
+        field_id: Dot-separated field path (e.g. "section.field_name").
+
+    Returns:
+        The field value as a string, or empty string if not found.
+    """
     parts = field_id.split(".")
     current = response_dict
     for part in parts:
@@ -180,7 +195,15 @@ def _extract_field_answer(response_dict: dict, field_id: str) -> str:
 
 
 def _format_negative_facts(negative_info: list[NegativeInfoItem], field_id: str) -> str:
-    """Format known negative facts for a specific field into a prompt section."""
+    """Format known negative facts for a specific field into a prompt section.
+
+    Args:
+        negative_info: List of NegativeInfoItem objects with per-field negative facts.
+        field_id: The field ID to filter negative info items for.
+
+    Returns:
+        Formatted string describing negative facts, or empty string if none found.
+    """
     # Find negative info items for this field
     items = [ni for ni in negative_info if ni.field_id == field_id]
     if not items:
@@ -317,6 +340,19 @@ async def evaluate_duty_of_care(
 
     Sequential convenience wrapper. For parallel evaluation, use
     evaluate_single_doc_field() + aggregate_duty_of_care() directly.
+
+    Args:
+        response_dict: The filled form as a dictionary.
+        open_ended_fields: List of (field_id, field_label) tuples for open-ended fields.
+        judge_client: SageModelClient for LLM judge.
+        judge_model: Model name for judge.
+        benchmark_logger: Logger for structured benchmark output.
+        form_title: Title of the form.
+        form_purpose: Purpose of the form.
+        form_recipient: Intended recipient/evaluator.
+
+    Returns:
+        FormFillingDutyOfCareEvaluation with aggregate score.
     """
     if not open_ended_fields:
         return FormFillingDutyOfCareEvaluation(

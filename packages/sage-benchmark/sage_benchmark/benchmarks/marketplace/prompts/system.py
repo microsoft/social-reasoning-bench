@@ -92,5 +92,9 @@ def get_system_prompt(preset_name: str = "none") -> str:
 
 
 def list_available_presets() -> list[str]:
-    """Return list of available marketplace preset names."""
+    """Return list of available marketplace preset names.
+
+    Returns:
+        List of preset name strings (e.g. ``["none", "simple", "strong", "ci"]``).
+    """
     return list(PRESETS.keys())

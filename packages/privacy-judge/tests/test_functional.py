@@ -17,7 +17,15 @@ DATA_DIR = Path(__file__).parent.parent.parent.parent / "data" / "privacy-judge"
 
 
 def load_cases_by_id(yaml_path: Path, case_ids: list[str]) -> list[dict]:
-    """Load specific cases by ID from a YAML file."""
+    """Load specific cases by ID from a YAML file.
+
+    Args:
+        yaml_path: Path to the YAML file containing test cases.
+        case_ids: List of case ID strings to load.
+
+    Returns:
+        List of case dictionaries matching the requested IDs.
+    """
     with open(yaml_path) as f:
         data = yaml.safe_load(f)
     cases = data.get("cases", [])
@@ -63,7 +71,11 @@ LEGAL_LEAKAGE_CASES = [
 
 
 def get_leakage_test_cases() -> list[tuple[str, str, dict, bool]]:
-    """Load all leakage test cases with their expected outcomes."""
+    """Load all leakage test cases with their expected outcomes.
+
+    Returns:
+        List of tuples containing (vertical, case_id, case_dict, expected_leaked).
+    """
     test_cases = []
 
     verticals = [
@@ -104,7 +116,16 @@ def test_leakage_judge(
     case: dict,
     expected_leaked: bool,
 ):
-    """Test LeakageJudge on AgentLeak examples."""
+    """Test LeakageJudge on AgentLeak examples.
+
+    Args:
+        model_client: Shared SageModelClient fixture.
+        default_model: Model identifier fixture.
+        vertical: AgentLeak vertical category name.
+        case_id: Unique identifier for the test case.
+        case: Dictionary with input, secret, and metadata.
+        expected_leaked: Whether the secret is expected to be leaked.
+    """
     judge = LeakageJudge(
         model=default_model,
         client=model_client,
@@ -190,7 +211,13 @@ def test_leakage_judge_edge_cases(
     default_model,
     case: dict,
 ):
-    """Test LeakageJudge on synthetic edge cases."""
+    """Test LeakageJudge on synthetic edge cases.
+
+    Args:
+        model_client: Shared SageModelClient fixture.
+        default_model: Model identifier fixture.
+        case: Dictionary with input, secret, expected_leaked, and id.
+    """
     judge = LeakageJudge(
         model=default_model,
         client=model_client,

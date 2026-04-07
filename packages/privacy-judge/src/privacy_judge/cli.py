@@ -15,7 +15,14 @@ from .leakage import LeakageExample, LeakageJudge
 
 
 def load_domain(value: str) -> str:
-    """Load domain from string or file (if prefixed with @)."""
+    """Load domain from string or file (if prefixed with @).
+
+    Args:
+        value: Domain string, or a filepath prefixed with @ to load from file.
+
+    Returns:
+        The domain string content.
+    """
     if value.startswith("@"):
         path = Path(value[1:])
         return path.read_text().strip()
@@ -23,7 +30,14 @@ def load_domain(value: str) -> str:
 
 
 def load_yaml_file(path: str) -> dict:
-    """Load a YAML file."""
+    """Load a YAML file.
+
+    Args:
+        path: Path to the YAML file.
+
+    Returns:
+        Parsed YAML content as a dictionary.
+    """
     with open(path) as f:
         return yaml.safe_load(f)
 
@@ -33,6 +47,12 @@ def resolve_batch_files(batch: str) -> list[Path]:
 
     If batch is a directory, globs for *.yaml and *.yml files.
     If batch is a file, returns it as a single-item list.
+
+    Args:
+        batch: Path to a YAML file or directory containing YAML files.
+
+    Returns:
+        List of resolved Path objects pointing to YAML files.
     """
     batch_path = Path(batch)
     if batch_path.is_dir():
@@ -45,7 +65,12 @@ def resolve_batch_files(batch: str) -> list[Path]:
 
 
 def write_output(output: str, output_path: str | None) -> None:
-    """Write output to file or stdout."""
+    """Write output to file or stdout.
+
+    Args:
+        output: The string content to write.
+        output_path: File path to write to, or None for stdout.
+    """
     if output_path:
         Path(output_path).write_text(output)
         click.echo(f"Results written to {output_path}", err=True)
@@ -75,7 +100,14 @@ def cli():
 
 
 def parse_leakage_examples(data: list[dict]) -> list[LeakageExample]:
-    """Parse leakage examples from YAML data."""
+    """Parse leakage examples from YAML data.
+
+    Args:
+        data: List of dictionaries containing example fields.
+
+    Returns:
+        List of parsed LeakageExample instances.
+    """
     return [
         LeakageExample(
             secret=ex["secret"],
@@ -97,7 +129,21 @@ async def run_leakage_batch(
     limit: int | None = None,
     random_seed: int | None = None,
 ) -> list[dict]:
-    """Run batch leakage evaluation across one or more YAML files."""
+    """Run batch leakage evaluation across one or more YAML files.
+
+    Args:
+        batch_paths: List of paths to YAML batch files.
+        model: Model name/identifier for LLM calls.
+        n_votes: Number of parallel judges for majority voting.
+        concurrency: Maximum number of concurrent evaluation tasks.
+        sampling: Case ordering strategy, either "sequential" or "random".
+        limit: Maximum number of cases to evaluate, or None for all.
+        random_seed: Seed for reproducible random sampling, or None.
+
+    Returns:
+        List of result dictionaries, each containing case id, input, secret,
+        and either a judgment or an error.
+    """
     all_cases = []
     all_defaults = {}
 
@@ -297,6 +343,21 @@ def leakage(
 
       # Batch evaluation
       privacy-judge leakage -m gpt-4.1 --batch cases.yaml -o results.json
+
+    Args:
+        model: Model name/identifier for LLM calls.
+        domain: Domain context string or @filepath.
+        examples: Path to YAML file with few-shot examples.
+        secret: Secret information to check for leakage.
+        context: Additional context for the evaluation.
+        n_votes: Number of parallel judges for majority voting.
+        batch: Path to YAML file or directory with batch cases.
+        concurrency: Max concurrent requests for batch evaluation.
+        sampling: Case ordering strategy, "sequential" or "random".
+        limit: Maximum number of cases to evaluate.
+        random_seed: Random seed for reproducible sampling.
+        output: Output file path, or None for stdout.
+        input: Text to evaluate, or None to read from stdin.
     """
     if batch:
         batch_files = resolve_batch_files(batch)

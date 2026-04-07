@@ -14,7 +14,11 @@ from sage_data_gen.form_filling.generate_form_task import generate_form_task
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Generate form-filling evaluation tasks."""
+    """Generate form-filling evaluation tasks.
+
+    Args:
+        argv: Command-line arguments to parse. Uses ``sys.argv`` when *None*.
+    """
     parser = argparse.ArgumentParser(
         prog="sagegen form-filling",
         description="Generate form-filling evaluation tasks from form images.",

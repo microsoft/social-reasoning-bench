@@ -47,5 +47,9 @@ class CalendarSchedulingEnvironment:
         )
 
     def get_all_emails(self) -> list[Email]:
-        """Get all emails sent (for evaluation/debugging)."""
+        """Get all emails sent (for evaluation/debugging).
+
+        Returns:
+            List of all emails sent through the email manager.
+        """
         return self._email_manager.get_all_emails()

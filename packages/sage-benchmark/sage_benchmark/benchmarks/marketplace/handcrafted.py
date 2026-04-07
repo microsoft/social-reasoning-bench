@@ -63,7 +63,17 @@ ATTACK_TYPES: list[str] = list(PROMPTS.keys())
 
 
 def inject(task: MarketplaceTask, attack_type: str) -> list[MarketplaceTask]:
-    """Inject handcrafted malicious prompt into the seller role, returning one variant."""
+    """Inject handcrafted malicious prompt into the seller role, returning one variant.
+
+    Args:
+        task: The base marketplace task to create a malicious variant from.
+        attack_type: Key into :data:`PROMPTS` (e.g. ``"privacy"``,
+            ``"duty_of_care"``, ``"due_diligence"``).
+
+    Returns:
+        A single-element list containing the task variant with the malicious
+        prompt injected into the seller's configuration.
+    """
     prompt = PROMPTS[attack_type]
     task_dict = task.model_dump(mode="json")
     task_dict["seller"]["malicious_prompt"] = prompt

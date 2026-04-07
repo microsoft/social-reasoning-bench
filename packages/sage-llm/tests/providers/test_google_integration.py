@@ -21,7 +21,12 @@ PROVIDER_MODEL = "gemini-2.5-flash"
 
 
 def _can_auth() -> bool:
-    """Check if Google authentication is available."""
+    """Check if Google authentication is available.
+
+    Returns:
+        ``True`` if a :class:`GoogleProvider` can be instantiated
+        without errors.
+    """
     try:
         GoogleProvider()
         return True

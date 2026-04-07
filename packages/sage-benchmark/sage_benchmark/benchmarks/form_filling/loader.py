@@ -22,14 +22,32 @@ DEFAULT_FORMS_DIR_NAME = "forms"
 
 
 def _resolve_form_model_path(yaml_dir: Path, task: FormTask) -> str:
-    """Resolve form_model.py path from the sibling forms/ directory."""
+    """Resolve form_model.py path from the sibling forms/ directory.
+
+    Args:
+        yaml_dir: Directory containing the YAML task file.
+        task: FormTask whose form model path to resolve.
+
+    Returns:
+        Absolute path string to form_model.py, or empty string if not found.
+    """
     forms_dir = yaml_dir / DEFAULT_FORMS_DIR_NAME
     form_model = forms_dir / f"form_{task.id}" / "form_model.py"
     return str(form_model) if form_model.exists() else ""
 
 
 def _load_file(yaml_path: Path) -> FormFillingLoadedFile:
-    """Load a single YAML file containing form-filling tasks."""
+    """Load a single YAML file containing form-filling tasks.
+
+    Args:
+        yaml_path: Path to the YAML file to load.
+
+    Returns:
+        FormFillingLoadedFile with parsed tasks and file hash.
+
+    Raises:
+        ValueError: If the YAML file is missing a 'tasks' key or contains duplicate task IDs.
+    """
     abs_path = str(yaml_path.absolute())
     file_hash = compute_file_hash(yaml_path)
     yaml_dir = yaml_path.parent

@@ -145,7 +145,11 @@ class _AIMDController:
             self._evaluate()
 
     def _current_tps(self) -> float:
-        """Compute total tok/s since the last snapshot."""
+        """Compute total tok/s since the last snapshot.
+
+        Returns:
+            Tokens per second since the last snapshot, or 0.0 if unavailable.
+        """
         dk = _display_key(*self._key)
         m = _metrics.get(dk)
         if m is None:
@@ -270,7 +274,15 @@ _aimd_controllers: dict[_CKey, _AIMDController | None] = {}
 
 
 def _get_controller(provider_key: str, model: str) -> _AIMDController | None:
-    """Return (or lazily create) the AIMD controller for *(provider_key, model)*."""
+    """Return (or lazily create) the AIMD controller for *(provider_key, model)*.
+
+    Args:
+        provider_key: Provider identifier (e.g. ``"openai"``).
+        model: Model name within the provider.
+
+    Returns:
+        The AIMD controller for the pair, or ``None`` if no LLM size is configured.
+    """
     key: _CKey = (provider_key, model)
     if key not in _aimd_controllers:
         size = _config.llm_size_for(provider_key)
@@ -342,7 +354,11 @@ def configure(
 
 @asynccontextmanager
 async def task_scope(task_size: int | None = None) -> AsyncIterator[None]:
-    """Create per-task semaphores scoped to this async context."""
+    """Create per-task semaphores scoped to this async context.
+
+    Args:
+        task_size: Optional override for the per-task concurrency limit.
+    """
     state = _TaskState(task_size_override=task_size)
     token = _task_state.set(state)
     try:
@@ -356,6 +372,10 @@ async def llm_gate(provider_key: str, model: str) -> AsyncIterator[None]:
     """Acquire per-task and per-(provider, model) semaphores.
 
     Acquisition order: task semaphore first, then global semaphore.
+
+    Args:
+        provider_key: Provider identifier (e.g. ``"openai"``).
+        model: Model name within the provider.
     """
     state = _task_state.get(None)
     task_sem = state.get_semaphore(provider_key) if state else None
@@ -397,7 +417,14 @@ def is_rate_limit(exc: Exception) -> bool:
 
 
 def is_fatal(exc: Exception) -> bool:
-    """Non-retryable client errors (4xx except 429)."""
+    """Non-retryable client errors (4xx except 429).
+
+    Args:
+        exc: The exception to inspect.
+
+    Returns:
+        True if the exception represents a non-retryable 4xx error.
+    """
     status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
     if status is None:
         return False
@@ -428,8 +455,6 @@ async def with_llm_retry(
 ) -> tuple[T, float]:
     """Acquire gate, call *sdk_call*, retry on transient errors.
 
-    Returns ``(result, call_duration_seconds)``.
-
     The *gate* is an async context manager ``(provider_key, model) → ctx``.
     Its yielded value is passed to *sdk_call(ctx)*.  Default is
     :func:`llm_gate` (yields ``None``).  AIMD recording lives in
@@ -437,6 +462,16 @@ async def with_llm_retry(
 
     Fatal errors (4xx except 429) raise immediately.  Transient errors
     (429, 5xx, timeouts, connection errors) trigger retry with backoff.
+
+    Args:
+        provider_key: Provider identifier (e.g. ``"openai"``).
+        model: Model name within the provider.
+        sdk_call: Async callable to invoke; receives the gate's yielded context.
+        max_retries: Maximum number of retry attempts.
+        gate: Async context-manager factory for concurrency gating.
+
+    Returns:
+        A ``(result, call_duration_seconds)`` tuple.
     """
     if gate is None:
         gate = llm_gate
@@ -474,12 +509,16 @@ async def with_llm_retry(
 
 def reset() -> None:
     """Reset all configuration and state.  Intended for tests."""
+    global _metrics_task  # noqa: PLW0603
     _config.default_llm_size = None
     _config.default_task_size = None
     _config.provider_overrides.clear()
     _aimd_controllers.clear()
     _metrics.clear()
     _in_flight.clear()
+    if _metrics_task is not None:
+        _metrics_task.cancel()
+        _metrics_task = None
 
 
 # ---------------------------------------------------------------------------
@@ -546,6 +585,8 @@ class ProviderMetrics:
     call_count: int = 0
     prompt_tokens: int = 0
     completion_tokens: int = 0
+    cached_tokens: int = 0
+    reasoning_tokens: int = 0
     call_seconds: float = 0.0
     first_call_time: float | None = None
     in_flight_ema: float = 0.0
@@ -594,7 +635,11 @@ _label_metrics: dict[tuple[str, str], LabelMetrics] = {}
 
 
 def _update_in_flight_ema(dk: str) -> None:
-    """Update the in-flight EMA for display key *dk*."""
+    """Update the in-flight EMA for display key *dk*.
+
+    Args:
+        dk: Display key in ``"provider/model"`` format.
+    """
     current = _in_flight.get(dk, 0)
     if dk not in _metrics:
         _metrics[dk] = ProviderMetrics()
@@ -608,8 +653,21 @@ def record_usage(
     prompt_tokens: int,
     completion_tokens: int,
     call_duration: float,
+    cached_tokens: int = 0,
+    reasoning_tokens: int = 0,
 ) -> None:
-    """Record token usage and call duration for a (provider, model) pair."""
+    """Record token usage and call duration for a (provider, model) pair.
+
+    Args:
+        provider_key: Provider identifier (e.g. ``"openai"``).
+        model: Model name within the provider.
+        prompt_tokens: Number of prompt tokens consumed.
+        completion_tokens: Number of completion tokens generated.
+        call_duration: Wall-clock duration of the call in seconds.
+        cached_tokens: Number of tokens served from cache.
+        reasoning_tokens: Number of reasoning/chain-of-thought tokens.
+    """
+    _ensure_metrics_logging()
     dk = _display_key(provider_key, model)
     if dk not in _metrics:
         _metrics[dk] = ProviderMetrics()
@@ -619,6 +677,8 @@ def record_usage(
     m.call_count += 1
     m.prompt_tokens += prompt_tokens
     m.completion_tokens += completion_tokens
+    m.cached_tokens += cached_tokens
+    m.reasoning_tokens += reasoning_tokens
     m.call_seconds += call_duration
     total = prompt_tokens + completion_tokens
     m.output_tps_1m.record(completion_tokens)
@@ -640,7 +700,11 @@ def record_usage(
 
 
 def get_metrics() -> dict[str, ProviderMetrics]:
-    """Return accumulated metrics keyed by ``"provider/model"``."""
+    """Return accumulated metrics keyed by ``"provider/model"``.
+
+    Returns:
+        A dict mapping ``"provider/model"`` strings to their ``ProviderMetrics``.
+    """
     return dict(_metrics)
 
 
@@ -659,7 +723,15 @@ def get_label_metrics() -> dict[str, dict[str, LabelMetrics]]:
 
 
 def has_capacity(provider_key: str, model: str) -> bool:
-    """Return True if the AIMD semaphore for *(provider_key, model)* has room."""
+    """Return True if the AIMD semaphore for *(provider_key, model)* has room.
+
+    Args:
+        provider_key: Provider identifier (e.g. ``"openai"``).
+        model: Model name within the provider.
+
+    Returns:
+        True if the AIMD semaphore has available capacity (or no limit is set).
+    """
     controller = _get_controller(provider_key, model)
     if controller is None:
         return True
@@ -667,12 +739,110 @@ def has_capacity(provider_key: str, model: str) -> bool:
 
 
 def get_aimd_state() -> dict[str, tuple[int, int]]:
-    """Return AIMD state: ``{"provider/model": (concurrency, upper)}``."""
+    """Return AIMD state: ``{"provider/model": (concurrency, upper)}``.
+
+    Returns:
+        A dict mapping ``"provider/model"`` to ``(concurrency, upper)`` tuples.
+    """
     return {
         _display_key(*key): (ctrl.concurrency, ctrl.upper)
         for key, ctrl in _aimd_controllers.items()
         if ctrl is not None
     }
+
+
+# ---------------------------------------------------------------------------
+# Periodic metrics logging (auto-starts on first record_usage)
+# ---------------------------------------------------------------------------
+
+_METRICS_INTERVAL = float(os.environ.get("SAGE_METRICS_INTERVAL", "120"))
+_metrics_task: asyncio.Task | None = None
+
+
+async def _periodic_metrics_log(interval: float) -> None:
+    """Background task that logs provider throughput metrics periodically.
+
+    Args:
+        interval: Seconds between each metrics log emission.
+    """
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            metrics = get_metrics()
+            if not metrics:
+                continue
+            now = time.monotonic()
+            aimd_state = get_aimd_state()
+            label_metrics_all = get_label_metrics()
+            for key, m in sorted(metrics.items()):
+                if m.call_count == 0:
+                    continue
+                bench_elapsed = (now - m.first_call_time) if m.first_call_time is not None else 0.0
+                out_tps = m.completion_tokens / bench_elapsed if bench_elapsed > 0 else 0.0
+                tot_tps = m.total_tokens / bench_elapsed if bench_elapsed > 0 else 0.0
+                aimd = aimd_state.get(key)
+                mins, secs = divmod(m.call_seconds, 60)
+                avg_dur = m.call_seconds / m.call_count if m.call_count else 0.0
+                parallelism = m.call_seconds / bench_elapsed if bench_elapsed > 0 else 0.0
+                label_metrics = label_metrics_all.get(key, {})
+                label_lines = ""
+                if label_metrics:
+                    parts = []
+                    for label, lm in sorted(label_metrics.items()):
+                        parts.append(
+                            f"    {label}: {lm.call_count:,} calls, {lm.total_tokens:,} tokens"
+                        )
+                    label_lines = "\n" + "\n".join(parts)
+
+                logger.warning(
+                    "Throughput %s:\n"
+                    "  output tok/s : %7s  [1m: %7s  5m: %7s]\n"
+                    "  total tok/s  : %7s  [1m: %7s  5m: %7s]\n"
+                    "  avg call     : %5.1fs  [1m: %5.1fs  5m: %5.1fs]\n"
+                    "  in_flight    : %5.1f\n"
+                    "  concurrency  : %s\n"
+                    "  parallelism  : %.1fx\n"
+                    "  total tokens : %s\n"
+                    "  input tokens : %s (%s cached)\n"
+                    "  output tokens: %s (%s reasoning)\n"
+                    "  calls        : %s  (%dm%04.1fs self-time)%s",
+                    key,
+                    f"{out_tps:,.0f}",
+                    f"{m.output_tps_1m.rate:,.0f}",
+                    f"{m.output_tps_5m.rate:,.0f}",
+                    f"{tot_tps:,.0f}",
+                    f"{m.total_tps_1m.rate:,.0f}",
+                    f"{m.total_tps_5m.rate:,.0f}",
+                    avg_dur,
+                    m.call_dur_1m.value,
+                    m.call_dur_5m.value,
+                    m.in_flight_ema,
+                    f"{aimd[0]}/{aimd[1]}" if aimd else "off",
+                    parallelism,
+                    f"{m.total_tokens:,}",
+                    f"{m.prompt_tokens:,}",
+                    f"{m.cached_tokens:,}",
+                    f"{m.completion_tokens:,}",
+                    f"{m.reasoning_tokens:,}",
+                    f"{m.call_count:,}",
+                    int(mins),
+                    secs,
+                    label_lines,
+                )
+        except Exception:
+            logger.exception("Periodic metrics log failed")
+
+
+def _ensure_metrics_logging() -> None:
+    """Start the periodic metrics log task if not already running."""
+    global _metrics_task  # noqa: PLW0603
+    if _metrics_task is not None or _METRICS_INTERVAL <= 0:
+        return
+    try:
+        loop = asyncio.get_running_loop()
+        _metrics_task = loop.create_task(_periodic_metrics_log(_METRICS_INTERVAL))
+    except RuntimeError:
+        pass  # no running event loop
 
 
 # ---------------------------------------------------------------------------

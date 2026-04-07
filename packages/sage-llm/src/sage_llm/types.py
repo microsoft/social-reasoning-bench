@@ -36,6 +36,16 @@ def _validate_sage_message(msg: Any) -> Any:
     - Dicts with ``role: "assistant"`` are promoted to SageChatCompletionMessage
       so round-tripping through JSON preserves the concrete type.
     - Other dicts (system/user/tool messages) stay as plain dicts.
+
+    Args:
+        msg: Raw message value — a :class:`BaseModel`, dict, or other type.
+
+    Returns:
+        The validated message, possibly promoted to
+        :class:`SageChatCompletionMessage`.
+
+    Raises:
+        ValueError: If *msg* is not a BaseModel or dict.
     """
     if isinstance(msg, SageChatCompletionMessage):
         return msg
@@ -60,6 +70,16 @@ def _serialize_sage_message(
     - Pydantic models (SageChatCompletionMessage) → model_dump
     - TypedDicts / plain dicts (ChatCompletionMessageParam) → recursive serialization
     - Unexpected types → string fallback
+
+    Args:
+        msg: A :class:`SageChatCompletionMessage` or
+            :class:`ChatCompletionMessageParam` dict.
+
+    Returns:
+        JSON-safe dict representation of the message.
+
+    Raises:
+        ValueError: If *msg* is not a supported message type.
     """
     if isinstance(msg, SageChatCompletionMessage):
         return msg.model_dump(mode="json")

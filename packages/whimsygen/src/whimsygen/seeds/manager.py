@@ -35,12 +35,20 @@ class SeedManager:
 
     @property
     def dir(self) -> Path | None:
-        """Get the seeds directory."""
+        """Get the seeds directory.
+
+        Returns:
+            The seeds directory path, or None if not set.
+        """
         return self._dir
 
     @dir.setter
     def dir(self, value: Path | str | None) -> None:
-        """Set the seeds directory."""
+        """Set the seeds directory.
+
+        Args:
+            value: Directory path, or None to unset.
+        """
         self._dir = Path(value) if value else None
 
     async def sample(
@@ -213,18 +221,37 @@ class SeedManager:
         return [f.name for f in sorted(self._dir.glob("*.yaml"))]
 
     def _safe_filename(self, title: str) -> str:
-        """Convert title to safe filename."""
+        """Convert title to safe filename.
+
+        Args:
+            title: Wikipedia article title to convert.
+
+        Returns:
+            A filesystem-safe version of the title.
+        """
         return "".join(
             c if c.isalnum() or c in (" ", "-", "_") else "_" for c in title.replace("_", " ")
         )
 
     def _save_seed_file(self, filepath: Path, seed: Seed) -> None:
-        """Save a seed to a YAML file."""
+        """Save a seed to a YAML file.
+
+        Args:
+            filepath: Path to the output YAML file.
+            seed: Seed object to save.
+        """
         with open(filepath, "w", encoding="utf-8") as f:
             yaml.dump(seed.model_dump(), f, allow_unicode=True, default_flow_style=False)
 
     def _load_seed_file(self, filepath: Path) -> Seed | None:
-        """Load a seed from a YAML file."""
+        """Load a seed from a YAML file.
+
+        Args:
+            filepath: Path to the YAML file to load.
+
+        Returns:
+            A Seed object, or None if the file could not be parsed.
+        """
         try:
             with open(filepath, encoding="utf-8") as f:
                 data = yaml.safe_load(f)

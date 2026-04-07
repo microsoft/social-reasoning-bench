@@ -20,7 +20,12 @@ from sage_llm.concurrency import (
 
 
 def _cap_upper(provider: str = "openai", model: str = "m") -> None:
-    """Cap AIMD upper to prevent growth on a specific (provider, model)."""
+    """Cap AIMD upper to prevent growth on a specific (provider, model).
+
+    Args:
+        provider: Provider identifier.
+        model: Model name within the provider.
+    """
     ctrl = _get_controller(provider, model)
     if ctrl:
         ctrl.upper = ctrl.concurrency
@@ -31,6 +36,11 @@ def _configure_fixed(llm_size: int, **kwargs: int) -> None:
 
     Call this, then use ``_cap_upper(provider, model)`` for each
     (provider, model) pair that needs a fixed limit.
+
+    Args:
+        llm_size: Initial per-(provider, model) concurrency limit.
+        **kwargs: Additional keyword arguments forwarded to
+            :func:`configure` (e.g. ``task_size``).
     """
     configure(llm_size=llm_size, **kwargs)
 
@@ -597,7 +607,11 @@ class _FakeError(Exception):
 
 @pytest.mark.asyncio
 async def test_with_llm_retry_success():
-    """Successful call returns (result, duration)."""
+    """Successful call returns (result, duration).
+
+    Returns:
+        None. Asserts that a successful SDK call returns a result and positive duration.
+    """
     configure(llm_size=4)
 
     async def sdk_call(_ctx):
@@ -610,7 +624,11 @@ async def test_with_llm_retry_success():
 
 @pytest.mark.asyncio
 async def test_with_llm_retry_429_retries():
-    """429 triggers retry and AIMD decrease."""
+    """429 triggers retry and AIMD decrease.
+
+    Returns:
+        None. Asserts that a 429 error triggers a retry and eventually succeeds.
+    """
     configure(llm_size=8)
     attempts = 0
 

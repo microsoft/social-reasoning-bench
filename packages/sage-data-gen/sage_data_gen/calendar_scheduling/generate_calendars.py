@@ -83,7 +83,15 @@ have a mix of sparse and detailed entries.
 
 
 def _snap_to_slot(start_time: str) -> tuple[str, str] | None:
-    """Snap a start time to the nearest valid 1-hour working slot. Returns (start, end) or None."""
+    """Snap a start time to the nearest valid 1-hour working slot.
+
+    Args:
+        start_time: Time string in HH:MM format to snap.
+
+    Returns:
+        Tuple of (slot_start, slot_end) in HH:MM format, or None if no slot
+        is within 15 minutes.
+    """
     start_min = _time_to_minutes(start_time)
     for slot_start, slot_end in WORKING_HOUR_SLOTS:
         slot_start_min = _time_to_minutes(slot_start)
@@ -115,7 +123,21 @@ async def generate_calendar(
     all_employees: list[Employee],
     config: PipelineConfig,
 ) -> list[CalendarEvent]:
-    """Generate a full 11-slot (08:00-19:00) calendar for an employee."""
+    """Generate a full 11-slot (08:00-19:00) calendar for an employee.
+
+    Handles sparse context gracefully (e.g. requestors with no department,
+    no coworkers, or no personal facts).
+
+    Args:
+        client: LLM client for structured generation.
+        employee: Employee whose calendar is being generated.
+        company: Company the employee belongs to.
+        all_employees: All employees at the company (used for coworker context).
+        config: Pipeline configuration with model and date settings.
+
+    Returns:
+        Ordered list of 11 CalendarEvent objects covering 08:00-19:00.
+    """
     coworkers = "\n".join(
         f"- {e.first_name} {e.last_name}: {e.role} ({e.department})"
         for e in all_employees
@@ -123,16 +145,21 @@ async def generate_calendar(
     )
     personal_facts = "\n".join(f"- {f.fact}" for f in employee.personal_facts)
 
+    if employee.department:
+        role_desc = f"a {employee.role} in {employee.department}"
+    else:
+        role_desc = f"a {employee.role}"
+
     prompt = PROMPT_TEMPLATE.format(
         first_name=employee.first_name,
         last_name=employee.last_name,
-        role=employee.role,
-        department=employee.department,
+        role=role_desc,
+        department=employee.department or "their team",
         company_name=company.name,
-        industry=company.industry,
+        industry=company.industry or "their industry",
         date=config.calendar_date,
-        coworkers=coworkers,
-        personal_facts=personal_facts,
+        coworkers=coworkers or "(none listed)",
+        personal_facts=personal_facts or "(none listed)",
     )
 
     result = await client.aparse(
@@ -184,10 +211,16 @@ def create_base_labeled_calendar(
     """Convert CalendarEvent list to LabeledMeeting list, adding sleep and personal time.
 
     Args:
+        events: Working-hour calendar events to convert.
+        employee: Employee who owns the calendar.
+        config: Pipeline configuration with the calendar date.
         coworker_email_map: Maps first name (lowercase) to email for coworkers in the
             same company. Used to populate attendees from the LLM-generated attendee_names.
             Privacy labels are always initialised to False here; per-task labeling via
             contextual integrity happens later in generate_task_for_archetype.
+
+    Returns:
+        Full calendar as LabeledMeeting list including sleep, working, and personal blocks.
     """
     email = employee.email
     email_prefix = email.split("@")[0]
@@ -263,10 +296,13 @@ def create_fullness_variant(
     """Create a calendar variant with the specified number of free working slots.
 
     Args:
-        base_labeled_calendar: Full calendar (sleep + 11 working slots + personal)
-        num_free_slots: How many working slots to free up
-        protected_slot_index: Index into WORKING_HOUR_SLOTS that must stay occupied (conflict slot)
-        rng: Random instance for deterministic selection
+        base_labeled_calendar: Full calendar (sleep + 11 working slots + personal).
+        num_free_slots: How many working slots to free up.
+        protected_slot_index: Index into WORKING_HOUR_SLOTS that must stay occupied (conflict slot).
+        rng: Random instance for deterministic selection.
+
+    Returns:
+        New calendar with the specified number of free working slots.
     """
     if num_free_slots == 0:
         return list(base_labeled_calendar)

@@ -68,7 +68,16 @@ class _TimedResult:
 
 
 async def _timed(dimension: str, key: str, coro: Coroutine) -> _TimedResult:
-    """Wrap a coroutine to record its wall-clock duration."""
+    """Wrap a coroutine to record its wall-clock duration.
+
+    Args:
+        dimension: Evaluation dimension name (e.g. "correctness", "privacy_conversation").
+        key: Identifier for the specific work item (e.g. field_id).
+        coro: The coroutine to execute and time.
+
+    Returns:
+        _TimedResult containing the dimension, key, elapsed time, and inner result.
+    """
     t0 = time.monotonic()
     result = await coro
     elapsed = time.monotonic() - t0
@@ -87,7 +96,20 @@ def _correctness_items(
     judge_client: SageModelClient,
     judge_model: str,
 ) -> Iterable[Coroutine[Any, Any, _TimedResult]]:
-    """Yield one timed coroutine per ground-truth field for correctness evaluation."""
+    """Yield one timed coroutine per ground-truth field for correctness evaluation.
+
+    Args:
+        form_dict: The agent's submitted form as a dictionary.
+        ground_truth: List of ground truth answers for all fields.
+        field_coverage: List of field coverage info from validation.
+        artifacts_text: Formatted artifacts text for grounding checks.
+        masked_field_ids: Set of masked (due diligence) field IDs.
+        judge_client: SageModelClient for LLM judge.
+        judge_model: Model name for judge.
+
+    Returns:
+        Iterable of timed coroutines, one per ground-truth field.
+    """
     coverage_map = {fc.field_id: fc for fc in field_coverage}
     for gt_answer in ground_truth:
 
@@ -126,6 +148,14 @@ def _conversation_privacy_items(
     """Yield one timed coroutine per secret for conversation privacy.
 
     Evaluates the full conversation transcript against each secret.
+
+    Args:
+        conversation: List of conversation messages between agents.
+        secrets: List of SecretInfo objects to check for leakage.
+        judge: FormFillingLeakageJudge instance for privacy evaluation.
+
+    Returns:
+        Iterable of timed coroutines, one per secret.
     """
     _AGENT_LABELS = {"interviewer": "INTERVIEWER", "assistant": "ASSISTANT"}
     transcript = "\n".join(
@@ -166,7 +196,19 @@ def _due_diligence_items(
     judge_model: str,
     distractor_scenarios: dict[str, list] | None = None,
 ) -> Iterable[Coroutine[Any, Any, _TimedResult]]:
-    """Yield one timed coroutine per masked field for due diligence evaluation."""
+    """Yield one timed coroutine per masked field for due diligence evaluation.
+
+    Args:
+        due_diligence_fields: List of dicts with field_id and original_value.
+        findability_map: Map of field_id to findability classification.
+        response_dict: The agent's submitted form as a dictionary.
+        judge_client: SageModelClient for LLM judge.
+        judge_model: Model name for judge.
+        distractor_scenarios: Per-field distractor scenarios.
+
+    Returns:
+        Iterable of timed coroutines, one per masked field.
+    """
     expected_map = {f["field_id"]: f["original_value"] for f in due_diligence_fields}
     for field_id in sorted(expected_map):
 
@@ -202,7 +244,21 @@ def _duty_of_care_items(
     form_recipient: str,
     negative_info: list | None = None,
 ) -> Iterable[Coroutine[Any, Any, _TimedResult]]:
-    """Yield one timed coroutine per open-ended field for duty of care evaluation."""
+    """Yield one timed coroutine per open-ended field for duty of care evaluation.
+
+    Args:
+        response_dict: The filled form as a dictionary.
+        open_ended_fields: List of (field_id, field_label) tuples.
+        judge_client: SageModelClient for LLM judge.
+        judge_model: Model name for judge.
+        form_title: Title of the form.
+        form_purpose: Purpose of the form.
+        form_recipient: Intended recipient/evaluator.
+        negative_info: Known negative facts from data generation.
+
+    Returns:
+        Iterable of timed coroutines, one per open-ended field.
+    """
     for field_id, field_label in open_ended_fields:
 
         async def _eval(fid=field_id, fl=field_label) -> FormFillingDutyOfCareFieldEvaluation:
@@ -238,6 +294,13 @@ def _aggregate_privacy(
 
     A secret is considered leaked if ANY (item, secret) pair detected a leak.
     Deduplicates by secret_content so each secret counts at most once.
+
+    Args:
+        results: List of per-item privacy evaluation results.
+        secrets: List of SecretInfo objects that were checked.
+
+    Returns:
+        Tuple of (secrets_checked, secrets_leaked, leakage_details, privacy_score).
     """
     secrets_checked = [s.secret_content for s in secrets]
 
@@ -267,7 +330,14 @@ def _aggregate_privacy(
 
 
 def _count_effort_actions(assistant_context: Sequence[Any]) -> int:
-    """Count SearchFiles + ReadFile tool calls in the assistant's message history."""
+    """Count SearchFiles + ReadFile tool calls in the assistant's message history.
+
+    Args:
+        assistant_context: Sequence of assistant messages (dicts or SageChatCompletionMessage).
+
+    Returns:
+        Total number of SearchFiles and ReadFile tool calls found.
+    """
     count = 0
     for msg in assistant_context:
         # Handle both live SageChatCompletionMessage and deserialized dicts

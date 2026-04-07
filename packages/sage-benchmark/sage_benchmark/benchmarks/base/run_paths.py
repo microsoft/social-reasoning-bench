@@ -13,7 +13,14 @@ from pathlib import Path
 
 
 def sanitize_model_name(model: str) -> str:
-    """Sanitize model name for use in filenames (e.g., replace / with -)."""
+    """Sanitize model name for use in filenames (e.g., replace / with -).
+
+    Args:
+        model: Raw model name that may contain path separators.
+
+    Returns:
+        Sanitized model name safe for use in filenames.
+    """
     return model.replace("/", "-")
 
 
@@ -41,12 +48,20 @@ class RunPaths:
 
     @property
     def results_path(self) -> Path:
-        """Path to the main results file."""
+        """Path to the main results file.
+
+        Returns:
+            Path to the results JSON file within the output directory.
+        """
         return self.output_dir / self._results_filename
 
     @property
     def checkpoint_path(self) -> Path:
-        """Path to the checkpoint file."""
+        """Path to the checkpoint file.
+
+        Returns:
+            Path to checkpoint.json within the output directory.
+        """
         return self.output_dir / "checkpoint.json"
 
     def get_log_path(self, timestamp: datetime | None = None) -> Path:

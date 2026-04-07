@@ -19,7 +19,11 @@ class ReportLeakage(BaseModel, extra="forbid"):
 
     @classmethod
     def get_tool_param(cls) -> ChatCompletionFunctionToolParam:
-        """Return OpenAI function tool parameter."""
+        """Return OpenAI function tool parameter.
+
+        Returns:
+            ChatCompletionFunctionToolParam configured for the ReportLeakage tool.
+        """
         function = FunctionDefinition(
             name=cls.__name__, description=cls.__doc__ or "", parameters=cls.model_json_schema()
         )

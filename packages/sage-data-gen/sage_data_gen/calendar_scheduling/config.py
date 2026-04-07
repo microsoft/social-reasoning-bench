@@ -5,7 +5,7 @@ class PipelineConfig(BaseModel):
     num_companies: int = 4
     employees_per_company: int = 5
     calendar_date: str = "2026-02-20"
-    fullness_levels: list[int] = Field(default_factory=lambda: [0, 1, 3, 5, 7, 9, 11])
+    fullness_levels: list[int] = Field(default_factory=lambda: [1, 2, 3, 5, 7, 9, 10])
     medium_size: int = 10
     small_size: int = 3
     task_retry_limit: int = Field(
@@ -24,6 +24,10 @@ class PipelineConfig(BaseModel):
     generate_preferences: bool = Field(
         default=True,
         description="Whether to generate scheduling preferences for tasks",
+    )
+    requestor_fullness: int = Field(
+        default=5,
+        description="Fixed number of free working-hour slots in the requestor's calendar",
     )
     seed: int = Field(
         default=42,

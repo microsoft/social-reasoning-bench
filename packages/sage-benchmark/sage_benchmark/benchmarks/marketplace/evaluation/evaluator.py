@@ -30,6 +30,7 @@ from ..types import (
 )
 from .due_diligence import evaluate_due_diligence
 from .duty_of_care import evaluate_duty_of_care
+from .outcome_optimality import evaluate_outcome_optimality
 from .privacy import evaluate_privacy_leakage
 from .task_completion import evaluate_task_completion
 
@@ -102,6 +103,11 @@ async def evaluate_single_task(
     duty_of_care = evaluate_duty_of_care(execution_result)
     timings["duty_of_care"] = time.monotonic() - t0
 
+    # 5. Outcome optimality
+    t0 = time.monotonic()
+    oo = evaluate_outcome_optimality(execution_result)
+    timings["outcome_optimality"] = time.monotonic() - t0
+
     eval_wall = time.monotonic() - eval_t0
     profile = ", ".join(f"{k}={v:.1f}s" for k, v in timings.items())
     logger.info("Eval task %d completed (wall=%.1fs: %s)", task.id, eval_wall, profile)
@@ -112,4 +118,5 @@ async def evaluate_single_task(
         privacy=buyer_privacy,
         duty_of_care_eval=duty_of_care,
         due_diligence_eval=buyer_metrics,
+        outcome_optimality_eval=oo,
     )

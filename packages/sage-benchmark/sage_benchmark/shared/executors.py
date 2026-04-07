@@ -218,6 +218,13 @@ class TaskPoolExecutor:
         return results
 
     async def _wrap_with_task_scope(self, coro: Coroutine[Any, Any, T]) -> T:
-        """Wrap a coroutine in a per-task concurrency scope."""
+        """Wrap a coroutine in a per-task concurrency scope.
+
+        Args:
+            coro: The coroutine to execute within the concurrency scope.
+
+        Returns:
+            The result of the coroutine.
+        """
         async with task_scope(task_size=self._task_concurrency):
             return await coro

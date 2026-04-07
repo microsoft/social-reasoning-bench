@@ -41,7 +41,17 @@ class AgentResources:
         self.contacts = contacts or []
 
     def execute(self, action: Tool) -> str:
-        """Execute a tool action and return the result as a string."""
+        """Execute a tool action and return the result as a string.
+
+        Args:
+            action: The tool action to execute.
+
+        Returns:
+            A string describing the result of the action.
+
+        Raises:
+            ValueError: If the action type is unknown.
+        """
         if isinstance(action, SendEmail):
             return self._handle_send_email(action)
         elif isinstance(action, GetEmails):
@@ -64,7 +74,14 @@ class AgentResources:
             raise ValueError(f"Unknown action: {type(action).__name__}")
 
     def _handle_send_email(self, action: SendEmail) -> str:
-        """Send a simple email without calendar attachment."""
+        """Send a simple email without calendar attachment.
+
+        Args:
+            action: The SendEmail action containing recipient and message.
+
+        Returns:
+            A confirmation message that the email was sent.
+        """
         self.email.send(
             to=action.to,
             subject="Message",
@@ -73,17 +90,38 @@ class AgentResources:
         return "Email sent successfully."
 
     def _handle_get_emails(self, action: GetEmails) -> str:
-        """Get unread emails."""
+        """Get unread emails.
+
+        Args:
+            action: The GetEmails action.
+
+        Returns:
+            Formatted string of unread emails or a no-unread-emails message.
+        """
         emails = self.email.get_unread()
         return format_emails(emails)
 
     def _handle_list_meetings(self, action: ListMeetings) -> str:
-        """List all meetings on the calendar."""
+        """List all meetings on the calendar.
+
+        Args:
+            action: The ListMeetings action.
+
+        Returns:
+            Formatted string of all meetings including free time blocks.
+        """
         meetings = self.calendar.list_meetings()
         return format_meetings(meetings)
 
     def _handle_list_contacts(self, action: ListContacts) -> str:
-        """List all contacts in the address book."""
+        """List all contacts in the address book.
+
+        Args:
+            action: The ListContacts action.
+
+        Returns:
+            Formatted string of contacts, or a message if none exist.
+        """
         if not self.contacts:
             return "No contacts in address book."
         lines = ["Contacts:"]
@@ -92,7 +130,17 @@ class AgentResources:
         return "\n".join(lines)
 
     def _handle_request_meeting(self, action: RequestMeeting) -> str:
-        """Create a meeting and send invitations to all attendees."""
+        """Create a meeting and send invitations to all attendees.
+
+        Args:
+            action: The RequestMeeting action with meeting details and attendees.
+
+        Returns:
+            Confirmation message with the meeting UID.
+
+        Raises:
+            ToolError: If date/time parsing fails or date is not allowed.
+        """
         try:
             # Parse flexible date/time formats
             date = parse_date(action.date)
@@ -154,7 +202,18 @@ class AgentResources:
         return f"Meeting request sent. UID: {meeting.uid}"
 
     def _handle_cancel_meeting(self, action: CancelMeeting) -> str:
-        """Cancel a meeting and notify attendees."""
+        """Cancel a meeting and notify attendees.
+
+        Args:
+            action: The CancelMeeting action with the meeting UID and message.
+
+        Returns:
+            Confirmation message that the meeting was cancelled.
+
+        Raises:
+            ToolError: If the meeting is not found or the caller is not the
+                organizer.
+        """
         meeting = self.calendar.get_meeting(action.meeting_uid)
         if not meeting:
             raise ToolError(f"Meeting '{action.meeting_uid}' not found on your calendar.")
@@ -188,7 +247,19 @@ class AgentResources:
         return f"Meeting '{action.meeting_uid}' cancelled."
 
     def _handle_reply_meeting(self, action: ReplyMeeting) -> str:
-        """Accept, decline, or send counter-proposal for a meeting invitation."""
+        """Accept, decline, or send counter-proposal for a meeting invitation.
+
+        Args:
+            action: The ReplyMeeting action with meeting UID, status, and
+                optional counter-proposal times.
+
+        Returns:
+            Confirmation message describing the reply sent.
+
+        Raises:
+            ToolError: If the meeting is not found, counter-proposal fields are
+                missing, or date/time parsing fails.
+        """
         meeting = self.calendar.get_meeting(action.meeting_uid)
         if not meeting:
             raise ToolError(f"Meeting '{action.meeting_uid}' not found on your calendar.")
@@ -333,11 +404,28 @@ class AgentResources:
         return f"Reply sent: {action.status} meeting {meeting.title} ({meeting.uid}) from {meeting.start_time}-{meeting.end_time} on {meeting.date}"
 
     def _handle_wait(self, action: Wait) -> str:
-        """Yield turn to wait for other agent."""
+        """Yield turn to wait for other agent.
+
+        Args:
+            action: The Wait action.
+
+        Returns:
+            A waiting status message.
+        """
         return "Waiting for response."
 
     def _handle_end_conversation(self, action: EndConversation) -> str:
-        """End the conversation."""
+        """End the conversation.
+
+        Args:
+            action: The EndConversation action with a reason.
+
+        Returns:
+            A message confirming the conversation has ended with the reason.
+
+        Raises:
+            ToolError: If there are pending meetings with unresolved responses.
+        """
         # Check for pending meeting requests that haven't been fully resolved
         pending_meetings = []
         for meeting in self.calendar.list_meetings():

@@ -16,6 +16,15 @@ def parse_date(date_str: str) -> str:
     - "2024-01-15"
     - "1/15/2024"
     - "15 January 2024"
+
+    Args:
+        date_str: Date string in any of the supported formats.
+
+    Returns:
+        Date in ISO format (YYYY-MM-DD).
+
+    Raises:
+        ValueError: If the date string cannot be parsed by any supported format.
     """
     formats = [
         "%B %d, %Y",  # January 15, 2024
@@ -39,7 +48,19 @@ def parse_date(date_str: str) -> str:
 
 
 def _validate_time(hours: int, minutes: int, original: str) -> str:
-    """Validate hours and minutes are in valid range and format result."""
+    """Validate hours and minutes are in valid range and format result.
+
+    Args:
+        hours: Hour value (0-23).
+        minutes: Minute value (0-59).
+        original: Original time string for error messages.
+
+    Returns:
+        Formatted time string in HH:MM format.
+
+    Raises:
+        ValueError: If hours or minutes are out of valid range.
+    """
     if not (0 <= hours <= 23):
         raise ValueError(f"Invalid hour {hours} in time: {original}")
     if not (0 <= minutes <= 59):
@@ -55,6 +76,12 @@ def parse_time(time_str: str) -> str:
     - "14:00"
     - "2:00pm", "2:00 PM"
     - "1330" (military)
+
+    Args:
+        time_str: Time string in any of the supported formats.
+
+    Returns:
+        Time in 24-hour format (HH:MM).
 
     Raises:
         ValueError: If time format is unrecognized or values are out of range.
@@ -97,13 +124,27 @@ def parse_time(time_str: str) -> str:
 
 
 def time_to_minutes(time_str: str) -> int:
-    """Convert HH:MM time string to minutes from midnight."""
+    """Convert HH:MM time string to minutes from midnight.
+
+    Args:
+        time_str: Time string in HH:MM format.
+
+    Returns:
+        Total minutes from midnight.
+    """
     parts = time_str.split(":")
     return int(parts[0]) * 60 + int(parts[1])
 
 
 def format_meeting_as_attachment(meeting: Meeting) -> str:
-    """Format a meeting as a pretty-printed string for email attachment."""
+    """Format a meeting as a pretty-printed string for email attachment.
+
+    Args:
+        meeting: The meeting to format.
+
+    Returns:
+        A multi-line formatted string representing the calendar event.
+    """
     attendee_list = "\n".join(f"  - {a.email} ({a.status.value})" for a in meeting.attendees)
     return f"""=== CALENDAR EVENT ===
 UID: {meeting.uid}
@@ -118,7 +159,15 @@ Attendees:
 
 
 def format_emails(emails: list[Email]) -> str:
-    """Format emails for display to agent."""
+    """Format emails for display to agent.
+
+    Args:
+        emails: List of Email objects to format.
+
+    Returns:
+        Formatted string of emails separated by dividers, or a
+        no-unread-emails message if the list is empty.
+    """
     if not emails:
         return "No unread emails."
 
@@ -133,7 +182,15 @@ def format_emails(emails: list[Email]) -> str:
 
 
 def _format_free_block(start: str, end: str) -> str:
-    """Format a free time block."""
+    """Format a free time block.
+
+    Args:
+        start: Start time in HH:MM format.
+        end: End time in HH:MM format.
+
+    Returns:
+        A formatted string showing the free time block with duration.
+    """
     start_mins = time_to_minutes(start)
     end_mins = time_to_minutes(end)
     duration_mins = end_mins - start_mins
@@ -157,6 +214,14 @@ def format_meetings(
     """Format meetings for display to agent, including FREE time blocks.
 
     Shows scheduled meetings and FREE blocks during business hours (default 9:00-17:00).
+
+    Args:
+        meetings: Sequence of meetings to format.
+        business_start: Start of business hours in HH:MM format.
+        business_end: End of business hours in HH:MM format.
+
+    Returns:
+        Formatted string of meetings interleaved with free time blocks.
     """
     if not meetings:
         return (

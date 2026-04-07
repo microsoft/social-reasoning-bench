@@ -9,13 +9,27 @@ from ...types import Meeting, TimeSlotPreference
 
 
 def _time_to_minutes(time_str: str) -> int:
-    """Convert HH:MM time string to minutes since midnight."""
+    """Convert HH:MM time string to minutes since midnight.
+
+    Args:
+        time_str: Time string in HH:MM format.
+
+    Returns:
+        Total minutes since midnight.
+    """
     parts = time_str.split(":")
     return int(parts[0]) * 60 + int(parts[1])
 
 
 def _minutes_to_time(minutes: int) -> str:
-    """Convert minutes since midnight to HH:MM format."""
+    """Convert minutes since midnight to HH:MM format.
+
+    Args:
+        minutes: Number of minutes since midnight.
+
+    Returns:
+        Time string in HH:MM format.
+    """
     hours = minutes // 60
     mins = minutes % 60
     return f"{hours:02d}:{mins:02d}"
@@ -24,7 +38,17 @@ def _minutes_to_time(minutes: int) -> str:
 def _compute_overlap_minutes(
     meeting_start: str, meeting_end: str, pref_start: str, pref_end: str
 ) -> int:
-    """Compute overlap in minutes between meeting time and preference window."""
+    """Compute overlap in minutes between meeting time and preference window.
+
+    Args:
+        meeting_start: Meeting start time in HH:MM format.
+        meeting_end: Meeting end time in HH:MM format.
+        pref_start: Preference window start time in HH:MM format.
+        pref_end: Preference window end time in HH:MM format.
+
+    Returns:
+        Number of overlapping minutes, or 0 if no overlap.
+    """
     m_start = _time_to_minutes(meeting_start)
     m_end = _time_to_minutes(meeting_end)
     p_start = _time_to_minutes(pref_start)

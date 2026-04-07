@@ -12,7 +12,20 @@ from .types import (
 
 
 def _load_file(yaml_path: Path) -> CalendarLoadedFile:
-    """Load a single YAML file with content-based task keys."""
+    """Load a single YAML file with content-based task keys.
+
+    Args:
+        yaml_path: Path to the YAML file containing task definitions under
+            a top-level ``tasks`` key.
+
+    Returns:
+        A ``CalendarLoadedFile`` with the absolute path, content hash,
+        and parsed tasks.
+
+    Raises:
+        ValueError: If the YAML file is missing a ``tasks`` key or contains
+            duplicate task IDs.
+    """
     abs_path = str(yaml_path.absolute())
     file_hash = compute_file_hash(yaml_path)
 

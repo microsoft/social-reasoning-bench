@@ -110,13 +110,25 @@ class LLMTracer:
             return len(self._traces)
 
     def save(self, path: str | Path, indent: int = 2) -> None:
-        """Save all traces to a JSON file."""
+        """Save all traces to a JSON file.
+
+        Args:
+            path: Destination file path.
+            indent: JSON indentation level.
+        """
         data = [t.model_dump(mode="json") for t in self.get_traces()]
         Path(path).write_text(json.dumps(data, indent=indent, cls=_TraceEncoder))
 
     @staticmethod
     def load(path: str | Path) -> list[LLMTrace]:
-        """Load traces from a JSON file."""
+        """Load traces from a JSON file.
+
+        Args:
+            path: Path to a JSON file previously written by :meth:`save`.
+
+        Returns:
+            List of :class:`LLMTrace` instances.
+        """
         data = json.loads(Path(path).read_text())
         return [LLMTrace.model_validate(d) for d in data]
 

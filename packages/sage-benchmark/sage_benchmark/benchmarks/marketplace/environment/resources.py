@@ -96,7 +96,12 @@ class AgentResources:
         raise ValueError(f"Unsupported action type: {type(action).__name__}")
 
     def get_unread_updates(self) -> list[dict]:
-        """Return unread counterpart messages/offers as structured updates and mark read."""
+        """Return unread counterpart messages/offers as structured updates and mark read.
+
+        Returns:
+            List of update dicts with ``"kind"`` set to ``"message"`` or ``"offer"``
+            and associated metadata. Only counterpart updates are included.
+        """
         new_messages = self.state.messages[self._seen_message_count :]
         new_offers = self.state.offers[self._seen_offer_count :]
         self._seen_message_count = len(self.state.messages)
@@ -130,7 +135,12 @@ class AgentResources:
         return updates
 
     def _handle_get_messages(self) -> str:
-        """Return unread counterpart messages and newly created counterpart offers."""
+        """Return unread counterpart messages and newly created counterpart offers.
+
+        Returns:
+            A human-readable string summarising new messages and offers, or
+            ``"No new messages or offers."`` if there are none.
+        """
         updates = self.get_unread_updates()
 
         if not updates:

@@ -27,6 +27,12 @@ def is_fatal_error(e: Exception) -> bool:
 
     References:
     - https://platform.openai.com/docs/guides/error-codes
+
+    Args:
+        e: The exception to classify.
+
+    Returns:
+        True if the error is unrecoverable and the task should be stopped immediately.
     """
     # Check anthropic exception types
     if isinstance(e, anthropic.AuthenticationError):

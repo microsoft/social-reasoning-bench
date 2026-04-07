@@ -12,7 +12,14 @@ def resolve_provider(
 ) -> tuple[SageModelProvider, str]:
     """Route a model string to the correct provider instance.
 
-    Returns (provider, resolved_model_name).
+    Args:
+        model: Provider-prefixed model string (e.g. ``"anthropic/claude-sonnet-4-5"``).
+        api_key: Optional API key forwarded to the provider.
+        base_url: Optional base URL forwarded to the provider.
+        api_version: Optional API version forwarded to the provider.
+
+    Returns:
+        Tuple of ``(provider, resolved_model_name)``.
     """
     # TRAPI: trapi/[apiPath/]model → Azure with AD auth
     if model.startswith("trapi/"):

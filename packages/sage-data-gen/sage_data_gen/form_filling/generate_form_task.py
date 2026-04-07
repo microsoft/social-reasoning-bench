@@ -59,6 +59,13 @@ def _prune_form_model(form_model_code: str, kept_field_ids: set[str]) -> str:
 
     Expects a flat model (no nested section classes) where each field
     starts with ``    field_id: type = Field(`` and ends with ``    )``.
+
+    Args:
+        form_model_code: Python source code of the Pydantic model.
+        kept_field_ids: Set of field IDs to retain.
+
+    Returns:
+        Pruned Python source code with only the kept fields.
     """
     lines = form_model_code.split("\n")
     result: list[str] = []
@@ -88,7 +95,14 @@ def _prune_form_model(form_model_code: str, kept_field_ids: set[str]) -> str:
 
 
 def _sanitize_model(obj: FormTask) -> FormTask:
-    """Strip control characters by round-tripping through JSON."""
+    """Strip control characters by round-tripping through JSON.
+
+    Args:
+        obj: FormTask instance to sanitize.
+
+    Returns:
+        New FormTask with control characters removed from all string fields.
+    """
     raw = obj.model_dump_json()
     clean = _CONTROL_CHAR_RE.sub("", raw)
     return FormTask.model_validate_json(clean)

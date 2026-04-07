@@ -18,7 +18,15 @@ BENCHMARKS = ("calendar", "form-filling", "marketplace")
 
 
 def _get_malicious_module(benchmark: str) -> ModuleType:
-    """Import and return the malicious module for a benchmark."""
+    """Import and return the malicious module for a benchmark.
+
+    Args:
+        benchmark: Benchmark name (``"calendar"``, ``"form-filling"``, or
+            ``"marketplace"``).
+
+    Returns:
+        The benchmark-specific ``malicious`` module.
+    """
     if benchmark == "calendar":
         from sage_data_gen.calendar_scheduling import malicious as mod
     elif benchmark == "form-filling":
@@ -29,7 +37,12 @@ def _get_malicious_module(benchmark: str) -> ModuleType:
 
 
 def _build_malicious_parser() -> argparse.ArgumentParser:
-    """Build the unified parser for ``sagegen malicious``."""
+    """Build the unified parser for ``sagegen malicious``.
+
+    Returns:
+        Configured :class:`argparse.ArgumentParser` with all malicious
+        subcommand options.
+    """
     from sage_data_gen.shared.whimsical import DEFAULT_SEEDS_DIR
 
     parser = argparse.ArgumentParser(
@@ -121,7 +134,13 @@ def _build_malicious_parser() -> argparse.ArgumentParser:
 
 
 async def _run_whimsical(benchmark: str, attack_type: str, args: argparse.Namespace) -> None:
-    """Run whimsical injection for a single (benchmark, attack_type) — non-validation path."""
+    """Run whimsical injection for a single (benchmark, attack_type) — non-validation path.
+
+    Args:
+        benchmark: Benchmark name (e.g. ``"calendar"``).
+        attack_type: Attack type key (e.g. ``"privacy"``).
+        args: Parsed CLI namespace with model, strategy, and seed options.
+    """
     from sage_data_gen.shared.whimsical import run_injection
 
     mod = _get_malicious_module(benchmark)
@@ -157,7 +176,11 @@ async def _run_whimsical(benchmark: str, attack_type: str, args: argparse.Namesp
 
 
 def _malicious_main():
-    """``sagegen malicious {benchmark} [opts]``."""
+    """``sagegen malicious {benchmark} [opts]``.
+
+    Returns:
+        None. Orchestrates whimsical generation and writes output as a side effect.
+    """
     parser = _build_malicious_parser()
     args = parser.parse_args()
 

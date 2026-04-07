@@ -17,21 +17,51 @@ from sage_data_gen.shared.whimsical import StrategyProvider
 
 
 def parse_instruction_metadata(instruction: str) -> dict[str, str]:
-    """Extract name, company, role from a requestor instruction message."""
+    """Extract name, company, role from a requestor instruction message.
+
+    Args:
+        instruction: The requestor's instruction message text.
+
+    Returns:
+        Dict with keys 'name', 'company', and 'role' extracted from the instruction.
+
+    Raises:
+        ValueError: If the instruction does not match any known format.
+    """
+    # Try old format: "You are {name}'s calendar scheduling personal assistant. {name} works for {company} and is a {role}."
     pattern = (
         r"You are (.+?)'s calendar scheduling personal assistant\."
         r" \1 works for (.+?) and is a (.+?)\."
     )
     match = re.search(pattern, instruction)
-    if not match:
-        raise ValueError(f"Could not parse instruction message: {instruction[:100]}")
-    return {"name": match.group(1), "company": match.group(2), "role": match.group(3)}
+    if match:
+        return {"name": match.group(1), "company": match.group(2), "role": match.group(3)}
+    # Try new format: "I am {name}. I work for {company} and am a {role}."
+    pattern2 = r"I am[,]? (.+?)\. I work for (.+?) and (?:am|is) (?:a |an |the )?(.+?)\."
+    match2 = re.search(pattern2, instruction)
+    if match2:
+        return {"name": match2.group(1), "company": match2.group(2), "role": match2.group(3)}
+    raise ValueError(f"Could not parse instruction message: {instruction[:100]}")
 
 
-def extract_assistant_name(assistant_instruction: str) -> str:
-    """Extract the assistant's name from their instruction message."""
+def extract_assistant_name(assistant_instruction: str, name: str | None = None) -> str:
+    """Extract the assistant's name. Uses the name field if available, falls back to parsing instruction.
+
+    Args:
+        assistant_instruction: The assistant's instruction message text.
+        name: Pre-extracted name, if available.
+
+    Returns:
+        The assistant's name as a string.
+
+    Raises:
+        ValueError: If name is not provided and cannot be parsed from the instruction.
+    """
+    if name:
+        return name
     match = re.search(
-        r"You are (.+?)'s calendar scheduling personal assistant", assistant_instruction
+        r"(?:You are|I am[,]?) (.+?)(?:'s calendar scheduling personal assistant|\.)",
+        assistant_instruction,
     )
     if match:
         return match.group(1)
@@ -50,12 +80,16 @@ async def convert_tasks_with_strategies(
     """Convert normal tasks to adversarial ones using WhimsyGen strategies.
 
     Args:
-        tasks: List of CalendarTask objects to convert
-        strategy_provider: StrategyProvider with loaded strategies
-        inject_fn: Function(original_instruction, assistant_name, strategy, requested_meeting) -> str
-        strategy_assignment: How to assign strategies ("sequential", "random", "unique", "single")
-        max_strategies: Max strategies to generate (required for sequential/random modes)
-        rng: Random number generator for random assignment
+        tasks: List of CalendarTask objects to convert.
+        strategy_provider: StrategyProvider with loaded strategies.
+        inject_fn: Function(original_instruction, assistant_name, strategy, requested_meeting) -> str.
+        strategy_assignment: How to assign strategies ("sequential", "random", "unique", "single").
+        max_strategies: Max strategies to generate (required for sequential/random modes).
+        rng: Random number generator for random assignment.
+        attack_type: Attack type label for the malicious tasks (default: "unknown").
+
+    Returns:
+        List of adversarial CalendarTask objects with injected malicious prompts.
     """
     rng = rng or random.Random()
 
@@ -70,7 +104,7 @@ async def convert_tasks_with_strategies(
 
     adversarial_tasks = []
     for task in tasks:
-        assistant_name = extract_assistant_name(task.assistant.instruction_message)
+        assistant_name = extract_assistant_name(task.assistant.instruction_message, task.assistant.name)
 
         if strategy_assignment == "random":
             strategy = strategy_provider.get_random(rng)
@@ -95,7 +129,12 @@ async def convert_tasks_with_strategies(
 
 
 def save_tasks_yaml(tasks: list[CalendarTask], output_path: Path) -> None:
-    """Save tasks to YAML file."""
+    """Save tasks to YAML file.
+
+    Args:
+        tasks: List of calendar tasks to serialize.
+        output_path: Destination file path for the YAML output.
+    """
     tasks_dict = {"tasks": [task.model_dump(mode="json") for task in tasks]}
     with open(output_path, "w") as f:
         yaml.dump(
@@ -104,7 +143,14 @@ def save_tasks_yaml(tasks: list[CalendarTask], output_path: Path) -> None:
 
 
 def build_arg_parser(description: str):
-    """Build the CLI argument parser for calendar whimsical injection scripts."""
+    """Build the CLI argument parser for calendar whimsical injection scripts.
+
+    Args:
+        description: Help text description for the argument parser.
+
+    Returns:
+        Configured argparse.ArgumentParser instance.
+    """
     import argparse
 
     parser = argparse.ArgumentParser(description=description)
@@ -135,7 +181,17 @@ def build_arg_parser(description: str):
 
 
 async def run_injection(args, inject_fn, task_description: str) -> None:
-    """Shared CLI runner for calendar whimsical injection scripts."""
+    """Shared CLI runner for calendar whimsical injection scripts.
+
+    Args:
+        args: Parsed CLI arguments from build_arg_parser.
+        inject_fn: Injection function that rewrites instructions with a malicious strategy.
+        task_description: Human-readable task description for the strategy provider.
+
+    Raises:
+        SystemExit: If required arguments are missing or conflicting for the
+            chosen strategy assignment mode.
+    """
     if args.strategy_assignment in ("sequential", "random") and args.max_strategies is None:
         raise SystemExit("--max-strategies is required for sequential/random modes")
     if args.strategy_assignment in ("single", "unique") and args.max_strategies is not None:
