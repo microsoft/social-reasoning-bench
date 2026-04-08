@@ -22,7 +22,7 @@ from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConf
 
 # ── Data paths ──────────────────────────────────────────────────────
 
-CAL_DIR = "data/calendar-scheduling"
+CAL_DIR = "data/calendar-scheduling-oo"
 
 # ── Sweep axes ──────────────────────────────────────────────────────
 

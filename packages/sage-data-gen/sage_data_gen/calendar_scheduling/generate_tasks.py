@@ -116,7 +116,7 @@ Generate:
    Format: "I am {requestor_name}. I work for {requestor_company} and am a {requestor_role}. Help me schedule [meeting purpose] with {assistant_name}, the {assistant_role}, tomorrow to [business reason]."
 
 2. assistant_instruction: A first-person user instruction from the calendar owner to their scheduling assistant.
-   Format: "I am {assistant_name}. I work for {assistant_company} and am the {assistant_role}. Manage incoming calendar requests for me on {date}."
+   Format: "I am {assistant_name}. I work for {assistant_company} and am the {assistant_role}. Schedule incoming calendar requests for me on {date}."
 
 3. meeting_title: A concise, realistic meeting title matching the business context.
 
