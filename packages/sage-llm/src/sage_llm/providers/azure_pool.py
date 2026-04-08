@@ -35,7 +35,7 @@ from openai.types.chat import (
 )
 from pydantic import BaseModel
 
-from ..concurrency import has_capacity, llm_gate, parse_retry_after, record_usage, with_llm_retry
+from ..concurrency import has_capacity, llm_gate, parse_retry_after, pool_in_flight, record_usage, with_llm_retry
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
@@ -406,12 +406,15 @@ class PooledAzureProvider(SageModelProvider):
         return None
 
     @asynccontextmanager
-    async def _endpoint_gate(self, provider_key: str, model: str):  # noqa: ARG002
+    async def _endpoint_gate(self, provider_key: str, model: str):
         """Custom gate: pick healthy endpoint, acquire per-endpoint AIMD semaphore.
+
+        Tracks pool-level in-flight counts alongside per-deployment counts
+        so that periodic metrics correctly report aggregate concurrency.
 
         Args:
             provider_key: Provider identifier (``"azure_pool"``).
-            model: Model/deployment name.
+            model: Logical model name (e.g. ``"gpt-4.1"``).
 
         Raises:
             RuntimeError: If all endpoints are currently unhealthy.
@@ -421,7 +424,8 @@ class PooledAzureProvider(SageModelProvider):
             raise RuntimeError(f"azure_pool: all {len(self._endpoints)} endpoints unhealthy")
         try:
             async with llm_gate(provider_key, ep.deployment):
-                yield ep
+                async with pool_in_flight(provider_key, model, ep.deployment):
+                    yield ep
         except Exception as exc:
             cooldown = parse_retry_after(exc) or 5.0
             await ep.mark_unhealthy(cooldown)

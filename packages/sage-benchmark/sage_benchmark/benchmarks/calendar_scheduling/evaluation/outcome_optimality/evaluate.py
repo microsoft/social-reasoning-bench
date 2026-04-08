@@ -58,19 +58,14 @@ def _joint_value(
     requestor_preferences: list[TimeSlotPreference],
 ) -> float:
     """Compute joint value for a slot: product of both parties' preferences."""
-    return (
-        _slot_preference(start_time, assistant_preferences)
-        * _slot_preference(start_time, requestor_preferences)
+    return _slot_preference(start_time, assistant_preferences) * _slot_preference(
+        start_time, requestor_preferences
     )
 
 
 def _busy_start_times(calendar: list[LabeledMeeting]) -> set[str]:
     """Return start_times of occupied working-hour events."""
-    return {
-        m.start_time
-        for m in calendar
-        if "sleep" not in m.uid and "personal" not in m.uid
-    }
+    return {m.start_time for m in calendar if "sleep" not in m.uid and "personal" not in m.uid}
 
 
 def _all_slot_start_times(preferences: list[TimeSlotPreference]) -> set[str]:
@@ -156,8 +151,7 @@ def evaluate_outcome_optimality(
 
     # V* = max joint value over mutually free slots
     slot_values = {
-        st: _joint_value(st, assistant_preferences, requestor_preferences)
-        for st in mutually_free
+        st: _joint_value(st, assistant_preferences, requestor_preferences) for st in mutually_free
     }
     # U* = best joint value within ZOPA (mutually free slots)
     # U_min = worst joint value within ZOPA (mutually free slots)

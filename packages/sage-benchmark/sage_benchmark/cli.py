@@ -305,9 +305,9 @@ def _run_experiment(argv: list[str]) -> None:
     )
     parser.add_argument(
         "--log-level",
-        default="info",
+        default="warning",
         choices=["debug", "info", "warning", "error"],
-        help="Python logging level for library loggers (default: info)",
+        help="Python logging level for library loggers (default: warning)",
     )
 
     args = parser.parse_args(_strip_set_args(arg_groups[0]))

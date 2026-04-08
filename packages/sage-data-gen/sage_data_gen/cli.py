@@ -125,9 +125,9 @@ def _build_malicious_parser() -> argparse.ArgumentParser:
     )
     val.add_argument(
         "--log-level",
-        default="info",
+        default="warning",
         choices=["debug", "info", "warning", "error"],
-        help="Python log level for benchmark loggers (default: info)",
+        help="Python log level for benchmark loggers (default: warning)",
     )
 
     return parser

@@ -15,10 +15,9 @@ class PipelineConfig(BaseModel):
     )
     model: str = Field(description="Model for generation (e.g. 'phyagi/gpt-5.2')")
     labeling_models: list[str] = Field(
-        default_factory=list,
+        min_length=1,
         description="Models for majority-vote privacy labeling. "
-        "Each model labels independently; final label is majority vote. "
-        "Defaults to [model] if empty.",
+        "Each model labels independently; final label is majority vote.",
     )
     output_dir: str = "data/calendar-scheduling/final"
     generate_preferences: bool = Field(

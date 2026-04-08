@@ -182,7 +182,7 @@ def write_configs(
 
     print(f"\nWrote {written} config files to {output_dir}/")
     print(f"\nAdd to .env:")
-    print(f"  SAGE_AZURE_POOL_PATH={output_dir}")
+    print(f"  SAGE_AZURE_POOL_PATH={output_dir.resolve()}")
 
 
 def main() -> None:

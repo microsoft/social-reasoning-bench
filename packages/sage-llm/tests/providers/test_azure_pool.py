@@ -4,7 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from sage_llm.concurrency import configure, reset
+from sage_llm.concurrency import configure, get_metrics, reset
 from sage_llm.providers.azure_pool import PooledAzureProvider, _EndpointState
 
 
@@ -160,3 +160,20 @@ async def test_mark_unhealthy_logs_once():
     # Second call while still unhealthy — no-op
     await ep.mark_unhealthy(10.0)
     assert ep.error_count == 1
+
+
+@pytest.mark.asyncio
+async def test_endpoint_gate_tracks_pool_in_flight():
+    """_endpoint_gate should update pool-level in_flight_ema for the model key."""
+    provider = _make_provider(3)
+
+    async def call():
+        async with provider._endpoint_gate("azure_pool", "gpt-4.1") as ep:
+            await asyncio.sleep(0.05)
+
+    await asyncio.gather(*[call() for _ in range(6)])
+
+    metrics = get_metrics()
+    # Pool-level key "azure_pool/gpt-4.1" should have tracked in-flight
+    assert "azure_pool/gpt-4.1" in metrics
+    assert metrics["azure_pool/gpt-4.1"].in_flight_ema > 0

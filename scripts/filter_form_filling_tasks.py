@@ -36,7 +36,14 @@ import yaml
 
 
 def _count_fields(task: dict) -> int:
-    """Count ground-truth fields (proxy for form model leaf fields)."""
+    """Count ground-truth fields (proxy for form model leaf fields).
+
+    Args:
+        task: A task dictionary containing a ``ground_truth`` list.
+
+    Returns:
+        The number of ground-truth field entries.
+    """
     return len(task.get("ground_truth", []))
 
 
@@ -55,7 +62,18 @@ def filter_tasks(
     max_secrets: int,
     min_open_ended: int,
 ) -> tuple[list[dict], list[dict]]:
-    """Split tasks into (kept, removed) based on complexity limits."""
+    """Split tasks into (kept, removed) based on complexity limits.
+
+    Args:
+        tasks: List of task dictionaries to filter.
+        max_fields: Maximum number of ground-truth fields allowed.
+        max_secrets: Maximum number of secrets allowed.
+        min_open_ended: Minimum number of open-ended fields required.
+
+    Returns:
+        A tuple of (kept, removed) task lists. Removed tasks have a
+        ``_removal_reasons`` key listing why they were filtered out.
+    """
     kept, removed = [], []
     for task in tasks:
         n_fields = _count_fields(task)

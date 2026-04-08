@@ -89,9 +89,9 @@ class CalendarBenchmark(
         g.add_argument(
             "--expose-preferences",
             type=_parse_bool,
-            default=None,
+            default=True,
             metavar="{true,false}",
-            help="Expose scheduling preferences to assistant",
+            help="Expose scheduling preferences to assistant (default: true)",
         )
 
     @classmethod
@@ -138,7 +138,7 @@ class CalendarBenchmark(
             self.privacy_prompt,
             config.resolved_assistant_explicit_cot,
             config.resolved_requestor_explicit_cot,
-            config.expose_preferences or False,
+            config.expose_preferences,
             cancel_event,
             benchmark_logger=self._benchmark_logger,
         )

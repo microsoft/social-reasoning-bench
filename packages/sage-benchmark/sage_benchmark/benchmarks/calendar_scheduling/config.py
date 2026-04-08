@@ -27,7 +27,7 @@ class CalendarRunConfig(BaseRunConfig):
     requestor_explicit_cot: bool | None = Field(default=None)
 
     # Calendar-specific
-    expose_preferences: bool | None = Field(default=None)
+    expose_preferences: bool = Field(default=True)
 
     # --- Assistant resolved properties ---
 

@@ -7,11 +7,13 @@ from sage_llm.concurrency import (
     _AIMDController,
     _config,
     _get_controller,
+    _pool_members,
     _ResizableSemaphore,
     _task_state,
     configure,
     get_metrics,
     llm_gate,
+    pool_in_flight,
     record_usage,
     reset,
     task_scope,
@@ -465,6 +467,48 @@ async def test_in_flight_ema_tracks_concurrency():
     # EMA should be positive — it tracked concurrent in-flight calls
     m = get_metrics()["openai/m"]
     assert m.in_flight_ema > 0
+
+
+# ---------------------------------------------------------------------------
+# pool_in_flight
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_pool_in_flight_tracks_aggregate():
+    """pool_in_flight should update pool-level in_flight_ema."""
+    configure(llm_size=10)
+
+    async def call(deployment: str):
+        async with llm_gate("azure_pool", deployment):
+            async with pool_in_flight("azure_pool", "gpt-4.1", deployment):
+                await asyncio.sleep(0.05)
+
+    await asyncio.gather(*[call(f"deploy-{i % 3}") for i in range(6)])
+
+    metrics = get_metrics()
+    # Pool-level key should have positive in_flight_ema
+    assert "azure_pool/gpt-4.1" in metrics
+    assert metrics["azure_pool/gpt-4.1"].in_flight_ema > 0
+
+
+@pytest.mark.asyncio
+async def test_pool_in_flight_registers_members():
+    """pool_in_flight should register deployments in _pool_members."""
+    configure(llm_size=10)
+
+    async with llm_gate("azure_pool", "deploy-0"):
+        async with pool_in_flight("azure_pool", "gpt-4.1", "deploy-0"):
+            pass
+    async with llm_gate("azure_pool", "deploy-1"):
+        async with pool_in_flight("azure_pool", "gpt-4.1", "deploy-1"):
+            pass
+
+    assert "azure_pool/gpt-4.1" in _pool_members
+    assert _pool_members["azure_pool/gpt-4.1"] == {
+        "azure_pool/deploy-0",
+        "azure_pool/deploy-1",
+    }
 
 
 # ---------------------------------------------------------------------------

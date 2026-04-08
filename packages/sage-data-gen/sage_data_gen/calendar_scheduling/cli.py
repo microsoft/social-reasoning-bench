@@ -18,24 +18,26 @@ from .generate_calendars import (
 )
 from .generate_company import generate_companies
 from .generate_employees import generate_employees
-from .models import CalendarEvent, Company
 from .generate_tasks import generate_task_for_archetype
-from .models import Employee
+from .models import CalendarEvent, Company, Employee
 from .stats import print_stats
 from .validate import validate_output
 from .verify import verify_tasks
 
-
 # ── Pipeline checkpoint models ──────────────────────────
+
 
 class CompaniesCheckpoint(BaseModel):
     companies: list[Company]
 
+
 class EmployeesCheckpoint(BaseModel):
     employees_by_company: dict[str, list[Employee]]
 
+
 class CalendarsCheckpoint(BaseModel):
     calendars_by_email: dict[str, list[CalendarEvent]]
+
 
 class TasksCheckpoint(BaseModel):
     tasks_by_email: dict[str, list[CalendarTask]]
@@ -52,10 +54,13 @@ def _save_step(outputs_dir: Path, step: int, name: str, data: dict | list | Base
         path.write_text(data.model_dump_json(indent=2))
     else:
         import json
+
         path.write_text(json.dumps(data, indent=2, default=str))
 
 
-def _load_checkpoint(outputs_dir: Path, step: int, name: str, model: type[BaseModel]) -> BaseModel | None:
+def _load_checkpoint(
+    outputs_dir: Path, step: int, name: str, model: type[BaseModel]
+) -> BaseModel | None:
     """Load a previously saved pipeline checkpoint, or return None if not found.
 
     Args:
@@ -145,7 +150,9 @@ async def run_pipeline(config: PipelineConfig) -> None:
         )
         for company, emps in zip(companies, employee_results):
             company_employees[company.name] = emps
-        _save_step(debug_dir, 2, "employees", EmployeesCheckpoint(employees_by_company=company_employees))
+        _save_step(
+            debug_dir, 2, "employees", EmployeesCheckpoint(employees_by_company=company_employees)
+        )
 
     # Step 3: Generate base full calendar per employee (LLM, parallel)
     ckpt3 = _load_checkpoint(debug_dir, 3, "base_calendars", CalendarsCheckpoint)
@@ -169,13 +176,20 @@ async def run_pipeline(config: PipelineConfig) -> None:
             employee_base_calendars[key] = cal
             print(f"  {key}: {len(cal)} slots")
 
-        _save_step(debug_dir, 3, "base_calendars", CalendarsCheckpoint(calendars_by_email=employee_base_calendars))
+        _save_step(
+            debug_dir,
+            3,
+            "base_calendars",
+            CalendarsCheckpoint(calendars_by_email=employee_base_calendars),
+        )
 
     # Step 4: Generate + label tasks (per employee × archetype)
     ckpt4 = _load_checkpoint(debug_dir, 4, "tasks_pre_assembly", TasksCheckpoint)
     if ckpt4 is not None:
         all_employee_tasks = ckpt4.tasks_by_email
-        print(f"  [cached] {sum(len(t) for t in all_employee_tasks.values())} tasks for {len(all_employee_tasks)} employees")
+        print(
+            f"  [cached] {sum(len(t) for t in all_employee_tasks.values())} tasks for {len(all_employee_tasks)} employees"
+        )
     else:
         print(f"\nStep 4: Generating tasks ({NUM_ARCHETYPES} archetypes per employee)...")
         task_coros = []
@@ -236,11 +250,18 @@ async def run_pipeline(config: PipelineConfig) -> None:
         if failed_count > 0:
             print(f"  ({failed_count} tasks failed generation)")
         if incomplete_employees:
-            print(f"  ({len(incomplete_employees)} employees excluded due to incomplete archetypes)")
+            print(
+                f"  ({len(incomplete_employees)} employees excluded due to incomplete archetypes)"
+            )
 
         # Only cache if we have tasks (don't cache failures)
         if total_tasks > 0:
-            _save_step(debug_dir, 4, "tasks_pre_assembly", TasksCheckpoint(tasks_by_email=all_employee_tasks))
+            _save_step(
+                debug_dir,
+                4,
+                "tasks_pre_assembly",
+                TasksCheckpoint(tasks_by_email=all_employee_tasks),
+            )
 
     # Step 5: Deterministic assembly
     print("\nStep 5: Assembling tasks (fullness assignment + meeting placement + trimming)...")
@@ -344,11 +365,10 @@ def parse_args() -> PipelineConfig:
     )
     parser.add_argument("--model", required=True, help="Model for generation")
     parser.add_argument(
-        "--labeling-models",
+        "--judge-models",
         type=str,
         default=None,
-        help="Comma-separated models for majority-vote privacy labeling "
-        "(default: gpt-5.2,gpt-5.1,gpt-4.1)",
+        help="Comma-separated models for majority-vote privacy labeling (default: uses --model)",
     )
     parser.add_argument("--output-dir", default="data/calendar-scheduling/final")
     parser.add_argument(
@@ -380,8 +400,10 @@ def parse_args() -> PipelineConfig:
         generate_preferences=not args.no_generate_preferences,
         seed=args.seed,
     )
-    if args.labeling_models:
-        kwargs["labeling_models"] = [m.strip() for m in args.labeling_models.split(",")]
+    if args.judge_models:
+        kwargs["labeling_models"] = [m.strip() for m in args.judge_models.split(",")]
+    else:
+        kwargs["labeling_models"] = [args.model]
 
     return PipelineConfig(**kwargs)
 

@@ -444,6 +444,8 @@ async def run_multiple(
             now = time.monotonic()
             print("\n--- Provider throughput ---")
             for provider, m in sorted(provider_metrics.items()):
+                if m.call_count == 0:
+                    continue
                 bench_elapsed = (now - m.first_call_time) if m.first_call_time is not None else 0.0
                 bench_out_tps = m.completion_tokens / bench_elapsed if bench_elapsed > 0 else 0.0
                 bench_tot_tps = m.total_tokens / bench_elapsed if bench_elapsed > 0 else 0.0

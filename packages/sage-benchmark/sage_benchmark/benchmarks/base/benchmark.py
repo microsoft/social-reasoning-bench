@@ -645,6 +645,18 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         g.add_argument("--batch-size", type=int, default=32)
         g.add_argument("--max-rounds", type=int, default=20)
         g.add_argument("--max-steps-per-turn", type=int, default=20)
+        g.add_argument(
+            "--task-concurrency",
+            type=int,
+            default=None,
+            help="Max concurrent LLM calls per task per provider (default: unlimited)",
+        )
+        g.add_argument(
+            "--llm-concurrency",
+            type=int,
+            default=None,
+            help="Max total concurrent LLM calls per provider across all tasks (default: unlimited)",
+        )
 
         # -- model defaults --
         g = parser.add_argument_group("model")
@@ -692,19 +704,26 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         # -- output --
         g = parser.add_argument_group("output")
         g.add_argument("--output-dir", default=None)
-        g.add_argument("--log-level", default="info", choices=["debug", "info", "warning", "error"])
-        g.add_argument("--logger", default="verbose", choices=["verbose", "progress", "quiet"])
+        g.add_argument("--log-level", default="warning", choices=["debug", "info", "warning", "error"])
+        g.add_argument("--logger", default="progress", choices=["verbose", "progress", "quiet"])
 
         return parser
 
     @classmethod
     def main(cls) -> None:
         """CLI entry point.  Parse args, create config, run."""
+        from sage_llm import concurrency
+
         from ...shared.logging import create_benchmark_logger
 
         parser = cls.create_parser()
         args = parser.parse_args()
         config = cls.create_config(args)
+
+        llm_concurrency = getattr(args, "llm_concurrency", None)
+        task_concurrency = getattr(args, "task_concurrency", None)
+        if llm_concurrency is not None or task_concurrency is not None:
+            concurrency.configure(llm_size=llm_concurrency, task_size=task_concurrency)
 
         bl = create_benchmark_logger(
             getattr(args, "logger", "verbose"),

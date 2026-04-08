@@ -104,7 +104,9 @@ async def convert_tasks_with_strategies(
 
     adversarial_tasks = []
     for task in tasks:
-        assistant_name = extract_assistant_name(task.assistant.instruction_message, task.assistant.name)
+        assistant_name = extract_assistant_name(
+            task.assistant.instruction_message, task.assistant.name
+        )
 
         if strategy_assignment == "random":
             strategy = strategy_provider.get_random(rng)

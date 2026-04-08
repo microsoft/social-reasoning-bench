@@ -133,8 +133,10 @@ def _apply_override_groups(
     for file_path, name, config in configs:
         for i, overrides in enumerate(override_groups):
             override_parts = [f"{k}={v}" for k, v in overrides.items() if k != "limit"]
-            override_suffix = ",".join(override_parts) if override_parts else f"override_{i}"
-            new_name = f"{name},{override_suffix}"
+            if override_parts:
+                new_name = f"{name},{','.join(override_parts)}"
+            else:
+                new_name = name
             updated = {**config.model_dump(), **overrides, "variant": new_name}
             new_config = type(config).model_validate(updated)
             expanded.append((file_path, new_name, new_config))

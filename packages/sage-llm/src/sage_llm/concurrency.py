@@ -406,6 +406,33 @@ async def llm_gate(provider_key: str, model: str) -> AsyncIterator[None]:
             controller.record(not _failed)
 
 
+@asynccontextmanager
+async def pool_in_flight(provider_key: str, model: str, deployment: str) -> AsyncIterator[None]:
+    """Track aggregate in-flight count for a pool of deployments.
+
+    Call inside ``llm_gate`` to maintain a pool-level ``in_flight_ema``
+    alongside the per-deployment tracking that ``llm_gate`` already does.
+
+    Also registers the deployment as a pool member so that
+    ``_periodic_metrics_log`` can aggregate AIMD concurrency.
+
+    Args:
+        provider_key: Provider identifier (e.g. ``"azure_pool"``).
+        model: Logical model name (e.g. ``"gpt-4.1"``).
+        deployment: Deployment name used as the ``model`` arg to ``llm_gate``.
+    """
+    pool_dk = _display_key(provider_key, model)
+    deploy_dk = _display_key(provider_key, deployment)
+    _pool_members.setdefault(pool_dk, set()).add(deploy_dk)
+    _in_flight[pool_dk] = _in_flight.get(pool_dk, 0) + 1
+    _update_in_flight_ema(pool_dk)
+    try:
+        yield
+    finally:
+        _in_flight[pool_dk] -= 1
+        _update_in_flight_ema(pool_dk)
+
+
 # ---------------------------------------------------------------------------
 # Retry with AIMD feedback
 # ---------------------------------------------------------------------------
@@ -516,6 +543,7 @@ def reset() -> None:
     _aimd_controllers.clear()
     _metrics.clear()
     _in_flight.clear()
+    _pool_members.clear()
     if _metrics_task is not None:
         _metrics_task.cancel()
         _metrics_task = None
@@ -608,6 +636,11 @@ _metrics: dict[str, ProviderMetrics] = {}
 _IN_FLIGHT_ALPHA = 0.1
 
 _in_flight: dict[str, int] = {}
+
+# Maps pool-level display key → set of member deployment display keys.
+# Populated by pool_in_flight(); used by _periodic_metrics_log() to
+# aggregate AIMD concurrency across pool deployments.
+_pool_members: dict[str, set[str]] = {}
 
 # ── Per-label token tracking via contextvars ─────────────────────────────
 
@@ -781,6 +814,16 @@ async def _periodic_metrics_log(interval: float) -> None:
                 out_tps = m.completion_tokens / bench_elapsed if bench_elapsed > 0 else 0.0
                 tot_tps = m.total_tokens / bench_elapsed if bench_elapsed > 0 else 0.0
                 aimd = aimd_state.get(key)
+                # Aggregate AIMD across pool member deployments
+                if aimd is None and key in _pool_members:
+                    agg_c = agg_u = 0
+                    for member in _pool_members[key]:
+                        if member in aimd_state:
+                            c, u = aimd_state[member]
+                            agg_c += c
+                            agg_u += u
+                    if agg_c or agg_u:
+                        aimd = (agg_c, agg_u)
                 mins, secs = divmod(m.call_seconds, 60)
                 avg_dur = m.call_seconds / m.call_count if m.call_count else 0.0
                 parallelism = m.call_seconds / bench_elapsed if bench_elapsed > 0 else 0.0
