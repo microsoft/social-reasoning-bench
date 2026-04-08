@@ -204,7 +204,7 @@ def prepare_validation_benchmark(
     config_kwargs: dict[str, Any] = {
         "model": assistant_model,
         "judge_model": judge_model,
-        "output_dir": output_dir / attack_type,
+        "output_dir": output_dir / attack_type if output_dir is not None else None,
         "variant": f"whimsical_validation_{attack_type}",
     }
     if assistant_reasoning_effort is not None:

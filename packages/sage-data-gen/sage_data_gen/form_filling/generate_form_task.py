@@ -10,7 +10,7 @@ import shutil
 import traceback
 from pathlib import Path
 
-import ftfy
+import ftfy  # ty: ignore[unresolved-import]
 from sage_benchmark.benchmarks.form_filling.types import (
     FormInfo,
     FormSummary,

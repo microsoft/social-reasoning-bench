@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import random
 from pathlib import Path
+from typing import TypeVar
 
 import yaml
 from dotenv import load_dotenv
@@ -58,9 +59,10 @@ def _save_step(outputs_dir: Path, step: int, name: str, data: dict | list | Base
         path.write_text(json.dumps(data, indent=2, default=str))
 
 
-def _load_checkpoint(
-    outputs_dir: Path, step: int, name: str, model: type[BaseModel]
-) -> BaseModel | None:
+_T = TypeVar("_T", bound=BaseModel)
+
+
+def _load_checkpoint(outputs_dir: Path, step: int, name: str, model: type[_T]) -> _T | None:
     """Load a previously saved pipeline checkpoint, or return None if not found.
 
     Args:

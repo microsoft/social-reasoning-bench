@@ -319,7 +319,7 @@ class PooledAzureProvider(SageModelProvider):
         response, call_duration = await with_llm_retry(
             self.PROVIDER_KEY,
             model,
-            lambda ep: ep.client.chat.completions.create(model=ep.deployment, **base_kwargs),  # ty:ignore[no-matching-overload]
+            lambda ep: ep.client.chat.completions.create(model=ep.deployment, **base_kwargs),
             gate=self._endpoint_gate,
             max_retries=len(self._endpoints),
         )
@@ -363,7 +363,7 @@ class PooledAzureProvider(SageModelProvider):
         response, call_duration = await with_llm_retry(
             self.PROVIDER_KEY,
             model,
-            lambda ep: ep.client.chat.completions.create(model=ep.deployment, **base_kwargs),  # ty:ignore[no-matching-overload]
+            lambda ep: ep.client.chat.completions.create(model=ep.deployment, **base_kwargs),
             gate=self._endpoint_gate,
             max_retries=len(self._endpoints),
         )

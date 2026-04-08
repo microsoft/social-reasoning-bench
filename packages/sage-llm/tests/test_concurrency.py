@@ -33,7 +33,7 @@ def _cap_upper(provider: str = "openai", model: str = "m") -> None:
         ctrl.upper = ctrl.concurrency
 
 
-def _configure_fixed(llm_size: int, **kwargs: int) -> None:
+def _configure_fixed(llm_size: int, task_size: int | None = None) -> None:
     """Configure with a fixed concurrency (AIMD won't grow past initial).
 
     Call this, then use ``_cap_upper(provider, model)`` for each
@@ -41,10 +41,9 @@ def _configure_fixed(llm_size: int, **kwargs: int) -> None:
 
     Args:
         llm_size: Initial per-(provider, model) concurrency limit.
-        **kwargs: Additional keyword arguments forwarded to
-            :func:`configure` (e.g. ``task_size``).
+        task_size: Optional per-task per-provider concurrency limit.
     """
-    configure(llm_size=llm_size, **kwargs)
+    configure(llm_size=llm_size, task_size=task_size)
 
 
 @pytest.fixture(autouse=True)

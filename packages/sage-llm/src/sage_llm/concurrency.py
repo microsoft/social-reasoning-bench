@@ -40,10 +40,10 @@ import asyncio
 import logging
 import os
 import time
-from contextlib import AsyncExitStack, asynccontextmanager
+from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Awaitable, Callable, TypeVar
+from typing import Any, AsyncIterator, Awaitable, Callable, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -478,7 +478,7 @@ async def with_llm_retry(
     sdk_call: Callable[..., Awaitable[T]],
     *,
     max_retries: int = 5,
-    gate: Callable[..., AsyncIterator[Any]] | None = None,
+    gate: Callable[..., AbstractAsyncContextManager[Any]] | None = None,
 ) -> tuple[T, float]:
     """Acquire gate, call *sdk_call*, retry on transient errors.
 

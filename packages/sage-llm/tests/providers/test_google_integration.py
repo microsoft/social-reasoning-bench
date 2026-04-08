@@ -57,10 +57,11 @@ WEATHER_TOOL: ChatCompletionToolParam = {
 @requires_google
 @integration
 class TestGoogleComplete:
-    def test_sync_complete(self):
+    @pytest.mark.asyncio
+    async def test_sync_complete(self):
         provider = GoogleProvider()
         trace = LLMTrace()
-        msg = provider.complete(
+        msg = await provider.acomplete(
             PROVIDER_MODEL,
             [{"role": "user", "content": "Reply with exactly: hello"}],
             trace=trace,
@@ -94,13 +95,14 @@ class TestGoogleComplete:
 @requires_google
 @integration
 class TestGoogleParse:
-    def test_sync_parse(self):
+    @pytest.mark.asyncio
+    async def test_sync_parse(self):
         class Sentiment(BaseModel):
             label: str
             score: float
 
         provider = GoogleProvider()
-        result = provider.parse(
+        result = await provider.aparse(
             PROVIDER_MODEL,
             [
                 {
@@ -134,11 +136,12 @@ class TestGoogleParse:
 @requires_google
 @integration
 class TestGoogleToolCalling:
-    def test_tool_call_generated(self):
+    @pytest.mark.asyncio
+    async def test_tool_call_generated(self):
         """Model generates a tool call when given tools."""
         provider = GoogleProvider()
         trace = LLMTrace()
-        msg = provider.complete(
+        msg = await provider.acomplete(
             PROVIDER_MODEL,
             [{"role": "user", "content": "What's the weather in Seattle?"}],
             trace=trace,
@@ -151,13 +154,14 @@ class TestGoogleToolCalling:
         assert isinstance(tc, ChatCompletionMessageToolCall)
         assert tc.function.name == "get_weather"
 
-    def test_multi_turn_tool_use_dict_result(self):
+    @pytest.mark.asyncio
+    async def test_multi_turn_tool_use_dict_result(self):
         """Full tool-use loop: model calls tool, we return dict result, model responds."""
         provider = GoogleProvider()
 
         # Turn 1: model generates a tool call
         trace1 = LLMTrace()
-        msg1 = provider.complete(
+        msg1 = await provider.acomplete(
             PROVIDER_MODEL,
             [{"role": "user", "content": "What's the weather in Seattle?"}],
             trace=trace1,
@@ -178,7 +182,7 @@ class TestGoogleToolCalling:
             },
         ]
         trace2 = LLMTrace()
-        msg2 = provider.complete(
+        msg2 = await provider.acomplete(
             PROVIDER_MODEL,
             messages,
             trace=trace2,
@@ -188,7 +192,8 @@ class TestGoogleToolCalling:
         assert msg2.content is not None
         assert len(msg2.content) > 0
 
-    def test_multi_turn_tool_use_string_result(self):
+    @pytest.mark.asyncio
+    async def test_multi_turn_tool_use_string_result(self):
         """Tool result is a plain string (non-JSON) — should not crash.
 
         This is the scenario that caused the original FunctionResponse
@@ -197,7 +202,7 @@ class TestGoogleToolCalling:
         provider = GoogleProvider()
 
         trace1 = LLMTrace()
-        msg1 = provider.complete(
+        msg1 = await provider.acomplete(
             PROVIDER_MODEL,
             [{"role": "user", "content": "What's the weather in Seattle?"}],
             trace=trace1,
@@ -217,7 +222,7 @@ class TestGoogleToolCalling:
             },
         ]
         trace2 = LLMTrace()
-        msg2 = provider.complete(
+        msg2 = await provider.acomplete(
             PROVIDER_MODEL,
             messages,
             trace=trace2,
@@ -226,7 +231,8 @@ class TestGoogleToolCalling:
         )
         assert msg2.content is not None
 
-    def test_multi_turn_tool_use_json_string_result(self):
+    @pytest.mark.asyncio
+    async def test_multi_turn_tool_use_json_string_result(self):
         """Tool result is a JSON-encoded string (e.g. '"sunny"') — should not crash.
 
         json.loads('"sunny"') returns 'sunny' (a str, not a dict).
@@ -234,7 +240,7 @@ class TestGoogleToolCalling:
         provider = GoogleProvider()
 
         trace1 = LLMTrace()
-        msg1 = provider.complete(
+        msg1 = await provider.acomplete(
             PROVIDER_MODEL,
             [{"role": "user", "content": "What's the weather in Seattle?"}],
             trace=trace1,
@@ -254,7 +260,7 @@ class TestGoogleToolCalling:
             },
         ]
         trace2 = LLMTrace()
-        msg2 = provider.complete(
+        msg2 = await provider.acomplete(
             PROVIDER_MODEL,
             messages,
             trace=trace2,
@@ -302,9 +308,10 @@ class TestGoogleToolCalling:
 @requires_google
 @integration
 class TestGoogleViaClient:
-    def test_client_complete(self):
+    @pytest.mark.asyncio
+    async def test_client_complete(self):
         client = SageModelClient()
-        msg = client.complete(
+        msg = await client.acomplete(
             f"gemini/{MODEL}",
             [{"role": "user", "content": "Reply with exactly: ok"}],
             max_tokens=256,
@@ -321,10 +328,11 @@ class TestGoogleViaClient:
         )
         assert msg.content is not None
 
-    def test_client_alias_complete(self):
+    @pytest.mark.asyncio
+    async def test_client_alias_complete(self):
         """Bare 'gemini-*' alias should route correctly."""
         client = SageModelClient()
-        msg = client.complete(
+        msg = await client.acomplete(
             MODEL,
             [{"role": "user", "content": "Reply with exactly: ok"}],
             max_tokens=256,
