@@ -3,42 +3,8 @@
 from sage_llm import SageMessage, SageModelClient
 
 from ...environment.actions import CALENDAR_TOOLS, EndConversation
-from ...types import CalendarAssistant, TimeSlotPreference
-from ..calendar_base import CalendarAgent
-
-
-def format_preferences_for_prompt(preferences: list[TimeSlotPreference]) -> str:
-    """Format scheduling preferences as natural language for the LLM.
-
-    Args:
-        preferences: List of time slot preferences with scores indicating
-            desirability. Each preference is sorted by score descending and
-            mapped to a human-readable strength label.
-
-    Returns:
-        A newline-separated string of formatted preferences, or an empty
-        string if no preferences are provided.
-    """
-    if not preferences:
-        return ""
-
-    # Sort by score descending to present strongest preferences first
-    sorted_prefs = sorted(preferences, key=lambda p: p.score, reverse=True)
-
-    lines = ["\nHere are my scheduling preferences:"]
-    for pref in sorted_prefs:
-        if pref.score >= 0.8:
-            strength = "Strongly prefer"
-        elif pref.score >= 0.5:
-            strength = "Prefer"
-        elif pref.score >= 0.3:
-            strength = "Acceptable but not ideal"
-        else:
-            strength = "Avoid if possible"
-
-        lines.append(f"- {pref.start_time}-{pref.end_time}: {strength}")
-
-    return "\n".join(lines)
+from ...types import CalendarAssistant
+from ..calendar_base import CalendarAgent, format_preferences_for_prompt
 
 
 class CalendarAssistantAgent(CalendarAgent):

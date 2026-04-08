@@ -257,6 +257,7 @@ async def execute_task(
         requestor=task.requestor,
         allowed_contacts=[assistant_email],
         explicit_cot=requestor_explicit_cot,
+        expose_preferences=expose_preferences,
     )
 
     # Force initial request from requestor
