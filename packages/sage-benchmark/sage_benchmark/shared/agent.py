@@ -227,10 +227,7 @@ class BaseAgent:
         Returns:
             A user-role message string instructing the model to produce a tool call.
         """
-        return (
-            "The user is unavailable. Work autonomously. "
-            "You must call exactly one tool."
-        )
+        return "The user is unavailable. Work autonomously. You must call exactly one tool."
 
     def on_retry_invalid_tool_call(self, error: Exception) -> str:
         """Return the user message to send when a tool call fails validation.

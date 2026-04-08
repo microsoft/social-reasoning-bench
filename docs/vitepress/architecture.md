@@ -7,7 +7,7 @@ sage/
   packages/
     sage-benchmark/    # Benchmark runner, CLI, evaluation
     sage-data-gen/     # Data generation pipelines
-    sage-llm/          # LiteLLM-based model client
+    sage-llm/          # Multi-provider LLM client
     whimsygen/         # Adversarial strategy generation
     privacy-judge/     # Privacy evaluation judges
 ```

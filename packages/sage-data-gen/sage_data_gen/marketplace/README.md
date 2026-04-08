@@ -5,7 +5,7 @@ Generates buyer-seller negotiation tasks for the SAGE marketplace benchmark. Cre
 ## Quick Start
 
 ```bash
-sagegen marketplace --output-dir data/marketplace/final
+sagegen marketplace --output-dir data/marketplace
 ```
 
 ## [Documentation](../../../../docs/vitepress/generating-data.md#marketplace)

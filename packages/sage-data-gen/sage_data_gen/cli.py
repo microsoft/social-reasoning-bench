@@ -92,13 +92,27 @@ def _build_malicious_parser() -> argparse.ArgumentParser:
         default=None,
         help="Number of candidate strategies to generate for validation",
     )
-    val.add_argument("--agent-model", default=None, help="Model for the agent under test")
-    val.add_argument("--agent-reasoning-effort", default=None, help="Reasoning effort for agent")
+    val.add_argument("--assistant-model", default=None, help="Model for the agent under test")
     val.add_argument(
-        "--agent-cot",
+        "--assistant-reasoning-effort", default=None, help="Reasoning effort for assistant"
+    )
+    val.add_argument(
+        "--assistant-explicit-cot",
         action="store_true",
         default=False,
-        help="Enable explicit chain-of-thought for agent",
+        help="Enable explicit chain-of-thought for assistant",
+    )
+    val.add_argument("--counterparty-model", default=None, help="Model for the counterparty agent")
+    val.add_argument(
+        "--counterparty-reasoning-effort",
+        default=None,
+        help="Reasoning effort for counterparty",
+    )
+    val.add_argument(
+        "--counterparty-explicit-cot",
+        action="store_true",
+        default=False,
+        help="Enable explicit chain-of-thought for counterparty",
     )
     val.add_argument("--judge-model", default=None, help="Model for the evaluation judge")
     val.add_argument("--judge-reasoning-effort", default=None, help="Reasoning effort for judge")
@@ -195,9 +209,9 @@ def _malicious_main():
     types = [args.attack_type] if args.attack_type else attack_types
 
     if args.validate:
-        # Default agent/judge model to -m/--model when not explicitly set.
-        if not args.agent_model:
-            args.agent_model = args.model
+        # Default assistant/judge model to -m/--model when not explicitly set.
+        if not args.assistant_model:
+            args.assistant_model = args.model
         if not args.judge_model:
             args.judge_model = args.model
         if not args.val_tasks_data:

@@ -19,6 +19,8 @@ Usage::
     sagebench experiment experiments/experiment_full.py --set model=gpt-5.4
 """
 
+from typing import Any
+
 from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConfig
 from sage_benchmark.benchmarks.form_filling.config import FormFillingRunConfig
 from sage_benchmark.benchmarks.marketplace.config import MarketplaceRunConfig
@@ -34,17 +36,6 @@ FF_DIR = "data/form-filling"
 ATTACK_TYPES = ["privacy", "duty_of_care", "due_diligence"]
 PRIVACY_LEVELS = ["none", "simple", "strong", "ci"]
 
-# Fixed strong counterparty model (requestor, interviewer, seller)
-COUNTERPARTY_MODEL = "azure_pool/gpt-5.4"
-COUNTERPARTY_REASONING_EFFORT = "medium"
-
-# ── Run parameters ─────────────────────────────────────────────────
-MAX_ROUNDS = 20
-MAX_STEPS_PER_TURN = 10
-JUDGE_VOTES = 1
-
-# Non-reasoning models get explicit_cot=True and explicit_cot=False variants.
-# Reasoning models get a reasoning_effort sweep instead.
 NON_REASONING_MODELS = [
     "azure_pool/gpt-4.1",
 ]
@@ -54,11 +45,7 @@ REASONING_MODELS = [
     "anthropic/claude-sonnet-4.6",
 ]
 
-# Reasoning effort levels per model.
-# Anthropic (non-Opus) uses integer budget tokens; others use string levels.
-# "none" disables reasoning entirely (the value is not sent to the API).
 REASONING_EFFORTS: dict[str, list[tuple[str | int, str]]] = {
-    # (effort_value, variant_tag) pairs
     "azure_pool/gpt-5.4": [("none", "think_off"), ("medium", "think_med"), ("high", "think_high")],
     "google/gemini-3.1-pro-preview": [
         ("none", "think_off"),
@@ -71,6 +58,37 @@ REASONING_EFFORTS: dict[str, list[tuple[str | int, str]]] = {
         (4096, "think_med"),
         (10000, "think_high"),
     ],
+}
+
+# ── Fixed values ──────────────────────────────────────────────────────
+
+JUDGE_KWARGS: dict[str, Any] = {
+    "judge_model": "azure_pool/gpt-5.4",
+    "judge_reasoning_effort": "medium",
+    "judge_votes": 1,
+}
+
+ROUNDS_KWARGS: dict[str, Any] = {
+    "max_rounds": 20,
+    "max_steps_per_turn": 10,
+}
+
+# Calendar: counterparty is the requestor
+CAL_COUNTERPARTY_KWARGS: dict[str, Any] = {
+    "requestor_model": "azure_pool/gpt-5.4",
+    "requestor_reasoning_effort": "medium",
+}
+
+# Form filling: counterparty is the interviewer
+FF_COUNTERPARTY_KWARGS: dict[str, Any] = {
+    "interviewer_model": "azure_pool/gpt-5.4",
+    "interviewer_reasoning_effort": "medium",
+}
+
+# Marketplace: counterparty is the seller
+MKT_COUNTERPARTY_KWARGS: dict[str, Any] = {
+    "seller_model": "azure_pool/gpt-5.4",
+    "seller_reasoning_effort": "medium",
 }
 
 
@@ -113,49 +131,23 @@ def _cal(
     assistant_explicit_cot=None,
     attack_types=None,
 ):
-    """Create a single calendar config.
-
-    Args:
-        paths: List of YAML data file paths for the calendar scenario.
-        variant: Unique variant name for this configuration.
-        model: Model identifier for the assistant agent.
-        privacy: Privacy prompt level.
-        reasoning_effort: Optional reasoning effort budget for reasoning models.
-        assistant_explicit_cot: Optional flag enabling explicit chain-of-thought
-            for the assistant agent.
-        attack_types: Optional list of attack type strings to apply.
-
-    Returns:
-        A configured CalendarRunConfig instance.
-    """
     return CalendarRunConfig(
         paths=paths,
         variant=variant,
         model=model,
-        requestor_model=COUNTERPARTY_MODEL,
-        requestor_reasoning_effort=COUNTERPARTY_REASONING_EFFORT,
         privacy_prompt=privacy,
         expose_preferences=True,
         reasoning_effort=reasoning_effort,
         assistant_explicit_cot=assistant_explicit_cot,
         attack_types=attack_types,
-        max_rounds=MAX_ROUNDS,
-        max_steps_per_turn=MAX_STEPS_PER_TURN,
-        judge_votes=JUDGE_VOTES,
+        **CAL_COUNTERPARTY_KWARGS,
+        **ROUNDS_KWARGS,
+        **JUDGE_KWARGS,
     )
 
 
 def _cal_attacks(model, privacy, tag, reasoning_effort=None, assistant_explicit_cot=None):
-    """Yield normal + all attack variants for one calendar config.
-
-    Args:
-        model: Model identifier for the assistant agent.
-        privacy: Privacy prompt level.
-        tag: Human-readable tag included in the variant name.
-        reasoning_effort: Optional reasoning effort budget for reasoning models.
-        assistant_explicit_cot: Optional flag enabling explicit chain-of-thought
-            for the assistant agent.
-    """
+    """Yield normal + all attack variants for one calendar config."""
     yield _cal(
         [f"{CAL_DIR}/small.yaml"],
         _variant("calendar", tag, privacy, "normal"),
@@ -220,48 +212,22 @@ def experiment_calendar():
 def _mkt(
     paths, variant, model, privacy, reasoning_effort=None, explicit_cot=None, attack_types=None
 ):
-    """Create a single marketplace config.
-
-    Args:
-        paths: List of YAML data file paths for the marketplace scenario.
-        variant: Unique variant name for this configuration.
-        model: Model identifier for the buyer agent.
-        privacy: Privacy prompt level.
-        reasoning_effort: Optional reasoning effort budget for reasoning models.
-        explicit_cot: Optional flag enabling explicit chain-of-thought for both
-            buyer and seller agents.
-        attack_types: Optional list of attack type strings to apply.
-
-    Returns:
-        A configured MarketplaceRunConfig instance.
-    """
     return MarketplaceRunConfig(
         paths=paths,
         variant=variant,
         model=model,
-        seller_model=COUNTERPARTY_MODEL,
-        seller_reasoning_effort=COUNTERPARTY_REASONING_EFFORT,
         privacy_prompt=privacy,
         reasoning_effort=reasoning_effort,
         explicit_cot=explicit_cot,
         attack_types=attack_types,
-        max_rounds=MAX_ROUNDS,
-        max_steps_per_turn=MAX_STEPS_PER_TURN,
-        judge_votes=JUDGE_VOTES,
+        **MKT_COUNTERPARTY_KWARGS,
+        **ROUNDS_KWARGS,
+        **JUDGE_KWARGS,
     )
 
 
 def _mkt_attacks(model, privacy, tag, reasoning_effort=None, explicit_cot=None):
-    """Yield normal + all attack variants for one marketplace config.
-
-    Args:
-        model: Model identifier for the buyer agent.
-        privacy: Privacy prompt level.
-        tag: Human-readable tag included in the variant name.
-        reasoning_effort: Optional reasoning effort budget for reasoning models.
-        explicit_cot: Optional flag enabling explicit chain-of-thought for both
-            buyer and seller agents.
-    """
+    """Yield normal + all attack variants for one marketplace config."""
     yield _mkt(
         [f"{MKT_DIR}/small.yaml"],
         _variant("marketplace", tag, privacy, "normal"),
@@ -325,46 +291,22 @@ def experiment_marketplace():
 def _ff(
     paths, variant, model, privacy, reasoning_effort=None, explicit_cot=None, attack_types=None
 ):
-    """Create a single form-filling config.
-
-    Args:
-        paths: List of YAML data file paths for the form-filling scenario.
-        variant: Unique variant name for this configuration.
-        model: Model identifier for the form-filling agent.
-        privacy: Privacy prompt level.
-        reasoning_effort: Optional reasoning effort budget for reasoning models.
-        explicit_cot: Optional flag enabling explicit chain-of-thought.
-        attack_types: Optional list of attack type strings to apply.
-
-    Returns:
-        A configured FormFillingRunConfig instance.
-    """
     return FormFillingRunConfig(
         paths=paths,
         variant=variant,
         model=model,
-        interviewer_model=COUNTERPARTY_MODEL,
-        interviewer_reasoning_effort=COUNTERPARTY_REASONING_EFFORT,
         privacy_prompt=privacy,
         reasoning_effort=reasoning_effort,
         explicit_cot=explicit_cot,
         attack_types=attack_types,
-        max_rounds=MAX_ROUNDS,
-        max_steps_per_turn=MAX_STEPS_PER_TURN,
-        judge_votes=JUDGE_VOTES,
+        **FF_COUNTERPARTY_KWARGS,
+        **ROUNDS_KWARGS,
+        **JUDGE_KWARGS,
     )
 
 
 def _ff_attacks(model, privacy, tag, reasoning_effort=None, explicit_cot=None):
-    """Yield normal + all attack variants for one form-filling config.
-
-    Args:
-        model: Model identifier for the form-filling agent.
-        privacy: Privacy prompt level.
-        tag: Human-readable tag included in the variant name.
-        reasoning_effort: Optional reasoning effort budget for reasoning models.
-        explicit_cot: Optional flag enabling explicit chain-of-thought.
-    """
+    """Yield normal + all attack variants for one form-filling config."""
     yield _ff(
         [f"{FF_DIR}/tasks.yaml"],
         _variant("form_filling", tag, privacy, "normal"),

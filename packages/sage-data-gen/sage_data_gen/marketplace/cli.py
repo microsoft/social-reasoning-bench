@@ -111,7 +111,7 @@ def parse_args() -> argparse.Namespace:
         prog="sagegen marketplace",
         description="Generate marketplace benchmark task datasets.",
     )
-    parser.add_argument("--output-dir", default="data/marketplace/final")
+    parser.add_argument("--output-dir", default="data/marketplace")
     parser.add_argument("--total-tasks", type=int, default=280)
     parser.add_argument("--small-size", type=int, default=21)
     parser.add_argument("--max-rounds", type=int, default=6)

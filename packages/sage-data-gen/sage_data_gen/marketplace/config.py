@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 
 class MarketplacePipelineConfig(BaseModel):
-    output_dir: str = "data/marketplace/final"
+    output_dir: str = "data/marketplace"
     random_seed: int = 42
     total_tasks: int = 280
     small_size: int = 21

@@ -704,7 +704,9 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         # -- output --
         g = parser.add_argument_group("output")
         g.add_argument("--output-dir", default=None)
-        g.add_argument("--log-level", default="warning", choices=["debug", "info", "warning", "error"])
+        g.add_argument(
+            "--log-level", default="warning", choices=["debug", "info", "warning", "error"]
+        )
         g.add_argument("--logger", default="progress", choices=["verbose", "progress", "quiet"])
 
         return parser

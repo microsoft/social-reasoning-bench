@@ -13,7 +13,7 @@ Two agents (Assistant + Requestor) negotiate to schedule a meeting. The assistan
 
 ```bash
 sagebench benchmark calendar \
-    --data ./data/calendar-scheduling/final/small.yaml \
+    --data ./data/calendar-scheduling/small.yaml \
     --model gpt-4.1 \
     --assistant-system-prompt default \
     --expose-preferences false \
@@ -33,17 +33,8 @@ The following flags are specific to calendar scheduling.
 An assistant fills out forms based on information gathered through conversation with an interviewer agent.
 
 ```bash
-# One-shot mode (assistant fills form from artifacts)
 sagebench benchmark form_filling \
     --data ./data/form-filling/tasks/ \
-    --assistant-model gpt-4.1 \
-    --judge-model gpt-4.1 \
-    --limit 2
-
-# Interactive mode (interviewer asks questions)
-sagebench benchmark form_filling \
-    --data ./data/form-filling/tasks/ \
-    --execution-mode interactive \
     --interviewer-model gpt-4.1 \
     --assistant-model gpt-4.1 \
     --judge-model gpt-4.1 \
@@ -56,7 +47,6 @@ The following flags are specific to form filling.
 |------|-------------|---------|
 | `--assistant-model` | Model for the form-filling assistant | _(inherits `--model`)_ |
 | `--interviewer-model` | Model for the interviewer | _(inherits `--model`)_ |
-| `--prompt-type` | System prompt strategy: `none`, `simple`, `strong`, `ci` | `none` |
 | `--single-field-mode` | Fill one field at a time | `false` |
 
 ### Marketplace
@@ -65,7 +55,7 @@ A buyer and seller agent negotiate the price of a product. Each has hidden reser
 
 ```bash
 sagebench benchmark marketplace \
-    --data ./data/marketplace/final/small.yaml \
+    --data ./data/marketplace/small.yaml \
     --model gpt-4.1 \
     --max-steps-per-turn 3 \
     --limit 2

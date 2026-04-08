@@ -19,7 +19,7 @@ from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConf
 
 def experiment_calendar():
     return CalendarRunConfig(
-        paths=["data/calendar-scheduling/final/small.yaml"],
+        paths=["data/calendar-scheduling/small.yaml"],
         limit=2,
         model="gpt-4.1",
         variant="calendar_smoke",
@@ -46,7 +46,7 @@ ATTACK_TYPES = ["privacy", "duty_of_care", "due_diligence"]
 def experiment_calendar():
     # Normal (benign) run
     yield CalendarRunConfig(
-        paths=["data/calendar-scheduling/final/small.yaml"],
+        paths=["data/calendar-scheduling/small.yaml"],
         model=MODEL,
         variant="calendar_normal",
     )

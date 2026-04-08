@@ -13,7 +13,7 @@ uv sync --all-packages
 ```bash
 # Run a single benchmark
 sagebench benchmark calendar \
-    --data ./data/calendar-scheduling/final/small.yaml \
+    --data ./data/calendar-scheduling/small.yaml \
     --model gpt-4.1 \
     --limit 2
 

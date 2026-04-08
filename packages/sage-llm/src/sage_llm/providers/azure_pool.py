@@ -35,7 +35,14 @@ from openai.types.chat import (
 )
 from pydantic import BaseModel
 
-from ..concurrency import has_capacity, llm_gate, parse_retry_after, pool_in_flight, record_usage, with_llm_retry
+from ..concurrency import (
+    has_capacity,
+    llm_gate,
+    parse_retry_after,
+    pool_in_flight,
+    record_usage,
+    with_llm_retry,
+)
 from ..tracing import LLMTrace
 from ..types import SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider

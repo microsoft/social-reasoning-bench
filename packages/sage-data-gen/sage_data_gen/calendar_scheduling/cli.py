@@ -370,7 +370,7 @@ def parse_args() -> PipelineConfig:
         default=None,
         help="Comma-separated models for majority-vote privacy labeling (default: uses --model)",
     )
-    parser.add_argument("--output-dir", default="data/calendar-scheduling/final")
+    parser.add_argument("--output-dir", default="data/calendar-scheduling")
     parser.add_argument(
         "--no-generate-preferences",
         action="store_true",

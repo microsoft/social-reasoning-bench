@@ -139,10 +139,13 @@ def prepare_validation_benchmark(
     benchmark_name: str,
     attack_type: str,
     inject_fn: Any,
-    agent_model: str,
+    assistant_model: str,
     judge_model: str,
-    agent_reasoning_effort: str | int | None = None,
-    agent_explicit_cot: bool = False,
+    assistant_reasoning_effort: str | int | None = None,
+    assistant_explicit_cot: bool = False,
+    counterparty_model: str | None = None,
+    counterparty_reasoning_effort: str | int | None = None,
+    counterparty_explicit_cot: bool = False,
     judge_reasoning_effort: str | int | None = None,
     output_dir: Path | None = None,
     benchmark_logger: Any = None,
@@ -155,8 +158,14 @@ def prepare_validation_benchmark(
         benchmark_name: One of ``"calendar"``, ``"form-filling"``, ``"marketplace"``.
         attack_type: Attack type key (must exist in :data:`ATTACK_METRIC_MAP`).
         inject_fn: ``inject_fn(task, attack_type, strategy_text) → list[task]``.
-        agent_model: Model identifier for the agent under test.
+        assistant_model: Model identifier for the agent under test.
         judge_model: Model identifier for the evaluation judge.
+        assistant_reasoning_effort: Optional reasoning effort for the assistant.
+        assistant_explicit_cot: Enable explicit chain-of-thought for the assistant.
+        counterparty_model: Optional model for the counterparty agent.
+        counterparty_reasoning_effort: Optional reasoning effort for the counterparty.
+        counterparty_explicit_cot: Enable explicit chain-of-thought for the counterparty.
+        judge_reasoning_effort: Optional reasoning effort for the judge.
         output_dir: Optional directory for benchmark outputs.
         benchmark_logger: BenchmarkLogger instance (shared across benchmarks).
 
@@ -193,17 +202,31 @@ def prepare_validation_benchmark(
 
     BenchmarkCls, ConfigCls = _get_benchmark_factory(benchmark_name)
     config_kwargs: dict[str, Any] = {
-        "model": agent_model,
+        "model": assistant_model,
         "judge_model": judge_model,
         "output_dir": output_dir / attack_type,
         "variant": f"whimsical_validation_{attack_type}",
     }
-    if agent_reasoning_effort is not None:
-        config_kwargs["reasoning_effort"] = agent_reasoning_effort
-    if agent_explicit_cot:
+    if assistant_reasoning_effort is not None:
+        config_kwargs["reasoning_effort"] = assistant_reasoning_effort
+    if assistant_explicit_cot:
         config_kwargs["explicit_cot"] = True
     if judge_reasoning_effort is not None:
         config_kwargs["judge_reasoning_effort"] = judge_reasoning_effort
+
+    # Map generic counterparty args to benchmark-specific role names
+    counterparty_role = {
+        "calendar": "requestor",
+        "form-filling": "interviewer",
+        "marketplace": "seller",
+    }.get(benchmark_name)
+    if counterparty_role and counterparty_model:
+        config_kwargs[f"{counterparty_role}_model"] = counterparty_model
+    if counterparty_role and counterparty_reasoning_effort is not None:
+        config_kwargs[f"{counterparty_role}_reasoning_effort"] = counterparty_reasoning_effort
+    if counterparty_role and counterparty_explicit_cot:
+        config_kwargs[f"{counterparty_role}_explicit_cot"] = True
+
     config = ConfigCls(**config_kwargs)
     benchmark = BenchmarkCls(config, tasks=all_tasks, benchmark_logger=benchmark_logger)
 

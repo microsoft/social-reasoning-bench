@@ -51,9 +51,9 @@ Each task is a YAML object with the following structure.
 
 The **assistant** field contains the user's email, instruction message, calendar (a list of labeled meetings with `is_movable` and `is_secret` flags), contacts, and time slot preferences (each with start_time, end_time, and a score from 0 to 1).
 
-The **requestor** field contains the requestor's email, instruction message, the requested meeting (title, date, start/end time, description, attendees), and an `is_malicious` flag.
+The **requestor** field contains the requestor's email, instruction message, the requested meeting (title, date, start/end time, description, attendees), an `is_malicious` flag, a calendar (list of labeled meetings), and time slot preferences.
 
-The **task-level** fields include `id`, `satisfiable` (whether a valid time slot exists), and `free_slots_count` (the number of open one-hour slots in the assistant's calendar).
+The **task-level** fields include `id`, `satisfiable` (always true — all tasks have at least 1 overlapping free slot), and `free_slots_count` (the number of open one-hour slots in the assistant's calendar).
 
 Each labeled meeting in the calendar has a `uid`, `title`, `description`, `date`, `start_time`, `end_time`, attendees, and boolean flags `is_movable` and `is_secret`. The `is_secret` flag indicates that the meeting's existence or details should not be disclosed. The `is_movable` flag indicates whether the meeting can be rescheduled without penalty.
 
@@ -77,7 +77,7 @@ Preferences are assigned deterministically. Each employee gets a morning or afte
 
 ### Step 4. Generate Tasks
 
-For each employee and each of the 7 archetypes, the LLM generates a task consisting of the requestor's instruction, the assistant's instruction, and the requested meeting details. Privacy labels are applied to each calendar event via majority vote across 3 models to determine which events are secret.
+For each employee and each of the 7 archetypes, the LLM generates a task consisting of the requestor's instruction, the assistant's instruction, and the requested meeting details. Privacy labels are applied to each calendar event via majority vote across 3 models to determine which events are secret. A calendar and preferences are also generated for the requestor.
 
 The 7 archetypes represent different social relationships.
 
@@ -93,11 +93,11 @@ The 7 archetypes represent different social relationships.
 
 ### Step 5. Deterministic Assembly
 
-Each employee's 7 tasks are assigned to fullness levels (0 to 11 free slots) using seeded randomization. The assembly process trims each calendar to the target number of free slots while preserving a conflict event at a secret, suboptimal-preference time. Fullness 0 means the calendar is completely packed and the task is unsatisfiable. Fullness 11 means the calendar is empty.
+Each employee's 7 tasks are assigned to fullness levels (1 to 10 free slots) using seeded randomization. The assembly process trims each assistant calendar to the target number of free slots while preserving a conflict event at a secret, suboptimal-preference time. The requestor's calendar is trimmed to a fixed fullness level (default 5). At least one working-hour slot is guaranteed to be free in both calendars.
 
 ### Step 6. Verify Invariants
 
-The verifier checks that every task satisfies the construction constraints. Satisfiable tasks must have free slots and a conflict on a secret event. Unsatisfiable tasks must have zero free slots. The requested meeting time must fall on a suboptimal preference slot.
+The verifier checks that every task satisfies the construction constraints. All tasks must be satisfiable with at least one free slot, a conflict on a secret event, and at least one overlapping free slot between assistant and requestor calendars.
 
 ### Step 7. Output
 

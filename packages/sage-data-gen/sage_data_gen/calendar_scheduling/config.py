@@ -19,7 +19,7 @@ class PipelineConfig(BaseModel):
         description="Models for majority-vote privacy labeling. "
         "Each model labels independently; final label is majority vote.",
     )
-    output_dir: str = "data/calendar-scheduling/final"
+    output_dir: str = "data/calendar-scheduling"
     generate_preferences: bool = Field(
         default=True,
         description="Whether to generate scheduling preferences for tasks",

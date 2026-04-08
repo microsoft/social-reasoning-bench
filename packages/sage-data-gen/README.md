@@ -12,13 +12,13 @@ uv sync --all-packages
 
 ```bash
 # Generate calendar scheduling tasks
-sagegen calendar --output-dir data/calendar-scheduling/final
+sagegen calendar --output-dir data/calendar-scheduling
 
 # Generate form filling tasks from a form image
 sagegen form-filling --image path/to/form.png --output-dir ./output/
 
 # Generate marketplace negotiation tasks
-sagegen marketplace --output-dir data/marketplace/final
+sagegen marketplace --output-dir data/marketplace
 ```
 
 ## [Documentation](../../docs/vitepress/generating-data.md)

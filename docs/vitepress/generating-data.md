@@ -13,7 +13,7 @@ Generates synthetic calendar scheduling tasks with LLM-generated company/employe
 ### Quick Start
 
 ```bash
-sagegen calendar --output-dir data/calendar-scheduling/final
+sagegen calendar --output-dir data/calendar-scheduling
 ```
 
 ### Pipeline
@@ -22,9 +22,9 @@ sagegen calendar --output-dir data/calendar-scheduling/final
 2. **Generate employees** uses an LLM to create 5 employees per company with roles, relationships, and personal facts.
 3. **Generate base calendars** uses an LLM to generate 11 one-hour events (08:00-19:00) per employee.
 4. **Generate preferences** deterministically assigns a morning or afternoon preference per employee.
-5. **Generate tasks** iterates over each employee and 7 archetypes, using an LLM to create a meeting request with privacy-labeled calendar events determined by majority vote across 3 models.
-6. **Deterministic assembly** assigns tasks to fullness levels (0-11 free slots), places meetings at suboptimal preference times, and trims calendars.
-7. **Verify invariants** checks all constraints including conflicts on secret events, suboptimal times, and correct satisfiability.
+5. **Generate tasks** iterates over each employee and 7 archetypes, using an LLM to create a meeting request with privacy-labeled calendar events determined by majority vote across 3 models. A calendar and preferences are also generated for each requestor.
+6. **Deterministic assembly** assigns tasks to fullness levels (1-10 free slots), places meetings at suboptimal preference times, trims both assistant and requestor calendars, and ensures at least 1 overlapping free slot.
+7. **Verify invariants** checks all constraints including conflicts on secret events, suboptimal times, correct satisfiability, and overlapping availability.
 
 #### Task Archetypes
 
@@ -47,18 +47,19 @@ Each employee generates 7 tasks, one per requestor archetype:
 | `--num-companies` | `4` | Number of companies to generate |
 | `--employees-per-company` | `5` | Employees per company |
 | `--calendar-date` | `2026-02-20` | Calendar date |
-| `--fullness-levels` | `0,1,3,5,7,9,11` | Comma-separated free slot counts |
+| `--fullness-levels` | `1,2,3,5,7,9,10` | Comma-separated free slot counts |
 | `--medium-size` | `10` | Tasks per fullness level in medium dataset |
 | `--small-size` | `3` | Tasks per fullness level in small dataset |
 | `--model` | `gpt-5.2` | LLM for generation |
 | `--labeling-models` | `gpt-5.2,gpt-5.1,gpt-4.1` | Models for majority-vote privacy labeling |
-| `--output-dir` | `data/calendar-scheduling/final` | Output directory |
+| `--output-dir` | `data/calendar-scheduling` | Output directory |
+| `--requestor-fullness` | `5` | Fixed number of free slots in requestor calendars |
 | `--random-seed` | `42` | Random seed |
 
 ### Output
 
 ```
-data/calendar-scheduling/final/
+data/calendar-scheduling/
   large.yaml              # All tasks stratified by fullness
   medium.yaml             # Subset (10 per fullness level)
   small.yaml              # Subset (3 per fullness level)
@@ -145,7 +146,7 @@ Generates buyer-seller negotiation tasks with LLM-generated product catalogs and
 ### Quick Start
 
 ```bash
-sagegen marketplace --output-dir data/marketplace/final
+sagegen marketplace --output-dir data/marketplace
 ```
 
 ### Pipeline
@@ -160,7 +161,7 @@ sagegen marketplace --output-dir data/marketplace/final
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--output-dir` | `data/marketplace/final` | Output directory |
+| `--output-dir` | `data/marketplace` | Output directory |
 | `--total-tasks` | `280` | Total tasks to generate |
 | `--small-size` | `21` | Tasks in small dataset |
 | `--max-rounds` | `6` | Maximum negotiation rounds |
@@ -173,7 +174,7 @@ sagegen marketplace --output-dir data/marketplace/final
 ### Output
 
 ```
-data/marketplace/final/
+data/marketplace/
   large.yaml            # All tasks (280)
   small.yaml            # Subset (21)
   _pipeline_outputs/    # Intermediate files
@@ -190,7 +191,7 @@ Hand-crafted variants use scripted adversarial injections that rewrite task inst
 ```bash
 # Calendar
 python -m sage_data_gen.calendar_scheduling.malicious.generate_hand_crafted \
-    --input data/calendar-scheduling/final/small.yaml \
+    --input data/calendar-scheduling/small.yaml \
     --attack-type privacy
 
 # Form filling
@@ -200,7 +201,7 @@ python -m sage_data_gen.form_filling.malicious.generate_hand_crafted \
 
 # Marketplace
 python -m sage_data_gen.marketplace.malicious.generate_hand_crafted \
-    --input data/marketplace/final/small.yaml \
+    --input data/marketplace/small.yaml \
     --attack-type privacy
 ```
 
@@ -210,7 +211,7 @@ Whimsical variants use [WhimsyGen](/whimsygen) to generate creative, unconventio
 
 ```bash
 python -m sage_data_gen.calendar_scheduling.malicious.generate_whimsical \
-    --input data/calendar-scheduling/final/small.yaml \
+    --input data/calendar-scheduling/small.yaml \
     --attack-type privacy \
     -m gemini-2.5-flash \
     -n 20

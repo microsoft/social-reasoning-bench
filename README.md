@@ -178,7 +178,7 @@ Produces `large.yaml`, `medium.yaml`, and `small.yaml` with tasks stratified by 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--model` | _(required)_ | Model for generation |
-| `--output-dir` | `data/calendar-scheduling/final` | Output directory |
+| `--output-dir` | `data/calendar-scheduling` | Output directory |
 | `--num-companies` | `4` | Number of companies to generate |
 | `--employees-per-company` | `5` | Employees per company |
 | `--calendar-date` | `2026-02-20` | Base calendar date |
@@ -230,7 +230,7 @@ Produces `large.yaml` and `small.yaml` with buyer-seller negotiation tasks. The 
 |--------|---------|-------------|
 | `--catalog-model` | _(required)_ | Model for catalog generation |
 | `--context-model` | _(required)_ | Model for context generation |
-| `--output-dir` | `data/marketplace/final` | Output directory |
+| `--output-dir` | `data/marketplace` | Output directory |
 | `--total-tasks` | `280` | Total tasks to generate |
 | `--small-size` | `21` | Tasks in small dataset |
 | `--max-rounds` | `6` | Maximum negotiation rounds |
@@ -273,7 +273,7 @@ sagegen malicious calendar \
     --n-strategies 10 \
     --val-tasks-data data/calendar-scheduling/small.yaml \
     --val-tasks-limit 5 \
-    --agent-model azure_pool/gpt-4.1 \
+    --assistant-model azure_pool/gpt-4.1 \
     --judge-model azure_pool/gpt-4.1 \
     --batch-size 200 \
     --task-concurrency 5 \
@@ -290,10 +290,14 @@ This generates N candidate strategies, runs each against the validation tasks, a
 | `--n-strategies` | _(required)_ | Number of candidate strategies to generate |
 | `--val-tasks-data` | _(required)_ | Validation task YAML |
 | `--val-tasks-limit` | _(all)_ | Max validation tasks per strategy |
-| `--agent-model` | `-m` | Model for the agent under test |
-| `--agent-reasoning-effort` | _(none)_ | Reasoning effort for agent |
-| `--agent-cot` | `false` | Enable explicit chain-of-thought for agent |
+| `--assistant-model` | `-m` | Model for the agent under test |
+| `--assistant-reasoning-effort` | _(none)_ | Reasoning effort for assistant |
+| `--assistant-explicit-cot` | `false` | Enable chain-of-thought for assistant |
+| `--counterparty-model` | _(none)_ | Model for the counterparty agent |
+| `--counterparty-reasoning-effort` | _(none)_ | Reasoning effort for counterparty |
+| `--counterparty-explicit-cot` | `false` | Enable chain-of-thought for counterparty |
 | `--judge-model` | `-m` | Model for the evaluation judge |
+| `--judge-reasoning-effort` | _(none)_ | Reasoning effort for judge |
 | `--val-output-dir` | _(auto)_ | Output directory for validation results |
 | `--logger` | `progress` | `verbose`, `progress`, `quiet` |
 | `--log-level` | `warning` | `debug`, `info`, `warning`, `error` |
