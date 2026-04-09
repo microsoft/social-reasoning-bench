@@ -43,6 +43,16 @@ class RetryException(Exception):
     pass
 
 
+class ToolCallRetriesExhausted(ExceptionGroup):
+    """Raised when generate_tool_call exhausts all retries.
+
+    Callers can catch this to handle gracefully (e.g., end the current turn)
+    rather than treating it as a fatal error.
+    """
+
+    pass
+
+
 class BaseAgent:
     """Base LLM agent with tool calling and retries.
 
@@ -439,7 +449,7 @@ class BaseAgent:
                             },
                         )
 
-        raise ExceptionGroup("Exceeded maximum retries generating tool call", exceptions)
+        raise ToolCallRetriesExhausted("Exceeded maximum retries generating tool call", exceptions)
 
     # ------------------------------------------------------------------ #
     # Text-only generation (no tools)

@@ -19,6 +19,7 @@ import traceback
 
 from sage_llm import SageModelClient
 
+from ...shared.agent import ToolCallRetriesExhausted
 from ...shared.errors import is_fatal_error
 from ...shared.logging import BenchmarkLogger, VerboseLogger
 from .agents.assistant import CalendarAssistantAgent
@@ -64,6 +65,11 @@ async def _run_agent_turn(
     for _ in range(max_steps):
         try:
             tool_call = await agent.generate_tool_call()
+        except ToolCallRetriesExhausted:
+            benchmark_logger.warning(
+                "[%s] Tool call retries exhausted, forcing Wait", resources.owner
+            )
+            tool_call = Wait()
         except Exception as e:
             # Log the error and re-raise to let caller decide if it's fatal
             benchmark_logger.error(
@@ -74,27 +80,28 @@ async def _run_agent_turn(
         all_tool_calls.append(tool_call)
 
         # Execute the action
-        execution_succeeded = True
+        execution_succeeded = False
         try:
             benchmark_logger.debug(
                 "[%s] %s: %s", resources.owner, type(tool_call).__qualname__, tool_call
             )
             result = resources.execute(tool_call)
+            execution_succeeded = True
             benchmark_logger.debug("[%s] Result: %s", resources.owner, result)
         except ToolError as e:
             result = f"Error: {e}"
-            execution_succeeded = False
         except Exception:
             result = f"Error: {traceback.format_exc()}"
-            execution_succeeded = False
 
         agent.add_tool_call_result(result)
 
-        # Check for turn-ending actions
-        if isinstance(tool_call, Wait):
-            return all_tool_calls, False
-        if isinstance(tool_call, EndConversation) and execution_succeeded:
-            return all_tool_calls, True
+        # if not succeeded, let the agent try and recover up to max_steps
+        if execution_succeeded:
+            # Check for turn-ending actions
+            if isinstance(tool_call, Wait):
+                return all_tool_calls, False
+            if isinstance(tool_call, EndConversation):
+                return all_tool_calls, True
 
     # Max steps exceeded - treat as end of turn
     return all_tool_calls, False

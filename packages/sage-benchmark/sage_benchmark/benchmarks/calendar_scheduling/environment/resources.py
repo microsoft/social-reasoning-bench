@@ -247,7 +247,7 @@ class AgentResources:
         return f"Meeting '{action.meeting_uid}' cancelled."
 
     def _handle_reply_meeting(self, action: ReplyMeeting) -> str:
-        """Accept, decline, or send counter-proposal for a meeting invitation.
+        """Accept, decline, rescind, or send counter-proposal for a meeting.
 
         Args:
             action: The ReplyMeeting action with meeting UID, status, and
@@ -263,6 +263,35 @@ class AgentResources:
         meeting = self.calendar.get_meeting(action.meeting_uid)
         if not meeting:
             raise ToolError(f"Meeting '{action.meeting_uid}' not found on your calendar.")
+
+        # Handle RESCIND status (withdraw a previous counter-proposal)
+        if action.status == "RESCIND":
+            # Remove meeting from own calendar
+            self.calendar.remove_meeting(action.meeting_uid)
+
+            # Collect all other parties (attendees + organizer, excluding self)
+            other_emails = {
+                attendee.email for attendee in meeting.attendees if attendee.email != self.owner
+            }
+            if meeting.organizer != self.owner:
+                other_emails.add(meeting.organizer)
+
+            for other_email in other_emails:
+                other_calendar = self.calendar.get_other_calendar(other_email)
+                # Only meaningful to cancel meeting and send email etc if their calendar exists (else they are just a datapoint, not an active agent)
+                if other_calendar:
+                    other_calendar.remove_meeting(action.meeting_uid)
+                    self.email.send(
+                        to=other_email,
+                        subject=f"Meeting Withdrawn: {meeting.title}",
+                        body=action.message
+                        or f"I am withdrawing my proposal for '{meeting.title}'.",
+                    )
+
+            return (
+                f"Counter-proposal rescinded for meeting '{meeting.title}' ({meeting.uid}). "
+                f"Meeting removed from all calendars."
+            )
 
         # Handle COUNTER status (propose alternative times)
         if action.status == "COUNTER":
@@ -427,7 +456,9 @@ class AgentResources:
             ToolError: If there are pending meetings with unresolved responses.
         """
         # Check for pending meeting requests that haven't been fully resolved
-        pending_meetings = []
+        awaiting_response: list[Meeting] = []
+        counter_pending: list[Meeting] = []
+
         for meeting in self.calendar.list_meetings():
             my_status = None
             organizer_status = None
@@ -440,7 +471,7 @@ class AgentResources:
 
             # Check 1: I need to respond to a meeting request
             if my_status == AttendeeStatus.AWAITING_RESPONSE:
-                pending_meetings.append(meeting)
+                awaiting_response.append(meeting)
                 continue
 
             # Check 2: I sent a counter-proposal (I'm ACCEPTED) and organizer hasn't responded yet
@@ -448,14 +479,27 @@ class AgentResources:
                 my_status == AttendeeStatus.ACCEPTED
                 and organizer_status == AttendeeStatus.AWAITING_RESPONSE
             ):
-                pending_meetings.append(meeting)
+                counter_pending.append(meeting)
                 continue
 
-        if pending_meetings:
-            titles = ", ".join(f"'{m.title}' ({m.uid})" for m in pending_meetings)
-            raise ToolError(
-                f"Cannot end conversation. You have {len(pending_meetings)} pending "
-                f"meeting(s) with unresolved responses: {titles}."
-            )
+        if awaiting_response or counter_pending:
+            parts: list[str] = ["Cannot end conversation."]
+
+            if awaiting_response:
+                titles = ", ".join(f"'{m.title}' ({m.uid})" for m in awaiting_response)
+                parts.append(
+                    f"You have {len(awaiting_response)} meeting(s) awaiting your response: "
+                    f"{titles}. Use ReplyMeeting with status ACCEPTED or DECLINED for each."
+                )
+
+            if counter_pending:
+                titles = ", ".join(f"'{m.title}' ({m.uid})" for m in counter_pending)
+                parts.append(
+                    f"You have {len(counter_pending)} pending counter-proposal(s): "
+                    f"{titles}. Use Wait to wait for a response, or "
+                    f"ReplyMeeting with status RESCIND to withdraw."
+                )
+
+            raise ToolError(" ".join(parts))
 
         return f"Conversation ended: {action.reason}"

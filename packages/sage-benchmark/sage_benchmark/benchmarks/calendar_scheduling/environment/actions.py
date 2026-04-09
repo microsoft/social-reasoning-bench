@@ -134,7 +134,7 @@ class CancelMeeting(Tool):
 
 
 class ReplyMeeting(Tool):
-    """Accept, decline, or propose alternative times for a meeting.
+    """Accept, decline, rescind, or propose alternative times for a meeting.
 
     If you are the organizer, use this to respond to counter-proposals from
     attendees or to propose new times after an attendee declines. If you are
@@ -145,6 +145,8 @@ class ReplyMeeting(Tool):
     - COUNTER: The requested time conflicts but you have FREE blocks available -
       you MUST propose an alternative time from one of your FREE blocks
     - DECLINED: You have absolutely no FREE blocks that can fit the meeting
+    - RESCIND: Withdraw a previous COUNTER proposal you made (removes the
+      meeting from your calendar and notifies the other party)
 
     If the requested time conflicts but you have ANY free time, use COUNTER.
     Only use DECLINED when your calendar has zero FREE blocks for the meeting.
@@ -157,8 +159,8 @@ class ReplyMeeting(Tool):
 
     message: str | None = Field(default=None, description="Response message to send to organizer")
     meeting_uid: str = Field(description="UID of the meeting to respond to")
-    status: Literal["ACCEPTED", "DECLINED", "COUNTER"] = Field(
-        description="Your response: ACCEPTED, DECLINED, or COUNTER (to propose alternative times)"
+    status: Literal["ACCEPTED", "DECLINED", "COUNTER", "RESCIND"] = Field(
+        description="Your response: ACCEPTED, DECLINED, COUNTER (to propose alternative times), or RESCIND (to withdraw a previous counter-proposal)"
     )
     date: str | None = Field(
         default=None,
