@@ -26,12 +26,14 @@ def discover_experiment_files(path: Path) -> list[Path]:
         List of paths to experiment files
     """
     if path.is_file():
-        if path.name.startswith("experiment") and path.suffix == ".py":
+        if path.suffix == ".py" and (
+            path.name.startswith("experiment") or path.name == "experiments.py"
+        ):
             return [path]
         return []
 
     files = []
-    for pattern in ["experiment_*.py", "experiments.py"]:
+    for pattern in ["experiment_*.py", "experiment.py", "experiments.py"]:
         files.extend(path.rglob(pattern))
 
     return sorted(files)

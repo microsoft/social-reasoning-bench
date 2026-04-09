@@ -319,7 +319,14 @@ async def run_multiple(
         if config.output_dir is None:
             base = output_base or Path("outputs")
             group_name = file_path.parent.name
-            output_dir = base / group_name / dir_name
+
+            # If overrides were applied, the name contains "variant,k=v,k=v".
+            # Split into variant (leaf dir) and override suffix (group dir).
+            if "," in dir_name:
+                variant_part, override_part = dir_name.split(",", 1)
+                output_dir = base / f"{group_name},{override_part}" / variant_part
+            else:
+                output_dir = base / group_name / dir_name
         else:
             output_dir = Path(config.output_dir) / dir_name
         config = config.model_copy(update={"output_dir": output_dir, "batch_size": batch_size})
