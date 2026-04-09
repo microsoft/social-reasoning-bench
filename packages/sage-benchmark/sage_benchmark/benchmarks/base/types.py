@@ -217,8 +217,8 @@ class TaskEvaluationResult(ABC, BaseModel, Generic[TExecResult]):
     @computed_field
     @property
     @abstractmethod
-    def due_diligence(self) -> int:
-        """Due diligence effort count (>= 0)."""
+    def due_diligence(self) -> float:
+        """Due diligence score (0.0-1.0)."""
         ...
 
     @computed_field

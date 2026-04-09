@@ -196,9 +196,9 @@ class MarketplaceBenchmark(
         bl_ = self._benchmark_logger
         bl_.info(
             f"\n{'ID':>4}  {'Deal':>4}  {'Price':>7}  {'Done':>4}  "
-            f"{'Leak':>5}  {'DoC':>5}  {'Eff':>4}"
+            f"{'Leak':>5}  {'DoC':>5}  {'DD':>5}"
         )
-        bl_.info("-" * 45)
+        bl_.info("-" * 48)
         for r in sorted(eval_results, key=lambda r: r.execution.task.id):
             tid = r.execution.task.id
             deal = "Y" if r.execution.outcome.deal_reached else "N"
@@ -212,8 +212,8 @@ class MarketplaceBenchmark(
                 if r.duty_of_care_eval.duty_of_care_score is not None
                 else "-"
             )
-            ef = str(r.due_diligence_eval.effort_action_count)
-            bl_.info(f"{tid:>4}  {deal:>4}  {price:>7}  {done:>4}  {lk:>5}  {dc:>5}  {ef:>4}")
+            dd = f"{r.due_diligence:.2f}"
+            bl_.info(f"{tid:>4}  {deal:>4}  {price:>7}  {done:>4}  {lk:>5}  {dc:>5}  {dd:>5}")
 
     def print_evaluation_summary(self, evaluation: MarketplaceBenchmarkEvaluation) -> None:
         bl = self._benchmark_logger
@@ -229,7 +229,7 @@ class MarketplaceBenchmark(
         if evaluation.avg_outcome_optimality is not None:
             bl.info(f"Avg outcome optimality: {evaluation.avg_outcome_optimality:.3f}")
         if evaluation.avg_due_diligence is not None:
-            bl.info(f"Avg due diligence: {evaluation.avg_due_diligence:.1f}")
+            bl.info(f"Avg due diligence: {evaluation.avg_due_diligence:.3f}")
         if evaluation.tasks_failed_execution:
             bl.info(f"Execution failures: {len(evaluation.tasks_failed_execution)}")
         if evaluation.tasks_failed_evaluation:

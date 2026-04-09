@@ -355,7 +355,7 @@ const CORE_METRICS = {
   outcome_optimality:   { label: 'Outcome Optimality',   aggKey: 'avg_outcome_optimality',   taskKey: 'outcome_optimality',  format: 'percent', higherIsBetter: true, scale: [0, 1] },
   leakage_rate:         { label: 'Leakage Rate',         aggKey: 'avg_leakage_rate',         taskKey: 'leakage_rate',        format: 'percent', higherIsBetter: false, scale: [0, 1] },
   duty_of_care:         { label: 'Duty of Care',         aggKey: 'avg_duty_of_care',         taskKey: 'duty_of_care',        format: 'percent', higherIsBetter: true,  scale: [-1, 1] },
-  due_diligence:        { label: 'Due Diligence',        aggKey: 'avg_due_diligence',        taskKey: 'due_diligence',       format: 'number',  higherIsBetter: true,  scale: 'auto' },
+  due_diligence:        { label: 'Due Diligence',        aggKey: 'avg_due_diligence',        taskKey: 'due_diligence',       format: 'percent', higherIsBetter: true,  scale: [0, 1] },
 };
 
 const BENCHMARK_COLORS = {
@@ -1590,16 +1590,16 @@ function renderRadarColumn(container, experiments, colIdx) {
   const seriesDim = state.seriesEnabled !== false ? (state.groupBy[2] || null) : null;
 
   const isDark = themeDark();
-  const axisLabels = ['Task Completion', 'Outcome Optimality', 'Privacy Preservation', 'Duty of Care', 'Due Diligence (norm)'];
+  const axisLabels = ['Task Completion', 'Outcome Optimality', 'Privacy Preservation', 'Duty of Care', 'Due Diligence'];
 
-  function makeRadarData(exps, groupMaxDD) {
+  function makeRadarData(exps) {
     const agg = aggregateExperiments(exps);
     return [
       agg.task_completion ?? 0,
       agg.outcome_optimality ?? 0,
       1 - (agg.leakage_rate ?? 0),
       ((agg.duty_of_care ?? 0) + 1) / 2,
-      Math.min((agg.due_diligence ?? 0) / groupMaxDD, 1),
+      agg.due_diligence ?? 0,
     ];
   }
 
@@ -1634,19 +1634,18 @@ function renderRadarColumn(container, experiments, colIdx) {
         cell.appendChild(canvas);
         grid.appendChild(cell);
 
-        const groupMaxDD = Math.max(1, ...xExps.map(e => e.evaluation.avg_due_diligence || 0));
         let datasets;
         if (seriesDim) {
           const secGroups = groupExperiments(xExps, [seriesDim]);
           const secKeys = dimSort(seriesDim, Object.keys(secGroups));
           datasets = secKeys.map((sk, si) => {
             const color = SERIES_PALETTE[si % SERIES_PALETTE.length];
-            return { label: sk, data: makeRadarData(secGroups[sk], groupMaxDD), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 };
+            return { label: sk, data: makeRadarData(secGroups[sk]), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 };
           });
         } else {
           const primColorMap = xDim ? DIMENSION_DEFS[xDim]?.colorMap : DIMENSION_DEFS[facetDim]?.colorMap;
           const color = primColorMap?.[xk] || PALETTE[xi % PALETTE.length];
-          datasets = [{ label: xk, data: makeRadarData(xExps, groupMaxDD), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 }];
+          datasets = [{ label: xk, data: makeRadarData(xExps), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 }];
         }
 
         const title = xDim ? xk : '';
@@ -2097,7 +2096,7 @@ const tvExpCols = [
   { key: 'oo',         label: 'OO',          align: 'center', getter: e => e.evaluation?.avg_outcome_optimality, format: 'percent', good: 'high' },
   { key: 'leakage',    label: 'Leakage',    align: 'center', getter: e => e.evaluation?.avg_leakage_rate, format: 'percent', good: 'low' },
   { key: 'doc',        label: 'DoC',        align: 'center', getter: e => e.evaluation?.avg_duty_of_care, format: 'percent', good: 'high' },
-  { key: 'dd',         label: 'DD',         align: 'center', getter: e => e.evaluation?.avg_due_diligence, format: 'int' },
+  { key: 'dd',         label: 'DD',         align: 'center', getter: e => e.evaluation?.avg_due_diligence, format: 'percent' },
 ];
 
 function tvShowExpTable(benchmark, experiments) {
@@ -2288,7 +2287,7 @@ function tvRenderTaskList(benchmark, experiments) {
       ${tvTaskMetricCell(r.outcome_optimality, 'percent')}
       ${tvTaskMetricCell(r.leakage_rate, 'percent')}
       ${tvTaskMetricCell(r.duty_of_care, 'percent')}
-      ${tvTaskMetricCell(r.due_diligence, 'int')}
+      ${tvTaskMetricCell(r.due_diligence, 'percent')}
       ${extraCellsFn(r)}
     </tr>`;
   }).join('');
@@ -2326,7 +2325,7 @@ function tvRenderVerdictBanner(r) {
     tvVerdictStat('OO', r.outcome_optimality, 'percent', 'high'),
     tvVerdictStat('Leakage', r.leakage_rate, 'percent', 'low'),
     tvVerdictStat('DoC', r.duty_of_care, 'percent', 'high'),
-    tvVerdictStat('DD', r.due_diligence, 'int'),
+    tvVerdictStat('DD', r.due_diligence, 'percent', 'high'),
   ].join('');
 
   return `<div class="flex items-center gap-4 px-4 py-2.5 border-b ${verdictCls}">
@@ -2571,7 +2570,7 @@ function tvRenderEvalMetrics(r, benchmark) {
     mc('Outcome Optimality', r.outcome_optimality, { format: 'percent', good: 'high' }),
     mc('Leakage Rate', r.leakage_rate, { format: 'percent', good: 'low' }),
     mc('Duty of Care', r.duty_of_care, { format: 'percent', good: 'high' }),
-    mc('Due Diligence', r.due_diligence, { format: 'int' }),
+    mc('Due Diligence', r.due_diligence, { format: 'percent', good: 'high' }),
   ];
 
   let groups = '';

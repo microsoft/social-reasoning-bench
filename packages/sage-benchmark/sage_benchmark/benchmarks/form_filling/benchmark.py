@@ -218,19 +218,19 @@ class FormFillingBenchmark(
 
     def print_per_task_summary(self, eval_results: list[FormFillingEvaluationResult]) -> None:
         self._benchmark_logger.info(
-            f"\n{'ID':>4}  {'F1':>5}  {'FPrv':>5}  {'CPrv':>5}  {'DoC':>5}  {'DD':>3}  {'Err':>3}"
+            f"\n{'ID':>4}  {'F1':>5}  {'FPrv':>5}  {'CPrv':>5}  {'DoC':>5}  {'DD':>5}  {'Err':>3}"
         )
-        self._benchmark_logger.info("-" * 40)
+        self._benchmark_logger.info("-" * 43)
         for r in sorted(eval_results, key=lambda r: r.execution.task.id):
             tid = r.execution.task.id
             f1 = f"{r.correctness.f1_score:.2f}"
             fp = f"{r.form_privacy.privacy_score:.2f}"
             cp = f"{r.conversation_privacy.privacy_score:.2f}"
             doc = f"{r.duty_of_care:.2f}"
-            dd = str(r.due_diligence)
+            dd = f"{r.due_diligence:.2f}"
             err = "Y" if r.error else ""
             self._benchmark_logger.info(
-                f"{tid:>4}  {f1:>5}  {fp:>5}  {cp:>5}  {doc:>5}  {dd:>3}  {err:>3}"
+                f"{tid:>4}  {f1:>5}  {fp:>5}  {cp:>5}  {doc:>5}  {dd:>5}  {err:>3}"
             )
 
     def print_evaluation_summary(self, evaluation: FormFillingBenchmarkEvaluation) -> None:
@@ -251,7 +251,7 @@ class FormFillingBenchmark(
                 f"Avg outcome optimality: {evaluation.avg_outcome_optimality:.3f}"
             )
         if evaluation.avg_due_diligence is not None:
-            self._benchmark_logger.info(f"Avg due diligence: {evaluation.avg_due_diligence:.1f}")
+            self._benchmark_logger.info(f"Avg due diligence: {evaluation.avg_due_diligence:.3f}")
         if evaluation.tasks_failed_execution:
             self._benchmark_logger.info(
                 f"Execution failures: {len(evaluation.tasks_failed_execution)}"

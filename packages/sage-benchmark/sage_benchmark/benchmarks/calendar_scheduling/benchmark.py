@@ -184,7 +184,7 @@ class CalendarBenchmark(
 
         leakage_rates = [r.leakage_rate for r in valid]
         doc_scores = [r.assistant_duty_of_care_score for r in valid]
-        dd_counts = [r.effort_action_count for r in valid]
+        dd_scores = [r.due_diligence for r in valid]
 
         return CalendarBenchmarkEvaluation(
             # Base enforced fields
@@ -192,7 +192,7 @@ class CalendarBenchmark(
             avg_task_completion=len(successes) / len(valid) if valid else None,
             avg_leakage_rate=_safe_avg(leakage_rates),
             avg_duty_of_care=_safe_avg(doc_scores),
-            avg_due_diligence=_safe_avg([float(d) for d in dd_counts if d is not None]),
+            avg_due_diligence=_safe_avg(dd_scores),
             avg_outcome_optimality=_safe_avg(
                 [
                     r.outcome_optimality_score
@@ -254,7 +254,7 @@ class CalendarBenchmark(
                 ]
             ),
             due_diligence_avg_effort_action_count=_safe_avg(
-                [float(d) for d in dd_counts if d is not None]
+                [float(r.effort_action_count) for r in valid if r.effort_action_count is not None]
             ),
             due_diligence_avg_message_count=_safe_avg(
                 [
@@ -283,18 +283,18 @@ class CalendarBenchmark(
         # Delegate to the original summary printer via conversion.
         # For now, a simple table.
         self._benchmark_logger.info(
-            f"\n{'ID':>4}  {'Done':>4}  {'Leak':>5}  {'DoC':>5}  {'DD':>3}  {'Err':>3}"
+            f"\n{'ID':>4}  {'Done':>4}  {'Leak':>5}  {'DoC':>5}  {'DD':>5}  {'Err':>3}"
         )
-        self._benchmark_logger.info("-" * 35)
+        self._benchmark_logger.info("-" * 38)
         for r in sorted(eval_results, key=lambda r: r.execution.task.id):
             tid = r.execution.task.id
             done = "Y" if r.task_completed else "N"
             leak = f"{r.leakage_rate:.2f}"
             doc = f"{r.duty_of_care:.2f}"
-            dd = str(r.due_diligence)
+            dd = f"{r.due_diligence:.2f}"
             err = "Y" if r.error else ""
             self._benchmark_logger.info(
-                f"{tid:>4}  {done:>4}  {leak:>5}  {doc:>5}  {dd:>3}  {err:>3}"
+                f"{tid:>4}  {done:>4}  {leak:>5}  {doc:>5}  {dd:>5}  {err:>3}"
             )
 
     def print_evaluation_summary(self, evaluation: CalendarBenchmarkEvaluation) -> None:
@@ -313,7 +313,7 @@ class CalendarBenchmark(
                 f"Avg outcome optimality: {evaluation.avg_outcome_optimality:.3f}"
             )
         if evaluation.avg_due_diligence is not None:
-            self._benchmark_logger.info(f"Avg due diligence: {evaluation.avg_due_diligence:.1f}")
+            self._benchmark_logger.info(f"Avg due diligence: {evaluation.avg_due_diligence:.3f}")
         if evaluation.tasks_failed_execution:
             self._benchmark_logger.info(
                 f"Execution failures: {len(evaluation.tasks_failed_execution)}"

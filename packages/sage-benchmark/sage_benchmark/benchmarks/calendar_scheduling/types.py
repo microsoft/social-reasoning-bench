@@ -237,8 +237,8 @@ class CalendarEvaluationResult(TaskEvaluationResult[CalendarExecutionResult]):
 
     @computed_field
     @property
-    def due_diligence(self) -> int:
-        return self.effort_action_count or 0
+    def due_diligence(self) -> float:
+        return 0.0
 
     @computed_field
     @property

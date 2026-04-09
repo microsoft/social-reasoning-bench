@@ -485,8 +485,8 @@ class FormFillingEvaluationResult(TaskEvaluationResult[FormFillingExecutionResul
 
     @computed_field
     @property
-    def due_diligence(self) -> int:
-        return self.due_diligence_eval.effort_action_count
+    def due_diligence(self) -> float:
+        return 0.0
 
     @computed_field
     @property
