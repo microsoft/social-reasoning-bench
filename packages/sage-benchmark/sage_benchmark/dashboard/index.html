@@ -117,6 +117,14 @@
     .col-remove-btn { transition: all 0.15s; }
     .col-remove-btn:hover { color: #ef4444; }
 
+    /* Annotator Tab */
+    .ann-verdict-btn { transition: all 0.15s; cursor: pointer; }
+    .ann-verdict-btn:hover { filter: brightness(1.1); }
+    .ann-verdict-btn.selected { ring: 2px; box-shadow: 0 0 0 2px currentColor; }
+    .ann-row:hover { background: rgba(107, 158, 120, 0.05); }
+    .dark .ann-row:hover { background: rgba(107, 158, 120, 0.08); }
+    .ann-confusion-cell { min-width: 3rem; text-align: center; padding: 0.5rem; font-weight: 600; font-size: 0.875rem; }
+
     /* Trace Viewer */
     .trace-task-row { cursor: pointer; transition: background 0.15s; }
     .trace-task-row:hover { background: rgba(107, 158, 120, 0.08); }
@@ -234,6 +242,13 @@
           <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="calendar" disabled>Calendar</button>
           <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="marketplace" disabled>Marketplace</button>
           <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="form_filling" disabled>Form Filling</button>
+          <div class="flex-1"></div>
+          <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="annotator" disabled>
+            <span class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Annotator
+            </span>
+          </button>
         </nav>
 
         <!-- Tab panels (fill remaining height) -->
@@ -307,6 +322,41 @@
                 </div>
 
               </div>
+            </div>
+          </div>
+
+          <!-- Annotator Tab -->
+          <div id="tab-annotator" class="tab-content hidden flex-1 flex flex-col min-h-0">
+            <div class="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+              <!-- Header -->
+              <div class="flex-shrink-0 px-5 py-2.5 border-b border-gray-200 dark:border-gray-800 flex items-center gap-4 flex-wrap">
+                <div class="flex items-center gap-2">
+                  <label class="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold tracking-wider">Annotator</label>
+                  <input id="ann-name" type="text" placeholder="Your name" class="text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-sage-500 w-36">
+                </div>
+                <span class="text-gray-300 dark:text-gray-600">|</span>
+                <select id="ann-filter-status" class="group-select text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-sage-500">
+                  <option value="all">All</option>
+                  <option value="pending">Pending</option>
+                  <option value="annotated">Annotated</option>
+                  <option value="disagree">Human ≠ Judge</option>
+                </select>
+                <div class="flex-1"></div>
+                <span id="ann-progress" class="text-[10px] text-gray-400 dark:text-gray-500 font-medium"></span>
+                <button id="ann-export-btn" class="flex items-center gap-1.5 px-3 py-1.5 bg-sage-600 hover:bg-sage-700 text-white text-xs font-medium rounded-lg transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3"/></svg>
+                  Export
+                </button>
+                <button id="ann-clear-btn" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg transition">
+                  Clear
+                </button>
+              </div>
+              <!-- Dimension filter pills -->
+              <div id="ann-dim-filters" class="flex-shrink-0 px-5 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center gap-1 flex-wrap"></div>
+              <!-- Stats row -->
+              <div id="ann-stats" class="flex-shrink-0 px-5 py-2 border-b border-gray-100 dark:border-gray-800"></div>
+              <!-- Main content: full-page card view -->
+              <div id="ann-body" class="flex-1 min-h-0 flex flex-col"></div>
             </div>
           </div>
 
@@ -435,7 +485,41 @@ const state = {
   scatterY: 'duty_of_care',
   seriesEnabled: true,
   filterClipboard: null,  // { dims: { dim: Set }, visibleMetrics: Set } or null
+  // Annotator state
+  annotations: {},        // key → { verdict: 'agree'|'disagree', timestamp: ISO }
+  annotatorName: '',
 };
+
+// ─────────────────────────────────────────────
+// Annotator Persistence (localStorage)
+// ─────────────────────────────────────────────
+
+const ANN_STORAGE_KEY = 'sage-annotator-data';
+
+function annKey(item) {
+  return `${item.expVariant}::${item.expModel}::${item.taskId}::${item.secretIdx}::${item.source}::${item.msgIdx}`;
+}
+
+function loadAnnotations() {
+  try {
+    const raw = localStorage.getItem(ANN_STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.annotations) state.annotations = data.annotations;
+    if (data.annotatorName) state.annotatorName = data.annotatorName;
+  } catch(e) { console.warn('Failed to load annotations:', e); }
+}
+
+function saveAnnotations() {
+  try {
+    localStorage.setItem(ANN_STORAGE_KEY, JSON.stringify({
+      annotations: state.annotations,
+      annotatorName: state.annotatorName,
+    }));
+  } catch(e) { console.warn('Failed to save annotations:', e); }
+}
+
+loadAnnotations();
 
 // ─────────────────────────────────────────────
 // URL State Persistence
@@ -1280,6 +1364,9 @@ function updateTabs() {
     if (['calendar', 'marketplace', 'form_filling'].includes(tab)) {
       btn.disabled = !loadedBenchmarks.has(tab);
     }
+    if (tab === 'annotator') {
+      btn.disabled = state.experiments.length === 0;
+    }
     btn.classList.toggle('active', tab === state.activeTab);
   });
 }
@@ -1297,6 +1384,7 @@ function renderActiveTab() {
     case 'calendar': renderBenchmarkTab('calendar', filtered.filter(e => e.benchmark === 'calendar')); break;
     case 'marketplace': renderBenchmarkTab('marketplace', filtered.filter(e => e.benchmark === 'marketplace')); break;
     case 'form_filling': renderBenchmarkTab('form_filling', filtered.filter(e => e.benchmark === 'form_filling')); break;
+    case 'annotator': renderAnnotatorTab(filtered); break;
   }
   pushViewState();
 }
@@ -3588,6 +3676,7 @@ function tvRenderConversation(r, benchmark) {
   } else if (benchmark === 'marketplace') {
     const messages = r.execution?.messages || [];
     const offers = r.execution?.offers || [];
+    const actionTrace = r.execution?.action_trace || [];
     if (messages.length === 0) return wrapper + '</div>';
 
     // Index offers by round+proposer
@@ -3596,6 +3685,16 @@ function tvRenderConversation(r, benchmark) {
       const key = `${o.round_created ?? 0}::${(o.proposer || '').toLowerCase()}`;
       if (!offersByKey[key]) offersByKey[key] = [];
       offersByKey[key].push(o);
+    });
+
+    // Index AcceptOffer actions by round+actor
+    const acceptsByKey = {};
+    actionTrace.filter(a => a.action_type === 'AcceptOffer').forEach(a => {
+      const key = `${a.round ?? 0}::${(a.actor || '').toLowerCase()}`;
+      if (!acceptsByKey[key]) acceptsByKey[key] = [];
+      const offerId = a.payload?.offer_id;
+      const matchedOffer = offers.find(o => o.id === offerId);
+      acceptsByKey[key].push({ ...a, price: matchedOffer?.price });
     });
 
     let html = `<div class="mb-4">
@@ -3610,6 +3709,7 @@ function tvRenderConversation(r, benchmark) {
           // Find offers matching this message's round + speaker
           const msgKey = `${msg.round ?? 0}::${(msg.speaker || '').toLowerCase()}`;
           const matchedOffers = offersByKey[msgKey] || [];
+          const matchedAccepts = acceptsByKey[msgKey] || [];
 
           const offerAttachments = matchedOffers.map(o => {
             const statusUpper = (o.status || '').toUpperCase();
@@ -3622,8 +3722,17 @@ function tvRenderConversation(r, benchmark) {
               statusBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200">OPEN</span>';
             }
             return `<div class="mt-2 border-t border-gray-200 dark:border-gray-600 pt-2 flex items-center gap-2">
+              <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>
               <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">Offer: $${o.price ?? '?'}</span>
               ${statusBadge}
+            </div>`;
+          }).join('');
+
+          const acceptAttachments = matchedAccepts.map(a => {
+            return `<div class="mt-2 border-t border-sage-200 dark:border-sage-700 pt-2 flex items-center gap-2">
+              <svg class="w-3.5 h-3.5 text-sage-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span class="text-xs font-semibold text-sage-700 dark:text-sage-300">Accept Offer #${a.payload?.offer_id ?? '?'}${a.price != null ? ' ($' + a.price + ')' : ''}</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sage-200 dark:bg-sage-800 text-sage-800 dark:text-sage-200">ACCEPTED</span>
             </div>`;
           }).join('');
 
@@ -3636,7 +3745,7 @@ function tvRenderConversation(r, benchmark) {
                 ${msg.round != null ? `<span class="text-[10px] text-gray-400">R${msg.round}</span>` : ''}
               </div>
               <div class="text-sm ${textCls} whitespace-pre-wrap">${esc(msg.content || '')}</div>
-              ${offerAttachments}
+              ${offerAttachments}${acceptAttachments}
             </div>
           </div>`;
         }).join('')}
@@ -3903,6 +4012,811 @@ function fmtPct(val) {
 function fmtNum(val) {
   if (val == null) return '<span class="text-gray-400">-</span>';
   return typeof val === 'number' ? val.toFixed(2) : String(val);
+}
+
+// ─────────────────────────────────────────────
+// Annotator: Build Queue
+// ─────────────────────────────────────────────
+
+function buildAnnotationQueue(experiments) {
+  const queue = [];
+  for (const exp of experiments) {
+    for (const task of exp.tasks) {
+      const raw = task._raw || {};
+      const base = {
+        expVariant: exp.variant, expModel: exp.model, expBenchmark: exp.benchmark,
+        expFilename: exp.filename, taskId: task.taskId, _raw: raw, _exp: exp,
+      };
+
+      // Extract all text content from a message (for evidence matching)
+      function msgText(msg) {
+        let t = msg.content || msg.body || '';
+        if (msg.subject) t += ' ' + msg.subject;
+        if (msg.event) t += ' ' + (typeof msg.event === 'string' ? msg.event : JSON.stringify(msg.event));
+        (msg.tool_calls || []).forEach(tc => { t += ' ' + (tc.function?.arguments || ''); });
+        return t;
+      }
+
+      // Helper: for each visible message × each secret, push one (message, secret) pair
+      // Only include items where at least one evidence string appears in the message
+      function pushPairs(msgs, secrets, source, leakedSet, detailsFn) {
+        msgs.forEach((msg, mi) => {
+          const text = msgText(msg);
+          secrets.forEach((secret, si) => {
+            const secretStr = typeof secret === 'string' ? secret : JSON.stringify(secret);
+            const leaked = leakedSet.has(secretStr);
+            const detail = detailsFn(secretStr, si);
+            const evidence = detail.evidence || [];
+            // Skip if judge has evidence but none of it matches this message
+            if (evidence.length > 0 && !evidence.some(e => text.includes(e))) return;
+            queue.push({ ...base, source, secretIdx: si, msgIdx: mi, secretContent: secretStr,
+              llmVerdict: leaked ? 'leaked' : 'not_leaked',
+              llmReasoning: detail.reasoning || '', llmEvidence: evidence,
+              message: msg,
+            });
+          });
+        });
+      }
+
+      if (exp.benchmark === 'form_filling') {
+        const formPrivacy = raw.form_privacy || {};
+        const convPrivacy = raw.conversation_privacy || {};
+
+        // Form source: each form field is a "message"
+        const formSubmission = raw.execution?.form_submission || {};
+        const formMsgs = Object.entries(formSubmission).map(([k, v]) => ({ content: `${k}: ${v}` }));
+        const formChecked = formPrivacy.secrets_checked || [];
+        const formLeaked = new Set((formPrivacy.secrets_leaked || formPrivacy.secrets_leaked_in_form || []).map(s => typeof s === 'string' ? s : JSON.stringify(s)));
+        const formDetails = formPrivacy.leakage_details || [];
+        pushPairs(formMsgs, formChecked, 'form', formLeaked,
+          (s, i) => formDetails.find(d => d.secret_content === s || d.secret_id === i) || {});
+
+        // Conversation source: visible messages from the assistant
+        const conversation = raw.execution?.conversation || [];
+        const convMsgs = conversation.filter(m => {
+          const agent = (m.from_agent || '').toLowerCase();
+          return !agent.includes('interviewer') && !agent.includes('user');
+        });
+        const convChecked = convPrivacy.secrets_checked || [];
+        const convLeaked = new Set((convPrivacy.secrets_leaked_in_conversation || []).map(s => typeof s === 'string' ? s : JSON.stringify(s)));
+        const convDetails = convPrivacy.leakage_details || [];
+        pushPairs(convMsgs, convChecked, 'conversation', convLeaked,
+          (s, i) => convDetails.find(d => d.secret_content === s || d.secret_id === i) || {});
+
+      } else if (exp.benchmark === 'calendar') {
+        const execTask = raw.execution?.task || {};
+        const assistant = execTask.assistant || {};
+        const allSecrets = (assistant.calendar || []).filter(e => e.is_secret);
+        const privacy = raw.privacy || {};
+        const leakedSecrets = privacy.leaked_secrets || [];
+        const leakedUids = new Set(leakedSecrets.map(ls => ls.secret?.uid));
+        // Visible messages: emails/messages sent by the assistant
+        let calMessages = raw.execution?.messages || raw.execution?.emails || [];
+        const assistantEmail = assistant.email || 'assistant';
+        const calMsgs = calMessages.filter(m => m.from_ === assistantEmail || m.from_ === 'assistant');
+
+        calMsgs.forEach((msg, mi) => {
+          const text = msgText(msg);
+          allSecrets.forEach((secret, si) => {
+            const uid = secret.uid || `secret-${si}`;
+            const leaked = leakedUids.has(uid);
+            const leakDetail = leakedSecrets.find(ls => ls.secret?.uid === uid) || {};
+            const evidence = leakDetail.evidence || [];
+            // Skip if judge has evidence but none matches this message
+            if (evidence.length > 0 && !evidence.some(e => text.includes(e))) return;
+            // Show full calendar event details as the secret
+            const secretObj = { ...secret };
+            delete secretObj.is_secret; // don't reveal this to annotator
+            queue.push({ ...base, source: 'calendar', secretIdx: si, msgIdx: mi,
+              secretContent: JSON.stringify(secretObj, null, 2),
+              llmVerdict: leaked ? 'leaked' : 'not_leaked',
+              llmReasoning: leakDetail.reasoning || '', llmEvidence: evidence,
+              message: msg,
+            });
+          });
+        });
+
+      } else if (exp.benchmark === 'marketplace') {
+        const privacy = raw.privacy || {};
+        if (privacy.secret) {
+          // Visible messages: negotiation messages from the buyer (assistant)
+          const messages = raw.execution?.messages || [];
+          const mktMsgs = messages.filter(m => (m.speaker || '').toLowerCase().includes('buyer'));
+          const mktEvidence = privacy.evidence || [];
+          mktMsgs.forEach((msg, mi) => {
+            const text = msgText(msg);
+            // Skip if judge has evidence but none matches this message
+            if (mktEvidence.length > 0 && !mktEvidence.some(e => text.includes(e))) return;
+            queue.push({ ...base, source: 'marketplace', secretIdx: 0, msgIdx: mi,
+              secretContent: String(privacy.secret),
+              llmVerdict: privacy.leaked ? 'leaked' : 'not_leaked',
+              llmReasoning: privacy.reasoning || '', llmEvidence: mktEvidence,
+              message: msg,
+            });
+          });
+        }
+      }
+    }
+  }
+  // Round-robin interleave across 4 dimensions for diverse sampling:
+  // judge verdict, benchmark, attack type, privacy prompt
+  return roundRobinShuffle(queue);
+}
+
+function roundRobinShuffle(queue) {
+  if (queue.length === 0) return queue;
+
+  // Seeded PRNG (mulberry32) for deterministic shuffle across page loads
+  function mulberry32(seed) {
+    return function() {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  const rng = mulberry32(42);
+
+  // Bucket items by composite key of all 4 round-robin dimensions
+  const buckets = new Map();
+  for (const item of queue) {
+    const key = [
+      item.llmVerdict,
+      item.expBenchmark,
+      item._exp.attackType || 'none',
+      item._exp.privacyLevel || 'none',
+    ].join('::');
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(item);
+  }
+
+  // Shuffle within each bucket with seeded RNG
+  for (const arr of buckets.values()) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+
+  // Round-robin: pull one item from each bucket in rotation
+  const keys = [...buckets.keys()];
+  // Shuffle bucket order with seeded RNG
+  for (let i = keys.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [keys[i], keys[j]] = [keys[j], keys[i]];
+  }
+
+  const result = [];
+  let remaining = queue.length;
+  const indices = new Map(keys.map(k => [k, 0]));
+  while (remaining > 0) {
+    for (const k of keys) {
+      const arr = buckets.get(k);
+      const idx = indices.get(k);
+      if (idx < arr.length) {
+        result.push(arr[idx]);
+        indices.set(k, idx + 1);
+        remaining--;
+      }
+    }
+  }
+  return result;
+}
+
+// ─────────────────────────────────────────────
+// Annotator: Agreement Statistics
+// ─────────────────────────────────────────────
+
+function computeAgreementStats(queue) {
+  // Aggregate human verdicts to the (task, secret) level to match the LLM judge's granularity.
+  // The LLM judges per-secret (across all messages). The human annotates per-message.
+  // Human secret-level verdict: "leaked" if ANY message for that secret is marked leaked.
+  const secretGroups = new Map(); // secretGroupKey → { llmLeaked, humanVerdicts[] }
+  for (const item of queue) {
+    const sgKey = `${item.expVariant}::${item.expModel}::${item.taskId}::${item.secretIdx}::${item.source}`;
+    if (!secretGroups.has(sgKey)) {
+      secretGroups.set(sgKey, { llmLeaked: item.llmVerdict === 'leaked', verdicts: [] });
+    }
+    const ann = state.annotations[annKey(item)];
+    if (ann && ann.verdict) {
+      secretGroups.get(sgKey).verdicts.push(ann.verdict);
+    }
+  }
+
+  let annotated = 0, agreed = 0, disagreed = 0;
+  let tt = 0, tf = 0, ft = 0, ff = 0;
+  let humanLeakedCount = 0, humanNotLeakedCount = 0;
+
+  for (const [, group] of secretGroups) {
+    if (group.verdicts.length === 0) continue; // no annotations for this secret
+    annotated++;
+
+    const llmLeaked = group.llmLeaked;
+    // Human says leaked if ANY message for this secret was marked leaked
+    const humanLeaked = group.verdicts.includes('leaked');
+
+    if (humanLeaked) humanLeakedCount++;
+    else humanNotLeakedCount++;
+
+    if (humanLeaked === llmLeaked) agreed++;
+    else disagreed++;
+
+    if (humanLeaked && llmLeaked) tt++;
+    else if (humanLeaked && !llmLeaked) tf++;
+    else if (!humanLeaked && llmLeaked) ft++;
+    else ff++;
+  }
+
+  const total = secretGroups.size;
+  const percentAgreement = annotated > 0 ? agreed / annotated : null;
+
+  // Cohen's kappa
+  let kappa = null;
+  if (annotated > 0) {
+    const n = annotated;
+    const po = (tt + ff) / n;
+    const humanYes = tt + tf, humanNo = ft + ff;
+    const llmYes = tt + ft, llmNo = tf + ff;
+    const pe = ((humanYes * llmYes) + (humanNo * llmNo)) / (n * n);
+    kappa = pe < 1 ? (po - pe) / (1 - pe) : 1;
+  }
+
+  return { total, annotated, agreed, disagreed, humanLeakedCount, humanNotLeakedCount, percentAgreement, kappa, confusion: { tt, tf, ft, ff } };
+}
+
+// ─────────────────────────────────────────────
+// Annotator: Modal helper
+// ─────────────────────────────────────────────
+
+function showAnnModal(title, contentHtml) {
+  // Remove any existing modal
+  document.querySelector('.ann-modal-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'ann-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60';
+  overlay.innerHTML = `<div class="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col" style="width:min(90vw,64rem);max-height:85vh">
+    <div class="flex items-center px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+      <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">${title}</span>
+      <span class="flex-1"></span>
+      <button class="ann-modal-close px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">Close</button>
+    </div>
+    <div class="flex-1 overflow-y-auto">${contentHtml}</div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.ann-modal-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+// ─────────────────────────────────────────────
+// Annotator: Render
+// ─────────────────────────────────────────────
+
+function annRenderSecret(item) {
+  if (item.source === 'calendar') {
+    // Render as a calendar event card
+    let obj;
+    try { obj = JSON.parse(item.secretContent); } catch(e) { obj = null; }
+    if (!obj) return `<div class="text-sm text-purple-900 dark:text-purple-100 whitespace-pre-wrap">${esc(item.secretContent)}</div>`;
+
+    const title = obj.title || obj.description || 'Untitled Event';
+    const date = obj.date || '';
+    const start = obj.start_time || '';
+    const end = obj.end_time || '';
+    const time = start && end ? `${start} – ${end}` : start || end || '';
+    const desc = obj.description && obj.description !== title ? obj.description : '';
+    const attendees = obj.attendees || obj.participants || [];
+    const location = obj.location || '';
+
+    // Extra fields not covered above
+    const skip = new Set(['title', 'description', 'date', 'start_time', 'end_time', 'attendees', 'participants', 'location', 'uid', 'id']);
+    const extra = Object.entries(obj).filter(([k]) => !skip.has(k) && obj[k] != null && obj[k] !== '');
+
+    return `<div class="space-y-2">
+      <div class="flex items-start gap-2">
+        <svg class="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <div class="text-base font-bold text-purple-900 dark:text-purple-100">${esc(title)}</div>
+      </div>
+      ${date || time ? `<div class="flex items-center gap-2 text-sm text-purple-800 dark:text-purple-200">
+        <svg class="w-4 h-4 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span>${esc(date)}${date && time ? ' · ' : ''}${esc(time)}</span>
+      </div>` : ''}
+      ${location ? `<div class="flex items-center gap-2 text-sm text-purple-800 dark:text-purple-200">
+        <svg class="w-4 h-4 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span>${esc(location)}</span>
+      </div>` : ''}
+      ${attendees.length ? `<div class="flex items-start gap-2 text-sm text-purple-800 dark:text-purple-200">
+        <svg class="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span>${attendees.map(a => esc(typeof a === 'string' ? a : a.email || a.name || JSON.stringify(a))).join(', ')}</span>
+      </div>` : ''}
+      ${desc ? `<div class="text-sm text-purple-700 dark:text-purple-300 leading-relaxed">${esc(desc)}</div>` : ''}
+      ${extra.length ? `<div class="border-t border-purple-200 dark:border-purple-700 pt-2 mt-2 space-y-1">
+        ${extra.map(([k, v]) => `<div class="flex gap-2 text-xs">
+          <span class="font-medium text-purple-500 dark:text-purple-400 min-w-[5rem]">${esc(k)}</span>
+          <span class="text-purple-800 dark:text-purple-200">${esc(typeof v === 'string' ? v : JSON.stringify(v))}</span>
+        </div>`).join('')}
+      </div>` : ''}
+    </div>`;
+  }
+  // Default: plain text
+  return `<div class="text-sm font-medium text-purple-900 dark:text-purple-100 leading-relaxed whitespace-pre-wrap">${esc(item.secretContent)}</div>`;
+}
+
+function renderAnnotatorTab(experiments) {
+  const queue = buildAnnotationQueue(experiments);
+  // Start at the first unannotated item
+  let annIdx = queue.findIndex(item => { const a = state.annotations[annKey(item)]; return !a || !a.verdict; });
+  if (annIdx < 0) annIdx = 0;
+
+  // Dimension-based filtering (same dimensions as overview tab)
+  const annDimFilters = {}; // dim → Set of active values (empty Set = all)
+
+  function annGetUniqueValues(dim) {
+    const vals = [...new Set(queue.map(q => q._exp[dim]))].filter(v => v != null);
+    return dimSort(dim, vals);
+  }
+
+  function annToggleDimFilter(dim, val) {
+    const allVals = annGetUniqueValues(dim);
+    if (!annDimFilters[dim] || annDimFilters[dim].size === 0) {
+      annDimFilters[dim] = new Set(allVals);
+    }
+    const f = annDimFilters[dim];
+    if (f.has(val)) f.delete(val); else f.add(val);
+    if (f.size === allVals.length) annDimFilters[dim] = new Set(); // all = clear
+  }
+
+  function renderAnnDimPills() {
+    const container = document.getElementById('ann-dim-filters');
+    const dims = Object.keys(DIMENSION_DEFS);
+    const sep = '<span class="text-gray-300 dark:text-gray-600 mx-1">|</span>';
+    const sections = dims.map(dim => {
+      const values = annGetUniqueValues(dim);
+      if (values.length <= 1) return '';
+      const pills = values.map(val => {
+        const f = annDimFilters[dim];
+        const active = !f || f.size === 0 || f.has(val);
+        const cls = active
+          ? 'bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300'
+          : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 line-through';
+        return `<button class="ann-dim-pill px-1.5 py-0.5 rounded text-[10px] font-medium transition ${cls}" data-dim="${dim}" data-val="${esc(val)}">${esc(val)}</button>`;
+      }).join('');
+      return `<span class="inline-flex items-center gap-1"><span class="text-[9px] text-gray-400 dark:text-gray-500 uppercase">${DIMENSION_DEFS[dim]?.label || dim}:</span>${pills}</span>`;
+    }).filter(Boolean);
+    container.innerHTML = sections.join(sep);
+    container.querySelectorAll('.ann-dim-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        annToggleDimFilter(btn.dataset.dim, btn.dataset.val);
+        annIdx = 0;
+        renderAnnDimPills();
+        render();
+      });
+    });
+  }
+  renderAnnDimPills();
+
+  // Restore annotator name
+  const nameInput = document.getElementById('ann-name');
+  nameInput.value = state.annotatorName;
+
+  function getFiltered() {
+    const statusFilter = document.getElementById('ann-filter-status').value;
+    return queue.filter(item => {
+      const ann = state.annotations[annKey(item)];
+      const hasAnn = ann && ann.verdict;
+      if (statusFilter === 'pending' && hasAnn) return false;
+      if (statusFilter === 'annotated' && !hasAnn) return false;
+      if (statusFilter === 'disagree' && (!hasAnn || ann.verdict === item.llmVerdict)) return false;
+      // Dimension filters
+      for (const dim of Object.keys(annDimFilters)) {
+        const f = annDimFilters[dim];
+        if (f && f.size > 0 && !f.has(item._exp[dim])) return false;
+      }
+      return true;
+    });
+  }
+
+  function render() {
+    const filtered = getFiltered();
+
+    // Stats
+    const stats = computeAgreementStats(queue);
+    renderAnnotatorStats(stats);
+    document.getElementById('ann-progress').textContent = `${stats.annotated} / ${stats.total} secrets annotated`;
+
+    const body = document.getElementById('ann-body');
+    destroyChartsIn(body);
+
+    if (filtered.length === 0) {
+      body.innerHTML = `<div class="flex items-center justify-center h-full text-sm text-gray-400 dark:text-gray-500">
+        ${queue.length === 0 ? 'No privacy leak judgments found in loaded experiments.' : 'No items match the current filters.'}
+      </div>`;
+      return;
+    }
+
+    if (annIdx >= filtered.length) annIdx = filtered.length - 1;
+    if (annIdx < 0) annIdx = 0;
+    const item = filtered[annIdx];
+    const key = annKey(item);
+    const ann = state.annotations[key];
+    const hasAnn = ann && ann.verdict;
+
+    const leakActive = hasAnn && ann.verdict === 'leaked';
+    const noLeakActive = hasAnn && ann.verdict === 'not_leaked';
+    const leakCls = leakActive ? 'bg-red-600 text-white ring-2 ring-red-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300 border border-red-300 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/30';
+    const noLeakCls = noLeakActive ? 'bg-sage-600 text-white ring-2 ring-sage-400' : 'bg-sage-50 text-sage-700 dark:bg-sage-900/30 dark:text-sage-300 border border-sage-300 dark:border-sage-700 hover:bg-sage-100 dark:hover:bg-sage-900/50';
+
+    // Render single visible message — same style as conversation view
+    const msg = item.message;
+    let msgHtml = '';
+    if (!msg) {
+      msgHtml = '<div class="text-xs text-gray-400 p-2">No message</div>';
+    } else if (item.expBenchmark === 'calendar') {
+      // Email bubble (matches tvRenderMessages)
+      const bgCls = 'bg-sage-50 dark:bg-sage-900/20 border-sage-200 dark:border-sage-800';
+      const labelCls = 'text-sage-600 dark:text-sage-400';
+      const textCls = 'text-sage-800 dark:text-sage-200';
+      msgHtml = `<div class="rounded-lg border ${bgCls} overflow-hidden">
+        <div class="px-3 py-2 border-b border-sage-200 dark:border-sage-800 ${bgCls}">
+          <div class="space-y-0.5 text-xs">
+            <div class="flex"><span class="font-medium ${labelCls} w-12">From:</span><span class="${textCls}">${esc(msg.from_ || '')}</span></div>
+            <div class="flex"><span class="font-medium ${labelCls} w-12">To:</span><span class="${textCls}">${esc(msg.to || '')}</span></div>
+            <div class="flex"><span class="font-medium ${labelCls} w-12">Subj:</span><span class="font-semibold ${textCls}">${esc(msg.subject || '(none)')}</span></div>
+          </div>
+        </div>
+        ${msg.body ? `<div class="px-3 py-2 text-xs ${textCls} whitespace-pre-wrap">${esc(msg.body)}</div>` : ''}
+        ${msg.event ? `<div class="border-t border-sage-200 dark:border-sage-800 px-3 py-2">
+          <div class="flex items-center gap-1.5 mb-1"><svg class="w-3 h-3 ${labelCls}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><span class="text-[10px] font-medium ${labelCls}">Calendar Attachment</span></div>
+          <pre class="text-[10px] font-mono ${textCls} whitespace-pre-wrap overflow-x-auto">${esc(typeof msg.event === 'string' ? msg.event : JSON.stringify(msg.event, null, 2))}</pre>
+        </div>` : ''}
+      </div>`;
+    } else if (item.expBenchmark === 'marketplace') {
+      // Chat bubble (matches tvRenderConversation marketplace)
+      const bgCls = 'bg-sage-50 dark:bg-sage-900/20 border-sage-200 dark:border-sage-800';
+      msgHtml = `<div class="rounded-lg border ${bgCls} p-3">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs font-medium text-sage-600 dark:text-sage-400">${esc(msg.speaker || 'Assistant (Buyer)')}</span>
+          ${msg.round != null ? `<span class="text-[10px] text-gray-400">R${msg.round}</span>` : ''}
+        </div>
+        <div class="text-sm text-sage-800 dark:text-sage-200 whitespace-pre-wrap">${esc(msg.content || '')}</div>
+      </div>`;
+    } else if (item.source === 'form') {
+      // Form field entry
+      msgHtml = `<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3">
+        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Form Field</div>
+        <div class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">${esc(msg.content || '')}</div>
+      </div>`;
+    } else {
+      // Form filling conversation bubble (matches tvRenderConversation form_filling)
+      const bgCls = 'bg-sage-50 dark:bg-sage-900/20 border-sage-200 dark:border-sage-800';
+      msgHtml = `<div class="rounded-lg border ${bgCls} p-3">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs font-medium text-sage-600 dark:text-sage-400">${esc(msg.from_agent || 'Assistant')}</span>
+          ${msg.round != null ? `<span class="text-[10px] text-gray-400">R${msg.round}</span>` : ''}
+        </div>
+        <div class="text-sm text-sage-800 dark:text-sage-200 whitespace-pre-wrap">${esc(msg.content || '')}</div>
+      </div>`;
+    }
+
+    // Inline layout: nav bar, then two columns (messages | secret + verdict)
+    body.innerHTML = `
+      <!-- Nav bar -->
+      <div class="flex-shrink-0 border-b border-gray-200 dark:border-gray-800 px-5 py-2 flex items-center gap-3">
+        <button class="ann-prev-btn px-3 py-1.5 rounded text-[10px] font-medium ${annIdx > 0 ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600' : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed'}" ${annIdx === 0 ? 'disabled' : ''}>← Prev</button>
+        <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium tabular-nums">${annIdx + 1} / ${filtered.length}</span>
+        <button class="ann-next-btn px-3 py-1.5 rounded text-[10px] font-medium ${annIdx < filtered.length - 1 ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600' : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed'}" ${annIdx >= filtered.length - 1 ? 'disabled' : ''}>Next →</button>
+        <span class="flex-1"></span>
+        <span class="text-[10px] text-gray-400 dark:text-gray-500">${esc(item.source)} · ${esc(item.expModel)} · Task ${item.taskId ?? '?'}</span>
+      </div>
+      <!-- Verdict row -->
+      <div class="flex-shrink-0 border-b border-gray-200 dark:border-gray-800 px-5 py-3 flex items-stretch gap-4">
+        <div class="flex-1 flex flex-col gap-2">
+          <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Was the secret leaked in the message?</span>
+          <div class="flex gap-2">
+            <button class="ann-leak-btn flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition ${leakCls}">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Leak
+            </button>
+            <button class="ann-no-leak-btn flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition ${noLeakCls}">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              No Leak
+            </button>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <label class="text-[10px] font-semibold text-gray-800 dark:text-gray-200 uppercase w-16">Evidence</label>
+            <input class="ann-evidence-input flex-1 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-gray-700 dark:text-gray-300 placeholder-gray-400 focus:outline-none focus:border-gray-400" placeholder="Quote the leaked text..." value="${esc(hasAnn ? (ann.evidence || '') : '')}">
+          </div>
+          <div class="flex items-center gap-1.5">
+            <label class="text-[10px] font-semibold text-gray-800 dark:text-gray-200 uppercase w-16">Reasoning</label>
+            <input class="ann-reasoning-input flex-1 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-gray-700 dark:text-gray-300 placeholder-gray-400 focus:outline-none focus:border-gray-400" placeholder="Why you chose this verdict..." value="${esc(hasAnn ? (ann.reasoning || '') : '')}">
+          </div>
+        </div>
+        <span class="text-gray-300 dark:text-gray-600 self-stretch" style="width:1px;background:currentColor"></span>
+        <div class="flex-1 flex flex-col gap-2">
+          <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Need more context?</span>
+          <button class="ann-context-btn px-4 py-2 rounded-lg text-sm font-semibold bg-sage-100 text-sage-800 border border-sage-300 dark:bg-sage-900/40 dark:text-sage-300 dark:border-sage-700 hover:bg-sage-200 dark:hover:bg-sage-900/60 transition">Task Context</button>
+        </div>
+        <span class="text-gray-300 dark:text-gray-600 self-stretch" style="width:1px;background:currentColor"></span>
+        <div class="flex-1 flex flex-col gap-2">
+          <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Judge Verdict</span>
+          <button class="ann-judge-btn px-4 py-2 rounded-lg text-sm font-semibold bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700 hover:bg-purple-200 dark:hover:bg-purple-900/60 transition">Show Verdict</button>
+        </div>
+      </div>
+      <!-- Two equal columns: secret (left) | message (right) -->
+      <div class="flex-1 min-h-0 flex">
+        <div class="flex-1 min-w-0 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+          <div class="px-4 py-2 border-b border-gray-100 dark:border-gray-800 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Secret</div>
+          <div class="flex-1 overflow-y-auto p-4">
+            <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+              ${annRenderSecret(item)}
+            </div>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col">
+          <div class="px-4 py-2 border-b border-gray-100 dark:border-gray-800 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Message</div>
+          <div class="flex-1 overflow-y-auto p-4">${msgHtml}</div>
+        </div>
+      </div>`;
+
+    // Wire verdict buttons — read current input values at click time
+    body.querySelector('.ann-leak-btn').addEventListener('click', () => {
+      const ev = body.querySelector('.ann-evidence-input')?.value || '';
+      const re = body.querySelector('.ann-reasoning-input')?.value || '';
+      if (hasAnn && ann.verdict === 'leaked') delete state.annotations[key];
+      else state.annotations[key] = { verdict: 'leaked', evidence: ev, reasoning: re, timestamp: new Date().toISOString() };
+      saveAnnotations();
+      render();
+    });
+    body.querySelector('.ann-no-leak-btn').addEventListener('click', () => {
+      const ev = body.querySelector('.ann-evidence-input')?.value || '';
+      const re = body.querySelector('.ann-reasoning-input')?.value || '';
+      if (hasAnn && ann.verdict === 'not_leaked') delete state.annotations[key];
+      else state.annotations[key] = { verdict: 'not_leaked', evidence: ev, reasoning: re, timestamp: new Date().toISOString() };
+      saveAnnotations();
+      render();
+    });
+
+    // Wire evidence/reasoning inputs (always visible)
+    const evidenceInput = body.querySelector('.ann-evidence-input');
+    const reasoningInput = body.querySelector('.ann-reasoning-input');
+    if (evidenceInput) {
+      evidenceInput.addEventListener('input', () => {
+        if (!state.annotations[key]) state.annotations[key] = { timestamp: new Date().toISOString() };
+        state.annotations[key].evidence = evidenceInput.value;
+        saveAnnotations();
+      });
+    }
+    if (reasoningInput) {
+      reasoningInput.addEventListener('input', () => {
+        if (!state.annotations[key]) state.annotations[key] = { timestamp: new Date().toISOString() };
+        state.annotations[key].reasoning = reasoningInput.value;
+        saveAnnotations();
+      });
+    }
+
+    // Wire nav buttons
+    body.querySelector('.ann-prev-btn')?.addEventListener('click', () => {
+      if (annIdx > 0) { annIdx--; render(); }
+    });
+    body.querySelector('.ann-next-btn')?.addEventListener('click', () => {
+      if (annIdx < filtered.length - 1) { annIdx++; render(); }
+    });
+
+    // Wire Task Context modal
+    body.querySelector('.ann-context-btn')?.addEventListener('click', () => {
+      const benchmark = item.expBenchmark;
+      const result = item._raw;
+      const experiment = item._exp;
+      let contextHtml = tvRenderTaskContext(result, benchmark, experiment);
+      contextHtml += tvRenderOutcomes(result, benchmark);
+      contextHtml += tvRenderTraceTab(result, benchmark);
+      showAnnModal('Task Context', `<div class="p-4 space-y-4">${contextHtml}</div>`);
+    });
+
+    // Wire Judge Verdict modal
+    body.querySelector('.ann-judge-btn')?.addEventListener('click', () => {
+      const verdictCls = item.llmVerdict === 'leaked'
+        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+        : 'bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300';
+      let judgeHtml = `<div class="p-6 space-y-4">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold uppercase">Verdict:</span>
+          <span class="px-2 py-0.5 rounded text-xs font-bold ${verdictCls}">${item.llmVerdict === 'leaked' ? 'Leaked' : 'Not Leaked'}</span>
+        </div>`;
+      if (item.llmEvidence.length) {
+        judgeHtml += `<div>
+          <div class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Evidence</div>
+          <div class="flex flex-wrap gap-2">${item.llmEvidence.map(e => '<code class="px-2 py-1 bg-purple-100 dark:bg-purple-800/40 border border-purple-200 dark:border-purple-700 rounded text-xs text-purple-800 dark:text-purple-200">' + esc(e) + '</code>').join('')}</div>
+        </div>`;
+      }
+      if (item.llmReasoning) {
+        judgeHtml += `<div>
+          <div class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Reasoning</div>
+          <div class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">${esc(item.llmReasoning)}</div>
+        </div>`;
+      }
+      if (!item.llmEvidence.length && !item.llmReasoning) {
+        judgeHtml += '<div class="text-sm text-gray-400">No judge reasoning available for this item.</div>';
+      }
+      judgeHtml += '</div>';
+      showAnnModal('Judge Verdict', judgeHtml);
+    });
+  }
+
+  // Wire filters — reset to first item on filter change
+  ['ann-filter-status'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => { annIdx = 0; render(); });
+  });
+
+  // Wire name input
+  nameInput.addEventListener('input', () => {
+    state.annotatorName = nameInput.value;
+    saveAnnotations();
+  });
+
+  // Wire export
+  document.getElementById('ann-export-btn').addEventListener('click', () => exportAnnotations(queue));
+
+  // Wire clear
+  document.getElementById('ann-clear-btn').addEventListener('click', () => {
+    if (!confirm('Clear all annotations? This cannot be undone.')) return;
+    state.annotations = {};
+    saveAnnotations();
+    render();
+  });
+
+  // Keyboard navigation
+  function onKeyDown(e) {
+    if (state.activeTab !== 'annotator') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    const filtered = getFiltered();
+    if (filtered.length === 0) return;
+    if (e.key === 'ArrowRight' || e.key === 'n') {
+      if (annIdx < filtered.length - 1) { annIdx++; render(); }
+      e.preventDefault();
+    } else if (e.key === 'ArrowLeft' || e.key === 'p') {
+      if (annIdx > 0) { annIdx--; render(); }
+      e.preventDefault();
+    }
+  }
+  document.addEventListener('keydown', onKeyDown);
+
+  render();
+}
+
+function renderAnnotatorStats(stats) {
+  const el = document.getElementById('ann-stats');
+  const kappaColor = stats.kappa == null ? 'text-gray-400'
+    : stats.kappa >= 0.8 ? 'text-sage-600 dark:text-sage-400'
+    : stats.kappa >= 0.6 ? 'text-amber-600 dark:text-amber-400'
+    : 'text-red-500 dark:text-red-400';
+
+  const kappaLabel = stats.kappa == null ? '-'
+    : stats.kappa >= 0.8 ? 'Almost Perfect'
+    : stats.kappa >= 0.6 ? 'Substantial'
+    : stats.kappa >= 0.4 ? 'Moderate'
+    : stats.kappa >= 0.2 ? 'Fair'
+    : 'Slight';
+
+  const pctColor = stats.percentAgreement == null ? 'text-gray-400'
+    : stats.percentAgreement >= 0.9 ? 'text-sage-600 dark:text-sage-400'
+    : stats.percentAgreement >= 0.7 ? 'text-amber-600 dark:text-amber-400'
+    : 'text-red-500 dark:text-red-400';
+
+  if (stats.annotated === 0) {
+    el.innerHTML = `<span class="text-[10px] text-gray-400 dark:text-gray-500">${stats.total} items · 0 annotated</span>`;
+    return;
+  }
+
+  const pct = stats.percentAgreement != null ? (stats.percentAgreement * 100).toFixed(1) + '%' : '-';
+  const kStr = stats.kappa != null ? `κ=${stats.kappa.toFixed(2)} (${kappaLabel})` : '';
+  const c = stats.confusion;
+
+  el.innerHTML = `<div class="flex items-center gap-4 flex-wrap text-[10px] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded px-2 py-1 -mx-2 -my-1 transition" title="Click for detailed stats">
+    <span class="text-gray-500 dark:text-gray-400"><span class="font-semibold text-gray-700 dark:text-gray-200">${stats.annotated}</span>/${stats.total} annotated</span>
+    <span class="text-gray-300 dark:text-gray-600">|</span>
+    <span class="${pctColor} font-semibold">${pct} agree</span>
+    <span class="text-gray-400 dark:text-gray-500">(${stats.humanLeakedCount}L ${stats.humanNotLeakedCount}N)</span>
+    ${kStr ? `<span class="text-gray-300 dark:text-gray-600">|</span><span class="${kappaColor} font-medium">${kStr}</span>` : ''}
+    <span class="text-gray-300 dark:text-gray-600">|</span>
+    <span class="text-gray-400 dark:text-gray-500" title="TT/TF/FT/FF">${c.tt}/${c.tf}/${c.ft}/${c.ff}</span>
+  </div>`;
+
+  el.querySelector('div').addEventListener('click', () => {
+    const c = stats.confusion;
+    showAnnModal('Human–Judge Agreement', `<div class="p-6 space-y-6">
+      <div class="flex gap-4">
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-5 py-3 text-center">
+          <div class="text-2xl font-bold text-gray-800 dark:text-gray-200">${stats.annotated}</div>
+          <div class="text-[10px] text-gray-500 uppercase">Annotated</div>
+          <div class="text-[10px] text-gray-400">of ${stats.total}</div>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-5 py-3 text-center">
+          <div class="text-2xl font-bold ${pctColor}">${pct}</div>
+          <div class="text-[10px] text-gray-500 uppercase">Agreement</div>
+          <div class="text-[10px] text-gray-400">${stats.humanLeakedCount} leak / ${stats.humanNotLeakedCount} no leak</div>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-5 py-3 text-center">
+          <div class="text-2xl font-bold ${kappaColor}">${stats.kappa != null ? stats.kappa.toFixed(3) : '-'}</div>
+          <div class="text-[10px] text-gray-500 uppercase">Cohen's &kappa;</div>
+          <div class="text-[10px] text-gray-400">${kappaLabel}</div>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase mb-2">Confusion Matrix</div>
+        <table class="text-xs border-collapse">
+          <thead>
+            <tr><th class="p-1.5"></th><th colspan="2" class="p-1.5 text-center text-[10px] text-gray-500 uppercase">LLM Judge</th></tr>
+            <tr><th class="p-1.5"></th><th class="p-1.5 text-center text-gray-500 font-medium">Leaked</th><th class="p-1.5 text-center text-gray-500 font-medium">Not Leaked</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="p-1.5 text-gray-500 font-medium">Human: Leaked</td>
+              <td class="ann-confusion-cell bg-sage-100 dark:bg-sage-900/30 rounded text-sage-800 dark:text-sage-300">${c.tt}</td>
+              <td class="ann-confusion-cell bg-red-50 dark:bg-red-900/20 rounded text-red-700 dark:text-red-300">${c.tf}</td>
+            </tr>
+            <tr>
+              <td class="p-1.5 text-gray-500 font-medium">Human: Not Leaked</td>
+              <td class="ann-confusion-cell bg-red-50 dark:bg-red-900/20 rounded text-red-700 dark:text-red-300">${c.ft}</td>
+              <td class="ann-confusion-cell bg-sage-100 dark:bg-sage-900/30 rounded text-sage-800 dark:text-sage-300">${c.ff}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`);
+  });
+}
+
+// ─────────────────────────────────────────────
+// Annotator: Export
+// ─────────────────────────────────────────────
+
+function exportAnnotations(queue) {
+  const stats = computeAgreementStats(queue);
+  const items = queue.map(item => {
+    const key = annKey(item);
+    const ann = state.annotations[key];
+    return {
+      experiment_variant: item.expVariant,
+      experiment_model: item.expModel,
+      experiment_benchmark: item.expBenchmark,
+      task_id: item.taskId,
+      source: item.source,
+      secret_index: item.secretIdx,
+      secret_content: item.secretContent,
+      llm_verdict: item.llmVerdict,
+      llm_reasoning: item.llmReasoning,
+      llm_evidence: item.llmEvidence,
+      human_verdict: ann ? ann.verdict : null,
+      human_evidence: ann ? (ann.evidence || '') : null,
+      human_reasoning: ann ? (ann.reasoning || '') : null,
+      annotated_at: ann ? ann.timestamp : null,
+    };
+  });
+
+  const payload = {
+    annotator: state.annotatorName || 'anonymous',
+    exported_at: new Date().toISOString(),
+    stats: {
+      total: stats.total,
+      annotated: stats.annotated,
+      agreed: stats.agreed,
+      disagreed: stats.disagreed,
+      human_leaked: stats.humanLeakedCount,
+      human_not_leaked: stats.humanNotLeakedCount,
+      percent_agreement: stats.percentAgreement,
+      cohens_kappa: stats.kappa,
+      confusion_matrix: stats.confusion,
+    },
+    items,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `annotations_${(state.annotatorName || 'anonymous').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Annotations exported!');
 }
 
 // ─────────────────────────────────────────────
