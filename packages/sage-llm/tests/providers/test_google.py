@@ -23,6 +23,7 @@ from sage_llm.providers.google_genai import (
     _build_config,
     _json_schema_to_google_schema,
     _to_google_message,
+    _translate_assistant_parts,
     _translate_request,
     _translate_tool_choice,
     _translate_tool_result,
@@ -37,12 +38,14 @@ def _make_google_response(
     thought_text: str | None = None,
     function_call: types.FunctionCall | None = None,
     finish_reason: types.FinishReason = types.FinishReason.STOP,
+    thought_signature: bytes | None = None,
+    fc_thought_signature: bytes | None = None,
 ) -> types.GenerateContentResponse:
     parts = []
     if thought_text:
-        parts.append(types.Part(text=thought_text, thought=True))
+        parts.append(types.Part(text=thought_text, thought=True, thought_signature=thought_signature))
     if function_call:
-        parts.append(types.Part(function_call=function_call))
+        parts.append(types.Part(function_call=function_call, thought_signature=fc_thought_signature))
     if text:
         parts.append(types.Part(text=text))
 
@@ -212,6 +215,7 @@ class TestTranslateRequestToolNameResolution:
                     function=Function(name="get_weather", arguments='{"city": "Seattle"}'),
                 )
             ],
+            tool_call_signatures=[b"sig"],
         )
         tool_msg = _tool_msg('{"temp": 55}', "call_abc")
         msgs: list[SageMessage] = [
@@ -242,6 +246,7 @@ class TestTranslateRequestToolNameResolution:
                     function=Function(name="get_time", arguments="{}"),
                 ),
             ],
+            tool_call_signatures=[b"sig1", b"sig2"],
         )
         msgs: list[SageMessage] = [
             {"role": "user", "content": "hi"},
@@ -253,6 +258,37 @@ class TestTranslateRequestToolNameResolution:
         contents = cast(list[types.Content], raw_contents)
         assert _get_fr(contents[2]).name == "get_weather"
         assert _get_fr(contents[3]).name == "get_time"
+
+    def test_unsigned_tool_calls_become_text(self):
+        """Tool calls without signatures are converted to text, not function_call Parts."""
+        assistant_msg = SageChatCompletionMessage(
+            role="assistant",
+            content=None,
+            tool_calls=[
+                ChatCompletionMessageToolCall(
+                    id="call_1",
+                    type="function",
+                    function=Function(name="GetEmails", arguments="{}"),
+                )
+            ],
+            # No tool_call_signatures → unsigned
+        )
+        msgs: list[SageMessage] = [
+            {"role": "user", "content": "check email"},
+            assistant_msg,
+            _tool_msg("you have 3 emails", "call_1"),
+        ]
+        raw_contents, _ = _translate_request(msgs)
+        contents = cast(list[types.Content], raw_contents)
+        # The assistant function_call becomes a text model message
+        model_parts = [c for c in contents if c.role == "model"]
+        assert len(model_parts) == 1
+        assert model_parts[0].parts is not None
+        assert "GetEmails" in (model_parts[0].parts[0].text or "")
+        # The tool result becomes a plain user message (not FunctionResponse)
+        user_parts = [c for c in contents if c.role == "user"]
+        assert len(user_parts) == 2  # original user + converted tool result
+        assert "you have 3 emails" in (user_parts[1].parts[0].text or "")
 
 
 class TestBuildConfig:
@@ -479,6 +515,28 @@ class TestToGoogleMessage:
         assert tc.function.name == "search"
         assert json.loads(tc.function.arguments) == {"q": "test"}
 
+    def test_fc_thought_signature_captured(self):
+        """thought_signature on function_call parts is stored in tool_call_signatures."""
+        fc = types.FunctionCall(name="search", args={"q": "test"})
+        sig = b"opaque-sig-bytes"
+        resp = _make_google_response(text="", function_call=fc, fc_thought_signature=sig)
+        msg = _to_google_message(resp, "gemini-2.0-flash")
+
+        assert msg.tool_call_signatures is not None
+        assert len(msg.tool_call_signatures) == 1
+        assert msg.tool_call_signatures[0] == sig
+
+    def test_thought_signature_captured_on_thought_parts(self):
+        """thought_signature on thought parts is preserved."""
+        sig = b"thought-sig"
+        resp = _make_google_response(
+            text="answer", thought_text="thinking", thought_signature=sig
+        )
+        msg = _to_google_message(resp, "gemini-2.0-flash")
+
+        assert msg.thought_parts is not None
+        assert msg.thought_parts[0]["thought_signature"] == sig
+
     def test_usage_mapped(self):
         resp = _make_google_response()
         msg = _to_google_message(resp, "gemini-2.0-flash")
@@ -487,6 +545,110 @@ class TestToGoogleMessage:
         assert msg.completion_info.usage is not None
         assert msg.completion_info.usage.prompt_tokens == 10
         assert msg.completion_info.usage.completion_tokens == 5
+
+
+class TestTranslateAssistantPartsSignatures:
+    """Verify that _translate_assistant_parts round-trips thought_signature."""
+
+    def test_fc_signature_round_trips(self):
+        sig = b"fc-sig-123"
+        msg = GoogleMessage(
+            role="assistant",
+            content=None,
+            tool_calls=[
+                ChatCompletionMessageToolCall(
+                    id="call_1",
+                    type="function",
+                    function=Function(name="get_weather", arguments='{"city": "Seattle"}'),
+                )
+            ],
+            tool_call_signatures=[sig],
+        )
+        parts, text_fallback = _translate_assistant_parts(msg)
+        assert text_fallback is None
+        fc_parts = [p for p in parts if p.function_call]
+        assert len(fc_parts) == 1
+        assert fc_parts[0].thought_signature == sig
+
+    def test_thought_signature_round_trips(self):
+        sig = b"thought-sig-456"
+        msg = GoogleMessage(
+            role="assistant",
+            content="answer",
+            thought_parts=[{"text": "thinking...", "thought": True, "thought_signature": sig}],
+        )
+        parts, _ = _translate_assistant_parts(msg)
+        thought_parts = [p for p in parts if p.thought]
+        assert len(thought_parts) == 1
+        assert thought_parts[0].thought_signature == sig
+
+    def test_unsigned_tool_calls_become_text_fallback(self):
+        """Messages without signatures produce text_fallback, not function_call Parts."""
+        msg = GoogleMessage(
+            role="assistant",
+            content=None,
+            tool_calls=[
+                ChatCompletionMessageToolCall(
+                    id="call_1",
+                    type="function",
+                    function=Function(name="get_weather", arguments="{}"),
+                )
+            ],
+        )
+        parts, text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids={"call_1"})
+        fc_parts = [p for p in parts if p.function_call]
+        assert len(fc_parts) == 0
+        assert text_fallback is not None
+        assert "get_weather" in text_fallback
+
+    def test_non_google_message_unsigned(self):
+        """Plain SageChatCompletionMessage with no signatures becomes text fallback."""
+        msg = SageChatCompletionMessage(
+            role="assistant",
+            content=None,
+            tool_calls=[
+                ChatCompletionMessageToolCall(
+                    id="call_1",
+                    type="function",
+                    function=Function(name="search", arguments="{}"),
+                )
+            ],
+        )
+        parts, text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids={"call_1"})
+        fc_parts = [p for p in parts if p.function_call]
+        assert len(fc_parts) == 0
+        assert text_fallback is not None
+
+    def test_signatures_survive_downcast_to_base_type(self):
+        """Signatures survive when GoogleMessage is round-tripped through
+        SageChatCompletionMessage (the real-world failure scenario)."""
+        sig = b"fc-sig-roundtrip"
+        original = GoogleMessage(
+            role="assistant",
+            content=None,
+            tool_calls=[
+                ChatCompletionMessageToolCall(
+                    id="call_1",
+                    type="function",
+                    function=Function(name="get_weather", arguments='{"city": "Seattle"}'),
+                )
+            ],
+            tool_call_signatures=[sig],
+            thought_parts=[{"text": "hmm", "thought": True, "thought_signature": b"tp-sig"}],
+        )
+        # Simulate round-trip: dump to dict → validate as base type
+        data = original.model_dump(mode="json")
+        restored = SageChatCompletionMessage.model_validate(data)
+        assert not isinstance(restored, GoogleMessage)
+
+        parts, text_fallback = _translate_assistant_parts(restored)
+        assert text_fallback is None  # signatures present → no fallback
+        fc_parts = [p for p in parts if p.function_call]
+        assert len(fc_parts) == 1
+        assert fc_parts[0].thought_signature is not None
+        thought_parts = [p for p in parts if p.thought]
+        assert len(thought_parts) == 1
+        assert thought_parts[0].thought_signature is not None
 
 
 class TestGoogleProviderComplete:

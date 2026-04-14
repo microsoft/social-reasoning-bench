@@ -393,20 +393,14 @@ class BaseAgent:
                         SageChatCompletionMessage(role="assistant", content=cot_thinking)
                     )
 
+                # Keep the original message so provider-specific fields
+                # (e.g. thought_signature for Gemini 3+) are preserved.
                 self._messages.append(
-                    SageChatCompletionMessage(
-                        role="assistant",
-                        content=message.content,
-                        tool_calls=[
-                            ChatCompletionMessageToolCall(
-                                id=tool_call.id,
-                                type="function",
-                                function=Function(
-                                    name=tool_call.function.name,
-                                    arguments=tool_call.function.arguments,
-                                ),
-                            )
-                        ],
+                    message.model_copy(
+                        update={
+                            "tool_calls": [tool_call],
+                            "completion_info": None,
+                        }
                     )
                 )
 
@@ -427,18 +421,11 @@ class BaseAgent:
                         {"role": "user", "content": self.on_retry_no_tool_calls()},
                     )
                 else:
-                    # Invalid tool calls -- echo them back with error details
+                    # Invalid tool calls -- echo them back with error details.
+                    # Preserve the original message to keep provider-specific
+                    # fields (e.g. thought_signature).
                     messages.append(
-                        SageChatCompletionMessage(
-                            role="assistant",
-                            content=message.content,
-                            tool_calls=[
-                                ChatCompletionMessageToolCall(
-                                    **tc.model_dump(include={"id", "type", "function"})
-                                )
-                                for tc in tool_calls
-                            ],
-                        )
+                        message.model_copy(update={"completion_info": None})
                     )
                     for tc in tool_calls:
                         messages.append(

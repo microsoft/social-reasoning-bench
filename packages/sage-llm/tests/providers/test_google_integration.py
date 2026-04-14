@@ -305,6 +305,173 @@ class TestGoogleToolCalling:
         assert msg2.content is not None
 
 
+GEMINI3_MODEL = "gemini-3-flash-preview"
+
+
+@requires_google
+@integration
+class TestGemini3FlashToolCalling:
+    """Tests targeting Gemini 3 Flash which requires thought_signature on
+    function-call parts in multi-turn conversations."""
+
+    @pytest.mark.asyncio
+    async def test_tool_call_generated(self):
+        provider = GoogleProvider()
+        trace = LLMTrace()
+        msg = await provider.acomplete(
+            GEMINI3_MODEL,
+            [{"role": "user", "content": "What's the weather in Seattle?"}],
+            trace=trace,
+            tools=[WEATHER_TOOL],
+            max_tokens=256,
+        )
+        assert msg.tool_calls is not None
+        assert len(msg.tool_calls) > 0
+        assert msg.tool_calls[0].function.name == "get_weather"
+
+    @pytest.mark.asyncio
+    async def test_multi_turn_tool_use(self):
+        """Full tool-use loop on Gemini 3 Flash — the scenario that fails
+        without thought_signature preservation."""
+        provider = GoogleProvider()
+
+        trace1 = LLMTrace()
+        msg1 = await provider.acomplete(
+            GEMINI3_MODEL,
+            [{"role": "user", "content": "What's the weather in Seattle?"}],
+            trace=trace1,
+            tools=[WEATHER_TOOL],
+            max_tokens=256,
+        )
+        assert msg1.tool_calls is not None
+        tc = msg1.tool_calls[0]
+
+        # Verify signature was captured
+        assert isinstance(msg1, GoogleMessage)
+        # (signature may be None on some models, but the field should exist)
+
+        messages: list[SageMessage] = [
+            {"role": "user", "content": "What's the weather in Seattle?"},
+            msg1,
+            {
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "content": json.dumps({"temperature": 55, "condition": "cloudy"}),
+            },
+        ]
+        trace2 = LLMTrace()
+        msg2 = await provider.acomplete(
+            GEMINI3_MODEL,
+            messages,
+            trace=trace2,
+            tools=[WEATHER_TOOL],
+            max_tokens=512,
+        )
+        assert msg2.content is not None
+        assert len(msg2.content) > 0
+
+    @pytest.mark.asyncio
+    async def test_multi_turn_tool_use_string_result(self):
+        """Plain-string tool result on Gemini 3 Flash."""
+        provider = GoogleProvider()
+
+        trace1 = LLMTrace()
+        msg1 = await provider.acomplete(
+            GEMINI3_MODEL,
+            [{"role": "user", "content": "What's the weather in Seattle?"}],
+            trace=trace1,
+            tools=[WEATHER_TOOL],
+            max_tokens=256,
+        )
+        assert msg1.tool_calls is not None
+        tc = msg1.tool_calls[0]
+
+        messages: list[SageMessage] = [
+            {"role": "user", "content": "What's the weather in Seattle?"},
+            msg1,
+            {
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "content": "55 degrees and cloudy",
+            },
+        ]
+        trace2 = LLMTrace()
+        msg2 = await provider.acomplete(
+            GEMINI3_MODEL,
+            messages,
+            trace=trace2,
+            tools=[WEATHER_TOOL],
+            max_tokens=512,
+        )
+        assert msg2.content is not None
+
+    @pytest.mark.asyncio
+    async def test_sequential_multi_step_tool_use(self):
+        """Two sequential tool calls — both require thought_signature."""
+        provider = GoogleProvider()
+        tools: list[ChatCompletionToolParam] = [
+            WEATHER_TOOL,
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_time",
+                    "description": "Get the current time for a city",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "city": {"type": "string", "description": "City name"},
+                        },
+                        "required": ["city"],
+                    },
+                },
+            },
+        ]
+
+        # Step 1: ask about weather AND time
+        trace1 = LLMTrace()
+        msg1 = await provider.acomplete(
+            GEMINI3_MODEL,
+            [{"role": "user", "content": "What's the weather and current time in Seattle?"}],
+            trace=trace1,
+            tools=tools,
+            max_tokens=256,
+        )
+        assert msg1.tool_calls is not None
+        tc1 = msg1.tool_calls[0]
+
+        # Step 2: return first tool result
+        messages: list[SageMessage] = [
+            {"role": "user", "content": "What's the weather and current time in Seattle?"},
+            msg1,
+            {
+                "role": "tool",
+                "tool_call_id": tc1.id,
+                "content": json.dumps({"temperature": 55, "condition": "cloudy"}),
+            },
+        ]
+
+        # If there were parallel calls, respond to all of them
+        for tc in msg1.tool_calls[1:]:
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": json.dumps({"time": "3:00 PM PST"}),
+                }
+            )
+
+        trace2 = LLMTrace()
+        msg2 = await provider.acomplete(
+            GEMINI3_MODEL,
+            messages,
+            trace=trace2,
+            tools=tools,
+            max_tokens=512,
+        )
+        # Model may respond with text or request another tool call
+        assert msg2.content is not None or msg2.tool_calls is not None
+
+
 @requires_google
 @integration
 class TestGoogleViaClient:

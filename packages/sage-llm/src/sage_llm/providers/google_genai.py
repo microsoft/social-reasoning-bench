@@ -50,9 +50,12 @@ def _get_google_client(api_key: str | None) -> genai.Client:
 
 
 class GoogleMessage(SageChatCompletionMessage):
-    """Google message with native thought part support."""
+    """Google message with native thought part support.
 
-    thought_parts: list[dict[str, Any]] | None = None
+    thought_parts and tool_call_signatures are inherited from
+    SageChatCompletionMessage so they survive serialization round-trips
+    even when the caller stores the message as the base type.
+    """
 
 
 class GoogleProvider(SageModelProvider):
@@ -183,16 +186,31 @@ def _translate_request(
     # Build tool_call_id → function_name lookup from assistant messages so that
     # tool-role messages (which may omit "name") can resolve the function name.
     tc_id_to_name: dict[str, str] = {}
+    # Track tool_call_ids whose function_call parts lack a thought_signature.
+    # These synthetic/forced calls must be represented as text (not
+    # function_call Parts) because Gemini 3+ rejects unsigned function calls.
+    unsigned_tc_ids: set[str] = set()
+
     for msg in messages:
         if isinstance(msg, SageChatCompletionMessage) and msg.tool_calls:
-            for tc in msg.tool_calls:
+            sigs = msg.tool_call_signatures
+            for i, tc in enumerate(msg.tool_calls):
                 if isinstance(tc, ChatCompletionMessageToolCall):
                     tc_id_to_name[tc.id] = tc.function.name
+                    has_sig = sigs is not None and i < len(sigs) and sigs[i] is not None
+                    if not has_sig:
+                        unsigned_tc_ids.add(tc.id)
 
     for msg in messages:
         if isinstance(msg, SageChatCompletionMessage):
-            parts = _translate_assistant_parts(msg)
-            contents.append(types.Content(role="model", parts=parts))
+            parts, text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids)
+            if parts:
+                contents.append(types.Content(role="model", parts=parts))
+            if text_fallback:
+                # Unsigned function calls collapsed to model text + user
+                # pseudo-result so the conversation stays coherent without
+                # requiring thought_signature.
+                contents.append(types.Content(role="model", parts=[types.Part(text=text_fallback)]))
         elif isinstance(msg, dict):
             content = msg.get("content", "")
             if msg.get("role") == "system":
@@ -205,7 +223,13 @@ def _translate_request(
                     )
                 )
             elif msg["role"] == "tool":
-                contents.append(_translate_tool_result(msg, tc_id_to_name))
+                tc_id = str(msg.get("tool_call_id", ""))
+                if tc_id in unsigned_tc_ids:
+                    # Convert to plain user text — no FunctionResponse needed.
+                    name = tc_id_to_name.get(tc_id, "tool")
+                    contents.append(_translate_user(f"[Result of {name}]: {msg.get('content', '')}"))
+                else:
+                    contents.append(_translate_tool_result(msg, tc_id_to_name))
             else:
                 contents.append(_translate_user(_extract_text(content)))
 
@@ -252,35 +276,59 @@ def _extract_text(content: Any) -> str:
     return ""
 
 
-def _translate_assistant_parts(msg: SageChatCompletionMessage) -> list[types.Part]:
+def _translate_assistant_parts(
+    msg: SageChatCompletionMessage,
+    unsigned_tc_ids: set[str] | None = None,
+) -> tuple[list[types.Part], str | None]:
     """Translate an assistant SageChatCompletionMessage to Google Part list.
 
     Args:
         msg: An assistant-role message (possibly a :class:`GoogleMessage`
             with thought parts).
+        unsigned_tc_ids: Tool call IDs that lack a thought_signature.  These
+            are collapsed to a text description instead of a ``function_call``
+            Part so Gemini 3+ models don't reject the request.
 
     Returns:
-        List of :class:`types.Part` including thought parts, text, and
-        function calls.
+        Tuple of (parts list, text_fallback).  ``text_fallback`` is a text
+        description of unsigned function calls (or ``None``).
     """
     parts: list[types.Part] = []
+    unsigned_tc_ids = unsigned_tc_ids or set()
 
-    # Inject thought parts from previous GoogleMessage turns
-    if isinstance(msg, GoogleMessage) and msg.thought_parts:
+    # Inject thought parts from previous turns
+    if msg.thought_parts:
         for tp in msg.thought_parts:
-            parts.append(types.Part(text=tp.get("text", ""), thought=True))
+            sig = tp.get("thought_signature")
+            parts.append(types.Part(text=tp.get("text", ""), thought=True, thought_signature=sig))
 
     if msg.content:
         parts.append(types.Part(text=msg.content))
 
+    text_fallback_lines: list[str] = []
+
     if msg.tool_calls:
-        for tc in msg.tool_calls:
+        signatures = msg.tool_call_signatures
+
+        for i, tc in enumerate(msg.tool_calls):
             if isinstance(tc, ChatCompletionMessageToolCall):
                 name = tc.function.name
                 args = json.loads(tc.function.arguments)
-                parts.append(types.Part(function_call=types.FunctionCall(name=name, args=args)))
+                sig = signatures[i] if signatures and i < len(signatures) else None
 
-    return parts
+                if tc.id in unsigned_tc_ids:
+                    # No thought_signature — emit as text instead.
+                    text_fallback_lines.append(f"[Called {name}({json.dumps(args)})]")
+                else:
+                    parts.append(
+                        types.Part(
+                            function_call=types.FunctionCall(name=name, args=args),
+                            thought_signature=sig,
+                        )
+                    )
+
+    text_fallback = "\n".join(text_fallback_lines) if text_fallback_lines else None
+    return parts, text_fallback
 
 
 def _translate_tool_result(
@@ -539,6 +587,7 @@ def _to_google_message(response: types.GenerateContentResponse, model: str) -> G
     text_parts: list[str] = []
     thought_parts: list[dict[str, Any]] = []
     tool_calls: list[ChatCompletionMessageToolCall] = []
+    tool_call_signatures: list[bytes | None] = []
 
     if response.candidates:
         candidate = response.candidates[0]
@@ -556,8 +605,12 @@ def _to_google_message(response: types.GenerateContentResponse, model: str) -> G
                             ),
                         )
                     )
+                    tool_call_signatures.append(part.thought_signature)
                 elif part.thought:
-                    thought_parts.append({"text": part.text, "thought": True})
+                    tp: dict[str, Any] = {"text": part.text, "thought": True}
+                    if part.thought_signature is not None:
+                        tp["thought_signature"] = part.thought_signature
+                    thought_parts.append(tp)
                 elif part.text:
                     text_parts.append(part.text)
 
@@ -587,6 +640,7 @@ def _to_google_message(response: types.GenerateContentResponse, model: str) -> G
         content=content,
         tool_calls=cast(list, tool_calls) if tool_calls else None,
         thought_parts=thought_parts if thought_parts else None,
+        tool_call_signatures=tool_call_signatures if tool_call_signatures else None,
         completion_info=SageChatCompletionInfo(
             id=f"google-{int(time.time() * 1000)}",
             model=model,

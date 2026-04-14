@@ -28,6 +28,12 @@ class SageChatCompletionMessage(ChatCompletionMessage):
 
     completion_info: SageChatCompletionInfo | None = None
 
+    # Google-specific fields that must survive serialization round-trips so
+    # that thought_signature values are preserved across multi-turn tool-use
+    # conversations.  Gemini 3+ models reject requests that omit these.
+    thought_parts: list[dict[str, Any]] | None = None
+    tool_call_signatures: list[bytes | None] | None = None
+
 
 def _validate_sage_message(msg: Any) -> Any:
     """Validate and discriminate SageMessage input.
@@ -82,7 +88,14 @@ def _serialize_sage_message(
         ValueError: If *msg* is not a supported message type.
     """
     if isinstance(msg, SageChatCompletionMessage):
-        return msg.model_dump(mode="json")
+        data = msg.model_dump(mode="json", exclude={"tool_call_signatures"})
+        # Strip binary thought_signature from thought_parts dicts
+        if data.get("thought_parts"):
+            data["thought_parts"] = [
+                {k: v for k, v in tp.items() if k != "thought_signature"}
+                for tp in data["thought_parts"]
+            ]
+        return data
     elif isinstance(msg, dict):
         return cast(dict[str, Any], msg)
     raise ValueError(f"Cannot serialize SageMessage of type {type(msg).__name__}: {msg!r:.200}")
