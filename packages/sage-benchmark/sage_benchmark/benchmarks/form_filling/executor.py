@@ -384,6 +384,11 @@ async def execute_task(
         )
 
         # 3. RETURN RESULT
+        error = (
+            f"Max rounds reached ({max_rounds}) without form submission"
+            if termination_reason == "max_rounds"
+            else None
+        )
         return FormFillingExecutionResult(
             task_index=task_index,
             task=task,
@@ -391,7 +396,8 @@ async def execute_task(
             form_submission=form_submission or {},
             termination_reason=termination_reason,  # ty:ignore[invalid-argument-type]
             total_rounds=len([m for m in conversation if m.from_agent == "interviewer"]),
-            success=termination_reason != "error",
+            success=termination_reason not in ("error", "max_rounds"),
+            error=error,
             interviewer_context=interviewer.messages,
             assistant_context=assistant.messages,
         )
