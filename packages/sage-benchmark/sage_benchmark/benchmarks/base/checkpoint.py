@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Generic
+from typing import Any, Generic
 
+import ftfy
 from pydantic import BaseModel
 
 from .types import (
@@ -17,6 +19,22 @@ from .types import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _fix_strings(obj: Any) -> None:
+    """Recursively apply ftfy.fix_text to all strings in a JSON-like structure."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, str):
+                obj[k] = ftfy.fix_text(v)
+            else:
+                _fix_strings(v)
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            if isinstance(v, str):
+                obj[i] = ftfy.fix_text(v)
+            else:
+                _fix_strings(v)
 
 
 class CheckpointManager(Generic[TExecResult, TEvalResult]):
@@ -86,9 +104,18 @@ class CheckpointManager(Generic[TExecResult, TEvalResult]):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         try:
             data = self._data.model_dump_json(indent=2)
-        except Exception as exc:
-            logger.warning("Checkpoint serialization failed (task still succeeded): %s", exc)
-            return
+        except Exception:
+            # Pydantic's Rust serializer chokes on non-UTF-8 string chars
+            # (e.g. Windows-1252 bytes from LLM responses).  Fall back to
+            # model_dump(mode="python") which skips the Rust serializer,
+            # then ftfy-sanitize all strings and JSON-encode manually.
+            try:
+                raw = self._data.model_dump()
+                _fix_strings(raw)
+                data = json.dumps(raw, indent=2, ensure_ascii=False, default=str)
+            except Exception as exc:
+                logger.warning("Checkpoint serialization failed (task still succeeded): %s", exc)
+                return
         tmp = self.path.with_suffix(".tmp")
         tmp.write_text(data)
         tmp.rename(self.path)
