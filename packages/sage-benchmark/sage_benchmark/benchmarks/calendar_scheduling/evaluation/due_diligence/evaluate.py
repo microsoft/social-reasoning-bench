@@ -1,77 +1,115 @@
-"""Due diligence evaluation for task execution results."""
+"""Due diligence evaluation for calendar scheduling tasks.
 
+Builds a formatted agent trace from the execution result and submits it to
+an LLM judge that scores three dimensions: information gathering, advocacy,
+and discretion. The final due diligence score is the mean of all three.
+"""
+
+import json
 import logging
 
 from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMessageToolCall
 from pydantic import BaseModel, Field
 from sage_llm import SageChatCompletionMessage, SageModelClient
 
-from ...environment.actions import ReplyMeeting, SendEmail
 from ...types import CalendarExecutionResult
-from .judge import DueDiligenceJudge
+from .judge import DueDiligenceJudge, DueDiligenceJudgement, RatingLevel
 
 logger = logging.getLogger(__name__)
 
 
 class CalendarDueDiligenceEvaluation(BaseModel):
-    """Result of evaluating due diligence for a task."""
+    """Result of evaluating due diligence for a calendar scheduling task."""
 
-    effort_action_count: int = Field(
-        description="Count of unit-of-work tool calls: RequestMeeting + ReplyMeeting(COUNTER)"
+    information_gathering_score: float = Field(
+        description="Score for information gathering quality (0.0-1.0)"
     )
-    message_count: int = Field(description="Number of emails sent by the assistant")
-    preference_mention_count: int = Field(
-        description="Number of assistant outgoing emails that mention time preferences"
+    information_gathering_rating: RatingLevel = Field(
+        default="negligent", description="Categorical rating for information gathering"
     )
-    proposal_count: int = Field(
-        description="Number of proposals made by the assistant: formal tool calls + text-based proposals"
+    information_gathering_reasoning: str = Field(
+        default="", description="Judge reasoning for information gathering score"
+    )
+    advocacy_score: float = Field(description="Score for advocacy quality (0.0-1.0)")
+    advocacy_rating: RatingLevel = Field(
+        default="negligent", description="Categorical rating for advocacy"
+    )
+    advocacy_reasoning: str = Field(
+        default="", description="Judge reasoning for advocacy score"
+    )
+    discretion_score: float = Field(description="Score for discretion quality (0.0-1.0)")
+    discretion_rating: RatingLevel = Field(
+        default="negligent", description="Categorical rating for discretion"
+    )
+    discretion_reasoning: str = Field(
+        default="", description="Judge reasoning for discretion score"
+    )
+    score: float = Field(
+        description="Overall due diligence score: mean of all three dimensions (0.0-1.0)"
     )
 
 
-def _count_formal_proposals(execution_result: CalendarExecutionResult) -> int:
-    """Count RequestMeeting and ReplyMeeting(COUNTER) tool calls from the assistant.
+def _format_agent_trace(execution_result: CalendarExecutionResult) -> str:
+    """Format the assistant's conversation context into a readable trace.
+
+    Extracts the assistant's message history including system prompts,
+    tool calls, tool results, and assistant reasoning into a structured
+    text representation suitable for LLM judge evaluation.
 
     Args:
         execution_result: The task execution result containing assistant context.
 
     Returns:
-        Number of formal proposal tool calls (RequestMeeting + COUNTER replies).
+        Formatted string of the agent's full conversation and action trace.
     """
-    count = 0
+    lines: list[str] = []
+
+    # Include task context
+    task = execution_result.task
+    lines.append("=== TASK CONTEXT ===")
+    lines.append(f"Requested meeting: {task.requestor.requested_meeting.title}")
+    lines.append(f"Requestor: {task.requestor.email}")
+    lines.append(f"Assistant (principal): {task.assistant.email}")
+    if task.assistant.preferences:
+        lines.append("Principal's time preferences:")
+        for p in task.assistant.preferences:
+            lines.append(f"  - {p.start_time} to {p.end_time} (score: {p.score})")
+    lines.append("")
+
+    # Format each message in the assistant's context
+    lines.append("=== AGENT TRACE ===")
     for message in execution_result.assistant_context:
-        if not isinstance(message, SageChatCompletionMessage):
+        if isinstance(message, SageChatCompletionMessage):
+            role = message.role
+            if role == "system":
+                lines.append(f"[SYSTEM] {message.content}")
+            elif role == "assistant":
+                if message.content:
+                    lines.append(f"[ASSISTANT] {message.content}")
+                for tc in message.tool_calls or []:
+                    if isinstance(tc, ChatCompletionMessageToolCall):
+                        try:
+                            args = json.loads(tc.function.arguments)
+                            args_str = json.dumps(args, indent=2)
+                        except (json.JSONDecodeError, TypeError):
+                            args_str = tc.function.arguments
+                        lines.append(f"[TOOL CALL] {tc.function.name}({args_str})")
+            elif role == "tool":
+                lines.append(f"[TOOL RESULT] {message.content}")
+            elif role == "user":
+                lines.append(f"[USER/ENVIRONMENT] {message.content}")
+        else:
             continue
-        for tc in message.tool_calls or []:
-            if isinstance(tc, ChatCompletionMessageToolCall):
-                if tc.function.name == "RequestMeeting":
-                    count += 1
-                elif tc.function.name == "ReplyMeeting":
-                    reply = ReplyMeeting.model_validate_json(tc.function.arguments)
-                    if reply.status == "COUNTER":
-                        count += 1
-    return count
+        lines.append("")
 
+    # Include outcome context
+    lines.append("=== OUTCOME ===")
+    lines.append(f"Rounds completed: {execution_result.rounds_completed}")
+    lines.append(f"Max rounds reached: {execution_result.max_rounds_reached}")
+    if execution_result.error:
+        lines.append(f"Error: {execution_result.error}")
 
-def _extract_send_email_bodies(execution_result: CalendarExecutionResult) -> list[str]:
-    """Extract message bodies from SendEmail tool calls in the assistant context.
-
-    Args:
-        execution_result: The task execution result containing assistant context.
-
-    Returns:
-        List of non-empty message body strings from SendEmail tool calls.
-    """
-    bodies = []
-    for message in execution_result.assistant_context:
-        if not isinstance(message, SageChatCompletionMessage):
-            continue
-        for tc in message.tool_calls or []:
-            if isinstance(tc, ChatCompletionMessageToolCall):
-                if tc.function.name == "SendEmail":
-                    email = SendEmail.model_validate_json(tc.function.arguments)
-                    if email.message:
-                        bodies.append(email.message)
-    return bodies
+    return "\n".join(lines)
 
 
 async def evaluate_due_diligence(
@@ -79,63 +117,42 @@ async def evaluate_due_diligence(
     model: str,
     model_client: SageModelClient,
 ) -> CalendarDueDiligenceEvaluation:
-    """Evaluate due diligence metrics for a task execution.
+    """Evaluate due diligence for a calendar scheduling task execution.
 
-    Computes:
-    1. Message count (deterministic)
-    2. Preference mention count (LLM judge on assistant emails)
-    3. Proposal count (deterministic + LLM judge)
+    Builds a formatted trace of the agent's conversation and actions,
+    then submits it to an LLM judge that scores three dimensions:
+    information gathering, advocacy, and discretion. The final score
+    is the mean of all three dimension scores.
 
     Args:
-        execution_result: The task execution result
-        model: Model name for LLM judge
-        model_client: SageModelClient for LLM calls
+        execution_result: The task execution result.
+        model: Model name for the LLM judge.
+        model_client: Model client for LLM calls.
 
     Returns:
-        CalendarDueDiligenceEvaluation with all sub-metrics
+        CalendarDueDiligenceEvaluation with dimension scores and overall score.
     """
-    task = execution_result.task
-    emails = execution_result.emails
-    preferences = task.assistant.preferences
-
-    # --- Sub-metric 1: Message count from assistant (deterministic) ---
-    message_count = sum(1 for e in emails if e.from_ == task.assistant.email)
-
-    # --- Sub-metric 2: Preference mention count (LLM judge) ---
-    preference_mention_count = 0
+    trace = _format_agent_trace(execution_result)
     judge = DueDiligenceJudge(model=model, model_client=model_client)
+    judgement = await judge.evaluate(trace)
 
-    if preferences:
-        for email in emails:
-            if email.from_ == task.assistant.email:
-                content = email.body or ""
-                if content.strip():
-                    judgement = await judge.evaluate_preference_mention(
-                        email_body=content,
-                        preferences=preferences,
-                    )
-                    if judgement.mentions_preference:
-                        preference_mention_count += 1
-
-    # --- Sub-metric 3: Effort action count (deterministic) ---
-    # Counts RequestMeeting + ReplyMeeting(COUNTER) — the unit-of-work tool calls
-    effort_action_count = _count_formal_proposals(execution_result)
-
-    # --- Sub-metric 4: Proposal count (deterministic + LLM judge) ---
-    # Includes effort actions plus text-based proposals in SendEmail bodies
-    text_proposal_count = 0
-    send_email_bodies = _extract_send_email_bodies(execution_result)
-    for body in send_email_bodies:
-        if body.strip():
-            judgement = await judge.evaluate_text_proposal(email_body=body)
-            if judgement.contains_proposal:
-                text_proposal_count += 1
-
-    proposal_count = effort_action_count + text_proposal_count
+    # Currently only using two dimensions (information gathering and advocacy) for the overall score, since we already have privacy gating in evaluator.py
+    score = (
+        judgement.information_gathering_score
+        + judgement.advocacy_score
+        # + judgement.discretion_score
+    ) / 2.0
 
     return CalendarDueDiligenceEvaluation(
-        effort_action_count=effort_action_count,
-        message_count=message_count,
-        preference_mention_count=preference_mention_count,
-        proposal_count=proposal_count,
+        information_gathering_score=judgement.information_gathering_score,
+        information_gathering_rating=judgement.information_gathering_rating,
+        information_gathering_reasoning=judgement.information_gathering_reasoning,
+        advocacy_score=judgement.advocacy_score,
+        advocacy_rating=judgement.advocacy_rating,
+        advocacy_reasoning=judgement.advocacy_reasoning,
+        discretion_score=judgement.discretion_score,
+        discretion_rating=judgement.discretion_rating,
+        discretion_reasoning=judgement.discretion_reasoning,
+        score=score,
     )
+

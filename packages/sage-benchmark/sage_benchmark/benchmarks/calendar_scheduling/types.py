@@ -20,6 +20,7 @@ from ..base import (
     TaskExecutionResult,
 )
 
+
 # ───────────────────────────────────────────────────────────────────
 # Domain models (iTIP-style calendar types)
 # ───────────────────────────────────────────────────────────────────
@@ -213,10 +214,7 @@ class CalendarEvaluationResult(TaskEvaluationResult[CalendarExecutionResult]):
     outcome_optimality_eval: dict | None = None
     scheduled_duration_error: int | None = None
     preference_explanation: PreferenceExplanation | None = None
-    effort_action_count: int | None = None
-    due_diligence_message_count: int | None = None
-    due_diligence_preference_mention_count: int | None = None
-    due_diligence_proposal_count: int | None = None
+    due_diligence_eval: CalendarDueDiligenceEvaluation | None = None
 
     # ── implement abstract computed fields from base ──
 
@@ -238,7 +236,7 @@ class CalendarEvaluationResult(TaskEvaluationResult[CalendarExecutionResult]):
     @computed_field
     @property
     def due_diligence(self) -> float:
-        return 0.0
+        return self.due_diligence_eval.score
 
     @computed_field
     @property
@@ -301,10 +299,9 @@ class CalendarBenchmarkEvaluation(BenchmarkEvaluationResult):
     fiduciary_avg_scheduled_duration_error: float | None = None
 
     # Due diligence breakdown
-    due_diligence_avg_effort_action_count: float | None = None
-    due_diligence_avg_message_count: float | None = None
-    due_diligence_avg_preference_mention_count: float | None = None
-    due_diligence_avg_proposal_count: float | None = None
+    due_diligence_avg_information_gathering_score: float | None = None
+    due_diligence_avg_advocacy_score: float | None = None
+    due_diligence_avg_discretion_score: float | None = None
 
 
 # ───────────────────────────────────────────────────────────────────

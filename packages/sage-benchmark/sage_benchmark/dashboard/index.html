@@ -408,6 +408,9 @@ const CORE_METRICS = {
   leakage_rate:         { label: 'Leakage Rate',         aggKey: 'avg_leakage_rate',         taskKey: 'leakage_rate',        format: 'percent', higherIsBetter: false, scale: [0, 1] },
   duty_of_care:         { label: 'Duty of Care',         aggKey: 'avg_duty_of_care',         taskKey: 'duty_of_care',        format: 'percent', higherIsBetter: true,  scale: [-1, 1] },
   due_diligence:        { label: 'Due Diligence',        aggKey: 'avg_due_diligence',        taskKey: 'due_diligence',       format: 'percent', higherIsBetter: true,  scale: [0, 1] },
+  dd_info_gathering:    { label: 'DD: Info Gathering',   aggKey: 'avg_dd_info_gathering',    taskKey: 'dd_info_gathering',   format: 'percent', higherIsBetter: true,  scale: [0, 1] },
+  dd_advocacy:          { label: 'DD: Advocacy',         aggKey: 'avg_dd_advocacy',          taskKey: 'dd_advocacy',         format: 'percent', higherIsBetter: true,  scale: [0, 1] },
+  dd_discretion:        { label: 'DD: Discretion',       aggKey: 'avg_dd_discretion',        taskKey: 'dd_discretion',       format: 'percent', higherIsBetter: true,  scale: [0, 1] },
 };
 
 const BENCHMARK_COLORS = {
@@ -630,8 +633,7 @@ function detectBenchmark(json) {
   if ('requestor_model' in cfg || 'assistant_system_prompt' in cfg) return 'calendar';
   if ('buyer_model' in cfg || 'seller_model' in cfg) return 'marketplace';
   if ('interviewer_model' in cfg || 'prompt_type' in cfg) return 'form_filling';
-  // Check results (BenchmarkOutput) or evaluation_results (CheckpointData)
-  const firstTask = (json.results?.[0] || json.evaluation_results?.[0])?.execution?.task;
+  const firstTask = (json.results?.[0])?.execution?.task;
   if (firstTask?.type) return firstTask.type === 'marketplace' ? 'marketplace' : firstTask.type === 'calendar' ? 'calendar' : 'form_filling';
   if (firstTask?.form_info) return 'form_filling';
   if (firstTask?.product) return 'marketplace';
@@ -699,21 +701,6 @@ function parseResultsFile(json, filename) {
   const reasoningConfig = extractReasoningConfig(cfg);
   const roleModels = extractRoleModels(cfg, benchmark);
 
-  const tasks = (json.results || []).map(r => ({
-    taskId: r.execution?.task?.id,
-    taskCompleted: r.task_completed,
-    executionError: r.execution?.error || null,
-    leakageRate: r.leakage_rate,
-    dutyOfCare: r.duty_of_care,
-    dueDiligence: r.due_diligence,
-    outcomeOptimality: r.outcome_optimality,
-    privacyLeaks: r.privacy_leaks || [],
-    _raw: r,
-  }));
-
-  const evaluation = json.evaluation || {};
-  evaluation.error_count = tasks.filter(t => t.executionError).length;
-
   return {
     id: filename + '_' + Date.now(),
     filename,
@@ -727,8 +714,20 @@ function parseResultsFile(json, filename) {
     variant,
     timestamp: json.timestamp,
     elapsedSeconds: json.elapsed_seconds || 0,
-    evaluation,
-    tasks,
+    evaluation: json.evaluation || {},
+    tasks: (json.results || []).map(r => ({
+      taskId: r.execution?.task?.id,
+      taskCompleted: r.task_completed,
+      leakageRate: r.leakage_rate,
+      dutyOfCare: r.duty_of_care,
+      dueDiligence: r.due_diligence,
+      ddInfoGathering: r.due_diligence_information_gathering_score,
+      ddAdvocacy: r.due_diligence_advocacy_score,
+      ddDiscretion: r.due_diligence_discretion_score,
+      outcomeOptimality: r.outcome_optimality,
+      privacyLeaks: r.privacy_leaks || [],
+      _raw: r,
+    })),
     _rawConfig: cfg,
     _rawEvaluation: json.evaluation || {},
   };
@@ -2107,7 +2106,10 @@ const tvExpCols = [
   { key: 'oo',         label: 'OO',          align: 'center', getter: e => e.evaluation?.avg_outcome_optimality, format: 'percent', good: 'high' },
   { key: 'leakage',    label: 'Leakage',    align: 'center', getter: e => e.evaluation?.avg_leakage_rate, format: 'percent', good: 'low' },
   { key: 'doc',        label: 'DoC',        align: 'center', getter: e => e.evaluation?.avg_duty_of_care, format: 'percent', good: 'high' },
-  { key: 'dd',         label: 'DD',         align: 'center', getter: e => e.evaluation?.avg_due_diligence, format: 'percent' },
+  { key: 'dd',         label: 'DD',         align: 'center', getter: e => e.evaluation?.avg_due_diligence, format: 'percent', good: 'high' },
+  { key: 'dd_ig',      label: 'DD:IG',      align: 'center', getter: e => e.evaluation?.avg_dd_info_gathering, format: 'percent', good: 'high' },
+  { key: 'dd_adv',     label: 'DD:Adv',     align: 'center', getter: e => e.evaluation?.avg_dd_advocacy, format: 'percent', good: 'high' },
+  { key: 'dd_disc',    label: 'DD:Disc',    align: 'center', getter: e => e.evaluation?.avg_dd_discretion, format: 'percent', good: 'high' },
 ];
 
 function tvShowExpTable(benchmark, experiments) {
@@ -2354,6 +2356,9 @@ function tvRenderVerdictBanner(r) {
     tvVerdictStat('Leakage', r.leakage_rate, 'percent', 'low'),
     tvVerdictStat('DoC', r.duty_of_care, 'percent', 'high'),
     tvVerdictStat('DD', r.due_diligence, 'percent', 'high'),
+    tvVerdictStat('DD:IG', r.due_diligence_information_gathering_score, 'percent', 'high'),
+    tvVerdictStat('DD:Adv', r.due_diligence_advocacy_score, 'percent', 'high'),
+    tvVerdictStat('DD:Disc', r.due_diligence_discretion_score, 'percent', 'high'),
   ].join('');
 
   return `<div class="flex items-center gap-4 px-4 py-2.5 border-b ${verdictCls}">
@@ -2630,11 +2635,21 @@ function tvRenderEvalMetrics(r, benchmark) {
     groups += tvRenderMetricGroup('Privacy', [
       mc('Total Secrets', r.privacy?.total_secrets, { format: 'int' }),
     ]);
-    groups += tvRenderMetricGroup('Effort', [
-      mc('Messages', r.due_diligence_message_count, { format: 'int' }),
-      mc('Pref Mentions', r.due_diligence_preference_mention_count, { format: 'int' }),
-      mc('Proposals', r.due_diligence_proposal_count, { format: 'int' }),
+    groups += tvRenderMetricGroup('Due Diligence', [
+      mc('Info Gathering', r.due_diligence_information_gathering_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_information_gathering_rating }),
+      mc('Advocacy', r.due_diligence_advocacy_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_advocacy_rating }),
+      mc('Discretion', r.due_diligence_discretion_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_discretion_rating }),
+      mc('DD Score', r.due_diligence_score, { format: 'percent', good: 'high' }),
     ]);
+    if (r.due_diligence_information_gathering_reasoning || r.due_diligence_advocacy_reasoning || r.due_diligence_discretion_reasoning) {
+      const igReasoning = r.due_diligence_information_gathering_reasoning
+        ? `<div class="mb-1"><span class="font-semibold">Info Gathering:</span> ${esc(r.due_diligence_information_gathering_reasoning)}</div>` : '';
+      const advReasoning = r.due_diligence_advocacy_reasoning
+        ? `<div class="mb-1"><span class="font-semibold">Advocacy:</span> ${esc(r.due_diligence_advocacy_reasoning)}</div>` : '';
+      const discReasoning = r.due_diligence_discretion_reasoning
+        ? `<div><span class="font-semibold">Discretion:</span> ${esc(r.due_diligence_discretion_reasoning)}</div>` : '';
+      groups += `<div class="mb-4 text-[10px] text-gray-500 dark:text-gray-400 italic -mt-2">${igReasoning}${advReasoning}${discReasoning}</div>`;
+    }
   } else if (benchmark === 'marketplace') {
     groups += tvRenderMetricGroup('Deal', [
       mc('Leakage', r.privacy?.leakage_score, { format: 'percent', good: 'low' }),
