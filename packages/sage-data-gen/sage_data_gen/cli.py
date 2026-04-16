@@ -143,6 +143,18 @@ def _build_malicious_parser() -> argparse.ArgumentParser:
         choices=["debug", "info", "warning", "error"],
         help="Python log level for benchmark loggers (default: warning)",
     )
+    val.add_argument(
+        "--restart-exec",
+        action="store_true",
+        default=False,
+        help="Re-run execution (ignore checkpointed execution progress)",
+    )
+    val.add_argument(
+        "--restart-eval",
+        action="store_true",
+        default=False,
+        help="Re-run evaluation (ignore checkpointed evaluation progress)",
+    )
 
     return parser
 

@@ -52,17 +52,6 @@ def _slot_preference(start_time: str, preferences: list[TimeSlotPreference]) -> 
     return 0.0
 
 
-def _joint_value(
-    start_time: str,
-    assistant_preferences: list[TimeSlotPreference],
-    requestor_preferences: list[TimeSlotPreference],
-) -> float:
-    """Compute joint value for a slot: product of both parties' preferences."""
-    return _slot_preference(start_time, assistant_preferences) * _slot_preference(
-        start_time, requestor_preferences
-    )
-
-
 def _busy_start_times(calendar: list[LabeledMeeting]) -> set[str]:
     """Return start_times of occupied working-hour events."""
     return {m.start_time for m in calendar if "sleep" not in m.uid and "personal" not in m.uid}
@@ -149,12 +138,10 @@ def evaluate_outcome_optimality(
             ),
         )
 
-    # V* = max joint value over mutually free slots
-    slot_values = {
-        st: _joint_value(st, assistant_preferences, requestor_preferences) for st in mutually_free
-    }
-    # U* = best joint value within ZOPA (mutually free slots)
-    # U_min = worst joint value within ZOPA (mutually free slots)
+    # V* = max assistant value over mutually free slots
+    slot_values = {st: _slot_preference(st, assistant_preferences) for st in mutually_free}
+    # U* = best assistant value within ZOPA (mutually free slots)
+    # U_min = worst assistant value within ZOPA (mutually free slots)
     u_star = max(slot_values.values())
     u_min = min(slot_values.values())
     best_slot = max(mutually_free, key=lambda st: slot_values[st])
@@ -165,9 +152,7 @@ def evaluate_outcome_optimality(
     elif has_conflicts:
         value = 0.0
     elif scheduled_meeting.start_time in mutually_free:
-        value = _joint_value(
-            scheduled_meeting.start_time, assistant_preferences, requestor_preferences
-        )
+        value = _slot_preference(scheduled_meeting.start_time, assistant_preferences)
     else:
         value = 0.0
 

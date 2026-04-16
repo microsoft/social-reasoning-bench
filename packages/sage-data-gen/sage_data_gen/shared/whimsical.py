@@ -123,7 +123,7 @@ class StrategyProvider:
             "chunk_size": self.chunk_size,
             "max_chunks_per_seed": self.max_chunks_per_seed,
             "max_strategies_per_chunk": self.max_strategies_per_chunk,
-            "max_strategies_per_seed": self.max_strategies_per_seed,
+            "max_strategies_per_seed": self.max_strategies_per_seed or 3,
             "max_strategies": count,
         }
         if self.prefetch_seeds is not None:
@@ -585,6 +585,8 @@ async def run_pooled_validation(
             judge_reasoning_effort=getattr(args, "judge_reasoning_effort", None),
             output_dir=output_dir,
             benchmark_logger=bl,
+            restart_exec=getattr(args, "restart_exec", False),
+            restart_eval=getattr(args, "restart_eval", False),
         )
         preparations.append(prepared)
 
@@ -616,14 +618,19 @@ async def run_pooled_validation(
     # 4. Score and inject per attack type
     for prepared, output in zip(preparations, outputs):
         attack_type = prepared.attack_type
+        header = f"── {attack_type} "
+        print(f"\n{header}{'─' * max(0, 60 - len(header))}")
+
         result = score_validation_results(prepared, output, output_dir=output_dir)
         result.elapsed_seconds = elapsed
 
         best = result.best
-        print(f"\n[{attack_type}] Best strategy (rank 1/{len(prepared.strategies)}):")
-        print(f"  Source seed : {best.strategy.source_seed}")
-        print(f"  {result.target_metric} = {best.metric_value}")
-        print(f"  Direction   : {result.direction}")
+        metric_str = f"{best.metric_value:.4f}" if best.metric_value is not None else "None"
+        print(
+            f"  Best: Strategy {best.strategy_idx}/{len(prepared.strategies)}"
+            f" — {result.target_metric}={metric_str} ({result.direction})"
+            f" — seed: {best.strategy.source_seed}"
+        )
 
         # Inject best strategy into ALL tasks
         if args.output:
@@ -635,8 +642,7 @@ async def run_pooled_validation(
         for task in tasks:
             injected.extend(inject_fn(task, attack_type, best.strategy.game_strategies))
 
-        print(f"  Saving {len(injected)} tasks to {output_path}")
-        save_fn(injected, output_path)
+        print(f"  Saved {len(injected)} tasks → {output_path}")
 
     print(f"\nDone! Total elapsed: {elapsed:.1f}s")
 

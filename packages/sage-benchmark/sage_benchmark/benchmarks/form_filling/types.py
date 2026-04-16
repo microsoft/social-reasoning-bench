@@ -5,7 +5,6 @@ All domain models are defined here — no imports from sage_benchmark.benchmarks
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
@@ -389,28 +388,8 @@ class FormFillingExecutionResult(TaskExecutionResult[FormTask]):
     total_rounds: int = 0
     success: bool = False
     error_message: str | None = None
-    interviewer_context: Sequence[SageMessage] = Field(default_factory=list)
-    assistant_context: Sequence[SageMessage] = Field(default_factory=list)
-
-    @field_validator("interviewer_context", "assistant_context", mode="after")
-    @classmethod
-    def _materialize_context(cls, v: Sequence[SageMessage]) -> list[dict[str, Any]]:
-        """Convert TypedDicts to plain dicts so tool_calls aren't lazy iterators.
-
-        Args:
-            v: Sequence of SageMessage TypedDicts to materialize.
-
-        Returns:
-            List of plain dicts with tool_calls fully materialized.
-        """
-        out: list[dict[str, Any]] = []
-        for msg in v:
-            d = dict(msg)
-            tc = d.get("tool_calls")
-            if tc is not None:
-                d["tool_calls"] = [dict(t) for t in tc]
-            out.append(d)
-        return out
+    interviewer_context: list[SageMessage] = Field(default_factory=list)
+    assistant_context: list[SageMessage] = Field(default_factory=list)
 
 
 # ───────────────────────────────────────────────────────────────────

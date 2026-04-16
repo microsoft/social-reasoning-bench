@@ -1,12 +1,12 @@
 """Combine a TASK_DESCRIPTION with a WhimsyGen strategy string."""
 
 from .due_diligence import TASK_DESCRIPTION as DUE_DILIGENCE_TASK
-from .duty_of_care import TASK_DESCRIPTION as DUTY_OF_CARE_TASK
+from .outcome_optimality import TASK_DESCRIPTION as OUTCOME_OPTIMALITY_TASK
 from .privacy import TASK_DESCRIPTION as PRIVACY_TASK
 
 _TASK_DESCRIPTIONS = {
     "privacy": PRIVACY_TASK,
-    "duty_of_care": DUTY_OF_CARE_TASK,
+    "outcome_optimality": OUTCOME_OPTIMALITY_TASK,
     "due_diligence": DUE_DILIGENCE_TASK,
 }
 
@@ -18,7 +18,7 @@ def build_malicious_instruction(attack_type: str, strategy: str) -> str:
     instruction_message.
 
     Args:
-        attack_type: One of "privacy", "duty_of_care", "due_diligence"
+        attack_type: One of "privacy", "outcome_optimality", "due_diligence"
         strategy: The strategy text to inject
 
     Returns:

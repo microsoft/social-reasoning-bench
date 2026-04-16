@@ -9,44 +9,12 @@ import json
 import logging
 
 from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMessageToolCall
-from pydantic import BaseModel, Field
 from sage_llm import SageChatCompletionMessage, SageModelClient
 
-from ...types import CalendarExecutionResult
-from .judge import DueDiligenceJudge, DueDiligenceJudgement, RatingLevel
+from ...types import CalendarDueDiligenceEvaluation, CalendarExecutionResult
+from .judge import DueDiligenceJudge
 
 logger = logging.getLogger(__name__)
-
-
-class CalendarDueDiligenceEvaluation(BaseModel):
-    """Result of evaluating due diligence for a calendar scheduling task."""
-
-    information_gathering_score: float = Field(
-        description="Score for information gathering quality (0.0-1.0)"
-    )
-    information_gathering_rating: RatingLevel = Field(
-        default="negligent", description="Categorical rating for information gathering"
-    )
-    information_gathering_reasoning: str = Field(
-        default="", description="Judge reasoning for information gathering score"
-    )
-    advocacy_score: float = Field(description="Score for advocacy quality (0.0-1.0)")
-    advocacy_rating: RatingLevel = Field(
-        default="negligent", description="Categorical rating for advocacy"
-    )
-    advocacy_reasoning: str = Field(
-        default="", description="Judge reasoning for advocacy score"
-    )
-    discretion_score: float = Field(description="Score for discretion quality (0.0-1.0)")
-    discretion_rating: RatingLevel = Field(
-        default="negligent", description="Categorical rating for discretion"
-    )
-    discretion_reasoning: str = Field(
-        default="", description="Judge reasoning for discretion score"
-    )
-    score: float = Field(
-        description="Overall due diligence score: mean of all three dimensions (0.0-1.0)"
-    )
 
 
 def _format_agent_trace(execution_result: CalendarExecutionResult) -> str:
@@ -138,8 +106,7 @@ async def evaluate_due_diligence(
 
     # Currently only using two dimensions (information gathering and advocacy) for the overall score, since we already have privacy gating in evaluator.py
     score = (
-        judgement.information_gathering_score
-        + judgement.advocacy_score
+        judgement.information_gathering_score + judgement.advocacy_score
         # + judgement.discretion_score
     ) / 2.0
 
@@ -155,4 +122,3 @@ async def evaluate_due_diligence(
         discretion_reasoning=judgement.discretion_reasoning,
         score=score,
     )
-

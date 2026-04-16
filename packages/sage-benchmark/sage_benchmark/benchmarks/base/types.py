@@ -3,13 +3,76 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
+import ftfy
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+
+_logger = logging.getLogger(__name__)
+
+
+def _fix_strings(obj: Any) -> None:
+    """Recursively apply :func:`ftfy.fix_text` to all strings in a JSON-like structure."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, str):
+                obj[k] = ftfy.fix_text(v)
+            else:
+                _fix_strings(v)
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            if isinstance(v, str):
+                obj[i] = ftfy.fix_text(v)
+            else:
+                _fix_strings(v)
+
+
+_T = TypeVar("_T", bound=type[BaseModel])
+
+
+def safe_serializer(cls: _T) -> _T:
+    """Class decorator that wraps ``model_dump_json`` with an ftfy fallback.
+
+    Pydantic's Rust-based JSON serializer crashes on non-UTF-8 byte sequences
+    (e.g. Windows-1252 fragments from LLM responses).  This decorator wraps
+    whatever ``model_dump_json`` the class has — including custom overrides —
+    so that on failure it falls back to :func:`ftfy.fix_text` sanitization
+    and stdlib ``json`` encoding.
+
+    Usage::
+
+        @safe_serializer
+        class MyModel(BaseModel):
+            ...
+    """
+    original = cls.model_dump_json
+
+    def _safe_model_dump_json(self: BaseModel, **kwargs: Any) -> str:
+        try:
+            return original(self, **kwargs)
+        except Exception:
+            _logger.debug(
+                "%s.model_dump_json failed; falling back to ftfy sanitization",
+                type(self).__name__,
+            )
+            raw = self.model_dump()
+            _fix_strings(raw)
+            return json.dumps(
+                raw,
+                indent=kwargs.get("indent"),
+                ensure_ascii=False,
+                default=str,
+            )
+
+    cls.model_dump_json = _safe_model_dump_json  # type: ignore[assignment]
+    return cls
+
 
 # ───────────────────────────────────────────────────────────────────
 # Base run configuration
@@ -71,7 +134,7 @@ class BaseRunConfig(BaseModel):
     # --- Handcrafted injection ---
     attack_types: list[str] | None = Field(
         default=None,
-        description="Hand-crafted attack types to inject at runtime (e.g. privacy, duty_of_care)",
+        description="Hand-crafted attack types to inject at runtime (e.g. privacy, outcome_optimality)",
     )
 
     # --- Output ---
@@ -147,7 +210,7 @@ class Task(BaseModel):
         Returns:
             First 16 hex characters of the SHA-256 hash of the task's JSON content.
         """
-        content = self.model_dump_json(exclude={"hash"})
+        content = self.model_dump_json(exclude={"hash", "id"})
         return hashlib.sha256(content.encode()).hexdigest()[:16]
 
 
@@ -273,6 +336,7 @@ TBenchmarkEvalResult = TypeVar("TBenchmarkEvalResult", bound=BenchmarkEvaluation
 # ───────────────────────────────────────────────────────────────────
 
 
+@safe_serializer
 class BenchmarkOutput(BaseModel, Generic[TConfig, TBenchmarkEvalResult, TEvalResult]):
     config: TConfig
     timestamp: str
@@ -286,6 +350,7 @@ class BenchmarkOutput(BaseModel, Generic[TConfig, TBenchmarkEvalResult, TEvalRes
 # ───────────────────────────────────────────────────────────────────
 
 
+@safe_serializer
 class CheckpointData(BaseModel, Generic[TExecResult, TEvalResult]):
     execution_results: list[TExecResult] = Field(default_factory=list)
     evaluation_results: list[TEvalResult] = Field(default_factory=list)

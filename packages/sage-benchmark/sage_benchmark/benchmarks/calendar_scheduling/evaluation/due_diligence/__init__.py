@@ -1,6 +1,7 @@
 """Due diligence evaluation for calendar scheduling benchmark."""
 
-from .evaluate import CalendarDueDiligenceEvaluation, evaluate_due_diligence
+from ...types import CalendarDueDiligenceEvaluation
+from .evaluate import evaluate_due_diligence
 from .judge import DueDiligenceJudge, DueDiligenceJudgement, RatingLevel
 
 __all__ = [
@@ -10,4 +11,3 @@ __all__ = [
     "RatingLevel",
     "evaluate_due_diligence",
 ]
-

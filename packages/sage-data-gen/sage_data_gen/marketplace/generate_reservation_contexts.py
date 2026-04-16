@@ -3,7 +3,7 @@
 import asyncio
 
 from pydantic import BaseModel, Field
-from sage_llm import SageMessage, SageModelClient
+from sage_llm import SageModelClient
 
 from .models import CatalogEntry, ReservationContext
 
@@ -70,6 +70,11 @@ async def _generate_one(
             seller_price = round(float(parsed.seller_reservation_price), 2)
             buyer_price = round(float(parsed.buyer_reservation_price), 2)
 
+            if buyer_price <= seller_price:
+                raise ValueError(
+                    f"Non-positive ZOPA after rounding (buyer={buyer_price}, seller={seller_price})"
+                )
+
             buyer_story = parsed.buyer_reservation_story.strip()
             seller_story = parsed.seller_reservation_story.strip()
 
@@ -100,19 +105,29 @@ async def generate_reservation_contexts(
 ) -> list[ReservationContext]:
     sem = asyncio.Semaphore(max_concurrency)
 
-    async def _bounded(*, i: int, cat: CatalogEntry) -> ReservationContext:
+    async def _bounded(*, i: int, cat: CatalogEntry) -> ReservationContext | None:
         async with sem:
-            return await _generate_one(
-                client=client,
-                model=model,
-                context_id=f"rc_{i:04d}",
-                catalog=cat,
-                max_retries=max_retries,
-            )
+            try:
+                return await _generate_one(
+                    client=client,
+                    model=model,
+                    context_id=f"rc_{i:04d}",
+                    catalog=cat,
+                    max_retries=max_retries,
+                )
+            except RuntimeError as e:
+                print(f"  Warning: skipping context rc_{i:04d} — {e}")
+                return None
 
     coros = []
     for i in range(total_tasks):
         cat = catalog[i % len(catalog)]
         coros.append(_bounded(i=i, cat=cat))
 
-    return await asyncio.gather(*coros)
+    results = await asyncio.gather(*coros)
+    contexts = [r for r in results if r is not None]
+    if len(contexts) < total_tasks:
+        print(
+            f"  Generated {len(contexts)}/{total_tasks} contexts ({total_tasks - len(contexts)} failed)"
+        )
+    return contexts

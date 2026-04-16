@@ -36,7 +36,7 @@ class MetricTarget:
 # measures damage, and whether more damage means a higher or lower value.
 ATTACK_METRIC_MAP: dict[str, MetricTarget] = {
     "privacy": MetricTarget("avg_leakage_rate", maximize=True),
-    "duty_of_care": MetricTarget("avg_duty_of_care", maximize=False),
+    "outcome_optimality": MetricTarget("avg_outcome_optimality", maximize=False),
     "due_diligence": MetricTarget("avg_due_diligence", maximize=False),
 }
 
@@ -50,6 +50,7 @@ class StrategyScore:
 
     strategy: Strategy
     metric_value: float | None  # None when all tasks failed
+    strategy_idx: int = 0
     rank: int = 0
 
 
@@ -149,6 +150,10 @@ def prepare_validation_benchmark(
     judge_reasoning_effort: str | int | None = None,
     output_dir: Path | None = None,
     benchmark_logger: Any = None,
+    max_rounds: int = 5,
+    max_steps_per_turn: int = 5,
+    restart_exec: bool = False,
+    restart_eval: bool = False,
 ) -> PreparedValidation:
     """Build a Benchmark with N×M injected tasks, ready for pooled execution.
 
@@ -168,6 +173,10 @@ def prepare_validation_benchmark(
         judge_reasoning_effort: Optional reasoning effort for the judge.
         output_dir: Optional directory for benchmark outputs.
         benchmark_logger: BenchmarkLogger instance (shared across benchmarks).
+        max_rounds: Maximum conversation rounds per task.
+        max_steps_per_turn: Maximum tool calls per agent turn.
+        restart_exec: Re-run execution (ignore checkpointed execution progress).
+        restart_eval: Re-run evaluation (ignore checkpointed evaluation progress).
 
     Returns:
         :class:`PreparedValidation` with the benchmark instance and metadata.
@@ -206,6 +215,8 @@ def prepare_validation_benchmark(
         "judge_model": judge_model,
         "output_dir": output_dir / attack_type if output_dir is not None else None,
         "variant": f"whimsical_validation_{attack_type}",
+        "max_rounds": max_rounds,
+        "max_steps_per_turn": max_steps_per_turn,
     }
     if assistant_reasoning_effort is not None:
         config_kwargs["reasoning_effort"] = assistant_reasoning_effort
@@ -228,7 +239,13 @@ def prepare_validation_benchmark(
         config_kwargs[f"{counterparty_role}_explicit_cot"] = True
 
     config = ConfigCls(**config_kwargs)
-    benchmark = BenchmarkCls(config, tasks=all_tasks, benchmark_logger=benchmark_logger)
+    benchmark = BenchmarkCls(
+        config,
+        tasks=all_tasks,
+        benchmark_logger=benchmark_logger,
+        restart_exec=restart_exec,
+        restart_eval=restart_eval,
+    )
 
     return PreparedValidation(
         attack_type=attack_type,
@@ -276,16 +293,23 @@ def score_validation_results(
     for strategy_idx, strategy in enumerate(strategies):
         group = groups.get(strategy_idx, [])
         if not group:
-            print(f"  [{attack_type}] Strategy {strategy_idx}: no results (all tasks failed)")
-            scores.append(StrategyScore(strategy=strategy, metric_value=None))
+            scores.append(StrategyScore(strategy=strategy, metric_value=None, strategy_idx=strategy_idx))
             continue
 
         evaluation = benchmark.compute_evaluation(group)
         metric_value: float | None = getattr(evaluation, target.metric_name, None)
-        scores.append(StrategyScore(strategy=strategy, metric_value=metric_value))
+        scores.append(StrategyScore(strategy=strategy, metric_value=metric_value, strategy_idx=strategy_idx))
 
-        label = f"{metric_value:.4f}" if metric_value is not None else "None"
-        print(f"  [{attack_type}] Strategy {strategy_idx}: {target.metric_name} = {label}")
+    # Print compact summary
+    valid = [s.metric_value for s in scores if s.metric_value is not None]
+    n_none = len(scores) - len(valid)
+    if valid:
+        lo, hi = min(valid), max(valid)
+        range_str = f"range [{lo:.4f}, {hi:.4f}]"
+    else:
+        range_str = "no valid scores"
+    none_str = f", {n_none} failed" if n_none else ""
+    print(f"  Scored {len(scores)} strategies: {range_str}{none_str}")
 
     # Sort: best damage first
     def _sort_key(s: StrategyScore) -> float:
@@ -332,6 +356,7 @@ def _save_validation_results(result: ValidationResult, path: Path) -> None:
         "direction": result.direction,
         "elapsed_seconds": round(result.elapsed_seconds, 1),
         "best_strategy": {
+            "strategy_idx": result.best.strategy_idx,
             "rank": result.best.rank,
             "metric_value": result.best.metric_value,
             "source_seed": result.best.strategy.source_seed,
@@ -339,6 +364,7 @@ def _save_validation_results(result: ValidationResult, path: Path) -> None:
         },
         "all_strategies": [
             {
+                "strategy_idx": s.strategy_idx,
                 "rank": s.rank,
                 "metric_value": s.metric_value,
                 "source_seed": s.strategy.source_seed,
@@ -357,4 +383,4 @@ def _save_validation_results(result: ValidationResult, path: Path) -> None:
             allow_unicode=True,
             width=120,
         )
-    print(f"  Validation results saved to {path}")
+    print(f"  Validation details → {path}")

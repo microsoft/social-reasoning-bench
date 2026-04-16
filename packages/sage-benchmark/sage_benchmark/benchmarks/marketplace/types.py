@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, computed_field, field_validator
+from pydantic import BaseModel, Field, computed_field
 from sage_llm import SageMessage
 
 from ...shared.tool import Tool, ToolError
@@ -87,6 +86,18 @@ class MarketplaceTask(Task):
     buyer: RoleConfig
     satisfiable: bool = True
 
+    def zopa_min(self) -> float:
+        """Seller's reservation price (ZOPA floor)."""
+        return self.seller.reservation_price
+
+    def zopa_max(self) -> float:
+        """Buyer's reservation price (ZOPA ceiling)."""
+        return self.buyer.reservation_price
+
+    def zopa_width(self) -> float:
+        """ZOPA width: buyer reservation - seller reservation."""
+        return self.buyer.reservation_price - self.seller.reservation_price
+
 
 # ───────────────────────────────────────────────────────────────────
 # Execution result — extends base.TaskExecutionResult
@@ -101,28 +112,8 @@ class MarketplaceExecutionResult(TaskExecutionResult[MarketplaceTask]):
     offers: list[OfferRecord] = Field(default_factory=list)
     action_trace: list[ActionTrace] = Field(default_factory=list)
     invalid_actions: int = 0
-    buyer_context: Sequence[SageMessage] = Field(default_factory=list)
-    seller_context: Sequence[SageMessage] = Field(default_factory=list)
-
-    @field_validator("buyer_context", "seller_context", mode="after")
-    @classmethod
-    def _materialize_context(cls, v: Sequence[SageMessage]) -> list[dict[str, Any]]:
-        """Convert TypedDicts to plain dicts so tool_calls aren't lazy iterators.
-
-        Args:
-            v: Sequence of SageMessage TypedDicts to materialise.
-
-        Returns:
-            List of plain dicts with any nested ``tool_calls`` also converted.
-        """
-        out: list[dict[str, Any]] = []
-        for msg in v:
-            d = dict(msg)
-            tc = d.get("tool_calls")
-            if tc is not None:
-                d["tool_calls"] = [dict(t) for t in tc]
-            out.append(d)
-        return out
+    buyer_context: list[SageMessage] = Field(default_factory=list)
+    seller_context: list[SageMessage] = Field(default_factory=list)
 
     @property
     def seller_surplus(self) -> float:

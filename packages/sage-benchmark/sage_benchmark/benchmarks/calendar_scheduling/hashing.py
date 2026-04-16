@@ -15,7 +15,7 @@ def compute_task_hash(task: CalendarTask) -> str:
     Returns:
         First 16 characters of the sha256 hash of the task's JSON representation
     """
-    content = task.model_dump_json(exclude_none=False, exclude={"hash"})
+    content = task.model_dump_json(exclude_none=False, exclude={"hash", "id"})
     return hashlib.sha256(content.encode()).hexdigest()[:16]
 
 

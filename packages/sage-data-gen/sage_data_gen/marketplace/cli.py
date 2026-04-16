@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import re
 from pathlib import Path
 
 import yaml
@@ -87,7 +88,13 @@ async def run_pipeline(
     validation = validate_tasks(tasks=tasks)
     _save_step(debug_dir, 4, "validation_report", validation)
     if not validation["validation"]["passed"]:
-        raise ValueError(f"Validation failed: {validation['validation']['errors']}")
+        errors = validation["validation"]["errors"]
+        print(f"  Warning: {len(errors)} validation error(s), filtering invalid tasks:")
+        for err in errors:
+            print(f"    - {err}")
+        bad_ids = {int(m.group(1)) for e in errors if (m := re.search(r"Task (\d+):", e))}
+        tasks = [t for t in tasks if t.id not in bad_ids]
+        print(f"  Continuing with {len(tasks)} valid tasks.")
 
     print("Step 5: Computing stats...")
     stats = compute_stats(tasks)

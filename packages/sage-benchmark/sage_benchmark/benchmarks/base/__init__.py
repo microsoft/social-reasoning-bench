@@ -35,6 +35,7 @@ from .types import (
     TEvalResult,
     TExecResult,
     TTask,
+    safe_serializer,
 )
 
 __all__ = [
@@ -53,4 +54,5 @@ __all__ = [
     "TEvalResult",
     "TExecResult",
     "TTask",
+    "safe_serializer",
 ]

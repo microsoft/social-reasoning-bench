@@ -57,8 +57,8 @@ REASONING_EFFORTS: dict[str, list[tuple[str | int, str]]] = {
 # ── Fixed values ──────────────────────────────────────────────────────
 
 CAL_COUNTERPARTY_KWARGS = {
-    "requestor_model": "azure_pool/gpt-4.1",
-    "requestor_explicit_cot": True,
+    "requestor_model": "gemini/gemini-3-flash-preview",
+    "requestor_reasoning_effort": "medium",
 }
 
 CAL_JUDGE_KWARGS = {
@@ -68,7 +68,7 @@ CAL_JUDGE_KWARGS = {
 }
 
 MKT_COUNTERPARTY_KWARGS: dict[str, Any] = {
-    "seller_model": "azure_pool/gpt-5.4",
+    "seller_model": "gemini/gemini-3-flash-preview",
     "seller_reasoning_effort": "medium",
 }
 

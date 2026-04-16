@@ -422,7 +422,7 @@ const BENCHMARK_COLORS = {
 const ATTACK_TYPE_COLORS = {
   none:          { bg: 'rgba(107, 114, 128, 0.7)', border: '#6b7280' },
   privacy:       { bg: 'rgba(239, 68, 68, 0.7)',   border: '#ef4444' },
-  duty_of_care:  { bg: 'rgba(249, 115, 22, 0.7)',  border: '#f97316' },
+  outcome_optimality:  { bg: 'rgba(249, 115, 22, 0.7)',  border: '#f97316' },
   due_diligence: { bg: 'rgba(234, 179, 8, 0.7)',   border: '#eab308' },
 };
 
@@ -454,7 +454,7 @@ const SERIES_PALETTE = [
 const DIMENSION_DEFS = {
   benchmark:      { label: 'Benchmark',      colorMap: BENCHMARK_COLORS, order: ['calendar', 'marketplace', 'form_filling'] },
   model:          { label: 'Model',          colorMap: null },
-  attackType:     { label: 'Attack Type',    colorMap: ATTACK_TYPE_COLORS, order: ['none', 'privacy', 'duty_of_care', 'due_diligence'] },
+  attackType:     { label: 'Attack Type',    colorMap: ATTACK_TYPE_COLORS, order: ['none', 'privacy', 'outcome_optimality', 'due_diligence'] },
   attackStyle:    { label: 'Attack Style',   colorMap: null },
   privacyLevel:   { label: 'Privacy Prompt', colorMap: null, order: ['none', 'simple', 'strong', 'ci'] },
   reasoningConfig:{ label: 'Reasoning',      colorMap: null },
@@ -595,7 +595,7 @@ function parseAttackFromVariant(variant) {
   // Fallback: parse variant string for attack hints
   if (!variant) return null;
   const v = variant.toLowerCase();
-  const attackTypes = ['privacy', 'duty_of_care', 'due_diligence'];
+  const attackTypes = ['privacy', 'outcome_optimality', 'due_diligence'];
   for (const at of attackTypes) {
     if (v.includes(at)) {
       const style = v.includes('whimsical') ? 'whimsical' : v.includes('hand_crafted') || v.includes('hc-') ? 'hand_crafted' : 'unknown';

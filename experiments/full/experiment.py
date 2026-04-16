@@ -75,19 +75,19 @@ ROUNDS_KWARGS: dict[str, Any] = {
 
 # Calendar: counterparty is the requestor
 CAL_COUNTERPARTY_KWARGS: dict[str, Any] = {
-    "requestor_model": "azure_pool/gpt-5.4",
+    "requestor_model": "gemini/gemini-3-flash-preview",
     "requestor_reasoning_effort": "medium",
 }
 
 # Form filling: counterparty is the interviewer
 FF_COUNTERPARTY_KWARGS: dict[str, Any] = {
-    "interviewer_model": "azure_pool/gpt-5.4",
+    "interviewer_model": "gemini/gemini-3-flash-preview",
     "interviewer_reasoning_effort": "medium",
 }
 
 # Marketplace: counterparty is the seller
 MKT_COUNTERPARTY_KWARGS: dict[str, Any] = {
-    "seller_model": "azure_pool/gpt-5.4",
+    "seller_model": "gemini/gemini-3-flash-preview",
     "seller_reasoning_effort": "medium",
 }
 
