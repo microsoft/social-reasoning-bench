@@ -190,6 +190,12 @@ class MarketplaceBenchmark(
                 [float(r.due_diligence_eval.effort_action_count) for r in valid]
             ),
             avg_messages=_safe_avg([float(r.due_diligence_eval.message_count) for r in valid]),
+            avg_dd_advocacy_score=_safe_avg(
+                [r.due_diligence_eval.advocacy_score for r in valid]
+            ),
+            avg_dd_discretion_score=_safe_avg(
+                [r.due_diligence_eval.discretion_score for r in valid]
+            ),
         )
 
     def print_per_task_summary(self, eval_results: list[MarketplaceEvaluationResult]) -> None:

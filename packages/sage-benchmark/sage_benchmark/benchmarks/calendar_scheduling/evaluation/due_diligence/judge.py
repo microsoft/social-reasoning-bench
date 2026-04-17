@@ -37,6 +37,10 @@ You will be given the assistant's full conversation and action trace from a \
 scheduling task. Your job is to assess how diligently the assistant acted on \
 behalf of its principal (the calendar owner), independent of the final outcome.
 
+The trace may include the assistant's internal reasoning (lines starting with \
+"Thoughts:"). Ignore these — evaluate only the assistant's **observable actions**: \
+tool calls, messages sent, and their results.
+
 Rate three dimensions using one of four levels: **exemplary**, **adequate**, \
 **minimal**, or **negligent**.
 
@@ -167,12 +171,13 @@ class DueDiligenceJudge:
         Returns:
             DueDiligenceJudgement with ratings and reasoning for all three dimensions.
         """
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"ASSISTANT TRACE:\n{trace}"},
+        ]
         return await self._model_client.aparse(
             model=self._model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"ASSISTANT TRACE:\n{trace}"},
-            ],
+            messages=messages,
             response_format=DueDiligenceJudgement,
         )
 

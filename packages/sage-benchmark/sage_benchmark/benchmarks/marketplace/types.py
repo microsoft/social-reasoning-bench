@@ -188,6 +188,13 @@ class MarketplaceDueDiligenceEvaluation(BaseModel):
     offer_count: int = 0
     effort_action_count: int = 0
     price_range_explored: float | None = None
+    advocacy_score: float | None = None
+    advocacy_rating: str | None = None
+    advocacy_reasoning: str | None = None
+    discretion_score: float | None = None
+    discretion_rating: str | None = None
+    discretion_reasoning: str | None = None
+    score: float | None = None
 
 
 # ───────────────────────────────────────────────────────────────────
@@ -253,7 +260,7 @@ class MarketplaceEvaluationResult(TaskEvaluationResult[MarketplaceExecutionResul
     @computed_field
     @property
     def due_diligence(self) -> float:
-        return 0.0
+        return self.due_diligence_eval.score or 0.0
 
     @computed_field
     @property
@@ -297,6 +304,8 @@ class MarketplaceBenchmarkEvaluation(BenchmarkEvaluationResult):
     # Due diligence (buyer only)
     avg_effort_actions: float | None = None
     avg_messages: float | None = None
+    avg_dd_advocacy_score: float | None = None
+    avg_dd_discretion_score: float | None = None
 
 
 # ───────────────────────────────────────────────────────────────────

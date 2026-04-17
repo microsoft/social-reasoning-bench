@@ -8,7 +8,6 @@ and discretion. The final due diligence score is the mean of all three.
 import json
 import logging
 
-from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMessageToolCall
 from sage_llm import SageChatCompletionMessage, SageModelClient
 
 from ...types import CalendarDueDiligenceEvaluation, CalendarExecutionResult
@@ -45,29 +44,37 @@ def _format_agent_trace(execution_result: CalendarExecutionResult) -> str:
     lines.append("")
 
     # Format each message in the assistant's context
-    lines.append("=== AGENT TRACE ===")
+    lines.append("=== ASSISTANT TRACE ===")
     for message in execution_result.assistant_context:
         if isinstance(message, SageChatCompletionMessage):
             role = message.role
-            if role == "system":
-                lines.append(f"[SYSTEM] {message.content}")
-            elif role == "assistant":
-                if message.content:
-                    lines.append(f"[ASSISTANT] {message.content}")
-                for tc in message.tool_calls or []:
-                    if isinstance(tc, ChatCompletionMessageToolCall):
-                        try:
-                            args = json.loads(tc.function.arguments)
-                            args_str = json.dumps(args, indent=2)
-                        except (json.JSONDecodeError, TypeError):
-                            args_str = tc.function.arguments
-                        lines.append(f"[TOOL CALL] {tc.function.name}({args_str})")
-            elif role == "tool":
-                lines.append(f"[TOOL RESULT] {message.content}")
-            elif role == "user":
-                lines.append(f"[USER/ENVIRONMENT] {message.content}")
+            content = message.content
+            tool_calls = message.tool_calls or []
+        elif isinstance(message, dict):
+            role = message.get("role", "")
+            content = message.get("content", "")
+            tool_calls = message.get("tool_calls") or []
         else:
             continue
+
+        if role == "system":
+            lines.append(f"[SYSTEM] {content}")
+        elif role == "assistant":
+            if content:
+                lines.append(f"[ASSISTANT] {content}")
+            for tc in tool_calls:
+                fn_name = tc.function.name
+                fn_args = tc.function.arguments
+                try:
+                    args = json.loads(fn_args) if isinstance(fn_args, str) else fn_args
+                    args_str = json.dumps(args, indent=2)
+                except (json.JSONDecodeError, TypeError):
+                    args_str = str(fn_args)
+                lines.append(f"[TOOL CALL] {fn_name}({args_str})")
+        elif role == "tool":
+            lines.append(f"[TOOL RESULT] {content}")
+        elif role == "user":
+            lines.append(f"[USER/ENVIRONMENT] {content}")
         lines.append("")
 
     # Include outcome context
