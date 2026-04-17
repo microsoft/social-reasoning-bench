@@ -1,14 +1,14 @@
 """Full experiment: benchmarks × attacks × privacy prompts × models.
 
 Sweeps:
-  - 3 benchmarks: calendar, marketplace, form_filling
+  - 2 benchmarks: calendar, marketplace
   - 7 attack conditions: normal + hand_crafted × 3 + whimsical × 3
   - 4 privacy prompt levels: none, simple, strong, ci
   - 11 model configs (split by reasoning capability):
       Non-reasoning: gpt-4.1 × {no_cot, cot}  (2)
       Reasoning: {gpt-5.4, gemini-3.1-pro, claude-sonnet-4.6} × {think_off, think_med, think_high}  (9)
 
-Counterparty agents (requestor, interviewer, seller) use a fixed strong
+Counterparty agents (requestor, seller) use a fixed strong
 model: azure_pool/gpt-5.4 with medium reasoning effort across all sweeps.
 
 Usage::
@@ -22,14 +22,12 @@ Usage::
 from typing import Any
 
 from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConfig
-from sage_benchmark.benchmarks.form_filling.config import FormFillingRunConfig
 from sage_benchmark.benchmarks.marketplace.config import MarketplaceRunConfig
 
 # ── Data paths ──────────────────────────────────────────────────────
 
 CAL_DIR = "data/calendar-scheduling"
 MKT_DIR = "data/marketplace"
-FF_DIR = "data/form-filling"
 
 # ── Sweep axes ──────────────────────────────────────────────────────
 
@@ -77,12 +75,6 @@ ROUNDS_KWARGS: dict[str, Any] = {
 CAL_COUNTERPARTY_KWARGS: dict[str, Any] = {
     "requestor_model": "gemini/gemini-3-flash-preview",
     "requestor_reasoning_effort": "medium",
-}
-
-# Form filling: counterparty is the interviewer
-FF_COUNTERPARTY_KWARGS: dict[str, Any] = {
-    "interviewer_model": "gemini/gemini-3-flash-preview",
-    "interviewer_reasoning_effort": "medium",
 }
 
 # Marketplace: counterparty is the seller
@@ -284,80 +276,3 @@ def experiment_marketplace():
                 )
 
 
-# ── Form filling ────────────────────────────────────────────────────
-# Form filling uses privacy_prompt for privacy and explicit_cot (base field).
-
-
-def _ff(
-    paths, variant, model, privacy, reasoning_effort=None, explicit_cot=None, attack_types=None
-):
-    return FormFillingRunConfig(
-        paths=paths,
-        variant=variant,
-        model=model,
-        privacy_prompt=privacy,
-        reasoning_effort=reasoning_effort,
-        explicit_cot=explicit_cot,
-        attack_types=attack_types,
-        **FF_COUNTERPARTY_KWARGS,
-        **ROUNDS_KWARGS,
-        **JUDGE_KWARGS,
-    )
-
-
-def _ff_attacks(model, privacy, tag, reasoning_effort=None, explicit_cot=None):
-    """Yield normal + all attack variants for one form-filling config."""
-    yield _ff(
-        [f"{FF_DIR}/tasks.yaml"],
-        _variant("form_filling", tag, privacy, "normal"),
-        model,
-        privacy,
-        reasoning_effort,
-        explicit_cot,
-    )
-    for attack in ATTACK_TYPES:
-        # Handcrafted: runtime injection from benign data
-        yield _ff(
-            [f"{FF_DIR}/tasks.yaml"],
-            _variant("form_filling", tag, privacy, f"hand_crafted_{attack}"),
-            model,
-            privacy,
-            reasoning_effort,
-            explicit_cot,
-            attack_types=[attack],
-        )
-        # Whimsical: pre-generated data files
-        yield _ff(
-            [f"{FF_DIR}/tasks-whimsical-{attack}.yaml"],
-            _variant("form_filling", tag, privacy, f"whimsical_{attack}"),
-            model,
-            privacy,
-            reasoning_effort,
-            explicit_cot,
-        )
-
-
-def experiment_form_filling():
-    for privacy in PRIVACY_LEVELS:
-        # Reasoning models: sweep reasoning_effort levels
-        for model in REASONING_MODELS:
-            mtag = _model_tag(model)
-            for effort, effort_tag in REASONING_EFFORTS[model]:
-                yield from _ff_attacks(
-                    model,
-                    privacy,
-                    f"{mtag}_{effort_tag}",
-                    reasoning_effort=effort,
-                )
-
-        # Non-reasoning models: sweep explicit_cot True/False
-        for model in NON_REASONING_MODELS:
-            mtag = _model_tag(model)
-            for cot in (False, True):
-                cot_tag = "cot" if cot else "no_cot"
-                yield from _ff_attacks(
-                    model,
-                    privacy,
-                    f"{mtag}_{cot_tag}",
-                    explicit_cot=cot,
-                )

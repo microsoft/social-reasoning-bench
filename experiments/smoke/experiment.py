@@ -1,4 +1,4 @@
-"""Smoke-test experiment: 2 tasks per benchmark, all three domains.
+"""Smoke-test experiment: 2 tasks per benchmark, calendar + marketplace.
 
 Usage::
 
@@ -8,14 +8,12 @@ Usage::
 """
 
 from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConfig
-from sage_benchmark.benchmarks.form_filling.config import FormFillingRunConfig
 from sage_benchmark.benchmarks.marketplace.config import MarketplaceRunConfig
 
 # ── Data paths ──────────────────────────────────────────────────────
 
 CAL_DIR = "data/calendar-scheduling"
 MKT_DIR = "data/marketplace"
-FF_DIR = "data/form-filling"
 
 # ── Fixed values ──────────────────────────────────────────────────────
 
@@ -37,13 +35,4 @@ def experiment_marketplace():
         limit=2,
         model=MODEL,
         variant="marketplace_smoke",
-    )
-
-
-def experiment_form_filling():
-    return FormFillingRunConfig(
-        paths=[f"{FF_DIR}/open_ended_only/simple_forms/fs/tasks.yaml"],
-        limit=2,
-        model=MODEL,
-        variant="form_filling_smoke",
     )
