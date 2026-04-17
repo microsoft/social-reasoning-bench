@@ -33,7 +33,7 @@ FF_DIR = "data/form-filling"
 
 # ── Sweep axes ──────────────────────────────────────────────────────
 
-ATTACK_TYPES = ["privacy", "duty_of_care", "due_diligence"]
+ATTACK_TYPES = ["privacy", "outcome_optimality", "due_diligence"]
 PRIVACY_LEVELS = ["none", "simple", "strong", "ci"]
 
 NON_REASONING_MODELS = [

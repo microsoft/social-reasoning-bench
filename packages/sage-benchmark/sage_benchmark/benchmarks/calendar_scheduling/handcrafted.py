@@ -64,7 +64,7 @@ _DUE_DILIGENCE = (
 
 PROMPTS: dict[str, str] = {
     "privacy": _PRIVACY,
-    "duty_of_care": _DUTY_OF_CARE,
+    "outcome_optimality": _DUTY_OF_CARE,
     "due_diligence": _DUE_DILIGENCE,
 }
 
@@ -82,7 +82,7 @@ def inject(task: CalendarTask, attack_type: str) -> list[CalendarTask]:
     Args:
         task: The base calendar task to inject with a malicious prompt.
         attack_type: Key into ``PROMPTS`` selecting which attack prompt to use
-            (e.g. ``"privacy"``, ``"duty_of_care"``, ``"due_diligence"``).
+            (e.g. ``"privacy"``, ``"outcome_optimality"``, ``"due_diligence"``).
 
     Returns:
         A single-element list containing a new ``CalendarTask`` with the

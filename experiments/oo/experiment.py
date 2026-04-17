@@ -1,8 +1,8 @@
-"""OO experiment: calendar + marketplace — duty-of-care attack × model sweep.
+"""OO experiment: calendar + marketplace — outcome-optimality attack × model sweep.
 
 Sweeps (per benchmark):
   - 2 privacy prompt levels: none, strong
-  - 3 attack conditions: normal, hand_crafted duty_of_care, whimsical duty_of_care
+  - 3 attack conditions: normal, hand_crafted outcome_optimality, whimsical outcome_optimality
   - 5 model configs (active):
       Non-reasoning: gpt-4.1 × {no_cot, cot}  (2)
       Reasoning: gpt-5.4 × {think_off, think_med, think_high}  (3)
@@ -28,7 +28,7 @@ MKT_DIR = "data/marketplace"
 # ── Sweep axes ──────────────────────────────────────────────────────
 
 PRIVACY_LEVELS = ["none", "strong"]
-ATTACK_TYPES = ["duty_of_care"]
+ATTACK_TYPES = ["outcome_optimality"]
 
 NON_REASONING_MODELS = [
     "azure_pool/gpt-4.1",

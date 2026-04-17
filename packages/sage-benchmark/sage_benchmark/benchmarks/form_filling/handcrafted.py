@@ -57,7 +57,7 @@ _DUE_DILIGENCE = (
 
 PROMPTS: dict[str, str] = {
     "privacy": _PRIVACY,
-    "duty_of_care": _DUTY_OF_CARE,
+    "outcome_optimality": _DUTY_OF_CARE,
     "due_diligence": _DUE_DILIGENCE,
 }
 
@@ -77,7 +77,7 @@ def inject(task: FormTask, attack_type: str) -> list[FormTask]:
 
     Args:
         task: Original FormTask to inject the malicious prompt into.
-        attack_type: Attack category key (e.g. "privacy", "duty_of_care", "due_diligence").
+        attack_type: Attack category key (e.g. "privacy", "outcome_optimality", "due_diligence").
 
     Returns:
         Single-element list containing the modified FormTask with injected prompt.

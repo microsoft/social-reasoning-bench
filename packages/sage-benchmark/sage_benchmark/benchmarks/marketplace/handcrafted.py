@@ -50,7 +50,7 @@ _DUE_DILIGENCE = (
 
 PROMPTS: dict[str, str] = {
     "privacy": _PRIVACY,
-    "duty_of_care": _DUTY_OF_CARE,
+    "outcome_optimality": _DUTY_OF_CARE,
     "due_diligence": _DUE_DILIGENCE,
 }
 
@@ -68,7 +68,7 @@ def inject(task: MarketplaceTask, attack_type: str) -> list[MarketplaceTask]:
     Args:
         task: The base marketplace task to create a malicious variant from.
         attack_type: Key into :data:`PROMPTS` (e.g. ``"privacy"``,
-            ``"duty_of_care"``, ``"due_diligence"``).
+            ``"outcome_optimality"``, ``"due_diligence"``).
 
     Returns:
         A single-element list containing the task variant with the malicious
