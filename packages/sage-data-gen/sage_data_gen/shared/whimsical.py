@@ -642,6 +642,7 @@ async def run_pooled_validation(
         for task in tasks:
             injected.extend(inject_fn(task, attack_type, best.strategy.game_strategies))
 
+        save_fn(injected, output_path)
         print(f"  Saved {len(injected)} tasks → {output_path}")
 
     print(f"\nDone! Total elapsed: {elapsed:.1f}s")
