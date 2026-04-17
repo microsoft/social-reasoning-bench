@@ -422,7 +422,7 @@ const BENCHMARK_COLORS = {
 const ATTACK_TYPE_COLORS = {
   none:          { bg: 'rgba(107, 114, 128, 0.7)', border: '#6b7280' },
   privacy:       { bg: 'rgba(239, 68, 68, 0.7)',   border: '#ef4444' },
-  duty_of_care:  { bg: 'rgba(249, 115, 22, 0.7)',  border: '#f97316' },
+  outcome_optimality:  { bg: 'rgba(249, 115, 22, 0.7)',  border: '#f97316' },
   due_diligence: { bg: 'rgba(234, 179, 8, 0.7)',   border: '#eab308' },
 };
 
@@ -454,7 +454,7 @@ const SERIES_PALETTE = [
 const DIMENSION_DEFS = {
   benchmark:      { label: 'Benchmark',      colorMap: BENCHMARK_COLORS, order: ['calendar', 'marketplace', 'form_filling'] },
   model:          { label: 'Model',          colorMap: null },
-  attackType:     { label: 'Attack Type',    colorMap: ATTACK_TYPE_COLORS, order: ['none', 'privacy', 'duty_of_care', 'due_diligence'] },
+  attackType:     { label: 'Attack Type',    colorMap: ATTACK_TYPE_COLORS, order: ['none', 'privacy', 'outcome_optimality', 'due_diligence'] },
   attackStyle:    { label: 'Attack Style',   colorMap: null },
   privacyLevel:   { label: 'Privacy Prompt', colorMap: null, order: ['none', 'simple', 'strong', 'ci'] },
   reasoningConfig:{ label: 'Reasoning',      colorMap: null },
@@ -595,7 +595,7 @@ function parseAttackFromVariant(variant) {
   // Fallback: parse variant string for attack hints
   if (!variant) return null;
   const v = variant.toLowerCase();
-  const attackTypes = ['privacy', 'duty_of_care', 'due_diligence'];
+  const attackTypes = ['privacy', 'outcome_optimality', 'due_diligence'];
   for (const at of attackTypes) {
     if (v.includes(at)) {
       const style = v.includes('whimsical') ? 'whimsical' : v.includes('hand_crafted') || v.includes('hc-') ? 'hand_crafted' : 'unknown';
@@ -701,101 +701,6 @@ function parseResultsFile(json, filename) {
   const reasoningConfig = extractReasoningConfig(cfg);
   const roleModels = extractRoleModels(cfg, benchmark);
 
-  return backfillEvaluation({
-    id: filename + '_' + Date.now(),
-    filename,
-    benchmark,
-    attackType: attack.attackType,
-    attackStyle: attack.attackStyle,
-    model,
-    privacyLevel,
-    reasoningConfig,
-    ...roleModels,
-    variant,
-    timestamp: json.timestamp,
-    elapsedSeconds: json.elapsed_seconds || 0,
-    evaluation: json.evaluation || {},
-    tasks: (json.results || []).map(r => ({
-      taskId: r.execution?.task?.id,
-      taskCompleted: r.task_completed,
-      leakageRate: r.leakage_rate,
-      dutyOfCare: r.duty_of_care,
-      dueDiligence: r.due_diligence,
-      ddInfoGathering: r.due_diligence_eval?.information_gathering_score ?? r.due_diligence_information_gathering_score,
-      ddAdvocacy: r.due_diligence_eval?.advocacy_score ?? r.due_diligence_advocacy_score,
-      ddDiscretion: r.due_diligence_eval?.discretion_score ?? r.due_diligence_discretion_score,
-      outcomeOptimality: r.outcome_optimality,
-      privacyLeaks: r.privacy_leaks || [],
-      _raw: r,
-    })),
-    _rawConfig: cfg,
-    _rawEvaluation: json.evaluation || {},
-  });
-}
-
-function backfillEvaluation(exp) {
-  // Recompute any missing avg_* fields from task-level data
-  const n = exp.tasks.length;
-  if (n === 0) return exp;
-  const ev = exp.evaluation;
-  if (ev.avg_task_completion == null) ev.avg_task_completion = exp.tasks.reduce((s, t) => s + (t.taskCompleted ? 1 : 0), 0) / n;
-  if (ev.avg_outcome_optimality == null) ev.avg_outcome_optimality = exp.tasks.reduce((s, t) => s + (t.outcomeOptimality || 0), 0) / n;
-  if (ev.avg_leakage_rate == null) ev.avg_leakage_rate = exp.tasks.reduce((s, t) => s + (t.leakageRate || 0), 0) / n;
-  if (ev.avg_duty_of_care == null) ev.avg_duty_of_care = exp.tasks.reduce((s, t) => s + (t.dutyOfCare || 0), 0) / n;
-  if (ev.avg_due_diligence == null) ev.avg_due_diligence = exp.tasks.reduce((s, t) => s + (t.dueDiligence || 0), 0) / n;
-  if (ev.avg_dd_info_gathering == null) ev.avg_dd_info_gathering = ev.due_diligence_avg_information_gathering_score ?? exp.tasks.reduce((s, t) => s + (t.ddInfoGathering || 0), 0) / n;
-  if (ev.avg_dd_advocacy == null) ev.avg_dd_advocacy = ev.avg_dd_advocacy_score ?? ev.due_diligence_avg_advocacy_score ?? exp.tasks.reduce((s, t) => s + (t.ddAdvocacy || 0), 0) / n;
-  if (ev.avg_dd_discretion == null) ev.avg_dd_discretion = ev.avg_dd_discretion_score ?? ev.due_diligence_avg_discretion_score ?? exp.tasks.reduce((s, t) => s + (t.ddDiscretion || 0), 0) / n;
-  return exp;
-}
-
-function isCheckpointFile(json) {
-  return Array.isArray(json.evaluation_results);
-}
-
-function parseCheckpointFile(json, filename) {
-  const cfg = json.config || {};
-  const variant = (cfg.variant || filename.replace('.json', '')).replace(/,[^,]+=.*/g, '');
-  const attack = parseAttackFromTasks(json.evaluation_results) || parseAttackFromVariant(variant) || parseAttackFromPaths(cfg.paths) || { attackType: 'none', attackStyle: 'none' };
-  const benchmark = parseBenchmarkFromPaths(cfg.paths) || detectBenchmark(json);
-  const model = displayModel(cfg.model);
-  const privacyLevel = extractPrivacyLevel(cfg);
-  const reasoningConfig = extractReasoningConfig(cfg);
-  const roleModels = extractRoleModels(cfg, benchmark);
-
-  const evalResults = json.evaluation_results || [];
-  const tasks = evalResults.map(r => ({
-    taskId: r.execution?.task?.id,
-    taskCompleted: r.task_completed,
-    executionError: r.execution?.error || null,
-    leakageRate: r.leakage_rate,
-    dutyOfCare: r.duty_of_care,
-    dueDiligence: r.due_diligence,
-    ddInfoGathering: r.due_diligence_eval?.information_gathering_score ?? r.due_diligence_information_gathering_score,
-    ddAdvocacy: r.due_diligence_eval?.advocacy_score ?? r.due_diligence_advocacy_score,
-    ddDiscretion: r.due_diligence_eval?.discretion_score ?? r.due_diligence_discretion_score,
-    outcomeOptimality: r.outcome_optimality,
-    privacyLeaks: r.privacy_leaks || [],
-    _raw: r,
-  }));
-
-  // Compute aggregate evaluation from individual task results
-  const n = tasks.length;
-  const evaluation = { total_tasks: n };
-  if (n > 0) {
-    evaluation.avg_task_completion = tasks.reduce((s, t) => s + (t.taskCompleted ? 1 : 0), 0) / n;
-    evaluation.avg_outcome_optimality = tasks.reduce((s, t) => s + (t.outcomeOptimality || 0), 0) / n;
-    evaluation.avg_leakage_rate = tasks.reduce((s, t) => s + (t.leakageRate || 0), 0) / n;
-    evaluation.avg_duty_of_care = tasks.reduce((s, t) => s + (t.dutyOfCare || 0), 0) / n;
-    evaluation.avg_due_diligence = tasks.reduce((s, t) => s + (t.dueDiligence || 0), 0) / n;
-    evaluation.avg_dd_info_gathering = tasks.reduce((s, t) => s + (t.ddInfoGathering || 0), 0) / n;
-    evaluation.avg_dd_advocacy = tasks.reduce((s, t) => s + (t.ddAdvocacy || 0), 0) / n;
-    evaluation.avg_dd_discretion = tasks.reduce((s, t) => s + (t.ddDiscretion || 0), 0) / n;
-  }
-
-  const totalExpected = (json.completed_task_keys || []).length || n;
-  evaluation.error_count = tasks.filter(t => t.executionError).length;
-
   return {
     id: filename + '_' + Date.now(),
     filename,
@@ -816,9 +721,9 @@ function parseCheckpointFile(json, filename) {
       leakageRate: r.leakage_rate,
       dutyOfCare: r.duty_of_care,
       dueDiligence: r.due_diligence,
-      ddInfoGathering: r.due_diligence_eval?.information_gathering_score,
-      ddAdvocacy: r.due_diligence_eval?.advocacy_score,
-      ddDiscretion: r.due_diligence_eval?.discretion_score,
+      ddInfoGathering: r.due_diligence_information_gathering_score,
+      ddAdvocacy: r.due_diligence_advocacy_score,
+      ddDiscretion: r.due_diligence_discretion_score,
       outcomeOptimality: r.outcome_optimality,
       privacyLeaks: r.privacy_leaks || [],
       _raw: r,
@@ -2451,9 +2356,9 @@ function tvRenderVerdictBanner(r) {
     tvVerdictStat('Leakage', r.leakage_rate, 'percent', 'low'),
     tvVerdictStat('DoC', r.duty_of_care, 'percent', 'high'),
     tvVerdictStat('DD', r.due_diligence, 'percent', 'high'),
-    tvVerdictStat('DD:IG', r.due_diligence_eval?.information_gathering_score ?? r.due_diligence_information_gathering_score, 'percent', 'high'),
-    tvVerdictStat('DD:Adv', r.due_diligence_eval?.advocacy_score ?? r.due_diligence_advocacy_score, 'percent', 'high'),
-    tvVerdictStat('DD:Disc', r.due_diligence_eval?.discretion_score ?? r.due_diligence_discretion_score, 'percent', 'high'),
+    tvVerdictStat('DD:IG', r.due_diligence_information_gathering_score, 'percent', 'high'),
+    tvVerdictStat('DD:Adv', r.due_diligence_advocacy_score, 'percent', 'high'),
+    tvVerdictStat('DD:Disc', r.due_diligence_discretion_score, 'percent', 'high'),
   ].join('');
 
   return `<div class="flex items-center gap-4 px-4 py-2.5 border-b ${verdictCls}">
@@ -2731,18 +2636,18 @@ function tvRenderEvalMetrics(r, benchmark) {
       mc('Total Secrets', r.privacy?.total_secrets, { format: 'int' }),
     ]);
     groups += tvRenderMetricGroup('Due Diligence', [
-      mc('Info Gathering', r.due_diligence_eval?.information_gathering_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_eval?.information_gathering_rating }),
-      mc('Advocacy', r.due_diligence_eval?.advocacy_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_eval?.advocacy_rating }),
-      mc('Discretion', r.due_diligence_eval?.discretion_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_eval?.discretion_rating }),
-      mc('DD Score', r.due_diligence_eval?.score, { format: 'percent', good: 'high' }),
+      mc('Info Gathering', r.due_diligence_information_gathering_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_information_gathering_rating }),
+      mc('Advocacy', r.due_diligence_advocacy_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_advocacy_rating }),
+      mc('Discretion', r.due_diligence_discretion_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_discretion_rating }),
+      mc('DD Score', r.due_diligence_score, { format: 'percent', good: 'high' }),
     ]);
-    if (r.due_diligence_eval?.information_gathering_reasoning || r.due_diligence_eval?.advocacy_reasoning || r.due_diligence_eval?.discretion_reasoning) {
-      const igReasoning = r.due_diligence_eval?.information_gathering_reasoning
-        ? `<div class="mb-1"><span class="font-semibold">Info Gathering:</span> ${esc(r.due_diligence_eval.information_gathering_reasoning)}</div>` : '';
-      const advReasoning = r.due_diligence_eval?.advocacy_reasoning
-        ? `<div class="mb-1"><span class="font-semibold">Advocacy:</span> ${esc(r.due_diligence_eval.advocacy_reasoning)}</div>` : '';
-      const discReasoning = r.due_diligence_eval?.discretion_reasoning
-        ? `<div><span class="font-semibold">Discretion:</span> ${esc(r.due_diligence_eval.discretion_reasoning)}</div>` : '';
+    if (r.due_diligence_information_gathering_reasoning || r.due_diligence_advocacy_reasoning || r.due_diligence_discretion_reasoning) {
+      const igReasoning = r.due_diligence_information_gathering_reasoning
+        ? `<div class="mb-1"><span class="font-semibold">Info Gathering:</span> ${esc(r.due_diligence_information_gathering_reasoning)}</div>` : '';
+      const advReasoning = r.due_diligence_advocacy_reasoning
+        ? `<div class="mb-1"><span class="font-semibold">Advocacy:</span> ${esc(r.due_diligence_advocacy_reasoning)}</div>` : '';
+      const discReasoning = r.due_diligence_discretion_reasoning
+        ? `<div><span class="font-semibold">Discretion:</span> ${esc(r.due_diligence_discretion_reasoning)}</div>` : '';
       groups += `<div class="mb-4 text-[10px] text-gray-500 dark:text-gray-400 italic -mt-2">${igReasoning}${advReasoning}${discReasoning}</div>`;
     }
   } else if (benchmark === 'marketplace') {
@@ -2751,18 +2656,6 @@ function tvRenderEvalMetrics(r, benchmark) {
       mc('Duty of Care', r.duty_of_care_eval?.duty_of_care_score, { format: 'percent', good: 'high' }),
       mc('Deal Fairness', r.duty_of_care_eval?.deal_ratio_centered, { format: 'number' }),
     ]);
-    groups += tvRenderMetricGroup('Due Diligence', [
-      mc('Advocacy', r.due_diligence_eval?.advocacy_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_eval?.advocacy_rating }),
-      mc('Discretion', r.due_diligence_eval?.discretion_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_eval?.discretion_rating }),
-      mc('DD Score', r.due_diligence_eval?.score, { format: 'percent', good: 'high' }),
-    ]);
-    if (r.due_diligence_eval?.advocacy_reasoning || r.due_diligence_eval?.discretion_reasoning) {
-      const advReasoning = r.due_diligence_eval?.advocacy_reasoning
-        ? `<div class="mb-1"><span class="font-semibold">Advocacy:</span> ${esc(r.due_diligence_eval.advocacy_reasoning)}</div>` : '';
-      const discReasoning = r.due_diligence_eval?.discretion_reasoning
-        ? `<div><span class="font-semibold">Discretion:</span> ${esc(r.due_diligence_eval.discretion_reasoning)}</div>` : '';
-      groups += `<div class="mb-4 text-[10px] text-gray-500 dark:text-gray-400 italic -mt-2">${advReasoning}${discReasoning}</div>`;
-    }
     groups += tvRenderMetricGroup('Effort', [
       mc('Effort Actions', r.due_diligence_eval?.effort_action_count, { format: 'int' }),
       mc('Price Range', r.due_diligence_eval?.price_range_explored, { format: 'percent', good: 'high' }),

@@ -138,7 +138,6 @@ async def evaluate_single_task(
             outcome_optimality_eval=oo_result.model_dump(),
             scheduled_duration_error=completion_result.scheduled_duration_error,
             due_diligence_eval=due_diligence_result,
->>>>>>> release/v0.1.0
         )
     except Exception:
         error_msg = traceback.format_exc()
