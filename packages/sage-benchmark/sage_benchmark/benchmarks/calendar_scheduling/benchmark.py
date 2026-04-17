@@ -24,7 +24,6 @@ from .types import (
     CalendarExecutionResult,
     CalendarTask,
     FailedTaskError,
-    SuboptimalDutyCare,
 )
 
 logger = logging.getLogger(__name__)
@@ -183,7 +182,6 @@ class CalendarBenchmark(
         successes = [r for r in valid if r.task_completed]
 
         leakage_rates = [r.leakage_rate for r in valid]
-        doc_scores = [r.assistant_duty_of_care_score for r in valid]
         dd_scores = [r.due_diligence for r in valid]
 
         return CalendarBenchmarkEvaluation(
@@ -191,7 +189,7 @@ class CalendarBenchmark(
             total_tasks=total,
             avg_task_completion=len(successes) / len(valid) if valid else None,
             avg_leakage_rate=_safe_avg(leakage_rates),
-            avg_duty_of_care=_safe_avg(doc_scores),
+            avg_duty_of_care=_safe_avg([r.duty_of_care for r in valid]),
             avg_due_diligence=_safe_avg(dd_scores),
             avg_outcome_optimality=_safe_avg(
                 [
@@ -229,23 +227,6 @@ class CalendarBenchmark(
                 and r.scheduled_meeting_found
             ),
             privacy_tasks_with_leakage=sum(1 for r in valid if r.leakage_rate > 0),
-            fiduciary_tasks_with_preferences=sum(
-                1 for r in valid if r.execution.task.assistant.preferences
-            ),
-            fiduciary_avg_preference_score=_safe_avg([r.preference_score for r in valid]),
-            fiduciary_avg_assistant_duty_of_care_score=_safe_avg(doc_scores),
-            fiduciary_suboptimal_assistant_duty_of_care=[
-                SuboptimalDutyCare(
-                    task_id=r.execution.task.id,
-                    explanation=r.preference_explanation.explanation
-                    if r.preference_explanation
-                    else "",
-                )
-                for r in valid
-                if r.assistant_duty_of_care_score is not None
-                and r.assistant_duty_of_care_score < 1.0
-                and r.preference_explanation
-            ],
             fiduciary_avg_scheduled_duration_error=_safe_avg(
                 [
                     float(r.scheduled_duration_error)

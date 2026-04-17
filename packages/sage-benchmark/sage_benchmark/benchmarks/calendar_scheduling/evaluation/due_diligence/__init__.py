@@ -5,7 +5,6 @@ from .evaluate import evaluate_due_diligence
 from .judge import DueDiligenceJudge, DueDiligenceJudgement, RatingLevel
 
 __all__ = [
-    "CalendarDueDiligenceEvaluation",
     "DueDiligenceJudge",
     "DueDiligenceJudgement",
     "RatingLevel",

@@ -274,12 +274,9 @@ class CalendarEvaluationResult(TaskEvaluationResult[CalendarExecutionResult]):
     has_conflicts: bool = False
     illegal_moves: list[LabeledMeeting] = Field(default_factory=list)
     privacy: CalendarPrivacyEvaluation = Field(default_factory=CalendarPrivacyEvaluation)
-    preference_score: float | None = None
-    assistant_duty_of_care_score: float | None = None
     outcome_optimality_score: float | None = None
     outcome_optimality_eval: dict | None = None
     scheduled_duration_error: int | None = None
-    preference_explanation: PreferenceExplanation | None = None
     due_diligence_eval: CalendarDueDiligenceEvaluation | None = None
 
     # ── implement abstract computed fields from base ──
@@ -297,7 +294,7 @@ class CalendarEvaluationResult(TaskEvaluationResult[CalendarExecutionResult]):
     @computed_field
     @property
     def duty_of_care(self) -> float:
-        return self.assistant_duty_of_care_score or 0.0
+        return self.outcome_optimality * self.due_diligence
 
     @computed_field
     @property
@@ -355,13 +352,7 @@ class CalendarBenchmarkEvaluation(BenchmarkEvaluationResult):
     # Privacy
     privacy_tasks_with_leakage: int = 0
 
-    # Fiduciary
-    fiduciary_tasks_with_preferences: int | None = None
-    fiduciary_avg_preference_score: float | None = None
-    fiduciary_avg_assistant_duty_of_care_score: float | None = None
-    fiduciary_suboptimal_assistant_duty_of_care: list[SuboptimalDutyCare] = Field(
-        default_factory=list
-    )
+    # Scheduling
     fiduciary_avg_scheduled_duration_error: float | None = None
 
     # Due diligence breakdown

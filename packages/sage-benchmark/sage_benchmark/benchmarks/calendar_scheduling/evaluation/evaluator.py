@@ -8,14 +8,12 @@ import traceback
 from sage_llm import SageModelClient
 
 from ....shared.logging import BenchmarkLogger, VerboseLogger
-from ..environment.calendar import AgentCalendar
 from ..types import (
     CalendarEvaluationResult,
     CalendarExecutionResult,
     CalendarPrivacyEvaluation,
 )
 from .due_diligence import evaluate_due_diligence
-from .duty_of_care import evaluate_duty_of_care
 from .outcome_optimality import evaluate_outcome_optimality
 from .privacy import evaluate_privacy_leakage
 from .task_completion import evaluate_task_completion
@@ -32,9 +30,9 @@ async def evaluate_single_task(
 ) -> CalendarEvaluationResult:
     """Evaluate a single task execution result.
 
-    Runs task completion first (needed by duty of care), then runs
-    privacy, due diligence, duty of care, and outcome optimality
-    evaluations concurrently.
+    Runs task completion first, then runs privacy, due diligence, and
+    outcome optimality evaluations concurrently. Duty of care is derived
+    as outcome_optimality × due_diligence.
 
     Args:
         execution_result: The completed task execution to evaluate.
@@ -60,7 +58,7 @@ async def evaluate_single_task(
     from sage_llm.concurrency import prompt_label
 
     try:
-        # 1. Task completion first (duty_of_care depends on it)
+        # 1. Task completion first (outcome_optimality depends on it)
         t0 = time.monotonic()
         _tok = prompt_label.set("cal_completion_judge")
         try:
@@ -71,7 +69,7 @@ async def evaluate_single_task(
             prompt_label.reset(_tok)
         timings["task_completion"] = time.monotonic() - t0
 
-        # 2. Run privacy, due diligence, and duty of care concurrently
+        # 2. Run privacy, due diligence, and outcome optimality concurrently
         async def _privacy():
             t = time.monotonic()
             _t = prompt_label.set("cal_privacy_judge")
@@ -94,23 +92,6 @@ async def evaluate_single_task(
             timings["due_diligence"] = time.monotonic() - t
             return result
 
-        def _duty_of_care():
-            t = time.monotonic()
-            final_calendar = AgentCalendar(
-                owner=task.assistant.email,
-                meetings=execution_result.final_assistant_calendar,
-            )
-            result = evaluate_duty_of_care(
-                completion_result.scheduled_meeting,
-                task.assistant.preferences,
-                final_calendar,
-                task_satisfiable=task.satisfiable,
-                has_conflicts=completion_result.has_conflicts,
-                requestor_is_malicious=task.requestor.is_malicious,
-            )
-            timings["duty_of_care"] = time.monotonic() - t
-            return result
-
         def _outcome_optimality():
             t = time.monotonic()
             result = evaluate_outcome_optimality(
@@ -125,10 +106,9 @@ async def evaluate_single_task(
             timings["outcome_optimality"] = time.monotonic() - t
             return result
 
-        leaked_secrets, due_diligence_result, duty_of_care_result, oo_result = await asyncio.gather(
+        leaked_secrets, due_diligence_result, oo_result = await asyncio.gather(
             _privacy(),
             _due_diligence(),
-            asyncio.to_thread(_duty_of_care),
             asyncio.to_thread(_outcome_optimality),
         )
 
@@ -154,12 +134,9 @@ async def evaluate_single_task(
             illegal_moves=completion_result.illegal_moves,
             requestor_is_malicious=completion_result.requestor_is_malicious,
             privacy=privacy_eval,
-            preference_score=duty_of_care_result.preference_score,
-            assistant_duty_of_care_score=duty_of_care_result.assistant_duty_of_care_score,
             outcome_optimality_score=oo_result.outcome_optimality_score,
             outcome_optimality_eval=oo_result.model_dump(),
             scheduled_duration_error=completion_result.scheduled_duration_error,
-            preference_explanation=duty_of_care_result.preference_explanation,
             due_diligence_eval=due_diligence_result,
         )
     except Exception:
