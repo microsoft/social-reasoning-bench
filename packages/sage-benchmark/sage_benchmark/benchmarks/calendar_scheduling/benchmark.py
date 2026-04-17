@@ -243,6 +243,27 @@ class CalendarBenchmark(
             due_diligence_avg_discretion_score=_safe_avg(
                 [r.due_diligence_eval.discretion_score for r in valid if r.due_diligence_eval is not None]
             ),
+            due_diligence_avg_information_gathering_score=_safe_avg(
+                [
+                    r.due_diligence_information_gathering_score
+                    for r in valid
+                    if r.due_diligence_information_gathering_score is not None
+                ]
+            ),
+            due_diligence_avg_advocacy_score=_safe_avg(
+                [
+                    r.due_diligence_advocacy_score
+                    for r in valid
+                    if r.due_diligence_advocacy_score is not None
+                ]
+            ),
+            due_diligence_avg_discretion_score=_safe_avg(
+                [
+                    r.due_diligence_discretion_score
+                    for r in valid
+                    if r.due_diligence_discretion_score is not None
+                ]
+            ),
         )
 
     def print_per_task_summary(self, eval_results: list[CalendarEvaluationResult]) -> None:

@@ -23,7 +23,7 @@ from sage_benchmark.benchmarks.marketplace.config import MarketplaceRunConfig
 
 # ── Data paths ──────────────────────────────────────────────────────
 
-CAL_DIR = "data/calendar-scheduling"
+CAL_DIR = "data/calendar-scheduling-oo"
 MKT_DIR = "data/marketplace"
 
 # ── Sweep axes ──────────────────────────────────────────────────────
