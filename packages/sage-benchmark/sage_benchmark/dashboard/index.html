@@ -701,7 +701,7 @@ function parseResultsFile(json, filename) {
   const reasoningConfig = extractReasoningConfig(cfg);
   const roleModels = extractRoleModels(cfg, benchmark);
 
-  return {
+  const exp = {
     id: filename + '_' + Date.now(),
     filename,
     benchmark,
@@ -721,9 +721,9 @@ function parseResultsFile(json, filename) {
       leakageRate: r.leakage_rate,
       dutyOfCare: r.duty_of_care,
       dueDiligence: r.due_diligence,
-      ddInfoGathering: r.due_diligence_information_gathering_score,
-      ddAdvocacy: r.due_diligence_advocacy_score,
-      ddDiscretion: r.due_diligence_discretion_score,
+      ddInfoGathering: r.due_diligence_eval?.information_gathering_score ?? r.due_diligence_information_gathering_score,
+      ddAdvocacy: r.due_diligence_eval?.advocacy_score ?? r.due_diligence_advocacy_score,
+      ddDiscretion: r.due_diligence_eval?.discretion_score ?? r.due_diligence_discretion_score,
       outcomeOptimality: r.outcome_optimality,
       privacyLeaks: r.privacy_leaks || [],
       _raw: r,
@@ -731,6 +731,21 @@ function parseResultsFile(json, filename) {
     _rawConfig: cfg,
     _rawEvaluation: json.evaluation || {},
   };
+
+  // Normalize DD dimension averages from various Python key names
+  const ev = exp.evaluation;
+  const n = exp.tasks.length;
+  // Normalize DD dimension averages from various Python key names.
+  // Only compute from task-level data if at least one task has the value.
+  function _taskAvg(tasks, key) {
+    const vals = tasks.map(t => t[key]).filter(v => v != null);
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  }
+  if (ev.avg_dd_info_gathering == null) ev.avg_dd_info_gathering = ev.due_diligence_avg_information_gathering_score ?? _taskAvg(exp.tasks, 'ddInfoGathering');
+  if (ev.avg_dd_advocacy == null) ev.avg_dd_advocacy = ev.avg_dd_advocacy_score ?? ev.due_diligence_avg_advocacy_score ?? _taskAvg(exp.tasks, 'ddAdvocacy');
+  if (ev.avg_dd_discretion == null) ev.avg_dd_discretion = ev.avg_dd_discretion_score ?? ev.due_diligence_avg_discretion_score ?? _taskAvg(exp.tasks, 'ddDiscretion');
+
+  return exp;
 }
 
 
@@ -2356,9 +2371,9 @@ function tvRenderVerdictBanner(r) {
     tvVerdictStat('Leakage', r.leakage_rate, 'percent', 'low'),
     tvVerdictStat('DoC', r.duty_of_care, 'percent', 'high'),
     tvVerdictStat('DD', r.due_diligence, 'percent', 'high'),
-    tvVerdictStat('DD:IG', r.due_diligence_information_gathering_score, 'percent', 'high'),
-    tvVerdictStat('DD:Adv', r.due_diligence_advocacy_score, 'percent', 'high'),
-    tvVerdictStat('DD:Disc', r.due_diligence_discretion_score, 'percent', 'high'),
+    tvVerdictStat('DD:IG', r.due_diligence_eval?.information_gathering_score ?? r.due_diligence_information_gathering_score, 'percent', 'high'),
+    tvVerdictStat('DD:Adv', r.due_diligence_eval?.advocacy_score ?? r.due_diligence_advocacy_score, 'percent', 'high'),
+    tvVerdictStat('DD:Disc', r.due_diligence_eval?.discretion_score ?? r.due_diligence_discretion_score, 'percent', 'high'),
   ].join('');
 
   return `<div class="flex items-center gap-4 px-4 py-2.5 border-b ${verdictCls}">
@@ -2635,27 +2650,38 @@ function tvRenderEvalMetrics(r, benchmark) {
     groups += tvRenderMetricGroup('Privacy', [
       mc('Total Secrets', r.privacy?.total_secrets, { format: 'int' }),
     ]);
+    const dde = r.due_diligence_eval || {};
     groups += tvRenderMetricGroup('Due Diligence', [
-      mc('Info Gathering', r.due_diligence_information_gathering_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_information_gathering_rating }),
-      mc('Advocacy', r.due_diligence_advocacy_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_advocacy_rating }),
-      mc('Discretion', r.due_diligence_discretion_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_discretion_rating }),
-      mc('DD Score', r.due_diligence_score, { format: 'percent', good: 'high' }),
+      mc('Info Gathering', dde.information_gathering_score ?? r.due_diligence_information_gathering_score, { format: 'percent', good: 'high', subtitle: dde.information_gathering_rating ?? r.due_diligence_information_gathering_rating }),
+      mc('Advocacy', dde.advocacy_score ?? r.due_diligence_advocacy_score, { format: 'percent', good: 'high', subtitle: dde.advocacy_rating ?? r.due_diligence_advocacy_rating }),
+      mc('Discretion', dde.discretion_score ?? r.due_diligence_discretion_score, { format: 'percent', good: 'high', subtitle: dde.discretion_rating ?? r.due_diligence_discretion_rating }),
+      mc('DD Score', dde.score ?? r.due_diligence_score, { format: 'percent', good: 'high' }),
     ]);
-    if (r.due_diligence_information_gathering_reasoning || r.due_diligence_advocacy_reasoning || r.due_diligence_discretion_reasoning) {
-      const igReasoning = r.due_diligence_information_gathering_reasoning
-        ? `<div class="mb-1"><span class="font-semibold">Info Gathering:</span> ${esc(r.due_diligence_information_gathering_reasoning)}</div>` : '';
-      const advReasoning = r.due_diligence_advocacy_reasoning
-        ? `<div class="mb-1"><span class="font-semibold">Advocacy:</span> ${esc(r.due_diligence_advocacy_reasoning)}</div>` : '';
-      const discReasoning = r.due_diligence_discretion_reasoning
-        ? `<div><span class="font-semibold">Discretion:</span> ${esc(r.due_diligence_discretion_reasoning)}</div>` : '';
+    const igR = dde.information_gathering_reasoning ?? r.due_diligence_information_gathering_reasoning;
+    const advR = dde.advocacy_reasoning ?? r.due_diligence_advocacy_reasoning;
+    const discR = dde.discretion_reasoning ?? r.due_diligence_discretion_reasoning;
+    if (igR || advR || discR) {
+      const igReasoning = igR ? `<div class="mb-1"><span class="font-semibold">Info Gathering:</span> ${esc(igR)}</div>` : '';
+      const advReasoning = advR ? `<div class="mb-1"><span class="font-semibold">Advocacy:</span> ${esc(advR)}</div>` : '';
+      const discReasoning = discR ? `<div><span class="font-semibold">Discretion:</span> ${esc(discR)}</div>` : '';
       groups += `<div class="mb-4 text-[10px] text-gray-500 dark:text-gray-400 italic -mt-2">${igReasoning}${advReasoning}${discReasoning}</div>`;
     }
   } else if (benchmark === 'marketplace') {
     groups += tvRenderMetricGroup('Deal', [
       mc('Leakage', r.privacy?.leakage_score, { format: 'percent', good: 'low' }),
-      mc('Duty of Care', r.duty_of_care_eval?.duty_of_care_score, { format: 'percent', good: 'high' }),
-      mc('Deal Fairness', r.duty_of_care_eval?.deal_ratio_centered, { format: 'number' }),
     ]);
+    groups += tvRenderMetricGroup('Due Diligence', [
+      mc('Advocacy', r.due_diligence_eval?.advocacy_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_eval?.advocacy_rating }),
+      mc('Discretion', r.due_diligence_eval?.discretion_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_eval?.discretion_rating }),
+      mc('DD Score', r.due_diligence_eval?.score, { format: 'percent', good: 'high' }),
+    ]);
+    if (r.due_diligence_eval?.advocacy_reasoning || r.due_diligence_eval?.discretion_reasoning) {
+      const advReasoning = r.due_diligence_eval?.advocacy_reasoning
+        ? `<div class="mb-1"><span class="font-semibold">Advocacy:</span> ${esc(r.due_diligence_eval.advocacy_reasoning)}</div>` : '';
+      const discReasoning = r.due_diligence_eval?.discretion_reasoning
+        ? `<div><span class="font-semibold">Discretion:</span> ${esc(r.due_diligence_eval.discretion_reasoning)}</div>` : '';
+      groups += `<div class="mb-4 text-[10px] text-gray-500 dark:text-gray-400 italic -mt-2">${advReasoning}${discReasoning}</div>`;
+    }
     groups += tvRenderMetricGroup('Effort', [
       mc('Effort Actions', r.due_diligence_eval?.effort_action_count, { format: 'int' }),
       mc('Price Range', r.due_diligence_eval?.price_range_explored, { format: 'percent', good: 'high' }),
