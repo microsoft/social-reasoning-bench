@@ -200,42 +200,20 @@ def _coerce_value(value: str) -> Any:
     return value
 
 
-def _parse_k_patterns(argv: list[str]) -> list[str]:
-    """Extract ``-k PATTERN`` values from an argv group.
+def _strip_set_args(argv: list[str]) -> list[str]:
+    """Remove ``--set KEY=VALUE`` pairs so argparse doesn't choke.
 
     Args:
-        argv: A single argument group (already split on ``--and``).
+        argv: Raw command-line arguments that may contain ``--set`` pairs.
 
     Returns:
-        List of pattern strings found in this group.
-    """
-    patterns: list[str] = []
-    i = 0
-    while i < len(argv):
-        if argv[i] == "-k" and i + 1 < len(argv):
-            patterns.append(argv[i + 1])
-            i += 2
-        else:
-            i += 1
-    return patterns
-
-
-def _strip_group_args(argv: list[str]) -> list[str]:
-    """Remove ``--set KEY=VALUE`` and ``-k PATTERN`` pairs so argparse doesn't choke.
-
-    Args:
-        argv: Raw command-line arguments that may contain per-group args.
-
-    Returns:
-        A new argument list with per-group args removed.
+        A new argument list with all ``--set KEY=VALUE`` pairs removed.
     """
     cleaned: list[str] = []
     i = 0
     while i < len(argv):
         if argv[i] == "--set" and i + 1 < len(argv):
-            i += 2
-        elif argv[i] == "-k" and i + 1 < len(argv):
-            i += 2
+            i += 2  # skip --set and its value
         else:
             cleaned.append(argv[i])
             i += 1
@@ -248,22 +226,21 @@ def _run_experiment(argv: list[str]) -> None:
     Args:
         argv: Command-line arguments after ``sagebench experiment``, including
             the experiment path, ``--set`` overrides, ``--and`` separators,
-            and other flags like ``-k``.
-
-    Each ``--and``-separated group specifies an independent collection pass
-    with its own ``-k`` patterns (AND'd within group) and ``--set`` overrides.
-    Results across groups are unioned (OR across groups).
+            and other flags like ``--collect`` or ``-k``.
     """
     from .experiments.runner import run_multiple
 
     # Split on --and before argparse sees anything
     arg_groups = _split_on_and(argv)
 
-    # Extract per-group -k patterns and --set overrides
-    group_patterns = [_parse_k_patterns(group) for group in arg_groups]
-    group_overrides = [_parse_set_overrides(group) for group in arg_groups]
+    # Extract --set overrides from each group
+    override_groups = [_parse_set_overrides(group) for group in arg_groups]
 
-    # Parse global args from first group (strip per-group args so argparse doesn't error)
+    # If all groups are empty, no overrides
+    has_overrides = any(g for g in override_groups)
+    final_override_groups = override_groups if has_overrides else None
+
+    # Parse base args from first group (strip --set so argparse doesn't error)
     parser = argparse.ArgumentParser(
         prog="sagebench experiment",
         description="Run experiments defined in Python modules",
@@ -277,6 +254,12 @@ def _run_experiment(argv: list[str]) -> None:
         "--collect",
         action="store_true",
         help="Collect and list experiments without running them",
+    )
+    parser.add_argument(
+        "-k",
+        action="append",
+        metavar="PATTERN",
+        help="Only run experiments matching this pattern (repeatable)",
     )
     parser.add_argument(
         "--output-base",
@@ -327,20 +310,21 @@ def _run_experiment(argv: list[str]) -> None:
         help="Python logging level for library loggers (default: warning)",
     )
 
-    args = parser.parse_args(_strip_group_args(arg_groups[0]))
+    args = parser.parse_args(_strip_set_args(arg_groups[0]))
 
     if not args.path.exists():
         print(f"Error: {args.path} not found", file=sys.stderr)
         sys.exit(1)
 
+    if has_overrides:
+        for i, overrides in enumerate(override_groups):
+            label = ", ".join(f"{k}={v}" for k, v in overrides.items()) or "(base)"
+            print(f"  Override group {i + 1}: {label}")
+
     if args.collect:
         from .experiments.collect import collect_all
 
-        configs = collect_all(
-            args.path,
-            pattern_groups=group_patterns,
-            override_groups=group_overrides,
-        )
+        configs = collect_all(args.path, patterns=args.k, override_groups=final_override_groups)
         if not configs:
             print("No experiments found.")
             return
@@ -355,8 +339,8 @@ def _run_experiment(argv: list[str]) -> None:
             benchmark_factory=_benchmark_factory,
             path=args.path,
             output_base=args.output_base,
-            pattern_groups=group_patterns,
-            override_groups=group_overrides,
+            patterns=args.k,
+            override_groups=final_override_groups,
             batch_size=args.batch_size,
             task_concurrency=args.task_concurrency,
             llm_concurrency=args.llm_concurrency,
