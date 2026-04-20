@@ -2256,7 +2256,7 @@ function tvTaskMetricCell(val, format) {
   if (format === 'bool') {
     return val
       ? '<td class="px-2 py-1.5 text-center text-sage-600 font-medium">Yes</td>'
-      : '<td class="px-2 py-1.5 text-center text-gray-400 font-medium">No</td>';
+      : '<td class="px-2 py-1.5 text-center text-red-500 dark:text-red-400 font-medium">No</td>';
   }
   if (format === 'percent') {
     const n = typeof val === 'number' ? val : parseFloat(val);
@@ -2362,9 +2362,7 @@ function tvRenderVerdictBanner(r) {
     : completed
       ? '<span class="px-2 py-1 rounded-full text-[10px] font-bold bg-sage-500 text-white">PASS</span>'
       : '<span class="px-2 py-1 rounded-full text-[10px] font-bold bg-red-500 text-white">FAIL</span>';
-  const errorMsg = execError
-    ? `<span class="text-[10px] text-amber-700 dark:text-amber-400 truncate max-w-[400px]" title="${esc(execError)}">${esc(execError)}</span>`
-    : '';
+  const errorMsg = '';
 
   const stats = [
     tvVerdictStat('OO', r.outcome_optimality, 'percent', 'high'),
@@ -3078,6 +3076,7 @@ function tvRenderCalendarTimeline(title, events, isInitial, scheduledEvent, owne
   let markers = '';
   for (let h = 0; h <= 24; h++) markers += `<div class="tv-hour-marker bg-gray-200 dark:bg-gray-700" style="left:${(h/24)*100}%"></div>`;
 
+  let hasPendingEvents = false;
   const eventsHtml = layout.map(e => {
     const raw = e.raw || {};
     const isGhost = e._isGhost || raw._isGhost;
@@ -3089,10 +3088,20 @@ function tvRenderCalendarTimeline(title, events, isInitial, scheduledEvent, owne
     const hPct = 100 / totalLanes;
     const tPct = lane * hPct;
 
+    const attendees = raw.attendees || [];
+    const isPending = !isGhost && attendees.some(a => typeof a === 'object' && a.status && !['ACCEPTED', 'DECLINED'].includes(a.status.toUpperCase()));
+    const ownerStatus = attendees.find(a => typeof a === 'object' && a.email === owner)?.status?.toUpperCase();
+    const ownerAccepted = ownerStatus === 'ACCEPTED';
+    if (isPending) hasPendingEvents = true;
+
     let cls;
     if (isGhost) cls = 'bg-amber-200/60 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-2 border-dashed border-amber-500';
     else if (!isInitial && scheduledEvent && e.title === scheduledEvent.title && e.start_time_24h === scheduledEvent.start_time_24h)
       cls = 'bg-amber-500 text-white border border-amber-700 ring-2 ring-amber-300';
+    else if (isPending && ownerAccepted)
+      cls = 'bg-amber-500 text-white border border-amber-700';
+    else if (isPending)
+      cls = 'bg-amber-200/60 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-2 border-dashed border-amber-500';
     else if (e.organizer && owner && e.organizer !== owner) cls = 'bg-gray-400 text-white border border-gray-500';
     else cls = 'bg-sage-500 text-white border border-sage-700';
 
@@ -3101,8 +3110,29 @@ function tvRenderCalendarTimeline(title, events, isInitial, scheduledEvent, owne
       <div class="tv-ev-popup bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
         <div class="font-semibold text-sm mb-1">${esc(e.title || '?')}</div>
         ${isGhost ? '<div class="text-xs text-amber-600 dark:text-amber-400 mb-1">Requested (Preview)</div>' : ''}
+        ${isPending ? '<div class="text-[10px] px-1.5 py-0.5 mb-1 rounded bg-yellow-50 border border-yellow-300 text-yellow-800 dark:bg-yellow-900/40 dark:border-yellow-700 dark:text-yellow-300 font-medium">Pending responses — not yet confirmed</div>' : ''}
         <div class="text-xs">${tvFormatTime(e.start_time_24h)} - ${tvFormatTime(e.end_time_24h)} (${tvFormatDuration(e.duration_minutes)})</div>
         ${e.organizer ? `<div class="text-xs mt-0.5">Organizer: ${esc(e.organizer)}</div>` : ''}
+        ${(() => {
+          const attendees = raw.attendees || [];
+          if (attendees.length === 0) return '';
+          const rows = attendees.map(a => {
+            const email = typeof a === 'string' ? a : a.email;
+            const status = typeof a === 'object' ? a.status : null;
+            let badge = '';
+            if (status) {
+              const s = status.toUpperCase();
+              if (s === 'ACCEPTED') badge = '<span class="text-[10px] px-1 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 font-medium">Accepted</span>';
+              else if (s === 'DECLINED') badge = '<span class="text-[10px] px-1 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 font-medium">Declined</span>';
+              else badge = '<span class="text-[10px] px-1 py-0.5 rounded bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300 font-medium">Pending</span>';
+            }
+            return `<div class="flex items-center justify-between gap-2 py-0.5"><span class="truncate">${esc(email)}</span>${badge}</div>`;
+          }).join('');
+          return `<div class="border-t border-gray-200 dark:border-gray-600 pt-1.5 mt-1.5">
+            <div class="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5">Attendees (${attendees.length})</div>
+            <div class="text-xs">${rows}</div>
+          </div>`;
+        })()}
         ${isInitial && !isGhost ? `<div class="flex gap-2 mt-1 text-[10px]">
           <span class="${e.is_movable ? 'text-sage-600' : 'text-red-500'}">${e.is_movable ? 'Movable' : 'Fixed'}</span>
           <span class="${e.is_secret ? 'text-purple-600' : 'text-gray-400'}">${e.is_secret ? 'Secret' : 'Public'}</span>
@@ -3126,6 +3156,7 @@ function tvRenderCalendarTimeline(title, events, isInitial, scheduledEvent, owne
       <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-gray-400 border border-gray-500 rounded"></span> External</span>
       ${scheduledEvent ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-amber-500 border border-amber-700 rounded ring-1 ring-amber-300"></span> Scheduled</span>' : ''}
       ${ghostEvent ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-amber-100 border-2 border-dashed border-amber-500 rounded"></span> Requested</span>' : ''}
+      ${hasPendingEvents ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-amber-500 border-2 border-dashed border-amber-700 rounded"></span> Pending</span>' : ''}
     </div>
   </div>`;
 }
@@ -3211,24 +3242,33 @@ function tvRenderIssues(r) {
   const leaks = r.leaked_secrets || r.privacy_leaks || [];
   if (!hasConflicts && !illegalMoves.length && !leaks.length) return '';
 
-  let html = `<div class="mb-4"><h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Issues</h3><div class="space-y-2">`;
+  let html = `<div class="space-y-2 mb-2">`;
   if (hasConflicts) {
-    html += `<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-      <div class="font-medium text-red-800 dark:text-red-200 text-sm">Calendar Conflicts Detected</div>
+    const finalEvents = r.execution?.final_assistant_calendar || [];
+    const pendingInFinal = finalEvents.filter(e => (e.attendees || []).some(a => typeof a === 'object' && a.status && !['ACCEPTED', 'DECLINED'].includes(a.status.toUpperCase())));
+    const pendingWarning = pendingInFinal.length > 0
+      ? `<div class="text-sm text-white mt-0.5">${pendingInFinal.length} event${pendingInFinal.length !== 1 ? 's have' : ' has'} attendees still awaiting response — may be treated as a conflict.</div>`
+      : '';
+    html += `<div class="bg-red-500/10 border border-red-500 rounded-lg p-3">
+      <div class="text-[10px] font-semibold uppercase tracking-wide text-white/70 mb-1">Conflict</div>
+      <div class="text-sm text-white">Calendar conflicts detected</div>
+      ${pendingWarning}
     </div>`;
   }
   illegalMoves.forEach(e => {
-    html += `<div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-      <div class="font-medium text-amber-800 dark:text-amber-200 text-sm">Illegal Move: ${esc(e.title || '?')}</div>
+    html += `<div class="bg-amber-500/10 border border-amber-500 rounded-lg p-3">
+      <div class="text-[10px] font-semibold uppercase tracking-wide text-white/70 mb-1">Illegal Move</div>
+      <div class="text-sm text-white">${esc(e.title || '?')}</div>
     </div>`;
   });
   leaks.forEach(leak => {
-    html += `<div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
-      <div class="font-medium text-purple-800 dark:text-purple-200 text-sm">Secret Leaked: ${esc(leak.secret_content || leak.secret?.title || '?')}</div>
-      ${leak.evidence?.length ? `<div class="text-xs text-purple-600 dark:text-purple-400 mt-1 italic">${leak.evidence.map(e => `"${esc(e)}"`).join(', ')}</div>` : ''}
+    html += `<div class="bg-purple-500/10 border border-purple-500 rounded-lg p-3">
+      <div class="text-[10px] font-semibold uppercase tracking-wide text-white/70 mb-1">Secret Leaked</div>
+      <div class="text-sm text-white">${esc(leak.secret_content || leak.secret?.title || '?')}</div>
+      ${leak.evidence?.length ? `<div class="text-sm text-white mt-0.5 italic">${leak.evidence.map(e => `<div>"${esc(e)}"</div>`).join('')}</div>` : ''}
     </div>`;
   });
-  html += '</div></div>';
+  html += '</div>';
   return html;
 }
 
@@ -3313,15 +3353,15 @@ function tvRenderOutcomes(r, benchmark) {
   let html = tvRenderSectionHeading('Outcomes');
 
   if (r.execution?.error) {
-    html += `<div class="mb-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-3">
-      <div class="text-xs font-medium text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-1">Execution Error</div>
-      <div class="text-sm text-amber-900 dark:text-amber-100 whitespace-pre-wrap">${esc(r.execution.error)}</div>
+    html += `<div class="mb-2 bg-amber-500/10 border border-amber-500 rounded-lg p-3">
+      <div class="text-[10px] font-semibold uppercase tracking-wide text-white/70 mb-1">Execution Error</div>
+      <div class="text-sm text-white whitespace-pre-wrap">${esc(r.execution.error)}</div>
     </div>`;
   }
   if (r.error) {
-    html += `<div class="mb-3 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg p-3">
-      <div class="text-xs font-medium text-red-700 dark:text-red-400 uppercase tracking-wide mb-1">Evaluation Error</div>
-      <div class="text-sm text-red-900 dark:text-red-100 whitespace-pre-wrap">${esc(r.error)}</div>
+    html += `<div class="mb-2 bg-red-500/10 border border-red-500 rounded-lg p-3">
+      <div class="text-[10px] font-semibold uppercase tracking-wide text-white/70 mb-1">Evaluation Error</div>
+      <div class="text-sm text-white whitespace-pre-wrap">${esc(r.error)}</div>
     </div>`;
   }
 
@@ -3331,27 +3371,30 @@ function tvRenderOutcomes(r, benchmark) {
     const requestor = task.requestor || {};
     let scheduledEvent = tvNormalizeEvent(r.scheduled_event || r.scheduled_meeting);
 
-    // Fallback: if evaluator didn't find the scheduled meeting, detect new events on the final calendar
-    if (!scheduledEvent || !scheduledEvent.title) {
-      const initialTitles = new Set((assistant.calendar || []).map(e => e.title));
-      const newEvents = (r.execution?.final_assistant_calendar || []).filter(e => !initialTitles.has(e.title));
-      if (newEvents.length === 1) {
-        scheduledEvent = tvNormalizeEvent(newEvents[0]);
-      } else if (newEvents.length > 1) {
-        scheduledEvent = tvNormalizeEvent(newEvents[0]);
-      }
-    }
+    // Scheduled meeting card — color matches task completion verdict
+    const completed = r.task_completed;
+    const execError = r.execution?.error;
+    const cardBg = execError
+      ? 'bg-amber-500/10 border border-amber-500'
+      : completed
+        ? 'bg-sage-500/10 border border-sage-500'
+        : 'bg-red-500/10 border border-red-500';
 
-    // Scheduled meeting card
     if (scheduledEvent && scheduledEvent.title) {
-      html += `<div class="mb-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-3">
-        <div class="text-xs font-medium text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-1">Scheduled Meeting</div>
-        <div class="font-semibold text-amber-900 dark:text-amber-100">${esc(scheduledEvent.title || '?')}</div>
-        <div class="text-sm text-amber-800 dark:text-amber-200 mt-1">${tvFormatTime(scheduledEvent.start_time_24h)} - ${tvFormatTime(scheduledEvent.end_time_24h)} (${tvFormatDuration(scheduledEvent.duration_minutes)})</div>
+      html += `<div class="mb-2 ${cardBg} rounded-lg p-3">
+        <div class="text-[10px] font-semibold uppercase tracking-wide text-white/70 mb-1">Scheduled Meeting</div>
+        <div class="text-sm text-white font-semibold">${esc(scheduledEvent.title || '?')}</div>
+        <div class="text-sm text-white mt-0.5">${tvFormatTime(scheduledEvent.start_time_24h)} - ${tvFormatTime(scheduledEvent.end_time_24h)} (${tvFormatDuration(scheduledEvent.duration_minutes)})</div>
       </div>`;
     } else {
-      html += `<div class="mb-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300">No meeting scheduled</span></div>`;
+      html += `<div class="mb-2 ${cardBg} rounded-lg p-3">
+        <div class="text-[10px] font-semibold uppercase tracking-wide text-white/70 mb-1">Scheduled Meeting</div>
+        <div class="text-sm text-white">No meeting scheduled</div>
+      </div>`;
     }
+
+    // Issues
+    html += tvRenderIssues(r);
 
     // Final calendar timelines
     html += tvRenderCalendarTimeline('Assistant Final Calendar', r.execution?.final_assistant_calendar || [], false, scheduledEvent, assistant.email, null);
@@ -3366,9 +3409,6 @@ function tvRenderOutcomes(r, benchmark) {
     if (requestorPrefs.length > 0) {
       html += tvRenderPreferenceGraph('Requestor Preferences', requestorPrefs, scheduledEvent, r);
     }
-
-    // Issues
-    html += tvRenderIssues(r);
 
     // Preference explanation
     const prefExpl = r.preference_explanation;
