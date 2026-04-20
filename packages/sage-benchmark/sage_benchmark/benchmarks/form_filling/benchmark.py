@@ -117,7 +117,7 @@ class FormFillingBenchmark(
             assistant_model=config.resolved_assistant_model,
             max_rounds=config.max_rounds,
             benchmark_logger=self._benchmark_logger,
-            privacy_prompt=config.privacy_prompt or "none",
+            system_prompt=config.system_prompt or "none",
             single_field_mode=config.single_field_mode,
             max_steps_per_turn=config.max_steps_per_turn,
             assistant_explicit_cot=config.resolved_assistant_explicit_cot,

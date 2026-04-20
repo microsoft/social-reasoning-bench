@@ -29,7 +29,7 @@ class CalendarAssistantAgent(CalendarAgent):
             prompt_label="cal_assistant",
         )
 
-        # Build system prompt: privacy prompt + assistant identity
+        # Build system prompt: preset prompt + assistant identity
         identity = (
             f"You are {assistant.name}'s calendar scheduling personal assistant."
             if assistant.name

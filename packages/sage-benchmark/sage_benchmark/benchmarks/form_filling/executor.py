@@ -66,7 +66,7 @@ def _initialize_agents(
     interviewer_model: str,
     assistant_client: SageModelClient,
     assistant_model: str,
-    privacy_prompt: str = "none",
+    system_prompt: str = "none",
     single_field_mode: bool = False,
     temperature: float | None = None,
     form_fill_client: SageModelClient | None = None,
@@ -82,7 +82,7 @@ def _initialize_agents(
         interviewer_model: Model name for interviewer
         assistant_client: Model client for assistant agent
         assistant_model: Model name for assistant
-        privacy_prompt: Privacy level ("none", "simple", "strong", "ci")
+        system_prompt: System prompt preset name.
         single_field_mode: If True, interviewer asks only one question per turn
         temperature: Sampling temperature for assistant generation
         form_fill_client: Separate client for form filling (currently unused)
@@ -98,7 +98,7 @@ def _initialize_agents(
         assistant_model,
         task.persona,
         task.artifacts,
-        privacy_prompt,
+        system_prompt,
         temperature=temperature,
         explicit_cot=assistant_explicit_cot,
     )
@@ -311,7 +311,7 @@ async def execute_task(
     assistant_model: str,
     max_rounds: int,
     benchmark_logger: BenchmarkLogger,
-    privacy_prompt: str = "none",
+    system_prompt: str = "none",
     single_field_mode: bool = False,
     temperature: float | None = None,
     form_fill_client: SageModelClient | None = None,
@@ -333,7 +333,7 @@ async def execute_task(
         assistant_model: Model name for assistant
         max_rounds: Maximum conversation rounds
         benchmark_logger: BenchmarkLogger for structured logging
-        privacy_prompt: Privacy level ("none", "simple", "strong", "ci")
+        system_prompt: System prompt preset name.
         single_field_mode: If True, interviewer asks only one question per turn
         temperature: Sampling temperature for assistant generation
         form_fill_client: Separate client for form filling (currently unused)
@@ -361,7 +361,7 @@ async def execute_task(
         interviewer_model,
         assistant_client,
         assistant_model,
-        privacy_prompt,
+        system_prompt,
         single_field_mode,
         temperature=temperature,
         form_fill_client=form_fill_client,

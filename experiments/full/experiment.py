@@ -1,9 +1,9 @@
-"""Full experiment: benchmarks × attacks × privacy prompts × models.
+"""Full experiment: benchmarks × attacks × system prompts × models.
 
 Sweeps:
   - 2 benchmarks: calendar, marketplace
   - 7 attack conditions: normal + hand_crafted × 3 + whimsical × 3
-  - 4 privacy prompt levels: none, simple, strong, ci
+  - 5 system prompt presets: none, privacy, dd_info_gathering, dd_advocacy, oo
   - 11 model configs (split by reasoning capability):
       Non-reasoning: gpt-4.1 × {no_cot, cot}  (2)
       Reasoning: {gpt-5.4, gemini-3.1-pro, claude-sonnet-4.6} × {think_off, think_med, think_high}  (9)
@@ -32,7 +32,7 @@ MKT_DIR = "data/marketplace"
 # ── Sweep axes ──────────────────────────────────────────────────────
 
 ATTACK_TYPES = ["privacy", "outcome_optimality", "due_diligence"]
-PRIVACY_LEVELS = ["none", "simple", "strong", "ci"]
+SYSTEM_PROMPT_PRESETS = ["none", "privacy", "dd_info_gathering", "dd_advocacy", "oo"]
 
 NON_REASONING_MODELS = [
     "azure_pool/gpt-4.1",
@@ -110,15 +110,13 @@ def _variant(benchmark: str, *parts: str) -> str:
 
 
 # ── Calendar ────────────────────────────────────────────────────────
-# Calendar uses privacy_prompt for privacy and assistant_explicit_cot
-# for CoT (only the assistant agent, not the requestor).
 
 
 def _cal(
     paths,
     variant,
     model,
-    privacy,
+    preset,
     reasoning_effort=None,
     assistant_explicit_cot=None,
     attack_types=None,
@@ -127,7 +125,7 @@ def _cal(
         paths=paths,
         variant=variant,
         model=model,
-        privacy_prompt=privacy,
+        system_prompt=preset,
         expose_preferences=True,
         reasoning_effort=reasoning_effort,
         assistant_explicit_cot=assistant_explicit_cot,
@@ -138,13 +136,13 @@ def _cal(
     )
 
 
-def _cal_attacks(model, privacy, tag, reasoning_effort=None, assistant_explicit_cot=None):
+def _cal_attacks(model, preset, tag, reasoning_effort=None, assistant_explicit_cot=None):
     """Yield normal + all attack variants for one calendar config."""
     yield _cal(
         [f"{CAL_DIR}/small.yaml"],
-        _variant("calendar", tag, privacy, "normal"),
+        _variant("calendar", tag, preset, "normal"),
         model,
-        privacy,
+        preset,
         reasoning_effort,
         assistant_explicit_cot,
     )
@@ -152,9 +150,9 @@ def _cal_attacks(model, privacy, tag, reasoning_effort=None, assistant_explicit_
         # Handcrafted: runtime injection from benign data
         yield _cal(
             [f"{CAL_DIR}/small.yaml"],
-            _variant("calendar", tag, privacy, f"hand_crafted_{attack}"),
+            _variant("calendar", tag, preset, f"hand_crafted_{attack}"),
             model,
-            privacy,
+            preset,
             reasoning_effort,
             assistant_explicit_cot,
             attack_types=[attack],
@@ -162,23 +160,23 @@ def _cal_attacks(model, privacy, tag, reasoning_effort=None, assistant_explicit_
         # Whimsical: pre-generated data files
         yield _cal(
             [f"{CAL_DIR}/small-whimsical-{attack}.yaml"],
-            _variant("calendar", tag, privacy, f"whimsical_{attack}"),
+            _variant("calendar", tag, preset, f"whimsical_{attack}"),
             model,
-            privacy,
+            preset,
             reasoning_effort,
             assistant_explicit_cot,
         )
 
 
 def experiment_calendar():
-    for privacy in PRIVACY_LEVELS:
+    for preset in SYSTEM_PROMPT_PRESETS:
         # Reasoning models: sweep reasoning_effort levels
         for model in REASONING_MODELS:
             mtag = _model_tag(model)
             for effort, effort_tag in REASONING_EFFORTS[model]:
                 yield from _cal_attacks(
                     model,
-                    privacy,
+                    preset,
                     f"{mtag}_{effort_tag}",
                     reasoning_effort=effort,
                 )
@@ -190,25 +188,23 @@ def experiment_calendar():
                 cot_tag = "cot" if cot else "no_cot"
                 yield from _cal_attacks(
                     model,
-                    privacy,
+                    preset,
                     f"{mtag}_{cot_tag}",
                     assistant_explicit_cot=cot,
                 )
 
 
 # ── Marketplace ─────────────────────────────────────────────────────
-# Marketplace uses privacy_prompt (base field) for privacy and explicit_cot
-# (base field) which applies to both buyer and seller agents.
 
 
 def _mkt(
-    paths, variant, model, privacy, reasoning_effort=None, explicit_cot=None, attack_types=None
+    paths, variant, model, preset, reasoning_effort=None, explicit_cot=None, attack_types=None
 ):
     return MarketplaceRunConfig(
         paths=paths,
         variant=variant,
         model=model,
-        privacy_prompt=privacy,
+        system_prompt=preset,
         reasoning_effort=reasoning_effort,
         explicit_cot=explicit_cot,
         attack_types=attack_types,
@@ -218,13 +214,13 @@ def _mkt(
     )
 
 
-def _mkt_attacks(model, privacy, tag, reasoning_effort=None, explicit_cot=None):
+def _mkt_attacks(model, preset, tag, reasoning_effort=None, explicit_cot=None):
     """Yield normal + all attack variants for one marketplace config."""
     yield _mkt(
         [f"{MKT_DIR}/small.yaml"],
-        _variant("marketplace", tag, privacy, "normal"),
+        _variant("marketplace", tag, preset, "normal"),
         model,
-        privacy,
+        preset,
         reasoning_effort,
         explicit_cot,
     )
@@ -232,9 +228,9 @@ def _mkt_attacks(model, privacy, tag, reasoning_effort=None, explicit_cot=None):
         # Handcrafted: runtime injection from benign data
         yield _mkt(
             [f"{MKT_DIR}/small.yaml"],
-            _variant("marketplace", tag, privacy, f"hand_crafted_{attack}"),
+            _variant("marketplace", tag, preset, f"hand_crafted_{attack}"),
             model,
-            privacy,
+            preset,
             reasoning_effort,
             explicit_cot,
             attack_types=[attack],
@@ -242,23 +238,23 @@ def _mkt_attacks(model, privacy, tag, reasoning_effort=None, explicit_cot=None):
         # Whimsical: pre-generated data files
         yield _mkt(
             [f"{MKT_DIR}/small-whimsical-{attack}.yaml"],
-            _variant("marketplace", tag, privacy, f"whimsical_{attack}"),
+            _variant("marketplace", tag, preset, f"whimsical_{attack}"),
             model,
-            privacy,
+            preset,
             reasoning_effort,
             explicit_cot,
         )
 
 
 def experiment_marketplace():
-    for privacy in PRIVACY_LEVELS:
+    for preset in SYSTEM_PROMPT_PRESETS:
         # Reasoning models: sweep reasoning_effort levels
         for model in REASONING_MODELS:
             mtag = _model_tag(model)
             for effort, effort_tag in REASONING_EFFORTS[model]:
                 yield from _mkt_attacks(
                     model,
-                    privacy,
+                    preset,
                     f"{mtag}_{effort_tag}",
                     reasoning_effort=effort,
                 )
@@ -270,7 +266,7 @@ def experiment_marketplace():
                 cot_tag = "cot" if cot else "no_cot"
                 yield from _mkt_attacks(
                     model,
-                    privacy,
+                    preset,
                     f"{mtag}_{cot_tag}",
                     explicit_cot=cot,
                 )

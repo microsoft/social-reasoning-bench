@@ -111,11 +111,11 @@ class CalendarBenchmark(
             config.resolved_judge_reasoning_effort,
         )
 
-        # Resolve privacy prompt
-        if config.privacy_prompt:
-            self.privacy_prompt: str | None = get_system_prompt(config.privacy_prompt)
+        # Resolve system prompt
+        if config.system_prompt:
+            self.system_prompt: str | None = get_system_prompt(config.system_prompt)
         else:
-            self.privacy_prompt = None
+            self.system_prompt = None
 
     async def execute_task(
         self,
@@ -134,7 +134,7 @@ class CalendarBenchmark(
             self.requestor_client,
             config.max_rounds,
             config.max_steps_per_turn,
-            self.privacy_prompt,
+            self.system_prompt,
             config.resolved_assistant_explicit_cot,
             config.resolved_requestor_explicit_cot,
             config.expose_preferences,

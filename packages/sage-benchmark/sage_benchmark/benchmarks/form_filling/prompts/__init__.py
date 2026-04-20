@@ -4,7 +4,6 @@ from .formatting import format_artifacts_as_context, translate_persona_to_text
 from .interactive import INTERACTIVE_INSTRUCTION
 from .system import (
     FF_DOMAIN,
-    FF_EXAMPLES,
     FF_ROLE,
     PRESETS,
     construct_system_prompt,
@@ -19,7 +18,6 @@ __all__ = [
     # Domain constants
     "FF_ROLE",
     "FF_DOMAIN",
-    "FF_EXAMPLES",
     "PRESETS",
     # Interactive
     "INTERACTIVE_INSTRUCTION",

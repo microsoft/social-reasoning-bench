@@ -126,9 +126,9 @@ class BaseRunConfig(BaseModel):
         description="Max total concurrent LLM calls per provider across all tasks (None = unlimited)",
     )
 
-    # --- Privacy prompt ---
-    privacy_prompt: str | None = Field(
-        default=None, description="Privacy-level system prompt preset"
+    # --- System prompt ---
+    system_prompt: str | None = Field(
+        default=None, description="System prompt preset (e.g. privacy, dd_info_gathering, dd_advocacy, oo)"
     )
 
     # --- Handcrafted injection ---

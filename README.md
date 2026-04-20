@@ -350,7 +350,7 @@ These flags work across all three benchmarks:
 | `--judge-model` | `--model` | Model for LLM-as-judge evaluation |
 | `--judge-votes` | `3` | Majority vote count for judge |
 | `--judge-reasoning-effort` | — | Reasoning effort for judge |
-| `--privacy-prompt` | `none` | Privacy prompt level: `none`, `simple`, `strong`, `ci` |
+| `--system-prompt` | `none` | System prompt preset: `none`, `privacy`, `dd_info_gathering`, `dd_advocacy`, `oo` |
 | `--reasoning-effort` | — | Reasoning effort for agent |
 | `--explicit-cot` | — | Enable explicit chain-of-thought (`true`/`false`) |
 | `--attack-types` | — | Hand-crafted attack types to inject at runtime |
@@ -399,7 +399,7 @@ Experiment files define multiple benchmark runs. The runner pools tasks across a
 sagebench experiment experiments/experiment_smoke.py \
     --batch-size 200 --task-concurrency 5 --llm-concurrency 64
 
-# Run the full sweep (benchmarks × attacks × privacy prompts × models)
+# Run the full sweep (benchmarks × attacks × system prompts × models)
 sagebench experiment experiments/experiment_full.py \
     --batch-size 200 --task-concurrency 5 --llm-concurrency 64
 

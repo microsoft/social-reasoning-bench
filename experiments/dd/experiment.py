@@ -1,7 +1,7 @@
 """DD experiment: calendar + marketplace — privacy & due_diligence attacks × model sweep.
 
 Sweeps (per benchmark):
-  - 2 privacy prompt levels: none, strong
+  - 3 system prompt presets: none, dd_info_gathering, dd_advocacy
   - 5 attack conditions: normal, hand_crafted × {privacy, due_diligence},
     whimsical × {privacy, due_diligence}
   - 5 model configs (active):
@@ -28,7 +28,7 @@ MKT_DIR = "data/marketplace"
 
 # ── Sweep axes ──────────────────────────────────────────────────────
 
-PRIVACY_LEVELS = ["none", "strong"]
+SYSTEM_PROMPT_PRESETS = ["none", "dd_info_gathering", "dd_advocacy"]
 ATTACK_TYPES = ["privacy", "due_diligence"]
 
 NON_REASONING_MODELS = [
@@ -94,7 +94,7 @@ def _cal(
     paths,
     variant,
     model,
-    privacy,
+    preset,
     reasoning_effort=None,
     assistant_explicit_cot=None,
     attack_types=None,
@@ -102,7 +102,7 @@ def _cal(
     return CalendarRunConfig(
         paths=paths,
         variant=variant,
-        privacy_prompt=privacy,
+        system_prompt=preset,
         expose_preferences=True,
         assistant_model=model,
         assistant_reasoning_effort=reasoning_effort,
@@ -114,50 +114,50 @@ def _cal(
     )
 
 
-def _cal_attacks(model, privacy, tag, reasoning_effort=None, assistant_explicit_cot=None):
+def _cal_attacks(model, preset, tag, reasoning_effort=None, assistant_explicit_cot=None):
     """Yield normal + all attack variants for one calendar config."""
     yield _cal(
         [f"{CAL_DIR}/small.yaml"],
-        _variant("calendar", tag, privacy, "normal"),
+        _variant("calendar", tag, preset, "normal"),
         model,
-        privacy,
+        preset,
         reasoning_effort,
         assistant_explicit_cot,
     )
     for attack in ATTACK_TYPES:
         yield _cal(
             [f"{CAL_DIR}/small.yaml"],
-            _variant("calendar", tag, privacy, f"hand_crafted_{attack}"),
+            _variant("calendar", tag, preset, f"hand_crafted_{attack}"),
             model,
-            privacy,
+            preset,
             reasoning_effort,
             assistant_explicit_cot,
             attack_types=[attack],
         )
         yield _cal(
             [f"{CAL_DIR}/small-whimsical-{attack}.yaml"],
-            _variant("calendar", tag, privacy, f"whimsical_{attack}"),
+            _variant("calendar", tag, preset, f"whimsical_{attack}"),
             model,
-            privacy,
+            preset,
             reasoning_effort,
             assistant_explicit_cot,
         )
 
 
 def experiment_calendar_dd():
-    for privacy in PRIVACY_LEVELS:
+    for preset in SYSTEM_PROMPT_PRESETS:
         for model in REASONING_MODELS:
             mtag = _model_tag(model)
             for effort, effort_tag in REASONING_EFFORTS[model]:
                 yield from _cal_attacks(
-                    model, privacy, f"{mtag}_{effort_tag}", reasoning_effort=effort
+                    model, preset, f"{mtag}_{effort_tag}", reasoning_effort=effort
                 )
         for model in NON_REASONING_MODELS:
             mtag = _model_tag(model)
             for cot in (False, True):
                 cot_tag = "cot" if cot else "no_cot"
                 yield from _cal_attacks(
-                    model, privacy, f"{mtag}_{cot_tag}", assistant_explicit_cot=cot
+                    model, preset, f"{mtag}_{cot_tag}", assistant_explicit_cot=cot
                 )
 
 
@@ -168,7 +168,7 @@ def _mkt(
     paths,
     variant,
     model,
-    privacy,
+    preset,
     reasoning_effort=None,
     explicit_cot=None,
     attack_types=None,
@@ -177,7 +177,7 @@ def _mkt(
         paths=paths,
         variant=variant,
         model=model,
-        privacy_prompt=privacy,
+        system_prompt=preset,
         reasoning_effort=reasoning_effort,
         explicit_cot=explicit_cot,
         attack_types=attack_types,
@@ -187,46 +187,46 @@ def _mkt(
     )
 
 
-def _mkt_attacks(model, privacy, tag, reasoning_effort=None, explicit_cot=None):
+def _mkt_attacks(model, preset, tag, reasoning_effort=None, explicit_cot=None):
     """Yield normal + all attack variants for one marketplace config."""
     yield _mkt(
         [f"{MKT_DIR}/small.yaml"],
-        _variant("marketplace", tag, privacy, "normal"),
+        _variant("marketplace", tag, preset, "normal"),
         model,
-        privacy,
+        preset,
         reasoning_effort,
         explicit_cot,
     )
     for attack in ATTACK_TYPES:
         yield _mkt(
             [f"{MKT_DIR}/small.yaml"],
-            _variant("marketplace", tag, privacy, f"hand_crafted_{attack}"),
+            _variant("marketplace", tag, preset, f"hand_crafted_{attack}"),
             model,
-            privacy,
+            preset,
             reasoning_effort,
             explicit_cot,
             attack_types=[attack],
         )
         yield _mkt(
             [f"{MKT_DIR}/small-whimsical-{attack}.yaml"],
-            _variant("marketplace", tag, privacy, f"whimsical_{attack}"),
+            _variant("marketplace", tag, preset, f"whimsical_{attack}"),
             model,
-            privacy,
+            preset,
             reasoning_effort,
             explicit_cot,
         )
 
 
 def experiment_marketplace_dd():
-    for privacy in PRIVACY_LEVELS:
+    for preset in SYSTEM_PROMPT_PRESETS:
         for model in REASONING_MODELS:
             mtag = _model_tag(model)
             for effort, effort_tag in REASONING_EFFORTS[model]:
                 yield from _mkt_attacks(
-                    model, privacy, f"{mtag}_{effort_tag}", reasoning_effort=effort
+                    model, preset, f"{mtag}_{effort_tag}", reasoning_effort=effort
                 )
         for model in NON_REASONING_MODELS:
             mtag = _model_tag(model)
             for cot in (False, True):
                 cot_tag = "cot" if cot else "no_cot"
-                yield from _mkt_attacks(model, privacy, f"{mtag}_{cot_tag}", explicit_cot=cot)
+                yield from _mkt_attacks(model, preset, f"{mtag}_{cot_tag}", explicit_cot=cot)

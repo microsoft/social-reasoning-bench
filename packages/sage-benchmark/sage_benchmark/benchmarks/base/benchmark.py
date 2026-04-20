@@ -672,11 +672,11 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         g.add_argument("--judge-votes", type=int, default=3)
         g.add_argument("--judge-reasoning-effort", default=None)
 
-        # -- privacy prompt --
-        g = parser.add_argument_group("privacy prompt")
+        # -- system prompt --
+        g = parser.add_argument_group("system prompt")
         g.add_argument(
-            "--privacy-prompt",
-            choices=["none", "simple", "strong", "ci"],
+            "--system-prompt",
+            choices=["none", "privacy", "dd_info_gathering", "dd_advocacy", "oo"],
             default=None,
         )
 

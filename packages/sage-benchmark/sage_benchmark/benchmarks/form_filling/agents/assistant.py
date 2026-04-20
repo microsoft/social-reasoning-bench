@@ -46,7 +46,7 @@ class AssistantAgent(BaseAgent):
         model: str,
         persona,
         artifacts: list,
-        privacy_prompt: str = "none",
+        system_prompt: str = "none",
         temperature: float | None = None,
         explicit_cot: bool = False,
     ):
@@ -57,7 +57,7 @@ class AssistantAgent(BaseAgent):
             model: Model name to use
             persona: PersonaData object with client information
             artifacts: List of ArtifactData objects
-            privacy_prompt: Privacy level ("none", "simple", "strong", "ci")
+            system_prompt: System prompt preset name.
             temperature: Sampling temperature for generation
             explicit_cot: If True, generate chain-of-thought reasoning before each tool call
         """
@@ -72,9 +72,9 @@ class AssistantAgent(BaseAgent):
         )
 
         # Build initial messages
-        system_prompt = construct_system_prompt(persona, privacy_prompt)
+        system_prompt_text = construct_system_prompt(persona, system_prompt)
 
-        self._messages.append({"role": "system", "content": system_prompt})
+        self._messages.append({"role": "system", "content": system_prompt_text})
 
         # Inject each artifact as a SearchFiles -> ReadFile tool call sequence
         for i, artifact in enumerate(artifacts):

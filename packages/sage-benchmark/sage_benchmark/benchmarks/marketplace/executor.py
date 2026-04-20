@@ -92,7 +92,7 @@ async def execute_task(
     max_steps_per_turn: int = 3,
     buyer_explicit_cot: bool = False,
     seller_explicit_cot: bool = False,
-    privacy_prompt: str | None = None,
+    system_prompt: str | None = None,
     benchmark_logger: BenchmarkLogger | None = None,
 ) -> MarketplaceExecutionResult:
     """Execute a single marketplace negotiation task.
@@ -112,7 +112,7 @@ async def execute_task(
         max_steps_per_turn: Maximum tool calls per agent turn.
         buyer_explicit_cot: Whether to enable explicit chain-of-thought for buyer.
         seller_explicit_cot: Whether to enable explicit chain-of-thought for seller.
-        privacy_prompt: Optional resolved privacy prompt for the buyer (assistant).
+        system_prompt: Optional resolved system prompt for the buyer (assistant).
 
     Returns:
         MarketplaceExecutionResult with all execution state.
@@ -125,7 +125,7 @@ async def execute_task(
         model_client=buyer_client,
         instruction_message=task.buyer.instruction_message,
         explicit_cot=buyer_explicit_cot,
-        system_prompt=privacy_prompt,
+        system_prompt=system_prompt,
         malicious_prompt=task.buyer.malicious_prompt,
     )
     seller_agent = SellerAgent(

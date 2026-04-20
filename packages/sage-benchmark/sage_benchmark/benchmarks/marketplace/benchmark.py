@@ -87,14 +87,14 @@ class MarketplaceBenchmark(
             config.resolved_judge_reasoning_effort,
         )
 
-        # Resolve privacy system prompt once (same for all tasks)
+        # Resolve system prompt once (same for all tasks)
         from .prompts import get_system_prompt
 
-        privacy_level = config.privacy_prompt
-        if privacy_level and privacy_level != "none":
-            self.privacy_prompt: str | None = get_system_prompt(privacy_level)
+        prompt_preset = config.system_prompt
+        if prompt_preset and prompt_preset != "none":
+            self.system_prompt: str | None = get_system_prompt(prompt_preset)
         else:
-            self.privacy_prompt = None
+            self.system_prompt = None
 
     async def execute_task(
         self,
@@ -115,7 +115,7 @@ class MarketplaceBenchmark(
             max_steps_per_turn=config.max_steps_per_turn,
             buyer_explicit_cot=config.resolved_buyer_explicit_cot,
             seller_explicit_cot=config.resolved_seller_explicit_cot,
-            privacy_prompt=self.privacy_prompt,
+            system_prompt=self.system_prompt,
             benchmark_logger=self._benchmark_logger,
         )
 
