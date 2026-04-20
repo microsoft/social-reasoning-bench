@@ -268,7 +268,7 @@ async def run_multiple(
     path: Path,
     *,
     output_base: Path | None = None,
-    patterns: list[str] | None = None,
+    pattern_groups: list[list[str]] | None = None,
     override_groups: list[dict] | None = None,
     batch_size: int = 100,
     task_concurrency: int | None = None,
@@ -285,8 +285,9 @@ async def run_multiple(
             benchmark_logger) -> Benchmark``.
         path: File or directory to search for ``experiment_*.py`` files.
         output_base: Base directory for experiment outputs.
-        patterns: Optional list of patterns to filter experiment names (OR logic).
-        override_groups: Optional list of override dicts.
+        pattern_groups: List of pattern lists (one per ``--and`` group).
+            Within a group, patterns are AND'd. Across groups, results are OR'd.
+        override_groups: List of override dicts (one per ``--and`` group).
         batch_size: Maximum concurrent tasks across all experiments.
         task_concurrency: Max concurrent LLM calls per task per provider.
         llm_concurrency: Max total concurrent LLM calls per provider.
@@ -306,7 +307,7 @@ async def run_multiple(
 
     bl = create_benchmark_logger(logger_style, log_level=log_level)
 
-    raw_configs = collect_all(path, patterns, override_groups)
+    raw_configs = collect_all(path, pattern_groups=pattern_groups, override_groups=override_groups)
 
     print(f"Collected {len(raw_configs)} experiments")
     if not raw_configs:

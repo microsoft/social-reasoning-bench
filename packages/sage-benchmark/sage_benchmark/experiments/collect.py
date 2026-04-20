@@ -146,20 +146,71 @@ def _apply_override_groups(
     return expanded
 
 
-def collect_all(
-    path: Path,
-    patterns: list[str] | None = None,
-    override_groups: list[dict[str, Any]] | None = None,
-) -> list[tuple[Path, str, BaseRunConfig]]:
-    """Collect all experiments from path.
+def _collect_base(path: Path, files: list[Path]) -> list[tuple[Path, str, BaseRunConfig]]:
+    """Collect all experiments from discovered files without filtering.
 
     Args:
-        path: File or directory to search
-        patterns: Optional list of patterns to filter experiment names (OR logic)
-        override_groups: Optional list of override dicts to apply
+        path: Original search path (for logging).
+        files: Pre-discovered experiment files.
 
     Returns:
-        List of (file_path, name, config) tuples
+        List of (file_path, name, config) tuples.
+    """
+    configs: list[tuple[Path, str, BaseRunConfig]] = []
+    seen_names: set[str] = set()
+
+    for file_path in files:
+        try:
+            module = load_module(file_path)
+
+            for name, config in collect_experiments(module):
+                if name in seen_names:
+                    logger.warning("Duplicate experiment name: %s (from %s)", name, file_path)
+                    continue
+                seen_names.add(name)
+                configs.append((file_path, name, config))
+
+        except Exception as e:
+            logger.error("Failed to load %s: %s", file_path, e)
+
+    return configs
+
+
+def _matches_patterns(name: str, patterns: list[str]) -> bool:
+    """Check if name matches all patterns (AND logic within a group).
+
+    Args:
+        name: Experiment name to check.
+        patterns: List of patterns that must all appear in name.
+
+    Returns:
+        True if all patterns are substrings of name.
+    """
+    return all(p in name for p in patterns)
+
+
+def collect_all(
+    path: Path,
+    pattern_groups: list[list[str]] | None = None,
+    override_groups: list[dict[str, Any]] | None = None,
+) -> list[tuple[Path, str, BaseRunConfig]]:
+    """Collect experiments from path, applying per-group filters and overrides.
+
+    Each ``--and``-separated group specifies an independent collection pass
+    with its own ``-k`` patterns (AND'd within group) and ``--set`` overrides.
+    Results across groups are unioned (OR across groups), then deduplicated.
+
+    Args:
+        path: File or directory to search.
+        pattern_groups: List of pattern lists, one per ``--and`` group.
+            Within a group, all patterns must match (AND). Across groups,
+            results are unioned (OR). If None or all groups empty, no filtering.
+        override_groups: List of override dicts, one per ``--and`` group.
+            Each group's overrides are applied to experiments matched by
+            that group's patterns.
+
+    Returns:
+        Deduplicated list of (file_path, name, config) tuples.
     """
     files = discover_experiment_files(path)
 
@@ -167,52 +218,45 @@ def collect_all(
         logger.warning("No experiment files found in %s", path)
         return []
 
+    all_base = _collect_base(path, files)
+
+    # Normalize groups
+    if pattern_groups is None:
+        pattern_groups = [[]]
+    if override_groups is None:
+        override_groups = [{}]
+
+    # Pad shorter list to match lengths
+    n_groups = max(len(pattern_groups), len(override_groups))
+    while len(pattern_groups) < n_groups:
+        pattern_groups.append([])
+    while len(override_groups) < n_groups:
+        override_groups.append({})
+
+    # Collect per-group, then union
     configs: list[tuple[Path, str, BaseRunConfig]] = []
-    seen_names: set[str] = set()
     seen_keys: set[str] = set()
 
-    for file_path in files:
-        try:
-            module = load_module(file_path)
+    for patterns, overrides in zip(pattern_groups, override_groups):
+        # Filter by this group's patterns
+        if patterns:
+            group_configs = [
+                (fp, name, cfg)
+                for fp, name, cfg in all_base
+                if _matches_patterns(name, patterns)
+            ]
+        else:
+            group_configs = list(all_base)
 
-            for name, config in collect_experiments(module):
-                if patterns and not all(p in name for p in patterns):
-                    continue
+        # Apply this group's overrides
+        if overrides:
+            group_configs = _apply_override_groups(group_configs, [overrides])
 
-                if name in seen_names:
-                    logger.warning("Duplicate experiment name: %s (from %s)", name, file_path)
-                    continue
-                seen_names.add(name)
-
-                key = _config_key(config)
-                if key in seen_keys:
-                    logger.warning("Duplicate config detected: %s", name)
-                    continue
+        # Union with deduplication
+        for fp, name, cfg in group_configs:
+            key = _config_key(cfg)
+            if key not in seen_keys:
                 seen_keys.add(key)
-
-                configs.append((file_path, name, config))
-
-        except Exception as e:
-            logger.error("Failed to load %s: %s", file_path, e)
-
-    if override_groups:
-        configs = _apply_override_groups(configs, override_groups)
-
-        # Deduplicate after overrides
-        seen_keys_dedup: set[str] = set()
-        deduped: list[tuple[Path, str, BaseRunConfig]] = []
-        for file_path, name, config in configs:
-            key = _config_key(config)
-            if key not in seen_keys_dedup:
-                seen_keys_dedup.add(key)
-                deduped.append((file_path, name, config))
-            else:
-                logger.debug("Deduplicated after override: %s", name)
-
-        if len(deduped) < len(configs):
-            logger.info(
-                "Deduplicated %d -> %d experiments after overrides", len(configs), len(deduped)
-            )
-        configs = deduped
+                configs.append((fp, name, cfg))
 
     return configs
