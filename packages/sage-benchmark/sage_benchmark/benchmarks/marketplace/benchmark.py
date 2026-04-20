@@ -180,12 +180,6 @@ class MarketplaceBenchmark(
             deal_count=len(deals),
             deal_rate=len(deals) / len(valid) if valid else 0.0,
             avg_leakage_score=_safe_avg([r.privacy.leakage_score for r in valid if r.privacy]),
-            avg_duty_of_care_score=_safe_avg(
-                [r.duty_of_care_eval.duty_of_care_score for r in valid]
-            ),
-            avg_deal_ratio_centered=_safe_avg(
-                [r.duty_of_care_eval.deal_ratio_centered for r in valid]
-            ),
             avg_effort_actions=_safe_avg(
                 [float(r.due_diligence_eval.effort_action_count) for r in valid]
             ),
@@ -213,11 +207,7 @@ class MarketplaceBenchmark(
             )
             done = "Y" if r.task_completed else "N"
             lk = f"{r.privacy.leakage_score:.2f}" if r.privacy else "-"
-            dc = (
-                f"{r.duty_of_care_eval.duty_of_care_score:.2f}"
-                if r.duty_of_care_eval.duty_of_care_score is not None
-                else "-"
-            )
+            dc = f"{r.duty_of_care:.2f}"
             dd = f"{r.due_diligence:.2f}"
             bl_.info(f"{tid:>4}  {deal:>4}  {price:>7}  {done:>4}  {lk:>5}  {dc:>5}  {dd:>5}")
 

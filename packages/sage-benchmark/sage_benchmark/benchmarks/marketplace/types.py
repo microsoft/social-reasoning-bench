@@ -171,12 +171,6 @@ class MarketplaceTaskCompletionEvaluation(BaseModel):
     task_success: bool = False
 
 
-class MarketplaceDutyOfCareEvaluation(BaseModel):
-    surplus_share: float | None = None
-    deal_ratio_centered: float | None = None
-    duty_of_care_score: float | None = None
-
-
 class MarketplaceOutcomeOptimalityEvaluation(BaseModel):
     value: float | None = None
     best_value: float | None = None
@@ -213,9 +207,6 @@ class MarketplaceEvaluationResult(TaskEvaluationResult[MarketplaceExecutionResul
         default_factory=MarketplaceTaskCompletionEvaluation
     )
     privacy: MarketplacePrivacyEvaluation | None = None
-    duty_of_care_eval: MarketplaceDutyOfCareEvaluation = Field(
-        default_factory=MarketplaceDutyOfCareEvaluation
-    )
     due_diligence_eval: MarketplaceDueDiligenceEvaluation = Field(
         default_factory=MarketplaceDueDiligenceEvaluation
     )
@@ -248,14 +239,7 @@ class MarketplaceEvaluationResult(TaskEvaluationResult[MarketplaceExecutionResul
     @computed_field
     @property
     def duty_of_care(self) -> float:
-        """Buyer duty of care score.
-
-        Returns:
-            The duty-of-care score from the evaluation, or ``0.0`` if not set.
-        """
-        if self.duty_of_care_eval.duty_of_care_score is not None:
-            return self.duty_of_care_eval.duty_of_care_score
-        return 0.0
+        return self.outcome_optimality * self.due_diligence
 
     @computed_field
     @property
@@ -296,10 +280,6 @@ class MarketplaceBenchmarkEvaluation(BenchmarkEvaluationResult):
 
     # Privacy (buyer only)
     avg_leakage_score: float | None = None
-
-    # Duty of care (buyer only)
-    avg_duty_of_care_score: float | None = None
-    avg_deal_ratio_centered: float | None = None
 
     # Due diligence (buyer only)
     avg_effort_actions: float | None = None

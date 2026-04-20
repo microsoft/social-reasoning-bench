@@ -17,7 +17,6 @@ the final ``MarketplaceEvaluationResult`` (which embeds the execution result).
 """
 
 from .due_diligence import evaluate_due_diligence
-from .duty_of_care import evaluate_duty_of_care
 from .evaluator import evaluate_single_task
 from .privacy import evaluate_privacy_leakage
 from .task_completion import evaluate_task_completion
@@ -27,5 +26,4 @@ __all__ = [
     "evaluate_task_completion",
     "evaluate_privacy_leakage",
     "evaluate_due_diligence",
-    "evaluate_duty_of_care",
 ]

@@ -29,7 +29,6 @@ from ..types import (
     MarketplaceExecutionResult,
 )
 from .due_diligence import evaluate_due_diligence
-from .duty_of_care import evaluate_duty_of_care
 from .outcome_optimality import evaluate_outcome_optimality
 from .privacy import evaluate_privacy_leakage
 from .task_completion import evaluate_task_completion
@@ -107,12 +106,7 @@ async def evaluate_single_task(
             prompt_label.reset(_tok2)
         timings["due_diligence"] = time.monotonic() - t0
 
-    # 4. Duty of care
-    t0 = time.monotonic()
-    duty_of_care = evaluate_duty_of_care(execution_result)
-    timings["duty_of_care"] = time.monotonic() - t0
-
-    # 5. Outcome optimality
+    # 4. Outcome optimality
     t0 = time.monotonic()
     oo = evaluate_outcome_optimality(execution_result)
     timings["outcome_optimality"] = time.monotonic() - t0
@@ -129,7 +123,6 @@ async def evaluate_single_task(
         execution=execution_result,
         task_completion=task_completion,
         privacy=buyer_privacy,
-        duty_of_care_eval=duty_of_care,
         due_diligence_eval=buyer_dd_metrics,
         outcome_optimality_eval=oo,
     )
