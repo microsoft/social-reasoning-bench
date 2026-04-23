@@ -248,6 +248,10 @@ def _mkt_attacks(model, preset, tag, reasoning_effort=None, explicit_cot=None):
 
 def experiment_marketplace():
     for preset in SYSTEM_PROMPT_PRESETS:
+        if preset == "dd_info_gathering":
+            # Info gathering doesn't apply to marketplace
+            continue
+
         # Reasoning models: sweep reasoning_effort levels
         for model in REASONING_MODELS:
             mtag = _model_tag(model)
