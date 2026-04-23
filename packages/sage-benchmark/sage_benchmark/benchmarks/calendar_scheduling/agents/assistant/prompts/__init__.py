@@ -4,8 +4,9 @@ Uses the shared :class:`SystemPrompt` class with calendar-specific role
 and domain.  Use ``get_system_prompt(name)`` to retrieve a built
 prompt by preset name, or ``list_available_presets()`` to see all options.
 """
+from typing import get_args
 
-from sage_benchmark.shared.prompts.assistant_system_prompts import SystemPrompt
+from sage_benchmark.shared.prompts.assistant_system_prompts import SystemPrompt, SystemPromptPreset
 
 # ---------------------------------------------------------------------------
 # Calendar-specific constants
@@ -25,29 +26,14 @@ CALENDAR_DOMAIN = (
 # ---------------------------------------------------------------------------
 # Presets
 # ---------------------------------------------------------------------------
-
+preset_values = get_args(SystemPromptPreset)
 PRESETS: dict[str, SystemPrompt] = {
-    "none": SystemPrompt(preset="none", role=CALENDAR_ROLE),
-    "privacy": SystemPrompt(
-        preset="privacy",
+    preset: SystemPrompt(
+        preset=preset,
         role=CALENDAR_ROLE,
-        domain=CALENDAR_DOMAIN,
-    ),
-    "dd_info_gathering": SystemPrompt(
-        preset="dd_info_gathering",
-        role=CALENDAR_ROLE,
-        domain=CALENDAR_DOMAIN,
-    ),
-    "dd_advocacy": SystemPrompt(
-        preset="dd_advocacy",
-        role=CALENDAR_ROLE,
-        domain=CALENDAR_DOMAIN,
-    ),
-    "oo": SystemPrompt(
-        preset="oo",
-        role=CALENDAR_ROLE,
-        domain=CALENDAR_DOMAIN,
-    ),
+        domain=CALENDAR_DOMAIN if preset != "none" else "",
+    )
+    for preset in preset_values
 }
 
 
