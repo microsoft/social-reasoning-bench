@@ -167,6 +167,13 @@ class AgentResources:
             else:
                 attendees.append(Attendee(email=email, status=AttendeeStatus.AWAITING_RESPONSE))
 
+        # Reject duplicate UIDs — prevents silently overwriting existing meetings
+        if self.calendar.get_meeting(action.uid):
+            raise ToolError(
+                f"A meeting with UID '{action.uid}' already exists on your calendar. "
+                f"Use a different UID."
+            )
+
         # Create the meeting
         meeting = Meeting(
             uid=action.uid,
