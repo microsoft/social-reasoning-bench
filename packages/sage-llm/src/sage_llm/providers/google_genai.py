@@ -91,14 +91,31 @@ class GoogleProvider(SageModelProvider):
             reasoning_effort=reasoning_effort,
         )
         sdk_kwargs = _serialize_sdk_kwargs(model, contents, config)
+
+        async def _call(_ctx: Any) -> types.GenerateContentResponse:
+            resp: types.GenerateContentResponse | None = None
+            for attempt in range(3):
+                resp = await self._client.aio.models.generate_content(
+                    model=model,
+                    contents=cast(types.ContentListUnionDict, contents),
+                    config=config,
+                )
+                try:
+                    _ensure_non_empty_response(resp)
+                    return resp
+                except RuntimeError:
+                    logger.warning(
+                        "Gemini returned empty response (attempt %d/3), retrying",
+                        attempt + 1,
+                    )
+            assert resp is not None
+            logger.error("Gemini returned empty responses after 3 attempts")
+            return resp
+
         response, call_duration = await with_llm_retry(
             self.PROVIDER_KEY,
             model,
-            lambda _: self._client.aio.models.generate_content(
-                model=model,
-                contents=cast(types.ContentListUnionDict, contents),
-                config=config,
-            ),
+            _call,
         )
         if response.usage_metadata:
             um = response.usage_metadata
@@ -227,7 +244,9 @@ def _translate_request(
                 if tc_id in unsigned_tc_ids:
                     # Convert to plain user text — no FunctionResponse needed.
                     name = tc_id_to_name.get(tc_id, "tool")
-                    contents.append(_translate_user(f"[Result of {name}]: {msg.get('content', '')}"))
+                    contents.append(
+                        _translate_user(f"[Result of {name}]: {msg.get('content', '')}")
+                    )
                 else:
                     contents.append(_translate_tool_result(msg, tc_id_to_name))
             else:
@@ -576,6 +595,26 @@ def _translate_tool_choice(
             )
         )
     return None
+
+
+# ---------------------------------------------------------------------------
+# Response validation
+# ---------------------------------------------------------------------------
+
+
+def _ensure_non_empty_response(response: types.GenerateContentResponse) -> None:
+    """Raise on completely empty Gemini responses so retries kick in.
+
+    Gemini can return empty responses (no content, no tool calls) with
+    finish reasons like MALFORMED_FUNCTION_CALL.  Treating these as
+    transient errors lets the retry loop re-attempt the call.
+    """
+    if not response.candidates:
+        raise RuntimeError("Gemini returned no candidates")
+    candidate = response.candidates[0]
+    if not candidate.content or not candidate.content.parts:
+        reason = getattr(candidate, "finish_reason", "unknown")
+        raise RuntimeError(f"Gemini returned empty response (finish_reason={reason})")
 
 
 # ---------------------------------------------------------------------------

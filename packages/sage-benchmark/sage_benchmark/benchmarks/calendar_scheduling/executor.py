@@ -107,7 +107,7 @@ async def _run_agent_turn(
     return all_tool_calls, False
 
 
-def _force_initial_request(
+async def _force_initial_request(
     requestor_agent: CalendarRequestorAgent,
     requestor_resources: AgentResources,
     task: CalendarTask,
@@ -115,8 +115,9 @@ def _force_initial_request(
 ) -> list[Tool]:
     """Force the requestor to send the initial meeting request.
 
-    This ensures the simulation starts with a concrete request rather than
-    relying on the LLM to initiate.
+    Lets the agent make a normal tool call (so it generates a natural email
+    message), then replaces the meeting parameters with the predetermined
+    values from the task to ensure deterministic scheduling details.
 
     Args:
         requestor_agent: The requestor agent to record the forced actions on.
@@ -130,8 +131,14 @@ def _force_initial_request(
     """
     requested_meeting = task.requestor.requested_meeting
 
-    # Create the meeting request action
+    message = await requestor_agent.generate_text_response(
+        f"Generate a plain text message to accompany the following meeting request:\n\n```json\n{requested_meeting.model_dump_json()}\n```\n\n RESPOND WITH TEXT ONLY. DO NOT CALL ANY TOOLS."
+    )
+    if not message:
+        logger.warning("CalendarRequestorAgent failed to generate an opening message. Sending Request with no message.")
+    # Create the meeting request with predetermined params + agent's message
     request_action = RequestMeeting(
+        message=message,
         uid=requested_meeting.uid,
         title=requested_meeting.title,
         description=requested_meeting.description,
@@ -267,8 +274,8 @@ async def execute_task(
         expose_preferences=expose_preferences,
     )
 
-    # Force initial request from requestor
-    _force_initial_request(
+    # Force initial request from requestor (LLM generates the email body)
+    await _force_initial_request(
         requestor_agent=requestor_agent,
         requestor_resources=requestor_resources,
         task=task,
