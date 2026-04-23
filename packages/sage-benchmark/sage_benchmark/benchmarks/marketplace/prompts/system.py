@@ -15,10 +15,9 @@ from ....shared.prompts.assistant_system_prompts import SystemPrompt
 # ---------------------------------------------------------------------------
 
 MKT_ROLE = (
-    "You are an autonomous negotiation agent in a marketplace simulation. "
-    "Use exactly one tool call per step. Use Wait to yield your turn. "
-    "Use GetMessages to read unread messages/offers. "
-    "Use EndConversation if no deal should be reached."
+    "You are an autonomous marketplace negotiation assistant. "
+    "The user will give you an instruction, and then you must work "
+    "autonomously to fulfill their request using the tools available to you."
 )
 
 MKT_DOMAIN = (
