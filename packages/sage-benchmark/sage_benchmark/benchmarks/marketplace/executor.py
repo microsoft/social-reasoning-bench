@@ -147,7 +147,7 @@ async def execute_task(
     for round_num in range(1, max_rounds + 1):
         env.state.current_round = round_num
         benchmark_logger.info("Task %d - Round %d", task.id, round_num)
-        for resources, agent in [(buyer_resources, buyer_agent), (seller_resources, seller_agent)]:
+        for resources, agent in [(seller_resources, seller_agent), (buyer_resources, buyer_agent)]:
             if env.state.outcome.deal_reached or env.state.outcome.end_reason is not None:
                 break
 
