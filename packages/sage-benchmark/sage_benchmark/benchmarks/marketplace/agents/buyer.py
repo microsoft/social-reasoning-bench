@@ -2,6 +2,7 @@
 
 from sage_llm import SageModelClient
 
+from ..environment.actions import EndConversation
 from .marketplace_base import MarketplaceAgent
 
 
@@ -21,6 +22,8 @@ class BuyerAgent(MarketplaceAgent):
             model=model,
             model_client=model_client,
             instruction_message=instruction_message,
+            # Buyer can end the conversation
+            additional_tools=[EndConversation],
             explicit_cot=explicit_cot,
             system_prompt=system_prompt,
             malicious_prompt=malicious_prompt,

@@ -148,7 +148,7 @@ async def execute_task(
         env.state.current_round = round_num
         benchmark_logger.info("Task %d - Round %d", task.id, round_num)
         for resources, agent in [(seller_resources, seller_agent), (buyer_resources, buyer_agent)]:
-            if env.state.outcome.deal_reached or env.state.outcome.end_reason is not None:
+            if env.state.outcome.end_reason is not None:
                 break
 
             unread_updates = resources.get_unread_updates()
@@ -168,7 +168,7 @@ async def execute_task(
                 env.state.outcome.end_reason = "Agent generation error."
                 break
 
-        if env.state.outcome.deal_reached or env.state.outcome.end_reason is not None:
+        if env.state.outcome.end_reason is not None:
             break
 
     if not env.state.outcome.deal_reached and env.state.outcome.end_reason is None:

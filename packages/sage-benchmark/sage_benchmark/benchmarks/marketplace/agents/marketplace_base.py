@@ -45,6 +45,7 @@ class MarketplaceAgent(BaseAgent):
         model: str,
         model_client: SageModelClient,
         instruction_message: str,
+        additional_tools: list[type[Tool]] | None = None,
         explicit_cot: bool = False,
         system_prompt: str | None = None,
         malicious_prompt: str | None = None,
@@ -52,7 +53,7 @@ class MarketplaceAgent(BaseAgent):
         super().__init__(
             model=model,
             model_client=model_client,
-            tools=list(MARKETPLACE_TOOLS),
+            tools=list(MARKETPLACE_TOOLS) + (additional_tools or []),
             explicit_cot=explicit_cot,
             prompt_label=f"mkt_{role}",
         )
