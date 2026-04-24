@@ -21,9 +21,67 @@ from sage_llm import SageModelClient
 from ...shared.errors import is_fatal_error
 from ...shared.logging import BenchmarkLogger, VerboseLogger
 from .agents import BuyerAgent, MarketplaceAgent, SellerAgent
-from .environment import AgentResources, EndConversation, MarketplaceEnvironment, Wait
+from .environment import AgentResources, EndConversation, MakeOffer, MarketplaceEnvironment, Wait
 from .environment.resources import execute_with_trace
 from .types import ActionTrace, MarketplaceExecutionResult, MarketplaceTask
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+async def _force_initial_seller_offer(
+    seller_agent: SellerAgent,
+    seller_resources: AgentResources,
+    task: MarketplaceTask,
+    action_trace: list[ActionTrace | dict],
+) -> None:
+    """Force the seller to make an initial offer at the listed price.
+
+    Lets the agent generate a natural opening message, then creates a
+    MakeOffer action with the predetermined listed_price from the task.
+
+    Args:
+        seller_agent: The seller agent to record the forced actions on.
+        seller_resources: The seller's environment resources.
+        task: The marketplace task with product.listed_price set.
+        action_trace: Action trace list to append to.
+    """
+    listed_price = task.product.listed_price
+    message = await seller_agent.generate_text_response(
+        f"Generate a brief opening message for listing {task.product.name} "
+        f"at ${listed_price:.2f}. RESPOND WITH TEXT ONLY. DO NOT CALL ANY TOOLS."
+    )
+    if not message:
+        logger.warning("SellerAgent failed to generate opening message.")
+
+    offer_action = MakeOffer(price=listed_price, message=message)
+    result = seller_resources.execute(offer_action)
+    seller_agent.add_forced_action(offer_action, result)
+
+    trace = ActionTrace(
+        round=0,
+        actor="seller",
+        action_type="MakeOffer",
+        payload=offer_action.model_dump(),
+        result=result,
+        valid=True,
+    )
+    action_trace.append(trace)
+
+    wait_action = Wait()
+    wait_result = seller_resources.execute(wait_action)
+    seller_agent.add_forced_action(wait_action, wait_result)
+
+    trace = ActionTrace(
+        round=0,
+        actor="seller",
+        action_type="Wait",
+        payload={},
+        result=wait_result,
+        valid=True,
+    )
+    action_trace.append(trace)
 
 
 async def _run_agent_turn(
@@ -143,6 +201,12 @@ async def execute_task(
 
     action_trace = []
     invalid_actions = 0
+
+    # Force initial seller offer at listed price (if set)
+    if task.product.listed_price is not None:
+        await _force_initial_seller_offer(
+            seller_agent, seller_resources, task, action_trace
+        )
 
     for round_num in range(1, max_rounds + 1):
         env.state.current_round = round_num

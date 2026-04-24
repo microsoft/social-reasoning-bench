@@ -24,6 +24,7 @@ from ..base import (
 
 class Product(BaseModel):
     name: str
+    listed_price: float | None = None
 
 
 class RoleConfig(BaseModel):

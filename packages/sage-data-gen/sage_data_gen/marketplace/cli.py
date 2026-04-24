@@ -69,6 +69,7 @@ async def run_pipeline(
         total_tasks=config.total_tasks,
         max_retries=config.max_retries_per_item,
         max_concurrency=config.max_concurrency,
+        seed=config.random_seed,
     )
     _save_step(
         debug_dir, 2, "reservation_contexts", {"contexts": [c.model_dump() for c in contexts]}

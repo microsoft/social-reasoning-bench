@@ -41,7 +41,7 @@ def assemble_tasks(
         task = MarketplaceTask(
             id=idx,
             type="marketplace",
-            product=Product(name=product.name),
+            product=Product(name=product.name, listed_price=round(buyer_res * 1.2, 2)),
             seller=RoleConfig(
                 instruction_message=seller_instruction,
                 reservation_price=seller_res,
