@@ -6,7 +6,11 @@ No LLM calls. All randomness is seeded.
 import random
 
 from pydantic import ConfigDict
-from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarTask, LabeledMeeting
+from sage_benchmark.benchmarks.calendar_scheduling.types import (
+    CalendarTask,
+    LabeledMeeting,
+    TimeSlotPreference,
+)
 
 from .archetypes import NUM_ARCHETYPES
 from .generate_calendars import AFTERNOON_SLOT_INDICES, MORNING_SLOT_INDICES
@@ -345,10 +349,15 @@ def assemble_tasks(
             mt.assistant.preferences = sample_preferences(
                 calendar=mt.assistant.calendar, rng=asst_pref_rng
             )
-            req_pref_rng = random.Random(seed + hash(email) + num_free_slots + 3000)
-            mt.requestor.preferences = sample_preferences(
-                calendar=mt.requestor.calendar, rng=req_pref_rng
-            )
+            # Requestor preferences are the inverse of assistant preferences
+            mt.requestor.preferences = [
+                TimeSlotPreference(
+                    start_time=p.start_time,
+                    end_time=p.end_time,
+                    score=round(1.0 - p.score, 1),
+                )
+                for p in mt.assistant.preferences
+            ]
 
             assembled.append(CalendarTask.model_validate(mt))
 
