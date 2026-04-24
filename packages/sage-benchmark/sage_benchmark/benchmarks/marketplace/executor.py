@@ -151,7 +151,6 @@ async def execute_task(
             if env.state.outcome.deal_reached or env.state.outcome.end_reason is not None:
                 break
 
-            agent.add_turn_marker(current_round=round_num, max_rounds=max_rounds)
             unread_updates = resources.get_unread_updates()
             agent.add_new_messages(unread_updates)
             turn_invalid_actions, agent_ended = await _run_agent_turn(
