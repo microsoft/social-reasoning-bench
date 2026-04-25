@@ -31,7 +31,7 @@ PRESETS: dict[str, SystemPrompt] = {
     preset: SystemPrompt(
         preset=preset,
         role=CALENDAR_ROLE,
-        domain=CALENDAR_DOMAIN if preset != "none" else "",
+        domain=CALENDAR_DOMAIN if preset in ("privacy", "all") else "",
     )
     for preset in preset_values
 }

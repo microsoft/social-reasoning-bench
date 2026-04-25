@@ -5,8 +5,10 @@ presets using the shared SystemPrompt.
 """
 
 from __future__ import annotations
-from sage_benchmark.shared.prompts import SystemPromptPreset
+
 from typing import get_args
+
+from sage_benchmark.shared.prompts import SystemPromptPreset
 
 from ....shared.prompts.assistant_system_prompts import SystemPrompt
 
@@ -34,11 +36,10 @@ PRESETS: dict[str, SystemPrompt] = {
     preset: SystemPrompt(
         preset=preset,
         role=MKT_ROLE,
-        domain=MKT_DOMAIN if preset != "none" else "",
+        domain=MKT_DOMAIN if preset in ("privacy", "all") else "",
     )
     for preset in preset_values
 }
-
 
 
 def get_system_prompt(preset_name: str = "none") -> str:

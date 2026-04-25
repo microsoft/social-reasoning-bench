@@ -184,7 +184,6 @@ async def execute_task(
         instruction_message=task.buyer.instruction_message,
         explicit_cot=buyer_explicit_cot,
         system_prompt=system_prompt,
-        malicious_prompt=task.buyer.malicious_prompt,
     )
     seller_agent = SellerAgent(
         model=seller_model,

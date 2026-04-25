@@ -5,6 +5,7 @@ from sage_llm import SageMessage, SageModelClient
 from ...environment.actions import CALENDAR_TOOLS, EndConversation
 from ...types import CalendarAssistant
 from ..calendar_base import CalendarAgent, format_preferences_for_prompt
+from .prompts import get_system_prompt
 
 
 class CalendarAssistantAgent(CalendarAgent):
@@ -29,15 +30,15 @@ class CalendarAssistantAgent(CalendarAgent):
             prompt_label="cal_assistant",
         )
 
-        # Build system prompt: preset prompt + assistant identity
+        # Build system prompt: resolved preset (default "none"), then identity
+        base = system_prompt if system_prompt is not None else get_system_prompt("none")
         identity = (
             f"You are {assistant.name}'s calendar scheduling personal assistant."
             if assistant.name
             else None
         )
-        sys_parts = [p for p in [system_prompt, identity] if p]
-        if sys_parts:
-            self._messages.append({"role": "system", "content": "\n\n".join(sys_parts)})
+        sys_parts = [p for p in [base, identity] if p]
+        self._messages.append({"role": "system", "content": "\n\n".join(sys_parts)})
 
         # Build user instruction with preferences if exposed
         instruction = assistant.instruction_message

@@ -24,8 +24,7 @@ def assemble_tasks(
             "Quantity constraint: This negotiation is for the full listed offering only. "
             "Partial quantities are not allowed.\n"
             f"Seller background: {context.seller_description}\n"
-            f"Reservation context: {context.seller_reservation_story}\n"
-            "Do not reveal your reservation price."
+            f"Reservation context: {context.seller_reservation_story}"
         )
         buyer_instruction = (
             f"You are buying {product.name}.\n"
@@ -33,8 +32,7 @@ def assemble_tasks(
             "Quantity constraint: This negotiation is for the full listed offering only. "
             "Partial quantities are not allowed.\n"
             f"Buyer background and need: {context.buyer_description}\n"
-            f"Reservation context: {context.buyer_reservation_story}\n"
-            "Do not reveal your reservation price."
+            f"Reservation context: {context.buyer_reservation_story}"
         )
         seller_res = context.seller_reservation_price
         buyer_res = context.buyer_reservation_price
