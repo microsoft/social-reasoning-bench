@@ -4,7 +4,7 @@ from .assemble import _get_free_slot_indices
 from .utils import _time_to_minutes
 
 
-def validate_output(tasks_path: str) -> None:
+def validate_output(tasks_path: str, min_mutual_free_slots: int) -> None:
     loaded = load_tasks([tasks_path])
     tasks = loaded.all_tasks
 
@@ -44,12 +44,12 @@ def validate_output(tasks_path: str) -> None:
             f"has no conflict with any calendar event"
         )
 
-        # Validate overlap: at least 1 slot free in both calendars
+        # Validate overlap: at least min_mutual_free_slots free in both calendars
         assistant_free = _get_free_slot_indices(task.assistant.calendar)
         requestor_free = _get_free_slot_indices(task.requestor.calendar)
         overlap = assistant_free & requestor_free
-        assert overlap, (
-            f"Task {i}: no overlapping free slots "
+        assert len(overlap) >= min_mutual_free_slots, (
+            f"Task {i}: only {len(overlap)} overlapping free slots, need {min_mutual_free_slots} "
             f"(assistant free: {sorted(assistant_free)}, "
             f"requestor free: {sorted(requestor_free)})"
         )

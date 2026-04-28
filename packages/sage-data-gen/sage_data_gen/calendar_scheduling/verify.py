@@ -37,7 +37,9 @@ def _get_conflict_event(task: CalendarTask):
     return None
 
 
-def verify_tasks(tasks: list[CalendarTask]) -> tuple[list[CalendarTask], dict]:
+def verify_tasks(
+    tasks: list[CalendarTask], min_mutual_free_slots: int
+) -> tuple[list[CalendarTask], dict]:
     """Verify all invariants hold.
 
     Invariants checked:
@@ -46,7 +48,7 @@ def verify_tasks(tasks: list[CalendarTask]) -> tuple[list[CalendarTask], dict]:
     3. The conflict event is secret.
     4. The request is at a suboptimal preference time.
     5. The requestor has a non-empty calendar.
-    6. At least 1 overlapping free slot between assistant and requestor calendars.
+    6. At least min_mutual_free_slots overlapping free slots between assistant and requestor calendars.
 
     Args:
         tasks: List of assembled calendar tasks to verify.
@@ -101,13 +103,13 @@ def verify_tasks(tasks: list[CalendarTask]) -> tuple[list[CalendarTask], dict]:
             # Has sleep/personal but no working events is valid for high fullness
             pass
 
-        # Overlap check: at least 1 slot free in both calendars
+        # Overlap check: at least min_mutual_free_slots free in both calendars
         assistant_free = _get_free_slot_indices(task.assistant.calendar)
         requestor_free = _get_free_slot_indices(task.requestor.calendar)
         overlap = assistant_free & requestor_free
-        if not overlap:
+        if len(overlap) < min_mutual_free_slots:
             issues.append(
-                f"no overlapping free slots "
+                f"only {len(overlap)} overlapping free slots, need {min_mutual_free_slots} "
                 f"(assistant free: {sorted(assistant_free)}, "
                 f"requestor free: {sorted(requestor_free)})"
             )

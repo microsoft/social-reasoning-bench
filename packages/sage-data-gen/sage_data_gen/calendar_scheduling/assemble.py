@@ -142,57 +142,37 @@ def trim_calendar_events(
     Returns:
         Trimmed calendar sorted by start time.
     """
-    # Identify working-hour events and non-working events
-    working_events: list[tuple[int, LabeledMeeting]] = []
-    non_working: list[LabeledMeeting] = []
+    # Get working-hour occupied slots that are candidates to remove
+    occupied_slots = _get_occupied_slot_indices(calendar)
+    free_slots = _get_free_slot_indices(calendar)
 
-    for event in calendar:
-        if "sleep" in event.uid or "personal" in event.uid:
-            non_working.append(event)
-        else:
-            idx = _slot_index_for_time(event.start_time)
-            working_events.append((idx, event))
+    # How many occupied slots do we need to free up to meet the target?
+    n_deficit_free_slots = target_free_slots - len(free_slots)
+    # Need to free up some slots
+    if n_deficit_free_slots > 0:
+        # Remove the protected slot from the occupied slots so it doesn't get removed
+        if protected_slot_index in occupied_slots:
+            occupied_slots.remove(protected_slot_index)
 
-    # Available slots to remove (not the protected slot)
-    removable_indices = [i for i, _ in working_events if i != protected_slot_index]
+        # rng.choice needs a list, not set
+        candidate_slots_to_remove = list(occupied_slots)
 
-    # Proportional morning/afternoon distribution
-    morning_removable = [i for i in removable_indices if i in MORNING_SLOT_INDICES]
-    afternoon_removable = [i for i in removable_indices if i in AFTERNOON_SLOT_INDICES]
+        slots_to_remove: set[int] = set()
+        for _ in range(n_deficit_free_slots):
+            slot = rng.choice(candidate_slots_to_remove)
+            candidate_slots_to_remove.remove(slot)
+            slots_to_remove.add(slot)
 
-    morning_free = round(
-        target_free_slots * len(morning_removable) / max(len(removable_indices), 1)
-    )
-    afternoon_free = target_free_slots - morning_free
+        # Remove the events from the calendar
+        calendar = [
+            event
+            for event in calendar
+            if _slot_index_for_time(event.start_time) not in slots_to_remove
+        ]
 
-    morning_free = min(morning_free, len(morning_removable))
-    afternoon_free = min(afternoon_free, len(afternoon_removable))
-
-    while morning_free + afternoon_free < target_free_slots:
-        if afternoon_free < len(afternoon_removable):
-            afternoon_free += 1
-        elif morning_free < len(morning_removable):
-            morning_free += 1
-        else:
-            break
-    while morning_free + afternoon_free > target_free_slots:
-        if morning_free > 0:
-            morning_free -= 1
-        elif afternoon_free > 0:
-            afternoon_free -= 1
-
-    slots_to_remove: set[int] = set()
-    if morning_free > 0:
-        slots_to_remove.update(rng.sample(morning_removable, morning_free))
-    if afternoon_free > 0:
-        slots_to_remove.update(rng.sample(afternoon_removable, afternoon_free))
-
-    kept_working = [event for idx, event in working_events if idx not in slots_to_remove]
-
-    # Rebuild calendar: non-working + kept working, sorted by time
-    all_events = non_working + kept_working
-    all_events.sort(key=lambda e: _time_to_minutes(e.start_time))
-    return all_events
+    # Ensure chronological
+    calendar.sort(key=lambda event: _time_to_minutes(event.start_time))
+    return calendar
 
 
 def trim_requestor_calendar(
@@ -200,92 +180,66 @@ def trim_requestor_calendar(
     requestor_fullness: int,
     assistant_free_slots: set[int],
     rng: random.Random,
+    min_mutual_free_slots: int,
 ) -> list[LabeledMeeting]:
-    """Trim the requestor's calendar ensuring at least 1 overlapping free slot.
-
-    Guarantees that after trimming, at least one working-hour slot is free in
-    both the requestor's and assistant's calendars.
+    """Trim the requestor's calendar ensuring requestor_fullness AND at least min_mutual_free_slots overlapping free slots.
 
     Args:
         requestor_calendar: The requestor's full calendar of labeled meetings.
         requestor_fullness: Target number of free working-hour slots.
         assistant_free_slots: Set of slot indices already free in the assistant's calendar.
         rng: Seeded random instance for deterministic slot removal.
+        min_mutual_free_slots: Minimum number of mutually free slots to guarantee.
 
     Returns:
         Trimmed requestor calendar sorted by start time.
     """
-    occupied = _get_occupied_slot_indices(requestor_calendar)
+    # Get the occupied slots on the requestor calendar
+    requestor_occupied_slots = _get_occupied_slot_indices(requestor_calendar)
 
-    # Find slots that are occupied in the requestor's calendar AND free in the assistant's.
-    # Freeing one of these creates an overlap.
-    overlap_candidates = list(occupied & assistant_free_slots)
+    # Get the free working-hour slots on the requestor calendar
+    requestor_free_slots = _get_free_slot_indices(requestor_calendar)
 
-    # If there's already an overlap (requestor slot free where assistant is also free),
-    # just do a normal trim with no protected slot.
-    current_requestor_free = set(range(NUM_WORKING_SLOTS)) - occupied
-    existing_overlap = current_requestor_free & assistant_free_slots
-    if existing_overlap or not overlap_candidates:
-        # Either overlap already exists, or we can't force one (shouldn't happen
-        # since assistant_free_slots is non-empty and requestor is fully packed)
-        return trim_calendar_events(requestor_calendar, requestor_fullness, -1, rng)
+    # Find the slots where the requestor is occupied but the assistant is free.
+    # Freeing up these slots on the requestor calendar would increase the number of "mutually free slots"
+    requestor_occupied_assistant_free_slots = list(requestor_occupied_slots & assistant_free_slots)
 
-    # Force one overlap: pick a slot that's occupied in requestor but free in assistant.
-    # We'll ensure this slot gets freed by marking it for removal first,
-    # then trimming the rest normally.
-    forced_slot = rng.choice(overlap_candidates)
+    # Slots where requester and assistant are free
+    mutually_free_slots = list(requestor_free_slots & assistant_free_slots)
 
-    # Remove the forced slot event and then trim remaining to target
-    remaining_to_free = requestor_fullness - 1
-    if remaining_to_free <= 0:
-        # Only need to free 1 slot — the forced one
-        return trim_calendar_events(requestor_calendar, 1, -1, rng)
+    # Number of mutually free slots below the target min_mutual_free_slots
+    n_deficit_mutually_free_slots = min_mutual_free_slots - len(mutually_free_slots)
 
-    # Remove the forced slot, then trim the rest (protecting nothing else)
-    working_events: list[tuple[int, LabeledMeeting]] = []
-    non_working: list[LabeledMeeting] = []
-    for event in requestor_calendar:
-        if "sleep" in event.uid or "personal" in event.uid:
-            non_working.append(event)
-        else:
-            idx = _slot_index_for_time(event.start_time)
-            working_events.append((idx, event))
+    # There is a deficit, we need to remove requestor slots
+    if n_deficit_mutually_free_slots > 0:
+        # Track the slots we remove
+        requestor_slots_to_remove: set[int] = set()
 
-    # Remove the forced slot plus additional random slots
-    removable_indices = [i for i, _ in working_events if i != forced_slot]
-    morning_removable = [i for i in removable_indices if i in MORNING_SLOT_INDICES]
-    afternoon_removable = [i for i in removable_indices if i in AFTERNOON_SLOT_INDICES]
+        # Queue n_deficit slots for removal
+        for _ in range(n_deficit_mutually_free_slots):
+            # Check if there are any more slots to free on the requestor calendar
+            if not requestor_occupied_assistant_free_slots:
+                raise RuntimeError("Cannot guarantee min_mutual_free_slots")
 
-    morning_free = round(
-        remaining_to_free * len(morning_removable) / max(len(removable_indices), 1)
-    )
-    afternoon_free = remaining_to_free - morning_free
-    morning_free = min(morning_free, len(morning_removable))
-    afternoon_free = min(afternoon_free, len(afternoon_removable))
+            # Randomly choose the slot to remove
+            slot = rng.choice(requestor_occupied_assistant_free_slots)
+            requestor_occupied_assistant_free_slots.remove(slot)
 
-    while morning_free + afternoon_free < remaining_to_free:
-        if afternoon_free < len(afternoon_removable):
-            afternoon_free += 1
-        elif morning_free < len(morning_removable):
-            morning_free += 1
-        else:
-            break
-    while morning_free + afternoon_free > remaining_to_free:
-        if morning_free > 0:
-            morning_free -= 1
-        elif afternoon_free > 0:
-            afternoon_free -= 1
+            requestor_slots_to_remove.add(slot)
 
-    slots_to_remove: set[int] = {forced_slot}
-    if morning_free > 0:
-        slots_to_remove.update(rng.sample(morning_removable, morning_free))
-    if afternoon_free > 0:
-        slots_to_remove.update(rng.sample(afternoon_removable, afternoon_free))
+        # Remove the events from the requestor calendar
+        requestor_calendar = [
+            event
+            for event in requestor_calendar
+            if _slot_index_for_time(event.start_time) not in requestor_slots_to_remove
+        ]
 
-    kept_working = [event for idx, event in working_events if idx not in slots_to_remove]
-    all_events = non_working + kept_working
-    all_events.sort(key=lambda e: _time_to_minutes(e.start_time))
-    return all_events
+    # Regardless of min_mutual_free_slots, we want to target a "fullness level" on the requestor calendar.
+    requestor_calendar = trim_calendar_events(requestor_calendar, requestor_fullness, -1, rng)
+
+    # Ensure chronological
+    requestor_calendar.sort(key=lambda e: _time_to_minutes(e.start_time))
+    return requestor_calendar
 
 
 def assemble_tasks(
@@ -293,18 +247,20 @@ def assemble_tasks(
     fullness_levels: list[int],
     requestor_fullness: int,
     seed: int,
+    min_mutual_free_slots: int,
 ) -> list[CalendarTask]:
     """Step 5: Assign fullness, place meetings, trim both calendars, ensure overlap.
 
     All fullness levels must be in [1, 10] — no unsatisfiable (0) or fully open (11)
     calendars. The requestor's calendar is trimmed to a fixed fullness level, and at
-    least 1 working-hour slot is guaranteed to be free in both calendars.
+    least min_mutual_free_slots working-hour slots are guaranteed to be free in both calendars.
 
     Args:
         all_employee_tasks: Maps employee email to their 7 validated tasks (one per archetype).
         fullness_levels: The 7 fullness levels to distribute (all in [1, 10]).
         requestor_fullness: Fixed number of free slots for all requestor calendars.
         seed: Random seed for deterministic assembly.
+        min_mutual_free_slots: Minimum number of mutually free slots to guarantee.
 
     Returns:
         All assembled tasks, ready for verification.
@@ -341,7 +297,11 @@ def assemble_tasks(
             assistant_free = _get_free_slot_indices(mt.assistant.calendar)
             req_rng = random.Random(seed + hash(email) + num_free_slots + 1000)
             mt.requestor.calendar = trim_requestor_calendar(
-                mt.requestor.calendar, requestor_fullness, assistant_free, req_rng
+                mt.requestor.calendar,
+                requestor_fullness,
+                assistant_free,
+                req_rng,
+                min_mutual_free_slots,
             )
 
             # 5e: Generate preferences based on final trimmed calendars

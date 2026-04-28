@@ -268,13 +268,17 @@ async def run_pipeline(config: PipelineConfig) -> None:
     # Step 5: Deterministic assembly
     print("\nStep 5: Assembling tasks (fullness assignment + meeting placement + trimming)...")
     all_tasks = assemble_tasks(
-        all_employee_tasks, config.fullness_levels, config.requestor_fullness, config.seed
+        all_employee_tasks,
+        config.fullness_levels,
+        config.requestor_fullness,
+        config.seed,
+        config.min_mutual_free_slots,
     )
     print(f"  Assembled {len(all_tasks)} tasks")
 
     # Step 6: Verify invariants
     print("\nStep 6: Verifying invariants...")
-    all_tasks, verification_report = verify_tasks(all_tasks)
+    all_tasks, verification_report = verify_tasks(all_tasks, config.min_mutual_free_slots)
 
     # Assign sequential IDs, sort by fullness then email
     all_tasks.sort(
@@ -315,9 +319,9 @@ async def run_pipeline(config: PipelineConfig) -> None:
 
     # Step 10: Validate output
     print("\nStep 10: Validating output...")
-    validate_output(str(large_path))
-    validate_output(str(medium_path))
-    validate_output(str(small_path))
+    validate_output(str(large_path), config.min_mutual_free_slots)
+    validate_output(str(medium_path), config.min_mutual_free_slots)
+    validate_output(str(small_path), config.min_mutual_free_slots)
 
     # Step 11: Summary stats
     stats = print_stats(all_tasks)
@@ -338,8 +342,8 @@ def parse_args() -> PipelineConfig:
     parser.add_argument(
         "--fullness-levels",
         type=str,
-        default="1,2,3,5,7,9,10",
-        help="Comma-separated list of free slot counts (default: 1,2,3,5,7,9,10)",
+        default="2,3,4,5,7,9,10",
+        help="Comma-separated list of free slot counts (default: 2,3,4,5,7,9,10)",
     )
     parser.add_argument(
         "--medium-size",
@@ -364,6 +368,12 @@ def parse_args() -> PipelineConfig:
         type=int,
         default=5,
         help="Fixed number of free working-hour slots in requestor calendars (default: 5)",
+    )
+    parser.add_argument(
+        "--min-mutual-free-slots",
+        type=int,
+        default=2,
+        help="Minimum number of mutually free slots between assistant and requestor calendars (default: 2)",
     )
     parser.add_argument("--model", required=True, help="Model for generation")
     parser.add_argument(
@@ -397,6 +407,7 @@ def parse_args() -> PipelineConfig:
         small_size=args.small_size,
         task_retry_limit=args.task_retry_limit,
         requestor_fullness=args.requestor_fullness,
+        min_mutual_free_slots=args.min_mutual_free_slots,
         model=args.model,
         output_dir=args.output_dir,
         generate_preferences=not args.no_generate_preferences,
