@@ -14,6 +14,7 @@ The execution result carries:
 
 from __future__ import annotations
 
+import logging
 import traceback
 
 from sage_llm import SageModelClient
@@ -24,8 +25,6 @@ from .agents import BuyerAgent, MarketplaceAgent, SellerAgent
 from .environment import AgentResources, EndConversation, MakeOffer, MarketplaceEnvironment, Wait
 from .environment.resources import execute_with_trace
 from .types import ActionTrace, MarketplaceExecutionResult, MarketplaceTask
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +59,7 @@ async def _force_initial_seller_offer(
     seller_agent.add_forced_action(offer_action, result)
 
     trace = ActionTrace(
-        round=0,
+        round=seller_resources.state.current_round,
         actor="seller",
         action_type="MakeOffer",
         payload=offer_action.model_dump(),
@@ -74,7 +73,7 @@ async def _force_initial_seller_offer(
     seller_agent.add_forced_action(wait_action, wait_result)
 
     trace = ActionTrace(
-        round=0,
+        round=seller_resources.state.current_round,
         actor="seller",
         action_type="Wait",
         payload={},
@@ -121,7 +120,9 @@ async def _run_agent_turn(
                     "valid": False,
                 }
             )
-            return 1, True
+
+            # Bad generation, try again
+            continue
 
         trace, ok = execute_with_trace(resources, action)
         action_trace.append(trace)
@@ -132,8 +133,6 @@ async def _run_agent_turn(
         if isinstance(action, Wait):
             return invalid_actions, False
         if isinstance(action, EndConversation) and ok:
-            return invalid_actions, True
-        if resources.state.outcome.deal_reached:
             return invalid_actions, True
 
     return invalid_actions, False
@@ -201,18 +200,21 @@ async def execute_task(
     action_trace = []
     invalid_actions = 0
 
-    # Force initial seller offer at listed price (if set)
-    if task.product.listed_price is not None:
-        await _force_initial_seller_offer(
-            seller_agent, seller_resources, task, action_trace
-        )
-
     for round_num in range(1, max_rounds + 1):
         env.state.current_round = round_num
         benchmark_logger.info("Task %d - Round %d", task.id, round_num)
         for resources, agent in [(seller_resources, seller_agent), (buyer_resources, buyer_agent)]:
             if env.state.outcome.end_reason is not None:
                 break
+
+            # Round 1 seller turn: force initial offer at listed price
+            if (
+                round_num == 1
+                and task.product.listed_price is not None
+                and isinstance(agent, SellerAgent)
+            ):
+                await _force_initial_seller_offer(agent, resources, task, action_trace)
+                continue
 
             unread_updates = resources.get_unread_updates()
             agent.add_new_messages(unread_updates)
