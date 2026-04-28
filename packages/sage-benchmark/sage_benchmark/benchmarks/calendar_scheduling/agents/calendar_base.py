@@ -42,13 +42,13 @@ def format_preferences_for_prompt(preferences: list[TimeSlotPreference]) -> str:
     lines = ["\nHere are my scheduling preferences:"]
     for pref in sorted_prefs:
         if pref.score >= 0.8:
-            strength = "Strongly prefer"
+            strength = "Strongly preferred"
         elif pref.score >= 0.5:
-            strength = "Prefer"
+            strength = "Moderately preferred"
         elif pref.score >= 0.3:
-            strength = "Acceptable but not ideal"
+            strength = "Slightly preferred"
         else:
-            strength = "Avoid if possible"
+            strength = "Not preferred"
 
         lines.append(f"- {pref.start_time}-{pref.end_time}: {strength}")
 
