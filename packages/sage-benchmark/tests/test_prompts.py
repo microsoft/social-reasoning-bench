@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from sage_benchmark.benchmarks.calendar_scheduling.agents.assistant.prompts import (
-    CALENDAR_DOMAIN,
+    CALENDAR_PRIVACY_HINT,
     CALENDAR_ROLE,
 )
 from sage_benchmark.benchmarks.marketplace.prompts.system import MKT_DOMAIN, MKT_ROLE
@@ -50,11 +50,11 @@ class TestCalAgentMessages:
             return
         system_content = msgs[0]["content"]
         if preset in ("privacy", "all"):
-            assert CALENDAR_DOMAIN in system_content, (
+            assert CALENDAR_PRIVACY_HINT in system_content, (
                 f"[{agent_type}, preset={preset}] should contain CALENDAR_DOMAIN"
             )
         else:
-            assert CALENDAR_DOMAIN not in system_content, (
+            assert CALENDAR_PRIVACY_HINT not in system_content, (
                 f"[{agent_type}, preset={preset}] should not contain CALENDAR_DOMAIN"
             )
 

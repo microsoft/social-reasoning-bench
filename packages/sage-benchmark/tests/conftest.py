@@ -9,7 +9,7 @@ from sage_benchmark.benchmarks.calendar_scheduling.agents.assistant.calendar_ass
     CalendarAssistantAgent,
 )
 from sage_benchmark.benchmarks.calendar_scheduling.agents.assistant.prompts import (
-    CALENDAR_DOMAIN,
+    CALENDAR_PRIVACY_HINT,
     CALENDAR_ROLE,
 )
 from sage_benchmark.benchmarks.calendar_scheduling.agents.assistant.prompts import (

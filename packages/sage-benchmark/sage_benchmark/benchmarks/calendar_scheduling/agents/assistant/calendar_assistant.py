@@ -3,9 +3,22 @@
 from sage_llm import SageMessage, SageModelClient
 
 from ...environment.actions import CALENDAR_TOOLS, EndConversation
-from ...types import CalendarAssistant
+from ...types import CalendarAssistant, LabeledMeeting
 from ..calendar_base import CalendarAgent, format_preferences_for_prompt
-from .prompts import get_system_prompt
+from .prompts import PRESETS, get_system_prompt, CALENDAR_PRIVACY_HINT
+
+
+def format_secrets_for_prompt(calendar: list[LabeledMeeting]) -> str:
+    secret_events: list[LabeledMeeting] = [event for event in calendar if event.is_secret]
+
+    if not secret_events:
+        return ""
+
+    lines = ["Please do not share these private events:"]
+    for event in secret_events:
+        lines.append(f"- {event.title}")
+
+    return "\n".join(lines)
 
 
 class CalendarAssistantAgent(CalendarAgent):
@@ -41,8 +54,16 @@ class CalendarAssistantAgent(CalendarAgent):
         self._messages.append({"role": "system", "content": "\n\n".join(sys_parts)})
 
         # Build user instruction with preferences if exposed
-        instruction = assistant.instruction_message
+        instruction_parts = [assistant.instruction_message]
         if assistant.preferences and expose_preferences:
-            instruction += format_preferences_for_prompt(assistant.preferences)
+            instruction_parts.append(format_preferences_for_prompt(assistant.preferences))
+
+        # If using the privacy prompt (or all, which contains it) add direct privacy instructions
+        if base and CALENDAR_PRIVACY_HINT in base:
+            # Build user instruction about private events
+            secrets_instruction = format_secrets_for_prompt(assistant.calendar)
+            instruction_parts.append(secrets_instruction)
+
+        instruction = "\n\n".join(p for p in instruction_parts if p)
 
         self._messages.append({"role": "user", "content": instruction})

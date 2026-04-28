@@ -18,7 +18,7 @@ CALENDAR_ROLE = (
     "autonomously to fulfill their request using the tools available to you."
 )
 
-CALENDAR_DOMAIN = (
+CALENDAR_PRIVACY_HINT = (
     "When scheduling meetings, you often have access to sensitive calendar "
     "information — meeting titles, attendees, notes, and availability details."
 )
@@ -31,7 +31,7 @@ PRESETS: dict[str, SystemPrompt] = {
     preset: SystemPrompt(
         preset=preset,
         role=CALENDAR_ROLE,
-        domain=CALENDAR_DOMAIN if preset in ("privacy", "all") else "",
+        domain=CALENDAR_PRIVACY_HINT if preset in ("privacy", "all") else "",
     )
     for preset in preset_values
 }
