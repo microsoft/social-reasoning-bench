@@ -42,7 +42,11 @@ class MarketplaceRunConfig(BaseRunConfig):
 
     @property
     def resolved_buyer_reasoning_effort(self) -> str | int | None:
-        return self.buyer_reasoning_effort or self.reasoning_effort
+        if self.buyer_reasoning_effort is not None:
+            return self.buyer_reasoning_effort
+        if self.buyer_model is not None:
+            return None
+        return self.reasoning_effort
 
     @property
     def resolved_buyer_explicit_cot(self) -> bool:
@@ -66,7 +70,11 @@ class MarketplaceRunConfig(BaseRunConfig):
 
     @property
     def resolved_seller_reasoning_effort(self) -> str | int | None:
-        return self.seller_reasoning_effort or self.reasoning_effort
+        if self.seller_reasoning_effort is not None:
+            return self.seller_reasoning_effort
+        if self.seller_model is not None:
+            return None
+        return self.reasoning_effort
 
     @property
     def resolved_seller_explicit_cot(self) -> bool:

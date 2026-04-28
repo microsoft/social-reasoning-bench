@@ -45,7 +45,11 @@ class CalendarRunConfig(BaseRunConfig):
 
     @property
     def resolved_assistant_reasoning_effort(self) -> str | int | None:
-        return self.assistant_reasoning_effort or self.reasoning_effort
+        if self.assistant_reasoning_effort is not None:
+            return self.assistant_reasoning_effort
+        if self.assistant_model is not None:
+            return None
+        return self.reasoning_effort
 
     @property
     def resolved_assistant_explicit_cot(self) -> bool:
@@ -69,7 +73,11 @@ class CalendarRunConfig(BaseRunConfig):
 
     @property
     def resolved_requestor_reasoning_effort(self) -> str | int | None:
-        return self.requestor_reasoning_effort or self.reasoning_effort
+        if self.requestor_reasoning_effort is not None:
+            return self.requestor_reasoning_effort
+        if self.requestor_model is not None:
+            return None
+        return self.reasoning_effort
 
     @property
     def resolved_requestor_explicit_cot(self) -> bool:

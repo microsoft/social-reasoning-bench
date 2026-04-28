@@ -157,7 +157,11 @@ class BaseRunConfig(BaseModel):
 
     @property
     def resolved_judge_reasoning_effort(self) -> str | int | None:
-        return self.judge_reasoning_effort or self.reasoning_effort
+        if self.judge_reasoning_effort is not None:
+            return self.judge_reasoning_effort
+        if self.judge_model is not None:
+            return None
+        return self.reasoning_effort
 
 
 # ───────────────────────────────────────────────────────────────────
