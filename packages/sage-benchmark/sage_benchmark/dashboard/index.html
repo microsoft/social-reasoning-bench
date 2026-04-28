@@ -406,7 +406,7 @@ const CORE_METRICS = {
   task_completion:      { label: 'Task Completion',      aggKey: 'avg_task_completion',      taskKey: 'task_completed',      format: 'percent', higherIsBetter: true, scale: [0, 1] },
   outcome_optimality:   { label: 'Outcome Optimality',   aggKey: 'avg_outcome_optimality',   taskKey: 'outcome_optimality',  format: 'percent', higherIsBetter: true, scale: [0, 1] },
   leakage_rate:         { label: 'Leakage Rate',         aggKey: 'avg_leakage_rate',         taskKey: 'leakage_rate',        format: 'percent', higherIsBetter: false, scale: [0, 1] },
-  duty_of_care:         { label: 'Duty of Care',         aggKey: 'avg_duty_of_care',         taskKey: 'duty_of_care',        format: 'percent', higherIsBetter: true,  scale: [-1, 1] },
+  duty_of_care:         { label: 'Duty of Care',         aggKey: 'avg_duty_of_care',         taskKey: 'duty_of_care',        format: 'percent', higherIsBetter: true,  scale: [0, 1] },
   due_diligence:        { label: 'Due Diligence',        aggKey: 'avg_due_diligence',        taskKey: 'due_diligence',       format: 'percent', higherIsBetter: true,  scale: [0, 1] },
   dd_info_gathering:    { label: 'DD: Info Gathering',   aggKey: 'avg_dd_info_gathering',    taskKey: 'dd_info_gathering',   format: 'percent', higherIsBetter: true,  scale: [0, 1] },
   dd_advocacy:          { label: 'DD: Advocacy',         aggKey: 'avg_dd_advocacy',          taskKey: 'dd_advocacy',         format: 'percent', higherIsBetter: true,  scale: [0, 1] },
@@ -1622,7 +1622,7 @@ function renderRadarColumn(container, experiments, colIdx) {
       agg.task_completion ?? 0,
       agg.outcome_optimality ?? 0,
       1 - (agg.leakage_rate ?? 0),
-      ((agg.duty_of_care ?? 0) + 1) / 2,
+      agg.duty_of_care ?? 0,
       agg.due_diligence ?? 0,
     ];
   }
@@ -2444,28 +2444,14 @@ function tvRenderDetail(benchmark, result, experiment) {
     });
   });
 
-  // Post-render: wire scroll sync for trace tab agent columns
-  if (activeTab === 'trace') {
-    const cols = detail.querySelectorAll('[data-trace-col]');
-    if (cols.length === 2) {
-      let syncing = false;
-      cols.forEach(col => {
-        col.addEventListener('scroll', () => {
-          if (syncing) return;
-          syncing = true;
-          cols.forEach(other => { if (other !== col) other.scrollTop = col.scrollTop; });
-          syncing = false;
-        });
-      });
-    }
-  }
+  // Per-agent trace columns scroll independently (no sync)
 
   // Post-render: marketplace negotiation chart
   if (activeTab === 'outcomes' && benchmark === 'marketplace') {
     const offers = result.execution?.offers || [];
     const chartCanvas = detail.querySelector('[data-neg-chart]');
     if (chartCanvas && offers.length >= 2) {
-      tvCreateNegotiationChart(chartCanvas.id, offers, result.execution?.task);
+      tvCreateNegotiationChart(chartCanvas.id, offers, result.execution?.task, result.execution?.outcome);
     }
   }
 
@@ -2665,6 +2651,14 @@ function tvRenderEvalMetrics(r, benchmark) {
       groups += `<div class="mb-4 text-[10px] text-gray-500 dark:text-gray-400 italic -mt-2">${igReasoning}${advReasoning}${discReasoning}</div>`;
     }
   } else if (benchmark === 'marketplace') {
+    const ooEval = r.outcome_optimality_eval || {};
+    const mktTask = r.execution?.task || {};
+    groups += tvRenderMetricGroup('Outcome Optimality', [
+      mc('V(o)', ooEval.value, { format: 'number' }),
+      mc('V*', ooEval.best_value, { format: 'number' }),
+      mc('Buyer Res', mktTask.buyer?.reservation_price, { format: 'number', subtitle: '$' }),
+      mc('OO Score', ooEval.outcome_optimality_score, { format: 'percent', good: 'high' }),
+    ]);
     groups += tvRenderMetricGroup('Deal', [
       mc('Leakage', r.privacy?.leakage_score, { format: 'percent', good: 'low' }),
     ]);
@@ -3430,67 +3424,6 @@ function tvRenderOutcomes(r, benchmark) {
     const offers = r.execution?.offers || [];
     const leaks = r.privacy_leaks || [];
 
-    // Deal outcome card
-    html += `<div class="mb-3 bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-      <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Deal Outcome</div>
-      <div class="flex flex-wrap items-center gap-3 mb-2">
-        ${outcome.deal_reached
-          ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300">Deal Reached</span>'
-          : '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">No Deal</span>'}
-        ${outcome.deal_price != null ? `<span class="text-sm font-bold text-gray-800 dark:text-gray-200">$${outcome.deal_price}</span>` : ''}
-      </div>
-      <div class="grid grid-cols-2 gap-2 text-xs">
-        <div><span class="text-gray-500 dark:text-gray-400">Ended by:</span> <span class="text-gray-800 dark:text-gray-200">${esc(outcome.ended_by || '-')}</span></div>
-        <div><span class="text-gray-500 dark:text-gray-400">Reason:</span> <span class="text-gray-800 dark:text-gray-200">${esc(outcome.end_reason || '-')}</span></div>
-      </div>
-    </div>`;
-
-    // Surplus analysis if deal reached
-    const docEval = r.duty_of_care_eval || {};
-    if (outcome.deal_reached && docEval.surplus_share != null) {
-      html += `<div class="mb-3 bg-sage-50 dark:bg-sage-900/20 border border-sage-200 dark:border-sage-800 rounded-lg p-3">
-        <div class="text-xs font-semibold text-sage-700 dark:text-sage-400 uppercase tracking-wide mb-2">Surplus Analysis</div>
-        <div class="grid grid-cols-2 gap-3 text-sm">
-          <div><span class="text-gray-500 dark:text-gray-400">Surplus Share:</span> <span class="font-bold text-gray-800 dark:text-gray-200">${docEval.surplus_share != null ? (docEval.surplus_share * 100).toFixed(1) + '%' : '-'}</span></div>
-        </div>
-      </div>`;
-    }
-
-    // Negotiation price chart
-    if (offers.length >= 2) {
-      const negChartId = 'tv-neg-chart-' + Date.now();
-      html += `<div class="mb-3">
-        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Price Trajectory</div>
-        <div class="h-32 bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-          <canvas id="${negChartId}" data-neg-chart class="w-full h-full"></canvas>
-        </div>
-      </div>`;
-    }
-
-    // Offers summary table
-    if (offers.length > 0) {
-      html += `<div class="mb-3">
-        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Offers (${offers.length})</div>
-        <div class="overflow-x-auto max-h-[200px] overflow-y-auto"><table class="w-full text-xs">
-          <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800"><tr class="border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-medium">
-            <th class="py-1.5 px-2 text-left">ID</th><th class="py-1.5 px-2">Round</th><th class="py-1.5 px-2">Proposer</th><th class="py-1.5 px-2">Price</th><th class="py-1.5 px-2">Status</th>
-          </tr></thead>
-          <tbody>${offers.map(o => {
-            const statusCls = (o.status || '').toUpperCase() === 'ACCEPTED' ? 'bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300'
-              : (o.status || '').toUpperCase() === 'EXPIRED' ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-              : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-            return `<tr class="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-              <td class="py-1.5 px-2">${esc(String(o.id ?? '-'))}</td>
-              <td class="py-1.5 px-2 text-center">${o.round_created ?? '-'}</td>
-              <td class="py-1.5 px-2 text-center">${esc(o.proposer || '-')}</td>
-              <td class="py-1.5 px-2 text-center font-medium">$${o.price ?? '?'}</td>
-              <td class="py-1.5 px-2 text-center"><span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${statusCls}">${esc((o.status || 'OPEN').toUpperCase())}</span></td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table></div>
-      </div>`;
-    }
-
     // Privacy leaks
     if (leaks.length > 0) {
       html += `<div class="mb-3">
@@ -3500,6 +3433,50 @@ function tvRenderOutcomes(r, benchmark) {
           ${leak.reasoning ? `<div class="text-xs text-purple-600 dark:text-purple-400 mt-1">${esc(leak.reasoning)}</div>` : ''}
           ${leak.evidence?.length ? `<div class="text-xs text-purple-500 dark:text-purple-400 mt-1 italic">${leak.evidence.map(e => `"${esc(e)}"`).join(', ')}</div>` : ''}
         </div>`).join('')}
+      </div>`;
+    }
+
+    // Deal outcome card
+    {
+      const _task = r.execution?.task || {};
+      const _buyerRes = _task.buyer?.reservation_price;
+      const _sellerRes = _task.seller?.reservation_price;
+      const _dp = outcome.deal_price;
+      const _docEval = r.duty_of_care_eval || {};
+      const _borderCls = outcome.deal_reached ? 'border-sage-300 dark:border-sage-700 bg-sage-50/50 dark:bg-sage-900/10' : 'border-red-300 dark:border-red-700 bg-red-50/50 dark:bg-red-900/10';
+      const _badge = outcome.deal_reached
+        ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300">Deal Reached</span>'
+        : '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">No Deal</span>';
+      const _cells = [];
+      if (_buyerRes != null) _cells.push(['Buyer Res.', `$${_buyerRes}`, '']);
+      if (_sellerRes != null) _cells.push(['Seller Res.', `$${_sellerRes}`, '']);
+      if (_dp != null && _buyerRes != null) { const v = _buyerRes - _dp; _cells.push(['Buyer Savings', `$${v.toFixed(2)}`, v > 0 ? 'text-sage-700 dark:text-sage-300' : v < 0 ? 'text-red-600 dark:text-red-400' : '']); }
+      if (_dp != null && _sellerRes != null) { const v = _dp - _sellerRes; _cells.push(['Seller Surplus', `$${v.toFixed(2)}`, v > 0 ? 'text-sage-700 dark:text-sage-300' : v < 0 ? 'text-red-600 dark:text-red-400' : '']); }
+      if (_docEval.surplus_share != null) _cells.push(['Surplus Share', (_docEval.surplus_share * 100).toFixed(1) + '%', '']);
+      const _statsHtml = _cells.length
+        ? '<div class="grid grid-cols-' + Math.min(_cells.length, 5) + ' border-t border-gray-200 dark:border-gray-700 divide-x divide-gray-200 dark:divide-gray-700">'
+          + _cells.map(([l, v, c]) => `<div class="px-3 py-2 text-center"><div class="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide">${l}</div><div class="text-sm font-semibold ${c || 'text-gray-800 dark:text-gray-200'}">${v}</div></div>`).join('')
+          + '</div>'
+        : '';
+      const _reasonHtml = outcome.end_reason ? `<div class="px-4 py-2 border-t border-gray-200 dark:border-gray-700 text-[11px] text-gray-500 dark:text-gray-400 italic">${esc(outcome.end_reason)}</div>` : '';
+      html += `<div class="mb-3 border ${_borderCls} rounded-lg overflow-hidden">
+        <div class="flex items-center gap-3 px-4 py-3">
+          ${_badge}
+          ${_dp != null ? `<span class="text-2xl font-bold text-gray-800 dark:text-gray-100">$${_dp}</span>` : ''}
+        </div>
+        ${_statsHtml}
+        ${_reasonHtml}
+      </div>`;
+    }
+
+    // Negotiation price chart
+    if (offers.length >= 2) {
+      const negChartId = 'tv-neg-chart-' + Date.now();
+      html += `<div class="mb-3">
+        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Price Trajectory</div>
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-2" style="min-height:500px">
+          <canvas id="${negChartId}" data-neg-chart class="w-full h-full"></canvas>
+        </div>
       </div>`;
     }
 
@@ -3719,37 +3696,58 @@ function tvRenderConversation(r, benchmark) {
     const actionTrace = r.execution?.action_trace || [];
     if (messages.length === 0) return wrapper + '</div>';
 
-    // Index offers by round+proposer
-    const offersByKey = {};
-    offers.forEach(o => {
-      const key = `${o.round_created ?? 0}::${(o.proposer || '').toLowerCase()}`;
-      if (!offersByKey[key]) offersByKey[key] = [];
-      offersByKey[key].push(o);
+    // Index offers by id for lookup
+    const offersById = {};
+    offers.forEach(o => { offersById[o.id] = o; });
+
+    // Build per-message attachment maps keyed by message index.
+    // Use offer.round_created + proposer to find the matching message,
+    // then within that round+speaker group assign offers sequentially
+    // to messages so each offer attaches to exactly one message.
+    const offersByMsgIdx = {};
+    const acceptsByMsgIdx = {};
+
+    // Group message indices by round+speaker
+    const msgIndicesByKey = {};
+    messages.forEach((msg, i) => {
+      const key = `${msg.round ?? 0}::${(msg.speaker || '').toLowerCase()}`;
+      if (!msgIndicesByKey[key]) msgIndicesByKey[key] = [];
+      msgIndicesByKey[key].push(i);
     });
 
-    // Index AcceptOffer actions by round+actor
-    const acceptsByKey = {};
+    // Attach each offer to the LAST message from its proposer in that round
+    offers.forEach(o => {
+      const key = `${o.round_created ?? 0}::${(o.proposer || '').toLowerCase()}`;
+      const indices = msgIndicesByKey[key] || [];
+      const msgIdx = indices.length ? indices[indices.length - 1] : -1;
+      if (msgIdx < 0) return;
+      if (!offersByMsgIdx[msgIdx]) offersByMsgIdx[msgIdx] = [];
+      offersByMsgIdx[msgIdx].push(o);
+    });
+
+    // Attach AcceptOffer actions to the last message from that actor in that round
     actionTrace.filter(a => a.action_type === 'AcceptOffer').forEach(a => {
       const key = `${a.round ?? 0}::${(a.actor || '').toLowerCase()}`;
-      if (!acceptsByKey[key]) acceptsByKey[key] = [];
-      const offerId = a.payload?.offer_id;
-      const matchedOffer = offers.find(o => o.id === offerId);
-      acceptsByKey[key].push({ ...a, price: matchedOffer?.price });
+      const indices = msgIndicesByKey[key] || [];
+      const msgIdx = indices.length ? indices[indices.length - 1] : -1;
+      if (msgIdx < 0) return;
+      if (!acceptsByMsgIdx[msgIdx]) acceptsByMsgIdx[msgIdx] = [];
+      const matchedOffer = offersById[a.payload?.offer_id];
+      acceptsByMsgIdx[msgIdx].push({ ...a, price: matchedOffer?.price });
     });
 
     let html = `<div class="mb-4">
       <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Negotiation (${messages.length} messages)</h3>
       <div class="space-y-2">
-        ${messages.map(msg => {
+        ${messages.map((msg, msgIdx) => {
           const isBuyer = (msg.speaker || '').toLowerCase().includes('buyer');
           const bgCls = isBuyer ? 'bg-sage-50 dark:bg-sage-900/20 border-sage-200 dark:border-sage-800' : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700';
           const labelCls = isBuyer ? 'text-sage-600 dark:text-sage-400' : 'text-gray-500 dark:text-gray-400';
           const textCls = isBuyer ? 'text-sage-800 dark:text-sage-200' : 'text-gray-800 dark:text-gray-200';
 
-          // Find offers matching this message's round + speaker
-          const msgKey = `${msg.round ?? 0}::${(msg.speaker || '').toLowerCase()}`;
-          const matchedOffers = offersByKey[msgKey] || [];
-          const matchedAccepts = acceptsByKey[msgKey] || [];
+          // Find offers and accepts attached to this message by index
+          const matchedOffers = offersByMsgIdx[msgIdx] || [];
+          const matchedAccepts = acceptsByMsgIdx[msgIdx] || [];
 
           const offerAttachments = matchedOffers.map(o => {
             const statusUpper = (o.status || '').toUpperCase();
@@ -3966,7 +3964,7 @@ function tvRenderPerAgentTrace(r, benchmark) {
 // Chart Utilities
 // ─────────────────────────────────────────────
 
-function tvCreateNegotiationChart(canvasId, offers, task) {
+function tvCreateNegotiationChart(canvasId, offers, task, outcome) {
   const isDark = themeDark();
   const buyer = task?.buyer || {};
   const seller = task?.seller || {};
@@ -3975,15 +3973,18 @@ function tvCreateNegotiationChart(canvasId, offers, task) {
 
   const buyerOffers = offers.filter(o => (o.proposer || '').toLowerCase().includes('buyer'));
   const sellerOffers = offers.filter(o => (o.proposer || '').toLowerCase().includes('seller'));
-  const accepted = offers.find(o => (o.status || '').toUpperCase() === 'ACCEPTED');
+  const acceptedId = outcome?.accepted_offer_id;
 
   const datasets = [];
-  if (buyerOffers.length) datasets.push({ label: 'Buyer', data: buyerOffers.map(o => ({ x: o.round_created ?? 0, y: o.price })), borderColor: '#6b9e78', backgroundColor: 'rgba(107,158,120,0.3)', pointRadius: 4, tension: 0.2, showLine: true });
-  if (sellerOffers.length) datasets.push({ label: 'Seller', data: sellerOffers.map(o => ({ x: o.round_created ?? 0, y: o.price })), borderColor: '#737373', backgroundColor: 'rgba(115,115,115,0.3)', pointRadius: 4, tension: 0.2, showLine: true });
-
-  const annotations = [];
-  if (buyerRes != null) datasets.push({ label: 'Buyer Res.', data: [{ x: 0, y: buyerRes }, { x: Math.max(...offers.map(o => o.round_created ?? 0)), y: buyerRes }], borderColor: 'rgba(107,158,120,0.4)', borderDash: [4, 4], pointRadius: 0, showLine: true });
-  if (sellerRes != null) datasets.push({ label: 'Seller Res.', data: [{ x: 0, y: sellerRes }, { x: Math.max(...offers.map(o => o.round_created ?? 0)), y: sellerRes }], borderColor: 'rgba(115,115,115,0.4)', borderDash: [4, 4], pointRadius: 0, showLine: true });
+  if (buyerOffers.length) datasets.push({ label: 'Buyer', data: buyerOffers.map(o => ({ x: o.round_created ?? 0, y: o.price })), borderColor: '#6b9e78', backgroundColor: buyerOffers.map(o => o.id === acceptedId ? 'rgba(245,158,11,0.7)' : 'rgba(107,158,120,0.3)'), pointRadius: buyerOffers.map(o => o.id === acceptedId ? 8 : 4), pointStyle: buyerOffers.map(o => o.id === acceptedId ? 'rectRot' : 'circle'), tension: 0.2, showLine: true });
+  if (sellerOffers.length) datasets.push({ label: 'Seller', data: sellerOffers.map(o => ({ x: o.round_created ?? 0, y: o.price })), borderColor: '#737373', backgroundColor: sellerOffers.map(o => o.id === acceptedId ? 'rgba(245,158,11,0.7)' : 'rgba(115,115,115,0.3)'), pointRadius: sellerOffers.map(o => o.id === acceptedId ? 8 : 4), pointStyle: sellerOffers.map(o => o.id === acceptedId ? 'rectRot' : 'circle'), tension: 0.2, showLine: true });
+  const rounds = offers.map(o => o.round_created ?? 1);
+  const minRound = Math.min(...rounds);
+  const maxRound = Math.max(...rounds);
+  const resXMin = minRound - 1;
+  const resXMax = maxRound + 1;
+  if (buyerRes != null) datasets.push({ label: 'Buyer Res.', data: [{ x: resXMin, y: buyerRes }, { x: resXMax, y: buyerRes }], borderColor: 'rgba(107,158,120,0.4)', borderDash: [4, 4], pointRadius: 0, showLine: true });
+  if (sellerRes != null) datasets.push({ label: 'Seller Res.', data: [{ x: resXMin, y: sellerRes }, { x: resXMax, y: sellerRes }], borderColor: 'rgba(115,115,115,0.4)', borderDash: [4, 4], pointRadius: 0, showLine: true });
 
   createChart(canvasId, {
     type: 'scatter',
@@ -3995,7 +3996,7 @@ function tvCreateNegotiationChart(canvasId, offers, task) {
         tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: $${ctx.raw.y} (R${ctx.raw.x})` } },
       },
       scales: {
-        x: { title: { display: true, text: 'Round', color: isDark ? '#a3a3a3' : '#737373', font: { size: 10 } }, ticks: { color: isDark ? '#a3a3a3' : '#737373', stepSize: 1 }, grid: { display: false } },
+        x: { title: { display: true, text: 'Round', color: isDark ? '#a3a3a3' : '#737373', font: { size: 10 } }, min: resXMin, max: resXMax, ticks: { color: isDark ? '#a3a3a3' : '#737373', stepSize: 1 }, grid: { display: false } },
         y: { title: { display: true, text: 'Price ($)', color: isDark ? '#a3a3a3' : '#737373', font: { size: 10 } }, ticks: { color: isDark ? '#a3a3a3' : '#737373' }, grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' } },
       },
     },
