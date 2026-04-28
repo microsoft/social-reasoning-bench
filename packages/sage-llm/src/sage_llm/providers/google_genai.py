@@ -104,7 +104,7 @@ class GoogleProvider(SageModelProvider):
                     _ensure_non_empty_response(resp)
                     return resp
                 except RuntimeError:
-                    logger.warning(
+                    logger.info(
                         "Gemini returned empty response (attempt %d/3), retrying",
                         attempt + 1,
                     )
@@ -218,16 +218,21 @@ def _translate_request(
                     if not has_sig:
                         unsigned_tc_ids.add(tc.id)
 
+    # Buffer unsigned tool call descriptions so we can merge them with
+    # their results into user-role messages (instead of model-role text
+    # that Gemini mimics, producing text-based tool calls).
+    pending_unsigned: dict[str, str] = {}  # tc_id -> "name(args)"
+
     for msg in messages:
         if isinstance(msg, SageChatCompletionMessage):
-            parts, text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids)
+            parts, _text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids)
             if parts:
                 contents.append(types.Content(role="model", parts=parts))
-            if text_fallback:
-                # Unsigned function calls collapsed to model text + user
-                # pseudo-result so the conversation stays coherent without
-                # requiring thought_signature.
-                contents.append(types.Content(role="model", parts=[types.Part(text=text_fallback)]))
+            # Buffer unsigned call descriptions — don't emit as model text.
+            if msg.tool_calls:
+                for tc in msg.tool_calls:
+                    if isinstance(tc, ChatCompletionMessageToolCall) and tc.id in unsigned_tc_ids:
+                        pending_unsigned[tc.id] = f"{tc.function.name}({tc.function.arguments})"
         elif isinstance(msg, dict):
             content = msg.get("content", "")
             if msg.get("role") == "system":
@@ -242,10 +247,12 @@ def _translate_request(
             elif msg["role"] == "tool":
                 tc_id = str(msg.get("tool_call_id", ""))
                 if tc_id in unsigned_tc_ids:
-                    # Convert to plain user text — no FunctionResponse needed.
-                    name = tc_id_to_name.get(tc_id, "tool")
+                    # Merge call description + result into a single user message
+                    # so the model never sees model-role text resembling tool calls.
+                    call_desc = pending_unsigned.pop(tc_id, "unknown action")
+                    result_text = msg.get("content", "")
                     contents.append(
-                        _translate_user(f"[Result of {name}]: {msg.get('content', '')}")
+                        _translate_user(f"Action taken: {call_desc}\nResult: {result_text}")
                     )
                 else:
                     contents.append(_translate_tool_result(msg, tc_id_to_name))

@@ -280,15 +280,16 @@ class TestTranslateRequestToolNameResolution:
         ]
         raw_contents, _ = _translate_request(msgs)
         contents = cast(list[types.Content], raw_contents)
-        # The assistant function_call becomes a text model message
+        # Unsigned calls are NOT emitted as model text (that causes Gemini
+        # to mimic the text pattern instead of using structured tool calls).
         model_parts = [c for c in contents if c.role == "model"]
-        assert len(model_parts) == 1
-        assert model_parts[0].parts is not None
-        assert "GetEmails" in (model_parts[0].parts[0].text or "")
-        # The tool result becomes a plain user message (not FunctionResponse)
+        assert len(model_parts) == 0
+        # Call + result are merged into a single user message.
         user_parts = [c for c in contents if c.role == "user"]
-        assert len(user_parts) == 2  # original user + converted tool result
-        assert "you have 3 emails" in (user_parts[1].parts[0].text or "")
+        assert len(user_parts) == 2  # original user + merged action/result
+        merged_text = user_parts[1].parts[0].text or ""
+        assert "GetEmails" in merged_text
+        assert "you have 3 emails" in merged_text
 
 
 class TestBuildConfig:
