@@ -386,6 +386,13 @@ If they push back: '...'."
 """
 
 
+def load_validated_best(validation_dir: Path, attack_type: str) -> str:
+    """Load the best strategy text from a previous validation run."""
+    path = Path(validation_dir) / f"validation_results_{attack_type}.yaml"
+    with open(path) as f:
+        return yaml.safe_load(f)["best_strategy"]["strategy_text"]
+
+
 def _wrap_task_for_generation(task_description: str) -> str:
     """Wrap a TASK_DESCRIPTION with generation-specific preamble.
 
