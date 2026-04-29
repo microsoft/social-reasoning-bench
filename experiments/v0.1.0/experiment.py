@@ -2,7 +2,7 @@
 Experiments for SocialReasoning-Bench v0.1.0
 
 To reproduce:
-    sagebench experiments/v0.1.0
+    sagebench experiment experiments/v0.1.0
 """
 
 from pathlib import Path
@@ -99,7 +99,9 @@ def variant(
     variant_name = "".join(c if c.isalnum() or c in ("_", "-") else "-" for c in variant_name)
     return variant_name
 
+
 # --- Calendar ---
+
 
 def experiment_calendar():
     for assistant in assistants():
@@ -159,5 +161,7 @@ def experiment_marketplace():
                             batch_size=CONCURRENCY["batch_size"],
                             task_concurrency=CONCURRENCY["task_concurrency"],
                             llm_concurrency=CONCURRENCY["llm_concurrency"],
-                            variant=variant("marketplace", assistant, defense, attack, attack_style),
+                            variant=variant(
+                                "marketplace", assistant, defense, attack, attack_style
+                            ),
                         )

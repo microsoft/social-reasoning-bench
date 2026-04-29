@@ -1,6 +1,5 @@
 """Shared loading + theme for blog plots."""
 
-
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,7 +8,7 @@ import altair as alt
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-RESULTS_DIR = REPO_ROOT / "outputs" / "04252026"
+RESULTS_DIR = REPO_ROOT / "outputs" / "v0.1.0"
 FIGURES_DIR = Path(__file__).resolve().parent / "figures"
 
 PROMPT_TOKENS = {"none", "all"}

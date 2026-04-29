@@ -2,12 +2,12 @@
 
 ```
 # Re-run experiments
-sagebench experiment experiments/04252026/experiment.py
+sagebench experiment experiments/v0.1.0
 
-# Outputs land in: outputs/04252026/<variant>/results.json
+# Outputs land in: outputs/v0.1.0
 
-# Regenerate plots
-cd experiments/052026-blog/plotting && uv run python plot_all.py
+# Regenerate plots from outputs
+cd experiments/v0.1.0/plotting && uv run python plot_all.py
 ```
 
 ## Summary
