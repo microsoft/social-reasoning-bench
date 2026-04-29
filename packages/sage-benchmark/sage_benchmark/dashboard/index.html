@@ -696,7 +696,7 @@ function parseResultsFile(json, filename) {
   const variant = (cfg.variant || filename.replace('.json', '')).replace(/,[^,]+=.*/g, '');
   const attack = parseAttackFromTasks(json.results) || parseAttackFromVariant(variant) || parseAttackFromPaths(cfg.paths) || { attackType: 'none', attackStyle: 'none' };
   const benchmark = parseBenchmarkFromPaths(cfg.paths) || detectBenchmark(json);
-  const model = displayModel(cfg.model);
+  const model = displayModel(cfg.model || (benchmark === 'marketplace' ? cfg.buyer_model : cfg.assistant_model));
   const privacyLevel = extractPrivacyLevel(cfg);
   const reasoningConfig = extractReasoningConfig(cfg);
   const roleModels = extractRoleModels(cfg, benchmark);
