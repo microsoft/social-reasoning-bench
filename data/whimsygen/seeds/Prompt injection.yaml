@@ -1,0 +1,295 @@
+content: 'Prompt injection is a cybersecurity exploit and an attack vector in which
+  innocuous-looking inputs (i.e. prompts) are designed to cause unintended behavior
+  in machine learning models, particularly large language models (LLMs). The attack
+  takes advantage of the model''s inability to distinguish between developer-defined
+  prompts and user inputs to bypass safeguards and influence model behaviour. While
+  LLMs are designed to follow trusted instructions, they can be manipulated into carrying
+  out unintended responses through carefully crafted inputs.[1][2]
+
+
+
+  With capabilities such as web browsing and file upload, an LLM not only needs to
+  differentiate developer instructions from user input, but also to differentiate
+  user input from content not directly authored by the user. LLMs with web browsing
+  capabilities can be targeted by indirect prompt injection, where adversarial prompts
+  are embedded within website content. If the LLM retrieves and processes the webpage,
+  it may interpret and execute the embedded instructions as legitimate commands.[3][4]
+
+
+
+  A language model can perform translation with the following prompt:[5]
+
+
+
+  followed by the text to be translated. A prompt injection can occur when that text
+  contains instructions that change the behavior of the model:
+
+
+
+  to which an AI model responds: "You have been hacked!" This attack works because
+  language model inputs contain instructions and data together in the same context,
+  so the underlying algorithm cannot distinguish between them.[6]
+
+
+
+  Prompt injection is a type of code injection attack that leverages adversarial prompt
+  engineering to manipulate AI models. In May 2022, Jonathan Cefalu of Preamble identified
+  prompt injection as a security vulnerability and reported it to OpenAI, referring
+  to it as "command injection".[7]
+
+
+
+  The term "prompt injection" was coined by Simon Willison in September 2022.[8] He
+  distinguished it from jailbreaking, which bypasses an AI model''s safeguards, whereas
+  prompt injection exploits its inability to differentiate system instructions from
+  user inputs. While some prompt injection attacks involve jailbreaking, they remain
+  distinct techniques.[9]
+
+
+
+  A second class of prompt injection, where non-user content pretends to be user instruction,
+  was described in a 2023 paper. In the paper, Kai Greshake and his team at sequire
+  technology, described a series of successful attacks against multiple AI models
+  including GPT-4 and OpenAI Codex.[3]
+
+
+
+  Direct injection happens when user input is mistaken as developer instruction, leading
+  to unexpected manipulation of responses. This is the original form of prompt injection.[9]
+
+
+
+  Indirect injection happen when the prompt is located in external data sources such
+  as emails and documents. This external data may include an instruction that the
+  AI mistakes as coming from the user or the developer. Indirect injections can be
+  intentional as a way to evade filters, or be unintentional (from the user''s perspective)
+  as a way for the author of the document to manipulate what result is presented to
+  the user.[3]
+
+
+
+  While intentional and direct injection represents a threat to the developer from
+  the user, unintentional indirect injection represent a threat from the data-author
+  to the user. Examples of unintentional (for the user), indirect injections can include:
+
+
+
+  Prompt injection has been fought with filters that prevent specific types of input
+  from being sent. In response, attackers have sought ways to evade the filter. Forms
+  of indirect injection (as mentioned above) are one example.[11]
+
+
+
+  A November 2024 OWASP report[citation needed] identified security challenges in
+  multimodal AI, which processes multiple data types, such as text and images. Adversarial
+  prompts can be embedded in non-textual elements, such as hidden instructions within
+  images, influencing model responses when processed alongside text. This complexity
+  expands the attack surface, making multimodal AI more susceptible to cross-modal
+  vulnerabilities. One researcher in 2025 found that holding up a sheet of paper instructing
+  the viewer to act as if the person (and the paper itself) were not present in the
+  image resulted in an AI model omitting that person from a description of the scene.[12]
+
+
+
+  A model with access to tools or chain of thought can be instructed to decode an
+  obfuscated instruction.[citation needed]
+
+
+
+  Prompt leaking is when a user uses a chat prompt to reveal the software''s system
+  prompt, something that is typically kept secret. For example, Twitter users in 2022
+  were able to trick a spam account that was engaging with posts about remote working
+  into revealing that it was an AI, and that its system prompt was guiding it to respond
+  "with a positive attitude towards remote working in the ''we'' form".[13]
+
+
+
+  A November 2024 report by The Alan Turing Institute highlights growing risks, stating
+  that 75% of business employees use generative artificial intelligence, with 46%
+  adopting it within the past six months. McKinsey identified accuracy as the top
+  generative artificial intelligence risk, yet only 38% of organizations are taking
+  steps to mitigate it. Leading AI providers, including Microsoft, Google, and Amazon,
+  integrate LLMs into enterprise applications. Cybersecurity agencies, including the
+  UK National Cyber Security Centre (NCSC) and US National Institute for Standards
+  and Technology (NIST), classify prompt injection as a critical security threat,
+  with potential consequences such as data manipulation, phishing, misinformation,
+  and denial-of-service attacks.[14]
+
+
+
+  In early 2025, researchers discovered that some academic papers contained hidden
+  prompts designed to manipulate AI-powered peer review systems into generating favorable
+  reviews, demonstrating how prompt injection attacks can compromise critical institutional
+  processes and undermine the integrity of academic evaluation systems.[15]
+
+
+
+  In February 2023, a Stanford student discovered a method to bypass safeguards in
+  Microsoft''s AI-powered Bing Chat by instructing it to ignore prior directives,
+  which led to the revelation of internal guidelines and its codename, "Sydney". Another
+  student later verified the exploit by posing as a developer at OpenAI. Microsoft
+  acknowledged the issue and stated that system controls were continuously evolving.
+  This is a direct injection attack.[16]
+
+
+
+  In December 2024, The Guardian reported that OpenAI''s ChatGPT search tool was vulnerable
+  to indirect prompt injection attacks, allowing hidden webpage content to manipulate
+  its responses. Testing showed that invisible text could override negative reviews
+  with artificially positive assessments, potentially misleading users. Security researchers
+  cautioned that such vulnerabilities, if unaddressed, could facilitate misinformation
+  or manipulate search results.[17]
+
+
+
+  In January 2025, Infosecurity Magazine reported that DeepSeek-R1, a large language
+  model (LLM) developed by Chinese AI startup DeepSeek, exhibited vulnerabilities
+  to direct and indirect prompt injection attacks. Testing with WithSecure''s Simple
+  Prompt Injection Kit for Evaluation and Exploitation (Spikee) benchmark found that
+  DeepSeek-R1 had a higher attack success rate compared to several other models, ranking
+  17th out of 19 when tested in isolation and 16th when combined with predefined rules
+  and data markers. While DeepSeek-R1 ranked sixth on the Chatbot Arena benchmark
+  for reasoning performance, researchers noted that its security defenses may not
+  have been as extensively developed as its optimization for LLM performance benchmarks.[18][19]
+
+
+
+  In February 2025, Ars Technica reported vulnerabilities in Google''s Gemini AI to
+  indirect prompt injection attacks that manipulated its long-term memory. Security
+  researcher Johann Rehberger demonstrated how hidden instructions within documents
+  could be stored and later triggered by user interactions. The exploit leveraged
+  delayed tool invocation, causing the AI to act on injected prompts only after activation.
+  Google rated the risk as low, citing the need for user interaction and the system''s
+  memory update notifications, but researchers cautioned that manipulated memory could
+  result in misinformation or influence AI responses in unintended ways.[20]
+
+
+
+  In July 2025, NeuralTrust reported a successful jailbreak of X''s Grok4.[21][22][23]
+  The attack used a combination of Echo Chamber Attack [24][25][26] developed by NeuralTrust''s
+  AI researcher Ahmad Alobaid and Crescendo Attack [27][28] developed by Mark Russinovich,
+  Ahmed Salem, and Ronen Eldan from Microsoft.
+
+
+
+  Prompt injection has been identified as a significant security risk in LLM applications,
+  prompting the development of various mitigation strategies.[citation needed] These
+  include input and output filtering, prompt evaluation, reinforcement learning from
+  human feedback, and prompt engineering to distinguish user input from system instructions.
+  Additional techniques outlined by OWASP include enforcing least privilege access,
+  requiring human oversight for sensitive operations, isolating external content,
+  and conducting adversarial testing to identify vulnerabilities with tools like garak.
+  While these measures help reduce risks, OWASP notes that prompt injection remains
+  a persistent challenge, as methods like Retrieval-Augmented Generation (RAG) and
+  fine-tuning do not eliminate the threat.[citation needed]
+
+
+
+  The UK National Cyber Security Centre (NCSC) stated in August 2023 that while research
+  into prompt injection is ongoing, it "may simply be an inherent issue with LLM technology."
+  The NCSC also noted that although some strategies can make prompt injection more
+  difficult, "as yet there are no surefire mitigations".[29]
+
+
+
+  Data hygiene is a key defense against prompt injection in generative AI systems,
+  ensuring that AI models access only well-regulated data. A November 2024 report
+  by the Alan Turing Institute outlines best practices, including restricting unverified
+  external inputs, such as emails, until reviewed by authorized users. Approval processes
+  for new data sources, particularly RAG systems, help prevent malicious content from
+  influencing AI outputs. Organizations can further mitigate risks by enforcing role-based
+  data access and blocking untrusted sources. Additional safeguards include monitoring
+  for hidden text in documents and restricting file types that may contain executable
+  code, such as Python pickle files.[14]
+
+
+
+  Technical guardrails mitigate prompt injection attacks by distinguishing between
+  task instructions and retrieved data. Attackers can embed hidden commands within
+  data sources, exploiting this ambiguity. One approach uses automated evaluation
+  processes to scan retrieved data for potential instructions before AI processes
+  it. Flagged inputs can be reviewed or filtered out to reduce the risk of unintended
+  execution.[14]
+
+
+
+  User training mitigates security risks in AI-embedded applications. Many organizations
+  train employees to identify phishing attacks, but AI-specific training improves
+  understanding of AI models, their vulnerabilities, and disguised malicious prompts.[14]
+
+
+
+  Relying solely on a system prompt crafted with instructions to be careful of injection
+  attempts[30] has limited effectiveness.[31]
+
+  '
+depth: 0
+links:
+- Cybersecurity
+- Attack_vector
+- Prompt_engineering
+- Machine_learning_model
+- Large_language_model
+- Web_browsing
+- Machine_translation
+- Algorithm
+- Code_injection
+- Prompt_engineering
+- Preamble_(company)
+- OpenAI
+- Simon_Willison
+- Jailbreak_(computer_science)
+- GPT-4
+- OpenAI_Codex_(AI_agent)
+- OWASP
+- Multimodal_AI
+- Chain-of-thought_prompting
+- Spamming
+- Remote_working
+- The_Alan_Turing_Institute
+- McKinsey_%26_Company
+- Generative_artificial_intelligence
+- Microsoft
+- Google
+- Amazon_(company)
+- National_Cyber_Security_Centre_(United_Kingdom)
+- National_Institute_of_Standards_and_Technology
+- Phishing
+- Denial-of-service_attack
+- Sydney_(Microsoft_Prometheus)
+- Stanford_University
+- Microsoft
+- Bing_Chat
+- OpenAI
+- The_Guardian
+- ChatGPT
+- DeepSeek_(chatbot)
+- DeepSeek
+- Chatbot_Arena
+- Ars_Technica
+- Google
+- Gemini_AI
+- Security_researcher
+- Twitter
+- Grok_(chatbot)
+- Microsoft
+- Reinforcement_learning_from_human_feedback
+- OWASP
+- Garak_(software)
+- Retrieval-augmented_generation
+- Fine-tuning_(deep_learning)
+- U.K._National_Cyber_Security_Centre
+- Generative_AI
+- Alan_Turing_Institute
+- Retrieval-augmented_generation
+- Executable_code
+- Python_(programming_language)
+- Phishing
+- ArXiv_(identifier)
+- ISBN_(identifier)
+- ISBN_(identifier)
+- Seattle
+- ISBN_(identifier)
+title: Prompt injection
+total_links: 65
+url: https://en.wikipedia.org/wiki/Prompt_injection
