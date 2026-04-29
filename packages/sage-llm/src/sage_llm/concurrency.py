@@ -550,6 +550,41 @@ def reset() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Model pricing (USD per million tokens: input, output)
+# ---------------------------------------------------------------------------
+
+# (input_per_M, output_per_M)
+MODEL_PRICING: dict[str, tuple[float, float]] = {
+    # Anthropic
+    "claude-opus-4-7": (5.00, 25.00),
+    "claude-opus-4-6": (5.00, 25.00),
+    "claude-opus-4-5": (5.00, 25.00),
+    "claude-sonnet-4-6": (3.00, 15.00),
+    "claude-haiku-4-5": (0.80, 4.00),
+    # Google
+    "gemini-3-pro-preview": (2.00, 12.00),
+    "gemini-3-flash-preview": (0.50, 3.00),
+    "gemini-2.5-flash": (0.30, 2.50),
+    # OpenAI
+    "gpt-5.4": (2.50, 15.00),
+    "gpt-5.2": (1.75, 14.00),
+    "gpt-4.1": (2.00, 8.00),
+}
+
+
+def _estimate_cost(
+    display_key: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+) -> float | None:
+    """Estimate USD cost for the given token counts, or None if model not in pricing table."""
+    for model_substr, (inp, out) in MODEL_PRICING.items():
+        if model_substr in display_key:
+            return (prompt_tokens * inp + completion_tokens * out) / 1_000_000
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Per-(provider, model) usage metrics
 # ---------------------------------------------------------------------------
 
@@ -837,6 +872,9 @@ async def _periodic_metrics_log(interval: float) -> None:
                         )
                     label_lines = "\n" + "\n".join(parts)
 
+                cost = _estimate_cost(key, m.prompt_tokens, m.completion_tokens)
+                cost_line = f"${cost:,.4f}" if cost is not None else "n/a"
+
                 logger.warning(
                     "Throughput %s:\n"
                     "  output tok/s : %7s  [1m: %7s  5m: %7s]\n"
@@ -848,6 +886,7 @@ async def _periodic_metrics_log(interval: float) -> None:
                     "  total tokens : %s\n"
                     "  input tokens : %s (%s cached)\n"
                     "  output tokens: %s (%s reasoning)\n"
+                    "  est. cost    : %s\n"
                     "  calls        : %s  (%dm%04.1fs self-time)%s",
                     key,
                     f"{out_tps:,.0f}",
@@ -867,11 +906,22 @@ async def _periodic_metrics_log(interval: float) -> None:
                     f"{m.cached_tokens:,}",
                     f"{m.completion_tokens:,}",
                     f"{m.reasoning_tokens:,}",
+                    cost_line,
                     f"{m.call_count:,}",
                     int(mins),
                     secs,
                     label_lines,
                 )
+            # Total cost across all models
+            total_cost = 0.0
+            any_priced = False
+            for key, m in metrics.items():
+                c = _estimate_cost(key, m.prompt_tokens, m.completion_tokens)
+                if c is not None:
+                    total_cost += c
+                    any_priced = True
+            if any_priced:
+                logger.warning("Total estimated cost: %s", f"${total_cost:,.4f}")
         except Exception:
             logger.exception("Periodic metrics log failed")
 
