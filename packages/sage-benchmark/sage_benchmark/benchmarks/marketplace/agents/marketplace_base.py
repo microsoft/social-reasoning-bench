@@ -59,18 +59,24 @@ class MarketplaceAgent(BaseAgent):
         )
 
         self._role = role
-
-        # Use provided system prompt or fall back to MKT_ROLE
-        effective_prompt = system_prompt if system_prompt is not None else MKT_ROLE
         if malicious_prompt:
-            effective_prompt += "\n\n" + malicious_prompt
+            self._init_malicious(malicious_prompt)
+        else:
+            self._init_benign(system_prompt=system_prompt, instruction_message=instruction_message)
+
+    def _init_benign(self, system_prompt: str | None, instruction_message: str):
+        # Use provided system prompt or fall back to MKT_ROLE
+        effective_system_prompt = system_prompt.strip() if system_prompt else MKT_ROLE
 
         self._messages.extend(
             [
-                {"role": "system", "content": effective_prompt},
-                {"role": "user", "content": instruction_message},
+                {"role": "system", "content": effective_system_prompt},
+                {"role": "user", "content": instruction_message.strip()},
             ]
         )
+
+    def _init_malicious(self, malicious_prompt: str):
+        self._messages.append({"role": "system", "content": malicious_prompt.strip()})
 
     # ------------------------------------------------------------------ #
     # Marketplace-specific message helpers
