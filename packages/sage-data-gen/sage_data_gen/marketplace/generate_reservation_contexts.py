@@ -26,6 +26,13 @@ class ReservationContextResponse(BaseModel):
     )
 
 
+def _round_price(value: float) -> float:
+    """Round to integer if >= 5, otherwise keep 2 decimal places."""
+    if value >= 5:
+        return round(value)
+    return round(value, 2)
+
+
 def _compute_reservation_prices(
     reference_price: float,
     rng: random.Random,
@@ -36,7 +43,8 @@ def _compute_reservation_prices(
 
     Seller reservation is set below reference_price, buyer reservation
     above it, with total ZOPA width between min_zopa_pct and max_zopa_pct
-    of the reference price.
+    of the reference price. Prices >= $5 are rounded to integers;
+    smaller prices keep cents.
 
     Args:
         reference_price: Central market reference price.
@@ -54,9 +62,12 @@ def _compute_reservation_prices(
     seller_discount = zopa / 2
     buyer_premium = zopa / 2
 
-    # round to integer for more realistic prices
-    seller_res = round(reference_price - seller_discount)
-    buyer_res = round(reference_price + buyer_premium)
+    seller_res = _round_price(max(0.01, reference_price - seller_discount))
+    buyer_res = _round_price(reference_price + buyer_premium)
+
+    # Ensure buyer > seller
+    if buyer_res <= seller_res:
+        buyer_res = _round_price(seller_res + max(0.01, seller_res * 0.05))
 
     return seller_res, buyer_res
 

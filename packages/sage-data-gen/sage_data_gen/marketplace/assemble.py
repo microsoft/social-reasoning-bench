@@ -36,10 +36,12 @@ def assemble_tasks(
         )
         seller_res = context.seller_reservation_price
         buyer_res = context.buyer_reservation_price
+        raw_listed = buyer_res * 1.2
+        listed = round(raw_listed) if raw_listed >= 5 else round(raw_listed, 2)
         task = MarketplaceTask(
             id=idx,
             type="marketplace",
-            product=Product(name=product.name, listed_price=round(buyer_res * 1.2, 2)),
+            product=Product(name=product.name, listed_price=listed),
             seller=RoleConfig(
                 instruction_message=seller_instruction,
                 reservation_price=seller_res,

@@ -109,12 +109,14 @@ async def generate_catalog(
         if entry_id in seen_ids:
             entry_id = f"{entry_id}_{i:02d}"
         seen_ids.add(entry_id)
+        ref = float(raw.reference_price)
+        ref = round(ref) if ref >= 5 else round(ref, 2)
         catalog.append(
             CatalogEntry(
                 id=entry_id,
                 name=raw.name.strip(),
                 description=raw.description.strip(),
-                reference_price=round(float(raw.reference_price), 2),
+                reference_price=ref,
             )
         )
     return catalog
