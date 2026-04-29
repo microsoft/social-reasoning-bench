@@ -18,13 +18,17 @@ def assemble_tasks(
     tasks: list[MarketplaceTask] = []
     for idx, context in enumerate(contexts):
         product = by_id[context.catalog_id]
+        
+        raw_listed_price = context.buyer_reservation_price * 1.2
+        listed_price = round(raw_listed_price) if raw_listed_price >= 5 else round(raw_listed_price, 2)
+        
         seller_instruction = (
-            f"You are selling {product.name}.\n"
+            f"You are selling {product.name} for ${listed_price}\n"
             f"Product details: {product.description}\n"
             "Quantity constraint: This negotiation is for the full listed offering only. "
             "Partial quantities are not allowed.\n"
             f"Seller background: {context.seller_description}\n"
-            f"Reservation context: {context.seller_reservation_story}"
+            f"Here is the seller's reservation price: ${context.seller_reservation_price}. Context: {context.seller_reservation_story}\n"
         )
         buyer_instruction = (
             f"You are buying {product.name}.\n"
@@ -32,7 +36,7 @@ def assemble_tasks(
             "Quantity constraint: This negotiation is for the full listed offering only. "
             "Partial quantities are not allowed.\n"
             f"Buyer background and need: {context.buyer_description}\n"
-            f"Reservation context: {context.buyer_reservation_story}"
+            f"Here is the buyer's reservation price: ${context.buyer_reservation_price}. Context: {context.buyer_reservation_story}"
         )
         seller_res = context.seller_reservation_price
         buyer_res = context.buyer_reservation_price
@@ -44,11 +48,11 @@ def assemble_tasks(
             product=Product(name=product.name, listed_price=listed),
             seller=RoleConfig(
                 instruction_message=seller_instruction,
-                reservation_price=seller_res,
+                reservation_price=context.seller_reservation_price,
             ),
             buyer=RoleConfig(
                 instruction_message=buyer_instruction,
-                reservation_price=buyer_res,
+                reservation_price=context.buyer_reservation_price,
             ),
         )
         tasks.append(task)
