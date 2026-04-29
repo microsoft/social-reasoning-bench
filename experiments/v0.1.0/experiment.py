@@ -28,6 +28,7 @@ COUNTERPARTY: dict[str, Any] = {
 
 CONCURRENCY: dict[str, Any] = {"batch_size": 200, "task_concurrency": 5, "llm_concurrency": 64}
 
+ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
 
 def assistants():
     # Non-reasoning models
@@ -129,6 +130,9 @@ def experiment_calendar():
                             batch_size=CONCURRENCY["batch_size"],
                             task_concurrency=CONCURRENCY["task_concurrency"],
                             llm_concurrency=CONCURRENCY["llm_concurrency"],
+                            # Rounds
+                            max_rounds=ROUNDS["max_rounds"],
+                            max_steps_per_turn=ROUNDS["max_steps_per_turn"],
                             variant=variant("calendar", assistant, defense, attack, attack_style),
                         )
 
@@ -161,6 +165,9 @@ def experiment_marketplace():
                             batch_size=CONCURRENCY["batch_size"],
                             task_concurrency=CONCURRENCY["task_concurrency"],
                             llm_concurrency=CONCURRENCY["llm_concurrency"],
+                            # Rounds
+                            max_rounds=ROUNDS["max_rounds"],
+                            max_steps_per_turn=ROUNDS["max_steps_per_run"],
                             variant=variant(
                                 "marketplace", assistant, defense, attack, attack_style
                             ),
