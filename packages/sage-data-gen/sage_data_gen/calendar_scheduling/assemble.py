@@ -304,17 +304,25 @@ def assemble_tasks(
                 min_mutual_free_slots,
             )
 
-            # 5e: Generate preferences based on final trimmed calendars
+            # 5e: Generate preferences based on final trimmed calendars.
+            # The mutually-free indices form the ZOPA — pref sampling pins
+            # 0.0 and 1.0 there so per-task OO range is always [0, 1].
             asst_pref_rng = random.Random(seed + hash(email) + num_free_slots + 2000)
+            requestor_free = _get_free_slot_indices(mt.requestor.calendar)
+            assistant_free_post_trim = _get_free_slot_indices(mt.assistant.calendar)
+            mutually_free_indices = assistant_free_post_trim & requestor_free
             mt.assistant.preferences = sample_preferences(
-                calendar=mt.assistant.calendar, rng=asst_pref_rng
+                calendar=mt.assistant.calendar,
+                mutually_free_indices=mutually_free_indices,
+                requested_slot_index=conflict_slot,
+                rng=asst_pref_rng,
             )
             # Requestor preferences are the inverse of assistant preferences
             mt.requestor.preferences = [
                 TimeSlotPreference(
                     start_time=p.start_time,
                     end_time=p.end_time,
-                    score=round(1.0 - p.score, 1),
+                    score=round(1.0 - p.score, 2),
                 )
                 for p in mt.assistant.preferences
             ]

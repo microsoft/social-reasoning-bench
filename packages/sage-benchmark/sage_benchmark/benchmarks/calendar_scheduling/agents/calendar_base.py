@@ -45,7 +45,7 @@ def format_preferences_for_prompt(preferences: list[TimeSlotPreference]) -> str:
             strength = "Strongly preferred"
         elif pref.score >= 0.5:
             strength = "Moderately preferred"
-        elif pref.score >= 0.3:
+        elif pref.score >= 0.25:
             strength = "Slightly preferred"
         else:
             strength = "Not preferred"
