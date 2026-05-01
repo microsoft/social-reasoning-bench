@@ -1,6 +1,7 @@
 """Shared loading + theme for blog plots."""
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,8 +11,6 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RESULTS_DIR = REPO_ROOT / "outputs" / "v0.1.0"
 FIGURES_DIR = Path(__file__).resolve().parent / "figures"
-
-PROMPT_TOKENS = {"none", "all"}
 
 PALETTE = {
     "task_completion": "#B8B8B8",
@@ -54,14 +53,18 @@ class Run:
         return f"{pretty} ({mode})"
 
 
-# Mode tokens that may appear after the model name in variant strings.
-_MODE_TOKENS = {"cot", "medium", "high", "low", "4096", "10000"}
-
 MODEL_LABELS = {
     "azure_pool-gpt-4-1": "GPT-4.1",
     "azure_pool-gpt-5-4": "GPT-5.4",
     "gemini-3-flash-preview": "Gemini 3 Flash",
     "claude-sonnet-4-6": "Claude Sonnet 4.6",
+}
+
+# Only include these (model, mode) pairs in plots.
+TARGET_MODELS: set[tuple[str, str]] = {
+    ("azure_pool-gpt-4-1", "cot"),
+    ("azure_pool-gpt-5-4", "high"),
+    ("gemini-3-flash-preview", "medium"),
 }
 
 MODE_LABELS = {
@@ -72,36 +75,59 @@ MODE_LABELS = {
 }
 
 
-def _parse_variant(name: str) -> tuple[str, str, str, str, str]:
-    parts = name.split("_")
-    domain = parts[0]
-    prompt_idx = next(i for i, p in enumerate(parts) if p in PROMPT_TOKENS)
-    model_full = "_".join(parts[1:prompt_idx])
-    if "_" in model_full:
-        head, tail = model_full.rsplit("_", 1)
-        if tail in _MODE_TOKENS:
-            model, mode = head, tail
-        else:
-            model, mode = model_full, ""
-    else:
-        model, mode = model_full, ""
-    prompt = parts[prompt_idx]
-    condition = "_".join(parts[prompt_idx + 1 :])
-    return domain, model, mode, prompt, condition
-
-
-def _parse_condition(condition: str) -> tuple[str, str]:
-    if condition in ("none_none", "normal"):
-        return "normal", "none"
-    for raw_style, canon_style in (("handcrafted_", "hand_crafted"), ("hand_crafted_", "hand_crafted"), ("whimsical_", "whimsical")):
-        if condition.startswith(raw_style):
-            target = condition.removeprefix(raw_style)
-            return canon_style, _short_target(target)
-    raise ValueError(f"unknown condition: {condition}")
-
-
 def _short_target(target: str) -> str:
     return {"outcome_optimality": "oo", "due_diligence": "dd"}.get(target, target)
+
+
+def _normalize_model(model: str) -> str:
+    return model.replace("/", "-").replace(".", "-")
+
+
+def _parse_config(cfg: dict) -> tuple[str, str, str, str, str, str, str]:
+    """Extract (domain, model, mode, prompt, attack_style, attack_target, condition) from a results.json config."""
+    if "assistant_model" in cfg:
+        domain = "calendar"
+        model_raw = cfg["assistant_model"]
+        effort = cfg.get("assistant_reasoning_effort")
+        cot = cfg.get("assistant_explicit_cot")
+    elif "buyer_model" in cfg:
+        domain = "marketplace"
+        model_raw = cfg["buyer_model"]
+        effort = cfg.get("buyer_reasoning_effort")
+        cot = cfg.get("buyer_explicit_cot")
+    else:
+        raise ValueError(f"cannot infer domain from config: keys={list(cfg)[:10]}")
+
+    model = _normalize_model(model_raw)
+    if cot is True:
+        mode = "cot"
+    elif effort is not None:
+        mode = str(effort)
+    else:
+        mode = ""
+
+    prompt = cfg.get("system_prompt") or "none"
+
+    attack_types = cfg.get("attack_types") or []
+    paths = cfg.get("paths") or []
+    path = paths[0] if paths else ""
+    if "whimsical" in path:
+        attack_style = "whimsical"
+        # filename pattern: {size}-whimsical-{target}.yaml
+        target = Path(path).stem.split("-whimsical-", 1)[1]
+        attack_target = _short_target(target)
+        condition = f"whimsical_{target}"
+    elif attack_types:
+        attack_style = "hand_crafted"
+        target = attack_types[0]
+        attack_target = _short_target(target)
+        condition = f"handcrafted_{target}"
+    else:
+        attack_style = "normal"
+        attack_target = "none"
+        condition = "none_none"
+
+    return domain, model, mode, prompt, attack_style, attack_target, condition
 
 
 def _compute_metrics(results: list) -> dict[str, float]:
@@ -132,15 +158,35 @@ def _compute_metrics(results: list) -> dict[str, float]:
     }
 
 
+def _run_sort_key(path: Path) -> tuple[int, str]:
+    """Sort dirs so that the lowest-numbered run wins dedup.
+
+    Base dir (no `_runN_`) is treated as run 1. `_run2_`, `_run3_`, ... follow.
+    """
+    m = re.search(r"_run(\d+)_", path.name)
+    run_num = int(m.group(1)) if m else 1
+    return (run_num, path.name)
+
+
 def load_runs(results_dir: Path = RESULTS_DIR) -> list[Run]:
     runs: list[Run] = []
-    for variant_dir in sorted(results_dir.iterdir()):
+    seen: set[tuple] = set()
+    for variant_dir in sorted(results_dir.iterdir(), key=_run_sort_key):
         results_file = variant_dir / "results.json"
         if not results_file.is_file():
             continue
         data = json.loads(results_file.read_text())
-        domain, model, mode, prompt, condition = _parse_variant(variant_dir.name)
-        attack_style, attack_target = _parse_condition(condition)
+        cfg = data.get("config") or {}
+        if "assistant_model" not in cfg and "buyer_model" not in cfg:
+            continue
+        domain, model, mode, prompt, attack_style, attack_target, condition = _parse_config(cfg)
+        if (model, mode) not in TARGET_MODELS:
+            continue
+        # Skip duplicate runs (same domain/model/mode/prompt/condition).
+        key = (domain, model, mode, prompt, condition)
+        if key in seen:
+            continue
+        seen.add(key)
         runs.append(
             Run(
                 domain=domain,

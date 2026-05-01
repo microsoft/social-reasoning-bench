@@ -61,17 +61,17 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
         text=alt.Text("score:Q", format=".0%")
     )
 
+    is_combined = df["domain"].nunique() > 1
+    facet_kwargs = (
+        {"column": alt.Column("domain:N", title=None, sort=DOMAIN_ORDER, header=alt.Header(labelFontWeight="bold"))}
+        if is_combined
+        else {"row": alt.Row("domain:N", title=None, sort=DOMAIN_ORDER, header=alt.Header(labelFontWeight="bold"))}
+    )
+    width = 280 if is_combined else 520
     chart = (
         (bars + labels)
-        .properties(width=520, height=160)
-        .facet(
-            row=alt.Row(
-                "domain:N",
-                title=None,
-                sort=DOMAIN_ORDER,
-                header=alt.Header(labelFontWeight="bold"),
-            )
-        )
+        .properties(width=width, height=160)
+        .facet(**facet_kwargs)
         .resolve_axis(x="independent")
         .properties(
             title=make_title(
