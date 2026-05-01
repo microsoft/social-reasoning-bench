@@ -12,8 +12,8 @@ from common import (
     apply_theme,
     load_runs,
     make_title,
+    render_rq,
     runs_to_df,
-    save,
 )
 
 
@@ -37,7 +37,7 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
     metric_range = [PALETTE["task_completion"], PALETTE["outcome_optimality"]]
 
     base = alt.Chart(df).encode(
-        x=alt.X("model_label:N", title=None, axis=alt.Axis(labelAngle=0)),
+        x=alt.X("model_label:N", title=None, axis=alt.Axis(labelAngle=-30)),
         y=alt.Y(
             "score:Q",
             title=None,
@@ -63,7 +63,7 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
 
     chart = (
         (bars + labels)
-        .properties(width=320, height=110)
+        .properties(width=520, height=160)
         .facet(
             row=alt.Row(
                 "domain:N",
@@ -84,10 +84,7 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
 
 
 def main() -> None:
-    df = get_data()
-    chart = make_plot(df)
-    out = save(chart, "rq1")
-    print(f"saved {out}")
+    render_rq("rq1", get_data, make_plot)
 
 
 if __name__ == "__main__":

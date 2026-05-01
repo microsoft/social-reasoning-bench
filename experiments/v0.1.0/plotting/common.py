@@ -49,8 +49,27 @@ class Run:
 
     @property
     def model_label(self) -> str:
-        pretty = self.model.replace("gpt", "GPT")
-        return f"{pretty} ({self.mode})"
+        pretty = MODEL_LABELS.get(self.model, self.model)
+        mode = MODE_LABELS.get(self.mode, self.mode) if self.mode else "no_cot"
+        return f"{pretty} ({mode})"
+
+
+# Mode tokens that may appear after the model name in variant strings.
+_MODE_TOKENS = {"cot", "medium", "high", "low", "4096", "10000"}
+
+MODEL_LABELS = {
+    "azure_pool-gpt-4-1": "GPT-4.1",
+    "azure_pool-gpt-5-4": "GPT-5.4",
+    "gemini-3-flash-preview": "Gemini 3 Flash",
+    "claude-sonnet-4-6": "Claude Sonnet 4.6",
+}
+
+MODE_LABELS = {
+    "cot": "cot",
+    "medium": "think_med",
+    "high": "think_high",
+    "low": "think_low",
+}
 
 
 def _parse_variant(name: str) -> tuple[str, str, str, str, str]:
@@ -59,7 +78,11 @@ def _parse_variant(name: str) -> tuple[str, str, str, str, str]:
     prompt_idx = next(i for i, p in enumerate(parts) if p in PROMPT_TOKENS)
     model_full = "_".join(parts[1:prompt_idx])
     if "_" in model_full:
-        model, mode = model_full.split("_", 1)
+        head, tail = model_full.rsplit("_", 1)
+        if tail in _MODE_TOKENS:
+            model, mode = head, tail
+        else:
+            model, mode = model_full, ""
     else:
         model, mode = model_full, ""
     prompt = parts[prompt_idx]
@@ -68,19 +91,45 @@ def _parse_variant(name: str) -> tuple[str, str, str, str, str]:
 
 
 def _parse_condition(condition: str) -> tuple[str, str]:
-    if condition == "normal":
+    if condition in ("none_none", "normal"):
         return "normal", "none"
-    if condition.startswith("hand_crafted_"):
-        target = condition.removeprefix("hand_crafted_")
-        return "hand_crafted", _short_target(target)
-    if condition.startswith("whimsical_"):
-        target = condition.removeprefix("whimsical_")
-        return "whimsical", _short_target(target)
+    for raw_style, canon_style in (("handcrafted_", "hand_crafted"), ("hand_crafted_", "hand_crafted"), ("whimsical_", "whimsical")):
+        if condition.startswith(raw_style):
+            target = condition.removeprefix(raw_style)
+            return canon_style, _short_target(target)
     raise ValueError(f"unknown condition: {condition}")
 
 
 def _short_target(target: str) -> str:
     return {"outcome_optimality": "oo", "due_diligence": "dd"}.get(target, target)
+
+
+def _compute_metrics(results: list) -> dict[str, float]:
+    """Average per-task scores across all results, ignoring None.
+
+    The pre-aggregated `evaluation` block in results.json drops tasks where
+    `finished_successfully` is False (notably tasks that hit max_rounds), which
+    can shift averages substantially under attack conditions. Recomputing from
+    raw per-task scores includes every task and gives an honest picture.
+    """
+    def _avg(key: str, source: str = "task") -> float | None:
+        if source == "task":
+            vals = [r.get(key) for r in results]
+        else:
+            vals = [(r.get("execution") or {}).get(key) for r in results]
+        vals = [v for v in vals if v is not None]
+        if not vals:
+            return None
+        # Booleans (e.g., task_completed) average as 0/1.
+        return sum(float(v) for v in vals) / len(vals)
+
+    return {
+        "avg_task_completion": _avg("task_completed"),
+        "avg_outcome_optimality": _avg("outcome_optimality"),
+        "avg_due_diligence": _avg("due_diligence"),
+        "avg_duty_of_care": _avg("duty_of_care"),
+        "avg_leakage_rate": _avg("leakage_rate"),
+    }
 
 
 def load_runs(results_dir: Path = RESULTS_DIR) -> list[Run]:
@@ -101,7 +150,7 @@ def load_runs(results_dir: Path = RESULTS_DIR) -> list[Run]:
                 attack_style=attack_style,
                 attack_target=attack_target,
                 condition=condition,
-                metrics=data["evaluation"],
+                metrics=_compute_metrics(data["results"]),
             )
         )
     return runs
@@ -182,8 +231,23 @@ def make_title(text: str, subtitle: str | None = None) -> alt.TitleParams:
     return alt.TitleParams(text=text, subtitle=subtitle or "")
 
 
-def save(chart: alt.Chart, name: str) -> Path:
-    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-    out_png = FIGURES_DIR / f"{name}.png"
+def save(chart: alt.Chart, name: str, subdir: str = "") -> Path:
+    out_dir = FIGURES_DIR / subdir if subdir else FIGURES_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_png = out_dir / f"{name}.png"
     chart.save(str(out_png), ppi=200)
     return out_png
+
+
+def render_rq(name, get_data, make_plot):
+    """Render three PNGs per RQ into combined/, calendar/, marketplace/ subdirs."""
+    df = get_data()
+    for subdir, sub in (
+        ("combined", df),
+        ("calendar", df[df["domain"] == DOMAIN_LABELS["calendar"]]),
+        ("marketplace", df[df["domain"] == DOMAIN_LABELS["marketplace"]]),
+    ):
+        if sub.empty:
+            continue
+        out = save(make_plot(sub), name, subdir=subdir)
+        print(f"saved {out}")

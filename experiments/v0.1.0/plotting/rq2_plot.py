@@ -13,24 +13,28 @@ from common import (
     apply_theme,
     load_runs,
     make_title,
+    render_rq,
     runs_to_df,
-    save,
 )
 
 CONDITION_ORDER = [
     "normal",
     "hand_crafted_oo",
     "hand_crafted_dd",
+    "hand_crafted_privacy",
     "whimsical_oo",
     "whimsical_dd",
+    "whimsical_privacy",
 ]
 
 CONDITION_LABELS = {
     "normal": "Benign",
     "hand_crafted_oo": "HC · OO",
     "hand_crafted_dd": "HC · DD",
+    "hand_crafted_privacy": "HC · Priv",
     "whimsical_oo": "Whim · OO",
     "whimsical_dd": "Whim · DD",
+    "whimsical_privacy": "Whim · Priv",
 }
 
 
@@ -99,7 +103,7 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
 
     chart = (
         (bars + labels)
-        .properties(width=260, height=100)
+        .properties(width=200, height=130)
         .facet(
             row=alt.Row(
                 "domain:N",
@@ -123,10 +127,7 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
 
 
 def main() -> None:
-    df = get_data()
-    chart = make_plot(df)
-    out = save(chart, "rq2")
-    print(f"saved {out}")
+    render_rq("rq2", get_data, make_plot)
 
 
 if __name__ == "__main__":

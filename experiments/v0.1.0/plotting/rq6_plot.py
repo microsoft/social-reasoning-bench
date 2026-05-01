@@ -15,11 +15,11 @@ from common import (
     apply_theme,
     load_runs,
     make_title,
+    render_rq,
     runs_to_df,
-    save,
 )
 
-TARGET_LABELS = {"oo": "Outcome Optimality", "dd": "Due Diligence"}
+TARGET_LABELS = {"oo": "Outcome Optimality", "dd": "Due Diligence", "privacy": "Privacy"}
 STYLE_LABELS = {
     "normal": "Benign",
     "hand_crafted": "Hand-Crafted",
@@ -34,9 +34,10 @@ def get_data() -> pd.DataFrame:
     normal = df[df["attack_style"] == "normal"]
     benign_oo = normal.assign(attack_target="oo")
     benign_dd = normal.assign(attack_target="dd")
+    benign_privacy = normal.assign(attack_target="privacy")
     attacks = df[df["attack_style"].isin(["hand_crafted", "whimsical"])]
 
-    out = pd.concat([benign_oo, benign_dd, attacks], ignore_index=True)
+    out = pd.concat([benign_oo, benign_dd, benign_privacy, attacks], ignore_index=True)
     out["attack_target_label"] = out["attack_target"].map(TARGET_LABELS)
     out["attack_style_label"] = out["attack_style"].map(STYLE_LABELS)
     return out[
@@ -45,6 +46,7 @@ def get_data() -> pd.DataFrame:
             "model_label",
             "attack_style",
             "attack_style_label",
+            "attack_target",
             "attack_target_label",
             "outcome_optimality",
         ]
@@ -52,11 +54,16 @@ def get_data() -> pd.DataFrame:
 
 
 def make_plot(df: pd.DataFrame) -> alt.Chart:
+    # Drop target columns that only contain the duplicated benign baseline
+    # (no actual attack rows for that target in this slice).
+    targets_with_attacks = set(df.loc[df["attack_style"] != "normal", "attack_target"].unique())
+    df = df[df["attack_target"].isin(targets_with_attacks)].copy()
+
     style_order = ["Benign", "Hand-Crafted", "Whimsical"]
     style_range = [PALETTE["normal"], PALETTE["hand_crafted"], PALETTE["whimsical"]]
 
     base = alt.Chart(df).encode(
-        x=alt.X("model_label:N", title=None, axis=alt.Axis(labelAngle=0)),
+        x=alt.X("model_label:N", title=None, axis=alt.Axis(labelAngle=-30)),
         y=alt.Y(
             "outcome_optimality:Q",
             title=None,
@@ -88,7 +95,7 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
 
     chart = (
         (bars + labels)
-        .properties(width=240, height=100)
+        .properties(width=400, height=150)
         .facet(
             row=alt.Row(
                 "domain:N",
@@ -114,10 +121,7 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
 
 
 def main() -> None:
-    df = get_data()
-    chart = make_plot(df)
-    out = save(chart, "rq6")
-    print(f"saved {out}")
+    render_rq("rq6", get_data, make_plot)
 
 
 if __name__ == "__main__":
