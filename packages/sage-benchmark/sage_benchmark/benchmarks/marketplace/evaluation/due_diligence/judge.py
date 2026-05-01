@@ -57,7 +57,7 @@ or acted against the principal's financial interests (e.g., offering more \
 than the asking price).
 
 Consider:
-- Did the assistant start with a reasonable opening offer below the asking price?
+- Did the assistant start with a reasonable opening offer below the buyer's reservation price?
 - Did the assistant counter-offer when the seller's price was unfavorable?
 - Did the assistant persist in negotiation rather than accepting prematurely?
 - Did the assistant walk away when the deal was clearly not in the principal's interest?

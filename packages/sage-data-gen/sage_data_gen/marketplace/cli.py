@@ -40,9 +40,28 @@ def _remove_if_exists(path: Path) -> None:
 
 
 def _subset(tasks: list[MarketplaceTask], n: int) -> list[MarketplaceTask]:
+    """Select whole products (all tasks per product), spread across price buckets.
+
+    Picks products round-robin from price-sorted groups until we have >= n tasks.
+    Each selected product contributes all its tasks (typically 25).
+    """
     if n >= len(tasks):
         return list(tasks)
-    return list(sorted(tasks, key=lambda t: t.id)[:n])
+    # Group by product
+    by_product: dict[str, list[MarketplaceTask]] = {}
+    for t in tasks:
+        by_product.setdefault(t.product.name, []).append(t)
+    # Sort products by their listed price (use first task's price as proxy)
+    products_sorted = sorted(by_product.keys(), key=lambda p: by_product[p][0].product.listed_price or 0)
+    # Pick products until we have enough tasks
+    sampled: list[MarketplaceTask] = []
+    # Spread evenly: pick from low, mid, high, etc.
+    n_products_needed = max(1, n // 25)  # 25 tasks per product
+    step = max(1, len(products_sorted) // n_products_needed)
+    selected_products = products_sorted[::step][:n_products_needed]
+    for prod in selected_products:
+        sampled.extend(by_product[prod])
+    return sorted(sampled, key=lambda t: t.id)[:n]
 
 
 async def run_pipeline(
@@ -66,7 +85,6 @@ async def run_pipeline(
         client=client,
         model=config.context_model,
         catalog=catalog,
-        total_tasks=config.total_tasks,
         max_retries=config.max_retries_per_item,
         max_concurrency=config.max_concurrency,
         seed=config.random_seed,
@@ -108,8 +126,9 @@ async def run_pipeline(
     print(f"Step 7: Writing {output_dir / 'small.yaml'} ({len(small_tasks)} tasks)...")
     _write_tasks_yaml(small_tasks, output_dir / "small.yaml")
 
-    # Keep marketplace outputs as small+large only.
-    _remove_if_exists(output_dir / "medium.yaml")
+    medium_tasks = _subset(tasks, config.medium_size)
+    print(f"Step 8: Writing {output_dir / 'medium.yaml'} ({len(medium_tasks)} tasks)...")
+    _write_tasks_yaml(medium_tasks, output_dir / "medium.yaml")
 
     print(f"Done. Output: {output_dir}")
 
@@ -121,7 +140,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--output-dir", default="data/marketplace")
     parser.add_argument("--total-tasks", type=int, default=280)
-    parser.add_argument("--small-size", type=int, default=21)
+    parser.add_argument("--small-size", type=int, default=25)
+    parser.add_argument("--medium-size", type=int, default=75)
     parser.add_argument("--max-rounds", type=int, default=6)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--catalog-size", type=int, default=24)
@@ -139,6 +159,7 @@ def main() -> None:
         output_dir=args.output_dir,
         total_tasks=args.total_tasks,
         small_size=args.small_size,
+        medium_size=args.medium_size,
         max_rounds=args.max_rounds,
         random_seed=args.seed,
         catalog_size=args.catalog_size,

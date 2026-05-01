@@ -5,7 +5,8 @@ class MarketplacePipelineConfig(BaseModel):
     output_dir: str = "data/marketplace"
     random_seed: int = 42
     total_tasks: int = 280
-    small_size: int = 21
+    small_size: int = 25
+    medium_size: int = 75
     max_rounds: int = 6
     catalog_size: int = 24
     catalog_model: str  # Model for catalog generation

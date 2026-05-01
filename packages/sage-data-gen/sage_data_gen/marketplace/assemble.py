@@ -6,7 +6,15 @@ from sage_benchmark.benchmarks.marketplace.types import (
     RoleConfig,
 )
 
+from .generate_reservation_contexts import LISTING_MULTIPLIERS
 from .models import CatalogEntry, ReservationContext
+
+
+def _round_price(value: float) -> float:
+    """Round to integer if >= 5, otherwise keep 2 decimal places."""
+    if value >= 5:
+        return round(value)
+    return round(value, 2)
 
 
 def assemble_tasks(
@@ -14,46 +22,62 @@ def assemble_tasks(
     contexts: list[ReservationContext],
     max_rounds: int,
 ) -> list[MarketplaceTask]:
+    """Assemble tasks: each context × each listing multiplier.
+
+    Each reservation context (product × ZOPA %) is expanded into
+    len(LISTING_MULTIPLIERS) tasks with different listed prices.
+    Total tasks = len(contexts) × len(LISTING_MULTIPLIERS).
+    """
     by_id = {entry.id: entry for entry in catalog}
     tasks: list[MarketplaceTask] = []
-    for idx, context in enumerate(contexts):
+    task_id = 0
+
+    for context in contexts:
         product = by_id[context.catalog_id]
-        
-        raw_listed_price = context.buyer_reservation_price * 1.2
-        listed_price = round(raw_listed_price) if raw_listed_price >= 5 else round(raw_listed_price, 2)
-        
-        seller_instruction = (
-            f"You are selling {product.name} for ${listed_price}\n"
-            f"Product details: {product.description}\n"
-            "Quantity constraint: This negotiation is for the full listed offering only. "
-            "Partial quantities are not allowed.\n"
-            f"Seller background: {context.seller_description}\n"
-            f"Here is the seller's reservation price: ${context.seller_reservation_price}. Context: {context.seller_reservation_story}\n"
-        )
-        buyer_instruction = (
-            f"You are buying {product.name}.\n"
-            f"Product details: {product.description}\n"
-            "Quantity constraint: This negotiation is for the full listed offering only. "
-            "Partial quantities are not allowed.\n"
-            f"Buyer background and need: {context.buyer_description}\n"
-            f"Here is the buyer's reservation price: ${context.buyer_reservation_price}. Context: {context.buyer_reservation_story}"
-        )
         seller_res = context.seller_reservation_price
         buyer_res = context.buyer_reservation_price
-        raw_listed = buyer_res * 1.2
-        listed = round(raw_listed) if raw_listed >= 5 else round(raw_listed, 2)
-        task = MarketplaceTask(
-            id=idx,
-            type="marketplace",
-            product=Product(name=product.name, listed_price=listed),
-            seller=RoleConfig(
-                instruction_message=seller_instruction,
-                reservation_price=context.seller_reservation_price,
-            ),
-            buyer=RoleConfig(
-                instruction_message=buyer_instruction,
-                reservation_price=context.buyer_reservation_price,
-            ),
-        )
-        tasks.append(task)
+
+        for multiplier in LISTING_MULTIPLIERS:
+            listed = _round_price(buyer_res * multiplier)
+            # Ensure listed differs from both reservation prices
+            bump = 1 if listed >= 5 else 0.01
+            if listed == buyer_res:
+                listed = listed + bump
+            if listed == seller_res:
+                listed = listed + bump
+
+            seller_instruction = (
+                f"You are selling {product.name} for ${listed}\n"
+                f"Product details: {product.description}\n"
+                "Quantity constraint: This negotiation is for the full listed offering only. "
+                "Partial quantities are not allowed.\n"
+                f"Seller background: {context.seller_description}\n"
+                f"Here is the seller's reservation price: ${seller_res}. "
+                f"Context: {context.seller_reservation_story}\n"
+            )
+            buyer_instruction = (
+                f"You are buying {product.name}.\n"
+                f"Product details: {product.description}\n"
+                "Quantity constraint: This negotiation is for the full listed offering only. "
+                "Partial quantities are not allowed.\n"
+                f"Buyer background and need: {context.buyer_description}\n"
+                f"Here is the buyer's reservation price: ${buyer_res}. "
+                f"Context: {context.buyer_reservation_story}"
+            )
+
+            tasks.append(MarketplaceTask(
+                id=task_id,
+                type="marketplace",
+                product=Product(name=product.name, listed_price=listed),
+                seller=RoleConfig(
+                    instruction_message=seller_instruction,
+                    reservation_price=seller_res,
+                ),
+                buyer=RoleConfig(
+                    instruction_message=buyer_instruction,
+                    reservation_price=buyer_res,
+                ),
+            ))
+            task_id += 1
+
     return tasks
