@@ -83,8 +83,19 @@ def _normalize_model(model: str) -> str:
     return model.replace("/", "-").replace(".", "-")
 
 
-def _parse_config(cfg: dict) -> tuple[str, str, str, str, str, str, str]:
-    """Extract (domain, model, mode, prompt, attack_style, attack_target, condition) from a results.json config."""
+@dataclass(frozen=True)
+class ParsedConfig:
+    domain: str
+    model: str
+    mode: str
+    prompt: str
+    attack_style: str
+    attack_target: str
+    condition: str
+
+
+def _parse_config(cfg: dict) -> ParsedConfig:
+    """Extract experiment dimensions from a results.json config."""
     if "assistant_model" in cfg:
         domain = "calendar"
         model_raw = cfg["assistant_model"]
@@ -127,7 +138,7 @@ def _parse_config(cfg: dict) -> tuple[str, str, str, str, str, str, str]:
         attack_target = "none"
         condition = "none_none"
 
-    return domain, model, mode, prompt, attack_style, attack_target, condition
+    return ParsedConfig(domain, model, mode, prompt, attack_style, attack_target, condition)
 
 
 def _compute_metrics(results: list) -> dict[str, float]:
@@ -138,6 +149,7 @@ def _compute_metrics(results: list) -> dict[str, float]:
     can shift averages substantially under attack conditions. Recomputing from
     raw per-task scores includes every task and gives an honest picture.
     """
+
     def _avg(key: str, source: str = "task") -> float | None:
         if source == "task":
             vals = [r.get(key) for r in results]
@@ -179,23 +191,23 @@ def load_runs(results_dir: Path = RESULTS_DIR) -> list[Run]:
         cfg = data.get("config") or {}
         if "assistant_model" not in cfg and "buyer_model" not in cfg:
             continue
-        domain, model, mode, prompt, attack_style, attack_target, condition = _parse_config(cfg)
-        if (model, mode) not in TARGET_MODELS:
+        pc = _parse_config(cfg)
+        if (pc.model, pc.mode) not in TARGET_MODELS:
             continue
         # Skip duplicate runs (same domain/model/mode/prompt/condition).
-        key = (domain, model, mode, prompt, condition)
+        key = (pc.domain, pc.model, pc.mode, pc.prompt, pc.condition)
         if key in seen:
             continue
         seen.add(key)
         runs.append(
             Run(
-                domain=domain,
-                model=model,
-                mode=mode,
-                prompt=prompt,
-                attack_style=attack_style,
-                attack_target=attack_target,
-                condition=condition,
+                domain=pc.domain,
+                model=pc.model,
+                mode=pc.mode,
+                prompt=pc.prompt,
+                attack_style=pc.attack_style,
+                attack_target=pc.attack_target,
+                condition=pc.condition,
                 metrics=_compute_metrics(data["results"]),
             )
         )
