@@ -1,6 +1,5 @@
 """Run every RQ plot script."""
 
-
 import rq1_plot
 import rq2_plot
 import rq2a_plot

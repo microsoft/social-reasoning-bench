@@ -6,7 +6,6 @@ domain (rows) and attack target (columns). The benign baseline is duplicated
 across both target columns for visual reference.
 """
 
-
 import altair as alt
 import pandas as pd
 from common import (

@@ -1,109 +1,156 @@
-"""RQ2: Under attacks, TC stays high but OO collapses.
+"""RQ2: Outcome Optimality collapses under attack.
 
-Slice: prompt=all, all 5 attack conditions. x=attack condition, color=metric (TC/OO),
-faceted by domain (rows) and model (columns).
+Slice: prompt=all, three bars per model: Benign / Hand-Crafted / Whimsical.
+Faceted by domain (rows) and model (columns).
+
+Outcome optimality uses the *benign* formula for malicious tasks (continuous
+price/preference score instead of binary 0/1), with no-deal/no-meeting results
+excluded from the average.
 """
 
+import json
 
 import altair as alt
 import pandas as pd
+from benign_oo import (
+    benign_outcome_optimality,
+    load_calendar_results,
+    load_marketplace_results,
+)
 from common import (
+    DOMAIN_LABELS,
     DOMAIN_ORDER,
+    MODE_LABELS,
+    MODEL_LABELS,
     PALETTE,
+    RESULTS_DIR,
+    _parse_config,
     apply_theme,
-    load_runs,
     make_title,
     render_rq,
-    runs_to_df,
 )
 
-CONDITION_ORDER = [
-    "normal",
-    "hand_crafted_oo",
-    "hand_crafted_dd",
-    "hand_crafted_privacy",
-    "whimsical_oo",
-    "whimsical_dd",
-    "whimsical_privacy",
-]
+ALLOWED_MODELS = {
+    ("azure_pool-gpt-4-1", "cot"),
+    ("azure_pool-gpt-5-4", "high"),
+    ("gemini-3-flash-preview", "medium"),
+}
 
-CONDITION_LABELS = {
+STYLE_ORDER = ["normal", "hand_crafted", "whimsical"]
+
+STYLE_LABELS = {
     "normal": "Benign",
-    "hand_crafted_oo": "HC · OO",
-    "hand_crafted_dd": "HC · DD",
-    "hand_crafted_privacy": "HC · Priv",
-    "whimsical_oo": "Whim · OO",
-    "whimsical_dd": "Whim · DD",
-    "whimsical_privacy": "Whim · Priv",
+    "hand_crafted": "Hand-Crafted",
+    "whimsical": "Whimsical",
 }
 
 
+def _model_label(model: str, mode: str) -> str:
+    pretty = MODEL_LABELS.get(model, model)
+    mode_label = MODE_LABELS.get(mode, mode) if mode else "no_cot"
+    return f"{pretty} ({mode_label})"
+
+
 def get_data() -> pd.DataFrame:
-    df = runs_to_df(load_runs())
-    df = df[df["prompt"] == "all"].copy()
-    df["cond_key"] = df.apply(
-        lambda r: "normal"
-        if r["attack_style"] == "normal"
-        else f"{r['attack_style']}_{r['attack_target']}",
-        axis=1,
-    )
-    df["cond_label"] = df["cond_key"].map(CONDITION_LABELS)
-    long = df.melt(
-        id_vars=["domain", "model_label", "cond_key", "cond_label"],
-        value_vars=["task_completion", "outcome_optimality"],
-        var_name="metric",
-        value_name="score",
-    )
-    long["metric"] = long["metric"].map(
-        {"task_completion": "Task Completion", "outcome_optimality": "Outcome Optimality"}
-    )
-    return long
+    # Collect per-task scores keyed by (domain, model_label, attack_style)
+    groups: dict[tuple[str, str, str], dict[str, list[float]]] = {}
+
+    for variant_dir in sorted(RESULTS_DIR.iterdir()):
+        results_file = variant_dir / "results.json"
+        if not results_file.is_file():
+            continue
+        data = json.loads(results_file.read_text())
+        cfg = data.get("config") or {}
+        if "assistant_model" not in cfg and "buyer_model" not in cfg:
+            continue
+        pc = _parse_config(cfg)
+        if pc.prompt != "all":
+            continue
+        if (pc.model, pc.mode) not in ALLOWED_MODELS:
+            continue
+
+        if pc.domain == "marketplace":
+            typed = load_marketplace_results(data)
+        elif pc.domain == "calendar":
+            typed = load_calendar_results(data)
+        else:
+            continue
+
+        key = (DOMAIN_LABELS.get(pc.domain, pc.domain), _model_label(pc.model, pc.mode), pc.attack_style)
+        if key not in groups:
+            groups[key] = []
+
+        for r in typed:
+            oo = benign_outcome_optimality(r)
+            if oo is not None:
+                groups[key].append(oo)
+
+    rows = []
+    for (domain, model_label, style), vals in groups.items():
+        rows.append(
+            {
+                "domain": domain,
+                "model_label": model_label,
+                "style": style,
+                "style_label": STYLE_LABELS.get(style, style),
+                "outcome_optimality": sum(vals) / len(vals) if vals else None,
+            }
+        )
+
+    return pd.DataFrame(rows)
 
 
 def make_plot(df: pd.DataFrame) -> alt.Chart:
-    metric_domain = ["Task Completion", "Outcome Optimality"]
-    metric_range = [PALETTE["task_completion"], PALETTE["outcome_optimality"]]
-    label_order = [CONDITION_LABELS[c] for c in CONDITION_ORDER]
+    # Drop models that don't appear in every domain present in the slice,
+    # otherwise the facet grid has empty cells that break the layout.
+    domains_in_slice = set(df["domain"].unique())
+    complete_models = [
+        m
+        for m in df["model_label"].unique()
+        if set(df.loc[df["model_label"] == m, "domain"].unique()) == domains_in_slice
+    ]
+    df = df[df["model_label"].isin(complete_models)].copy()
+
+    label_order = [STYLE_LABELS[s] for s in STYLE_ORDER]
+    style_range = [PALETTE["normal"], PALETTE["hand_crafted"], PALETTE["whimsical"]]
 
     base = alt.Chart(df).encode(
         x=alt.X(
-            "cond_label:N",
+            "style_label:N",
             title=None,
             sort=label_order,
             axis=alt.Axis(labelAngle=-30),
         ),
         y=alt.Y(
-            "score:Q",
+            "outcome_optimality:Q",
             title=None,
             scale=alt.Scale(domain=[0, 1]),
             axis=alt.Axis(format=".0%"),
         ),
-        xOffset=alt.XOffset("metric:N", sort=metric_domain),
     )
 
     bars = base.mark_bar().encode(
         color=alt.Color(
-            "metric:N",
-            title=None,
-            scale=alt.Scale(domain=metric_domain, range=metric_range),
+            "style_label:N",
+            title="Condition",
+            scale=alt.Scale(domain=label_order, range=style_range),
             legend=alt.Legend(orient="top"),
         ),
         tooltip=[
             "domain",
             "model_label",
-            "cond_label",
-            "metric",
-            alt.Tooltip("score:Q", format=".1%"),
+            "style_label",
+            alt.Tooltip("outcome_optimality:Q", format=".1%"),
         ],
     )
 
     labels = base.mark_text(dy=-6, fontSize=9, color="#333").encode(
-        text=alt.Text("score:Q", format=".0%")
+        text=alt.Text("outcome_optimality:Q", format=".0%")
     )
 
     chart = (
         (bars + labels)
-        .properties(width=200, height=130)
+        .properties(width=200, height=150)
         .facet(
             row=alt.Row(
                 "domain:N",
@@ -118,8 +165,8 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
         .resolve_axis(x="independent")
         .properties(
             title=make_title(
-                "RQ2: Task Completion vs. Outcome Optimality Under Attack",
-                "All attack conditions · system prompt = all",
+                "RQ2: Outcome Optimality Under Attack",
+                "Averaged across attack targets · system prompt = all",
             )
         )
     )

@@ -3,7 +3,6 @@
 Slice: attack=normal, prompt in {none, all}. y=DoC, x=model, color=prompt, facet=domain.
 """
 
-
 import altair as alt
 import pandas as pd
 from common import (

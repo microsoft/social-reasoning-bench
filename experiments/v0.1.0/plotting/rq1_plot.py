@@ -3,7 +3,6 @@
 Slice: prompt=all, attack=normal. Bars: TC vs OO per model, faceted by domain.
 """
 
-
 import altair as alt
 import pandas as pd
 from common import (
