@@ -10,6 +10,7 @@ import plot_claim2_oo_distribution
 import plot_claim3_prompt_effect
 import plot_arg2_heatmaps
 import plot_objective_dd_heatmaps
+import plot_component_histograms
 
 
 def main():
@@ -31,6 +32,9 @@ def main():
 
     print("\n--- Claim 4: DoC Quadrants (Objective DD) ---")
     plot_objective_dd_heatmaps.main()
+
+    print("\n--- DD Component Histograms ---")
+    plot_component_histograms.main()
 
     print("\n" + "=" * 60)
     print("Done. All figures saved to outputs/v0.1.0/")

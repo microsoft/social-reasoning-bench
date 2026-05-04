@@ -1,4 +1,10 @@
-# Duty of Care: Results Summary
+# Social Reasoning Benchmarks Results 
+
+## Key Contributions
+- **Outcome Optimality:** A value-based measure that moves beyond binary task completion to capture how much of the available surplus an agent secures for its principal. Current frontier agents complete tasks at 99%+ rates but capture only 8–36% of available value — revealing a pervasive gap between task success and fiduciary performance.
+- **Due Diligence:** A process-oriented measure that distinguishes luck from skill by evaluating whether agents exercise appropriate care on behalf of their principal. DD is designed to be interpreted alongside OO: high OO with low DD exposes fragile "lucky" successes, while low OO with high DD points to genuine capability gaps rather than negligence.
+- **Benchmarks:** Two multi-agent benchmarks (calendar scheduling, marketplace negotiation) that evaluate social reasoning under realistic principal-agent scenarios: competing incentives, information asymmetry, and trust uncertainty — exposing capability gaps invisible to single-agent benchmarks.
+
 
 ## Data
 
@@ -92,8 +98,6 @@ Due Diligence (DD) distinguishes agents that *earned* good outcomes through care
 - **GPT-4.1** is 98% Negligence in marketplace — it never checks reservation prices or pushes back
 - **Calendar** shows more differentiation — Gemini reaches 71% Robust Competence through active preference advocacy
 
-> **Known bug:** 11 of 252 calendar tasks have DD=0.0 despite component scores (IG, Advocacy) ≥ 0.88. The stored `score` field disagrees with the current evaluator formula `(IG + Advocacy) / 2`. These are concentrated in Gemini basic prompt (8 cases) and GPT-4.1 (3 cases). Most fall in the "Lucked-out Fragility" quadrant and likely belong in "Robust Competence." Recomputing DD from components would reduce Gemini's Lucked-out rate from 8% to ~0%.
-
 
 ### Duty of Care Quadrants — Objective DD Metric
 
@@ -106,6 +110,20 @@ The following chart uses the **objective DD metric** (deterministic, based on to
 - **GPT-5.4 is the most diligent** — lowest LF (31%) in calendar, driven by its habit of calling `ListContacts` and rechecking `ListMeetings` between rounds.
 - **Marketplace shifts from mostly CG to mostly Negligent** — GPT-4.1 is 100% Negligent (opens at/above reservation, advocacy=0). GPT-5.4 retains 37% CG (good process, bad outcome) and Gemini 27% CG, but the majority drops to Negligent due to low advocacy or privacy violations.
 - **The objective metric surfaces process failures** that distinguish "good outcome via luck" from "good outcome via competent process."
+
+### DD Component Distributions
+
+The chart below shows the distribution of each DD sub-component across all reasoning+benign tasks. Components use consistent colors across panels for easy comparison. Top row = LLM Judge, bottom row = Objective DD; left = Calendar, right = Marketplace.
+
+![DD Component Histograms](figures/graph7_dd_component_histograms.png)
+
+**Key observations:**
+
+- **Advocacy** — The starkest disagreement is in marketplace: the LLM judge gives μ=0.95 while the objective metric gives μ=0.17. Agents consistently open near/above the reservation price, but the judge still credits them as strong advocates.
+- **Discretion vs. Discipline** — The LLM judge's "discretion" (μ=0.99 calendar, μ=0.29 marketplace) and the objective "discipline" (μ=0.21 calendar, μ=0.55 marketplace) measure similar constructs but diverge: the judge is lenient in calendar but strict in marketplace, while the objective metric is strict in calendar (agents reveal free slots) but moderate in marketplace (binary budget-language check).
+- **Information Gathering** (LLM-only, μ=0.98) vs. **Diligence** (objective, μ=0.57) — The judge rates nearly all agents as exemplary information gatherers; the objective metric's 3-check rubric (ListMeetings first, ListContacts, re-check) reveals that most agents skip at least one step.
+- **Privacy** — Binary (0 or 1) in both approaches with similar detection rates, confirming the ROUGE-based detector aligns with the LLM judge on which tasks leak.
+- **Resilience** — Nearly always 1.0 in both domains (few agents make multiple counter-offers that drift downward).
 
 ### Example: Why the LLM Judge and Objective Metric Disagree
 
