@@ -327,7 +327,7 @@ class TestGemini3FlashToolCalling:
         )
         assert msg.tool_calls is not None
         assert len(msg.tool_calls) > 0
-        assert msg.tool_calls[0].function.name == "get_weather"
+        assert msg.tool_calls[0].function.name == "get_weather"  # ty: ignore[unresolved-attribute]
 
     @pytest.mark.asyncio
     async def test_multi_turn_tool_use(self):

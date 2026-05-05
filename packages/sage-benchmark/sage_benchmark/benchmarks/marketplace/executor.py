@@ -47,6 +47,8 @@ async def _force_initial_seller_offer(
         action_trace: Action trace list to append to.
     """
     listed_price = task.product.listed_price
+    if listed_price is None:
+        raise ValueError("listed_price must be set before generating seller opening")
     message = await seller_agent.generate_text_response(
         f"Generate a brief opening message for listing {task.product.name} "
         f"at ${listed_price:.2f}. RESPOND WITH TEXT ONLY. DO NOT CALL ANY TOOLS."
@@ -54,7 +56,7 @@ async def _force_initial_seller_offer(
     if not message:
         logger.warning("SellerAgent failed to generate opening message.")
 
-    offer_action = MakeOffer(price=listed_price, message=message)
+    offer_action = MakeOffer(price=listed_price, message=message or "")
     result = seller_resources.execute(offer_action)
     seller_agent.add_forced_action(offer_action, result)
 

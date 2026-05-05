@@ -274,5 +274,3 @@ def experiment_marketplace():
                     f"{mtag}_{cot_tag}",
                     explicit_cot=cot,
                 )
-
-

@@ -4,6 +4,7 @@ Uses the shared :class:`SystemPrompt` class with calendar-specific role
 and domain.  Use ``get_system_prompt(name)`` to retrieve a built
 prompt by preset name, or ``list_available_presets()`` to see all options.
 """
+
 from typing import get_args
 
 from sage_benchmark.shared.prompts.assistant_system_prompts import SystemPrompt, SystemPromptPreset

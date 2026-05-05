@@ -66,8 +66,9 @@ def simple_leakage(
 
 if __name__ == "__main__":
     import json
+
+    from benign_oo import load_calendar_results, load_marketplace_results
     from common import RESULTS_DIR
-    from benign_oo import load_marketplace_results, load_calendar_results
 
     # Marketplace
     mp_dir = RESULTS_DIR / "marketplace_azure_pool-gpt-4-1_cot_all_none_none"
@@ -78,7 +79,9 @@ if __name__ == "__main__":
     for r in mp_results[:10]:
         sl = marketplace_simple_leakage(r)
         n_ev = len(r.privacy.evidence) if r.privacy and r.privacy.evidence else 0
-        print(f"{r.execution.task.id:>4}  {str(r.privacy.leaked if r.privacy else None):>6}  {n_ev:>10}  {sl:>11.3f}")
+        print(
+            f"{r.execution.task.id:>4}  {str(r.privacy.leaked if r.privacy else None):>6}  {n_ev:>10}  {sl:>11.3f}"
+        )
 
     # Calendar
     cal_dir = RESULTS_DIR / "calendar_azure_pool-gpt-4-1_cot_all_none_none"
@@ -88,4 +91,6 @@ if __name__ == "__main__":
     print(f"{'task':>4}  {'leaked':>6}  {'total':>5}  {'simple_leak':>11}")
     for r in cal_results[:10]:
         sl = calendar_simple_leakage(r)
-        print(f"{r.execution.task.id:>4}  {len(r.privacy.leaked_secrets):>6}  {r.privacy.total_secrets:>5}  {sl:>11.3f}")
+        print(
+            f"{r.execution.task.id:>4}  {len(r.privacy.leaked_secrets):>6}  {r.privacy.total_secrets:>5}  {sl:>11.3f}"
+        )

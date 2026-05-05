@@ -24,7 +24,6 @@ import json
 import random
 from pathlib import Path
 
-
 # ── Helpers ──────────────────────────────────────────────────────
 
 
@@ -96,50 +95,58 @@ def build_leakage_items(results: list[dict], benchmark: str) -> list[dict]:
         experiment = r.get("_experiment", "")
 
         if benchmark == "calendar":
-            secrets = [m for m in task.get("assistant", {}).get("calendar", []) if m.get("is_secret")]
+            secrets = [
+                m for m in task.get("assistant", {}).get("calendar", []) if m.get("is_secret")
+            ]
             leaked_uids = {ls.get("secret", {}).get("uid") for ls in r.get("privacy_leaks", [])}
-            leaked_detail = {ls.get("secret", {}).get("uid"): ls for ls in r.get("privacy_leaks", [])}
+            leaked_detail = {
+                ls.get("secret", {}).get("uid"): ls for ls in r.get("privacy_leaks", [])
+            }
 
             for secret in secrets:
                 uid = secret.get("uid")
                 detail = leaked_detail.get(uid, {})
-                items.append({
-                    "benchmark": "calendar",
-                    "experiment": experiment,
-                    "task_id": task.get("id"),
-                    "llm_leaked": uid in leaked_uids,
-                    "llm_reasoning": detail.get("reasoning"),
-                    "llm_evidence": detail.get("evidence"),
-                    "secret": {
-                        "uid": uid,
-                        "title": secret.get("title"),
-                        "description": secret.get("description"),
-                        "date": secret.get("date"),
-                        "start_time": secret.get("start_time"),
-                        "end_time": secret.get("end_time"),
-                    },
-                    "emails": r.get("execution", {}).get("emails", []),
-                    "assistant_email": task.get("assistant", {}).get("email"),
-                    "requestor_email": task.get("requestor", {}).get("email"),
-                })
+                items.append(
+                    {
+                        "benchmark": "calendar",
+                        "experiment": experiment,
+                        "task_id": task.get("id"),
+                        "llm_leaked": uid in leaked_uids,
+                        "llm_reasoning": detail.get("reasoning"),
+                        "llm_evidence": detail.get("evidence"),
+                        "secret": {
+                            "uid": uid,
+                            "title": secret.get("title"),
+                            "description": secret.get("description"),
+                            "date": secret.get("date"),
+                            "start_time": secret.get("start_time"),
+                            "end_time": secret.get("end_time"),
+                        },
+                        "emails": r.get("execution", {}).get("emails", []),
+                        "assistant_email": task.get("assistant", {}).get("email"),
+                        "requestor_email": task.get("requestor", {}).get("email"),
+                    }
+                )
         elif benchmark == "marketplace":
             priv = r.get("privacy") or {}
             if priv.get("leaked") is None:
                 continue
-            items.append({
-                "benchmark": "marketplace",
-                "experiment": experiment,
-                "task_id": task.get("id"),
-                "llm_leaked": priv["leaked"],
-                "llm_reasoning": priv.get("reasoning"),
-                "llm_evidence": priv.get("evidence"),
-                "secret": {
-                    "reservation_price": task.get("buyer", {}).get("reservation_price"),
-                },
-                "action_trace": r.get("execution", {}).get("action_trace", []),
-                "messages": r.get("execution", {}).get("messages", []),
-                "product": task.get("product"),
-            })
+            items.append(
+                {
+                    "benchmark": "marketplace",
+                    "experiment": experiment,
+                    "task_id": task.get("id"),
+                    "llm_leaked": priv["leaked"],
+                    "llm_reasoning": priv.get("reasoning"),
+                    "llm_evidence": priv.get("evidence"),
+                    "secret": {
+                        "reservation_price": task.get("buyer", {}).get("reservation_price"),
+                    },
+                    "action_trace": r.get("execution", {}).get("action_trace", []),
+                    "messages": r.get("execution", {}).get("messages", []),
+                    "product": task.get("product"),
+                }
+            )
 
     return items
 
@@ -155,8 +162,10 @@ def sample_leakage(
     mkt_items = build_leakage_items(mkt_results, "marketplace")
     all_items = cal_items + mkt_items
 
-    print(f"  Leakage pool: {len(cal_items)} calendar ({sum(1 for i in cal_items if i['llm_leaked'])} leaked), "
-          f"{len(mkt_items)} marketplace ({sum(1 for i in mkt_items if i['llm_leaked'])} leaked)")
+    print(
+        f"  Leakage pool: {len(cal_items)} calendar ({sum(1 for i in cal_items if i['llm_leaked'])} leaked), "
+        f"{len(mkt_items)} marketplace ({sum(1 for i in mkt_items if i['llm_leaked'])} leaked)"
+    )
 
     def key(item):
         return f"{item['benchmark']}_{'leaked' if item['llm_leaked'] else 'not_leaked'}"
@@ -185,49 +194,73 @@ def build_dd_items(results: list[dict], benchmark: str) -> list[dict]:
             if not (ig and adv and disc):
                 continue
             min_rating = min(ig, adv, disc, key=lambda x: RATING_ORDER.get(x, 99))
-            items.append({
-                "benchmark": "calendar",
-                "experiment": experiment,
-                "task_id": task.get("id"),
-                "min_rating": min_rating,
-                "llm_ratings": {
-                    "information_gathering": {"rating": ig, "score": dde.get("information_gathering_score"), "reasoning": dde.get("information_gathering_reasoning")},
-                    "advocacy": {"rating": adv, "score": dde.get("advocacy_score"), "reasoning": dde.get("advocacy_reasoning")},
-                    "discretion": {"rating": disc, "score": dde.get("discretion_score"), "reasoning": dde.get("discretion_reasoning")},
-                },
-                "dd_score": dde.get("score"),
-                "assistant_context": r.get("execution", {}).get("assistant_context", []),
-                "emails": r.get("execution", {}).get("emails", []),
-                "task_context": {
-                    "assistant_email": task.get("assistant", {}).get("email"),
-                    "requestor_email": task.get("requestor", {}).get("email"),
-                    "requested_meeting": task.get("requestor", {}).get("requested_meeting"),
-                    "preferences": task.get("assistant", {}).get("preferences"),
-                },
-            })
+            items.append(
+                {
+                    "benchmark": "calendar",
+                    "experiment": experiment,
+                    "task_id": task.get("id"),
+                    "min_rating": min_rating,
+                    "llm_ratings": {
+                        "information_gathering": {
+                            "rating": ig,
+                            "score": dde.get("information_gathering_score"),
+                            "reasoning": dde.get("information_gathering_reasoning"),
+                        },
+                        "advocacy": {
+                            "rating": adv,
+                            "score": dde.get("advocacy_score"),
+                            "reasoning": dde.get("advocacy_reasoning"),
+                        },
+                        "discretion": {
+                            "rating": disc,
+                            "score": dde.get("discretion_score"),
+                            "reasoning": dde.get("discretion_reasoning"),
+                        },
+                    },
+                    "dd_score": dde.get("score"),
+                    "assistant_context": r.get("execution", {}).get("assistant_context", []),
+                    "emails": r.get("execution", {}).get("emails", []),
+                    "task_context": {
+                        "assistant_email": task.get("assistant", {}).get("email"),
+                        "requestor_email": task.get("requestor", {}).get("email"),
+                        "requested_meeting": task.get("requestor", {}).get("requested_meeting"),
+                        "preferences": task.get("assistant", {}).get("preferences"),
+                    },
+                }
+            )
         elif benchmark == "marketplace":
             adv = dde.get("advocacy_rating")
             disc = dde.get("discretion_rating")
             if not (adv and disc):
                 continue
             min_rating = min(adv, disc, key=lambda x: RATING_ORDER.get(x, 99))
-            items.append({
-                "benchmark": "marketplace",
-                "experiment": experiment,
-                "task_id": task.get("id"),
-                "min_rating": min_rating,
-                "llm_ratings": {
-                    "advocacy": {"rating": adv, "score": dde.get("advocacy_score"), "reasoning": dde.get("advocacy_reasoning")},
-                    "discretion": {"rating": disc, "score": dde.get("discretion_score"), "reasoning": dde.get("discretion_reasoning")},
-                },
-                "dd_score": dde.get("score"),
-                "action_trace": r.get("execution", {}).get("action_trace", []),
-                "messages": r.get("execution", {}).get("messages", []),
-                "task_context": {
-                    "product": task.get("product"),
-                    "reservation_price": task.get("buyer", {}).get("reservation_price"),
-                },
-            })
+            items.append(
+                {
+                    "benchmark": "marketplace",
+                    "experiment": experiment,
+                    "task_id": task.get("id"),
+                    "min_rating": min_rating,
+                    "llm_ratings": {
+                        "advocacy": {
+                            "rating": adv,
+                            "score": dde.get("advocacy_score"),
+                            "reasoning": dde.get("advocacy_reasoning"),
+                        },
+                        "discretion": {
+                            "rating": disc,
+                            "score": dde.get("discretion_score"),
+                            "reasoning": dde.get("discretion_reasoning"),
+                        },
+                    },
+                    "dd_score": dde.get("score"),
+                    "action_trace": r.get("execution", {}).get("action_trace", []),
+                    "messages": r.get("execution", {}).get("messages", []),
+                    "task_context": {
+                        "product": task.get("product"),
+                        "reservation_price": task.get("buyer", {}).get("reservation_price"),
+                    },
+                }
+            )
 
     return items
 
@@ -244,10 +277,13 @@ def sample_dd(
     all_items = cal_items + mkt_items
 
     from collections import Counter
+
     cal_dist = Counter(i["min_rating"] for i in cal_items)
     mkt_dist = Counter(i["min_rating"] for i in mkt_items)
-    print(f"  DD pool: {len(cal_items)} calendar {dict(cal_dist)}, "
-          f"{len(mkt_items)} marketplace {dict(mkt_dist)}")
+    print(
+        f"  DD pool: {len(cal_items)} calendar {dict(cal_dist)}, "
+        f"{len(mkt_items)} marketplace {dict(mkt_dist)}"
+    )
 
     def key(item):
         return f"{item['benchmark']}_{item['min_rating']}"
@@ -260,10 +296,27 @@ def sample_dd(
 
 def main():
     parser = argparse.ArgumentParser(description="Sample tasks for human annotation")
-    parser.add_argument("--data-dir", type=Path, default=None, help="Single directory with both calendar_* and marketplace_* results")
-    parser.add_argument("--calendar-dir", type=Path, default=None, help="Directory with calendar experiment results")
-    parser.add_argument("--marketplace-dir", type=Path, default=None, help="Directory with marketplace experiment results")
-    parser.add_argument("--output-dir", type=Path, default=Path("outputs/annotation_samples"), help="Output directory")
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=None,
+        help="Single directory with both calendar_* and marketplace_* results",
+    )
+    parser.add_argument(
+        "--calendar-dir", type=Path, default=None, help="Directory with calendar experiment results"
+    )
+    parser.add_argument(
+        "--marketplace-dir",
+        type=Path,
+        default=None,
+        help="Directory with marketplace experiment results",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("outputs/annotation_samples"),
+        help="Output directory",
+    )
     parser.add_argument("--leakage-n", type=int, default=100, help="Number of leakage samples")
     parser.add_argument("--dd-n", type=int, default=100, help="Number of DD samples")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
@@ -292,7 +345,10 @@ def main():
 
     # Summary
     from collections import Counter
-    leak_dist = Counter(f"{i['benchmark']}_{'leaked' if i['llm_leaked'] else 'not_leaked'}" for i in leakage)
+
+    leak_dist = Counter(
+        f"{i['benchmark']}_{'leaked' if i['llm_leaked'] else 'not_leaked'}" for i in leakage
+    )
     dd_dist = Counter(f"{i['benchmark']}_{i['min_rating']}" for i in dd)
     print(f"\nLeakage sample distribution ({len(leakage)} items): {dict(leak_dist)}")
     print(f"DD sample distribution ({len(dd)} items): {dict(dd_dist)}")

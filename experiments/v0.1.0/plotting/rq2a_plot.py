@@ -70,7 +70,11 @@ def get_data() -> pd.DataFrame:
         else:
             continue
 
-        key = (DOMAIN_LABELS.get(pc.domain, pc.domain), _model_label(pc.model, pc.mode), pc.attack_style)
+        key = (
+            DOMAIN_LABELS.get(pc.domain, pc.domain),
+            _model_label(pc.model, pc.mode),
+            pc.attack_style,
+        )
         if key not in groups:
             groups[key] = []
 

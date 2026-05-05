@@ -58,7 +58,9 @@ def _inline_node(
     # Resolve $ref: inline the definition and merge sibling keys.
     if "$ref" in node:
         ref_name = node["$ref"].rsplit("/", 1)[-1]
-        resolved = defs.get(ref_name, {})
+        if ref_name not in defs:
+            raise KeyError(f"$ref {node['$ref']!r} not found in $defs")
+        resolved = defs[ref_name]
         # Sibling keys (e.g. description) override the resolved def.
         merged = {**resolved, **{k: v for k, v in node.items() if k != "$ref"}}
         return _inline_node(merged, defs)

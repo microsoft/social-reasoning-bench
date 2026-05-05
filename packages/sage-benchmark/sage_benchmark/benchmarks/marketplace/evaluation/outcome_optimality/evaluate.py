@@ -56,7 +56,6 @@ def evaluate_outcome_optimality(
 
     # --- Benign tasks ---
 
-
     if not deal_reached or deal_price is None or zopa <= 0:
         # Note datagen doesn't allow zopa <= 0
         return MarketplaceOutcomeOptimalityEvaluation(

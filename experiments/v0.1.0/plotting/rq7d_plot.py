@@ -12,7 +12,6 @@ from benign_oo import (
     load_calendar_results,
     load_marketplace_results,
 )
-from reasonable_agent import reasonable_score
 from common import (
     DOMAIN_LABELS,
     DOMAIN_ORDER,
@@ -25,6 +24,7 @@ from common import (
     make_title,
     render_rq,
 )
+from reasonable_agent import reasonable_score
 
 ALLOWED_MODELS = {
     ("azure_pool-gpt-4-1", "cot"),
@@ -97,22 +97,23 @@ def get_data() -> pd.DataFrame:
             dd = reasonable_score(r)
             if oo is None or dd is None:
                 continue
-            rows.append({
-                "domain": DOMAIN_LABELS.get(pc.domain, pc.domain),
-                "model_label": mlabel,
-                "prompt_label": prompt_label,
-                "archetype": _archetype(oo >= 0.5, dd >= 0.5),
-            })
+            rows.append(
+                {
+                    "domain": DOMAIN_LABELS.get(pc.domain, pc.domain),
+                    "model_label": mlabel,
+                    "prompt_label": prompt_label,
+                    "archetype": _archetype(oo >= 0.5, dd >= 0.5),
+                }
+            )
 
     df = pd.DataFrame(rows)
     counts = (
         df.groupby(["domain", "model_label", "prompt_label", "archetype"], observed=True)
         .size()
-        .reset_index(name="count")
+        .reset_index(name="count")  # ty: ignore[no-matching-overload]
     )
     idx = pd.MultiIndex.from_product(
-        [counts["domain"].unique(), counts["model_label"].unique(),
-         PROMPT_ORDER, ARCHETYPE_ORDER],
+        [counts["domain"].unique(), counts["model_label"].unique(), PROMPT_ORDER, ARCHETYPE_ORDER],
         names=["domain", "model_label", "prompt_label", "archetype"],
     )
     counts = (
@@ -129,31 +130,33 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
     sort_map = {"Negligent": 0, "Ineffective": 1, "Lucky": 2, "Robust": 3}
     df = df.copy()
     df["sort_key"] = df["archetype"].map(sort_map)
-    df["pct_label"] = df["pct"].apply(lambda v: f"{v*100:.0f}%" if v > 0.04 else "")
+    df["pct_label"] = df["pct"].apply(lambda v: f"{v * 100:.0f}%" if v > 0.04 else "")
 
     base = alt.Chart(df)
 
-    bars = (
-        base.mark_bar()
-        .encode(
-            x=alt.X("prompt_label:N", title=None, sort=PROMPT_ORDER, axis=alt.Axis(labelAngle=0)),
-            y=alt.Y(
-                "pct:Q",
-                title=None,
-                stack="zero",
-                scale=alt.Scale(domain=[0, 1]),
-                axis=alt.Axis(format=".0%"),
-            ),
-            color=alt.Color(
-                "archetype:N",
-                title=None,
-                scale=alt.Scale(domain=ARCHETYPE_ORDER, range=ARCHETYPE_COLORS),
-                legend=alt.Legend(orient="top"),
-            ),
-            order=alt.Order("sort_key:Q"),
-            tooltip=["domain:N", "model_label:N", "prompt_label:N",
-                      "archetype:N", alt.Tooltip("pct:Q", format=".1%")],
-        )
+    bars = base.mark_bar().encode(
+        x=alt.X("prompt_label:N", title=None, sort=PROMPT_ORDER, axis=alt.Axis(labelAngle=0)),
+        y=alt.Y(
+            "pct:Q",
+            title=None,
+            stack="zero",
+            scale=alt.Scale(domain=[0, 1]),
+            axis=alt.Axis(format=".0%"),
+        ),
+        color=alt.Color(
+            "archetype:N",
+            title=None,
+            scale=alt.Scale(domain=ARCHETYPE_ORDER, range=ARCHETYPE_COLORS),
+            legend=alt.Legend(orient="top"),
+        ),
+        order=alt.Order("sort_key:Q"),
+        tooltip=[
+            "domain:N",
+            "model_label:N",
+            "prompt_label:N",
+            "archetype:N",
+            alt.Tooltip("pct:Q", format=".1%"),
+        ],
     )
 
     # Compute stack midpoints for label positioning
@@ -167,13 +170,10 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
             cumsum += row["pct"]
     df["y_mid"] = y_mid
 
-    labels = (
-        base.mark_text(fontSize=9, fontWeight="bold", color="white")
-        .encode(
-            x=alt.X("prompt_label:N", sort=PROMPT_ORDER),
-            y=alt.Y("y_mid:Q", title=None, scale=alt.Scale(domain=[0, 1])),
-            text="pct_label:N",
-        )
+    labels = base.mark_text(fontSize=9, fontWeight="bold", color="white").encode(
+        x=alt.X("prompt_label:N", sort=PROMPT_ORDER),
+        y=alt.Y("y_mid:Q", title=None, scale=alt.Scale(domain=[0, 1])),
+        text="pct_label:N",
     )
 
     chart = (

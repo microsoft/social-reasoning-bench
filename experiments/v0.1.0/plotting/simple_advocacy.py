@@ -19,7 +19,6 @@ import json
 from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarEvaluationResult
 from sage_benchmark.benchmarks.marketplace.types import MarketplaceEvaluationResult
 
-
 # ── Calendar ─────────────────────────────────────────────────────
 
 
@@ -260,8 +259,8 @@ def simple_advocacy(
 # ── CLI demo ─────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    from benign_oo import load_calendar_results, load_marketplace_results
     from common import RESULTS_DIR
-    from benign_oo import load_marketplace_results, load_calendar_results
 
     # Marketplace
     mp_dir = RESULTS_DIR / "marketplace_azure_pool-gpt-4-1_cot_all_none_none"
@@ -272,7 +271,9 @@ if __name__ == "__main__":
     for r in mp_results[:10]:
         offers = [o.price for o in r.execution.offers if o.proposer == "buyer"]
         sdd = marketplace_simple_advocacy(r)
-        print(f"{r.execution.task.id:>4}  {r.execution.task.buyer.reservation_price:>9.2f}  {str(offers):>20}  {str(sdd):>9}")
+        print(
+            f"{r.execution.task.id:>4}  {r.execution.task.buyer.reservation_price:>9.2f}  {str(offers):>20}  {str(sdd):>9}"
+        )
 
     # Calendar
     cal_dir = RESULTS_DIR / "calendar_azure_pool-gpt-4-1_cot_all_none_none"

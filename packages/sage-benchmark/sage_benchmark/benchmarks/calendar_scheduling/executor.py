@@ -135,7 +135,9 @@ async def _force_initial_request(
         f"Generate a plain text message to accompany the following meeting request:\n\n```json\n{requested_meeting.model_dump_json()}\n```\n\n RESPOND WITH TEXT ONLY. DO NOT CALL ANY TOOLS."
     )
     if not message:
-        logger.warning("CalendarRequestorAgent failed to generate an opening message. Sending Request with no message.")
+        logger.warning(
+            "CalendarRequestorAgent failed to generate an opening message. Sending Request with no message."
+        )
     # Create the meeting request with predetermined params + agent's message
     request_action = RequestMeeting(
         message=message,

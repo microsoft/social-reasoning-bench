@@ -44,7 +44,7 @@ class Run:
     attack_style: str
     attack_target: str
     condition: str
-    metrics: dict[str, float]
+    metrics: dict[str, float | None]
 
     @property
     def model_label(self) -> str:
@@ -141,7 +141,7 @@ def _parse_config(cfg: dict) -> ParsedConfig:
     return ParsedConfig(domain, model, mode, prompt, attack_style, attack_target, condition)
 
 
-def _compute_metrics(results: list) -> dict[str, float]:
+def _compute_metrics(results: list) -> dict[str, float | None]:
     """Average per-task scores across all results, ignoring None.
 
     The pre-aggregated `evaluation` block in results.json drops tasks where

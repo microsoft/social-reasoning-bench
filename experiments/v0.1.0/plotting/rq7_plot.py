@@ -13,7 +13,6 @@ from benign_oo import (
     load_calendar_results,
     load_marketplace_results,
 )
-from reasonable_agent import reasonable_score
 from common import (
     DOMAIN_LABELS,
     DOMAIN_ORDER,
@@ -25,6 +24,7 @@ from common import (
     make_title,
     render_rq,
 )
+from reasonable_agent import reasonable_score
 
 ALLOWED_MODELS = {
     ("azure_pool-gpt-4-1", "cot"),
@@ -37,9 +37,9 @@ DD_ORDER = ["Low (<0.5)", "High (≥0.5)"]
 
 CELL_COLORS = {
     ("High (≥0.5)", "High (≥0.5)"): "#2E8B57",  # Robust — green
-    ("High (≥0.5)", "Low (<0.5)"):  "#F0C75E",  # Lucky — yellow
-    ("Low (<0.5)",  "High (≥0.5)"): "#F0C75E",  # Ineffective — yellow
-    ("Low (<0.5)",  "Low (<0.5)"):  "#C0392B",  # Negligent — red
+    ("High (≥0.5)", "Low (<0.5)"): "#F0C75E",  # Lucky — yellow
+    ("Low (<0.5)", "High (≥0.5)"): "#F0C75E",  # Ineffective — yellow
+    ("Low (<0.5)", "Low (<0.5)"): "#C0392B",  # Negligent — red
 }
 
 
@@ -93,7 +93,7 @@ def get_data() -> pd.DataFrame:
     counts = (
         df.groupby(["domain", "model_label", "oo_bin", "dd_bin"], observed=True)
         .size()
-        .reset_index(name="count")
+        .reset_index(name="count")  # ty: ignore[no-matching-overload]
     )
     # Ensure all 4 cells exist for every domain×model combination
     idx = pd.MultiIndex.from_product(

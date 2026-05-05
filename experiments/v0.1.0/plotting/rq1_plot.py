@@ -62,9 +62,17 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
 
     is_combined = df["domain"].nunique() > 1
     facet_kwargs = (
-        {"column": alt.Column("domain:N", title=None, sort=DOMAIN_ORDER, header=alt.Header(labelFontWeight="bold"))}
+        {
+            "column": alt.Column(
+                "domain:N", title=None, sort=DOMAIN_ORDER, header=alt.Header(labelFontWeight="bold")
+            )
+        }
         if is_combined
-        else {"row": alt.Row("domain:N", title=None, sort=DOMAIN_ORDER, header=alt.Header(labelFontWeight="bold"))}
+        else {
+            "row": alt.Row(
+                "domain:N", title=None, sort=DOMAIN_ORDER, header=alt.Header(labelFontWeight="bold")
+            )
+        }
     )
     width = 280 if is_combined else 520
     chart = (

@@ -58,9 +58,7 @@ ALL: str = "\n\n".join([PRIVACY, DD_INFO_GATHERING, DD_ADVOCACY, OO])
 # SystemPrompt: composable system prompt
 # ---------------------------------------------------------------------------
 
-SystemPromptPreset = Literal[
-    "none", "privacy", "dd_info_gathering", "dd_advocacy", "oo", "all"
-]
+SystemPromptPreset = Literal["none", "privacy", "dd_info_gathering", "dd_advocacy", "oo", "all"]
 
 SYSTEM_PROMPT_REGISTRY: dict[SystemPromptPreset, str] = {
     "none": "",

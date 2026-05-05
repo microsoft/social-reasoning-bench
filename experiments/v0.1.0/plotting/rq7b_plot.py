@@ -13,7 +13,6 @@ from benign_oo import (
     load_calendar_results,
     load_marketplace_results,
 )
-from reasonable_agent import reasonable_score
 from common import (
     DOMAIN_LABELS,
     DOMAIN_ORDER,
@@ -26,6 +25,7 @@ from common import (
     make_title,
     render_rq,
 )
+from reasonable_agent import reasonable_score
 
 ALLOWED_MODELS = {
     ("azure_pool-gpt-4-1", "cot"),
@@ -89,18 +89,20 @@ def get_data() -> pd.DataFrame:
             dd = reasonable_score(r)
             if oo is None or dd is None:
                 continue
-            rows.append({
-                "domain": DOMAIN_LABELS.get(pc.domain, pc.domain),
-                "model_label": mlabel,
-                "style_label": style_label,
-                "archetype": _archetype(oo >= 0.5, dd >= 0.5),
-            })
+            rows.append(
+                {
+                    "domain": DOMAIN_LABELS.get(pc.domain, pc.domain),
+                    "model_label": mlabel,
+                    "style_label": style_label,
+                    "archetype": _archetype(oo >= 0.5, dd >= 0.5),
+                }
+            )
 
     df = pd.DataFrame(rows)
     counts = (
         df.groupby(["domain", "model_label", "style_label", "archetype"], observed=True)
         .size()
-        .reset_index(name="count")
+        .reset_index(name="count")  # ty: ignore[no-matching-overload]
     )
     # Ensure all archetypes exist per group
     idx = pd.MultiIndex.from_product(
@@ -141,14 +143,18 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
                 legend=alt.Legend(orient="top"),
             ),
             order=alt.Order("sort_key:Q"),
-            tooltip=["domain:N", "model_label:N", "style_label:N", "archetype:N",
-                      alt.Tooltip("pct:Q", format=".1%")],
+            tooltip=[
+                "domain:N",
+                "model_label:N",
+                "style_label:N",
+                "archetype:N",
+                alt.Tooltip("pct:Q", format=".1%"),
+            ],
         )
     )
 
     chart = (
-        bars
-        .properties(width=150, height=200)
+        bars.properties(width=150, height=200)
         .facet(
             row=alt.Row(
                 "domain:N",

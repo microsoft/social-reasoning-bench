@@ -65,19 +65,21 @@ def assemble_tasks(
                 f"Context: {context.buyer_reservation_story}"
             )
 
-            tasks.append(MarketplaceTask(
-                id=task_id,
-                type="marketplace",
-                product=Product(name=product.name, listed_price=listed),
-                seller=RoleConfig(
-                    instruction_message=seller_instruction,
-                    reservation_price=seller_res,
-                ),
-                buyer=RoleConfig(
-                    instruction_message=buyer_instruction,
-                    reservation_price=buyer_res,
-                ),
-            ))
+            tasks.append(
+                MarketplaceTask(
+                    id=task_id,
+                    type="marketplace",
+                    product=Product(name=product.name, listed_price=listed),
+                    seller=RoleConfig(
+                        instruction_message=seller_instruction,
+                        reservation_price=seller_res,
+                    ),
+                    buyer=RoleConfig(
+                        instruction_message=buyer_instruction,
+                        reservation_price=buyer_res,
+                    ),
+                )
+            )
             task_id += 1
 
     return tasks

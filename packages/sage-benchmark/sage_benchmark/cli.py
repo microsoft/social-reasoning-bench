@@ -21,8 +21,6 @@ from .benchmarks.base.benchmark import Benchmark
 from .benchmarks.base.types import BaseRunConfig
 from .benchmarks.calendar_scheduling import CalendarBenchmark
 from .benchmarks.calendar_scheduling.config import CalendarRunConfig
-from .benchmarks.form_filling import FormFillingBenchmark
-from .benchmarks.form_filling.config import FormFillingRunConfig
 from .benchmarks.marketplace import MarketplaceBenchmark
 from .benchmarks.marketplace.config import MarketplaceRunConfig
 
@@ -31,12 +29,10 @@ from .benchmarks.marketplace.config import MarketplaceRunConfig
 _CONFIG_TO_BENCHMARK: dict[type[BaseRunConfig], type[Benchmark]] = {
     CalendarRunConfig: CalendarBenchmark,
     MarketplaceRunConfig: MarketplaceBenchmark,
-    FormFillingRunConfig: FormFillingBenchmark,
 }
 
 _BENCHMARK_BY_NAME: dict[str, type[Benchmark]] = {
-    cls.benchmark_name(): cls
-    for cls in [CalendarBenchmark, MarketplaceBenchmark, FormFillingBenchmark]
+    cls.benchmark_name(): cls for cls in [CalendarBenchmark, MarketplaceBenchmark]
 }
 
 

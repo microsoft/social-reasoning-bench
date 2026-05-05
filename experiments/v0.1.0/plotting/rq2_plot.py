@@ -53,7 +53,7 @@ def _model_label(model: str, mode: str) -> str:
 
 def get_data() -> pd.DataFrame:
     # Collect per-task scores keyed by (domain, model_label, attack_style)
-    groups: dict[tuple[str, str, str], dict[str, list[float]]] = {}
+    groups: dict[tuple[str, str, str], list[float]] = {}
 
     for variant_dir in sorted(RESULTS_DIR.iterdir()):
         results_file = variant_dir / "results.json"
@@ -76,7 +76,11 @@ def get_data() -> pd.DataFrame:
         else:
             continue
 
-        key = (DOMAIN_LABELS.get(pc.domain, pc.domain), _model_label(pc.model, pc.mode), pc.attack_style)
+        key = (
+            DOMAIN_LABELS.get(pc.domain, pc.domain),
+            _model_label(pc.model, pc.mode),
+            pc.attack_style,
+        )
         if key not in groups:
             groups[key] = []
 
