@@ -249,7 +249,7 @@ def _translate_request(
 
     for msg in messages:
         if isinstance(msg, SageChatCompletionMessage):
-            parts, _text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids)
+            parts = _translate_assistant_parts(msg, unsigned_tc_ids)
             if parts:
                 contents.append(types.Content(role="model", parts=parts))
             # Buffer unsigned call descriptions — don't emit as model text.
@@ -329,19 +329,19 @@ def _extract_text(content: Any) -> str:
 def _translate_assistant_parts(
     msg: SageChatCompletionMessage,
     unsigned_tc_ids: set[str] | None = None,
-) -> tuple[list[types.Part], str | None]:
+) -> list[types.Part]:
     """Translate an assistant SageChatCompletionMessage to Google Part list.
 
     Args:
         msg: An assistant-role message (possibly a :class:`GoogleMessage`
             with thought parts).
         unsigned_tc_ids: Tool call IDs that lack a thought_signature.  These
-            are collapsed to a text description instead of a ``function_call``
-            Part so Gemini 3+ models don't reject the request.
+            are dropped here; the caller merges their description with the
+            tool result into a user-role message so Gemini 3+ doesn't see
+            unsigned function calls.
 
     Returns:
-        Tuple of (parts list, text_fallback).  ``text_fallback`` is a text
-        description of unsigned function calls (or ``None``).
+        List of Google :class:`types.Part` objects for the model turn.
     """
     parts: list[types.Part] = []
     unsigned_tc_ids = unsigned_tc_ids or set()
@@ -355,30 +355,28 @@ def _translate_assistant_parts(
     if msg.content:
         parts.append(types.Part(text=msg.content))
 
-    text_fallback_lines: list[str] = []
-
     if msg.tool_calls:
         signatures = msg.tool_call_signatures
 
         for i, tc in enumerate(msg.tool_calls):
             if isinstance(tc, ChatCompletionMessageToolCall):
+                if tc.id in unsigned_tc_ids:
+                    # Skip: Gemini 3+ rejects unsigned function_call Parts.
+                    # _translate_request buffers the call into `pending_unsigned`
+                    # and re-emits it as a user-role message ("Action taken: ...
+                    # Result: ...") when the matching tool result arrives.
+                    continue
                 name = tc.function.name
                 args = json.loads(tc.function.arguments)
                 sig = signatures[i] if signatures and i < len(signatures) else None
-
-                if tc.id in unsigned_tc_ids:
-                    # No thought_signature — emit as text instead.
-                    text_fallback_lines.append(f"[Called {name}({json.dumps(args)})]")
-                else:
-                    parts.append(
-                        types.Part(
-                            function_call=types.FunctionCall(name=name, args=args),
-                            thought_signature=sig,
-                        )
+                parts.append(
+                    types.Part(
+                        function_call=types.FunctionCall(name=name, args=args),
+                        thought_signature=sig,
                     )
+                )
 
-    text_fallback = "\n".join(text_fallback_lines) if text_fallback_lines else None
-    return parts, text_fallback
+    return parts
 
 
 def _translate_tool_result(

@@ -561,8 +561,7 @@ class TestTranslateAssistantPartsSignatures:
             ],
             tool_call_signatures=[sig],
         )
-        parts, text_fallback = _translate_assistant_parts(msg)
-        assert text_fallback is None
+        parts = _translate_assistant_parts(msg)
         fc_parts = [p for p in parts if p.function_call]
         assert len(fc_parts) == 1
         assert fc_parts[0].thought_signature == sig
@@ -574,13 +573,18 @@ class TestTranslateAssistantPartsSignatures:
             content="answer",
             thought_parts=[{"text": "thinking...", "thought": True, "thought_signature": sig}],
         )
-        parts, _ = _translate_assistant_parts(msg)
+        parts = _translate_assistant_parts(msg)
         thought_parts = [p for p in parts if p.thought]
         assert len(thought_parts) == 1
         assert thought_parts[0].thought_signature == sig
 
-    def test_unsigned_tool_calls_become_text_fallback(self):
-        """Messages without signatures produce text_fallback, not function_call Parts."""
+    def test_unsigned_tool_calls_dropped_from_parts(self):
+        """Unsigned tool calls are excluded from the model-turn Parts.
+
+        The caller is responsible for merging the call description with the
+        tool result into a subsequent user-role message; this function
+        simply omits the unsigned function_call Part.
+        """
         msg = GoogleMessage(
             role="assistant",
             content=None,
@@ -592,14 +596,12 @@ class TestTranslateAssistantPartsSignatures:
                 )
             ],
         )
-        parts, text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids={"call_1"})
+        parts = _translate_assistant_parts(msg, unsigned_tc_ids={"call_1"})
         fc_parts = [p for p in parts if p.function_call]
         assert len(fc_parts) == 0
-        assert text_fallback is not None
-        assert "get_weather" in text_fallback
 
     def test_non_google_message_unsigned(self):
-        """Plain SageChatCompletionMessage with no signatures becomes text fallback."""
+        """Plain SageChatCompletionMessage with no signatures: function_call Part dropped."""
         msg = SageChatCompletionMessage(
             role="assistant",
             content=None,
@@ -611,10 +613,9 @@ class TestTranslateAssistantPartsSignatures:
                 )
             ],
         )
-        parts, text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids={"call_1"})
+        parts = _translate_assistant_parts(msg, unsigned_tc_ids={"call_1"})
         fc_parts = [p for p in parts if p.function_call]
         assert len(fc_parts) == 0
-        assert text_fallback is not None
 
     def test_signatures_survive_downcast_to_base_type(self):
         """Signatures survive when GoogleMessage is round-tripped through
@@ -638,8 +639,7 @@ class TestTranslateAssistantPartsSignatures:
         restored = SageChatCompletionMessage.model_validate(data)
         assert not isinstance(restored, GoogleMessage)
 
-        parts, text_fallback = _translate_assistant_parts(restored)
-        assert text_fallback is None  # signatures present → no fallback
+        parts = _translate_assistant_parts(restored)
         fc_parts = [p for p in parts if p.function_call]
         assert len(fc_parts) == 1
         assert fc_parts[0].thought_signature is not None
