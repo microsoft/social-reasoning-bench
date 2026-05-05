@@ -7,7 +7,6 @@ from sage_llm.providers.anthropic import AnthropicProvider
 from sage_llm.providers.azure_openai import AzureProvider
 from sage_llm.providers.google_genai import GoogleProvider
 from sage_llm.providers.openai import OpenAIProvider
-from sage_llm.providers.trapi import TrapiProvider
 
 
 class TestResolveProvider:
@@ -54,20 +53,3 @@ class TestResolveProvider:
     def test_api_key_forwarded_to_openai(self, _mock_async, _mock_sync):
         provider, _ = resolve_provider("openai/gpt-4o", api_key="sk-test")
         assert isinstance(provider, OpenAIProvider)
-
-    @patch("sage_llm.providers.trapi._get_token_provider")
-    @patch("sage_llm.providers.azure_openai.openai.AzureOpenAI")
-    @patch("sage_llm.providers.azure_openai.openai.AsyncAzureOpenAI")
-    def test_trapi_prefix(self, _mock_async, _mock_sync, _mock_tp):
-        provider, model = resolve_provider("trapi/gpt-4.1")
-        assert isinstance(provider, TrapiProvider)
-        assert isinstance(provider, AzureProvider)
-        assert model == "gpt-4.1_2025-04-14"
-
-    @patch("sage_llm.providers.trapi._get_token_provider")
-    @patch("sage_llm.providers.azure_openai.openai.AzureOpenAI")
-    @patch("sage_llm.providers.azure_openai.openai.AsyncAzureOpenAI")
-    def test_trapi_with_api_path(self, _mock_async, _mock_sync, _mock_tp):
-        provider, model = resolve_provider("trapi/msraif/shared/gpt-5.2")
-        assert isinstance(provider, TrapiProvider)
-        assert model == "gpt-5.2_2025-12-11"

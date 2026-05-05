@@ -279,10 +279,10 @@ def test_configure_sets_defaults():
 def test_configure_sets_overrides():
     configure(
         llm_size=10,
-        providers={"trapi": {"llm_size": 5, "task_size": 2}},
+        providers={"azure": {"llm_size": 5, "task_size": 2}},
     )
-    assert _config.llm_size_for("trapi") == 5
-    assert _config.task_size_for("trapi") == 2
+    assert _config.llm_size_for("azure") == 5
+    assert _config.task_size_for("azure") == 2
     # Default applies to other providers
     assert _config.llm_size_for("openai") == 10
     assert _config.task_size_for("openai") is None

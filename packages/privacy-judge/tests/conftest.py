@@ -21,4 +21,4 @@ def default_model() -> str:
     Returns:
         Model identifier string for functional tests.
     """
-    return "trapi/gpt-4.1"
+    return "azure_pool/gpt-4.1"

@@ -168,4 +168,4 @@ WhimsyGen uses `sage-llm` for model access. The following formats are supported.
 - `openai/gpt-4.1`
 - `gemini/gemini-2.5-pro`
 - `anthropic/claude-sonnet-4`
-- `trapi/msraif/shared/gpt-4.1`
+- `azure_pool/gpt-4.1`

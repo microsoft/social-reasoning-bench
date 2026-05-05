@@ -22,7 +22,7 @@ Programmatic::
         task_size=5,        # per-task per-provider limit
         providers={
             "anthropic": {"llm_size": 10},
-            "trapi": {"task_size": 3},
+            "azure": {"task_size": 3},
         },
     )
 
@@ -236,7 +236,7 @@ class _AIMDController:
 # Internal state
 # ---------------------------------------------------------------------------
 
-KNOWN_PROVIDERS = ("openai", "anthropic", "google", "azure", "trapi")
+KNOWN_PROVIDERS = ("openai", "anthropic", "google", "azure")
 
 
 @dataclass

@@ -19,7 +19,7 @@ class SageModelProvider(ABC):
     request/response) and usage fields. The client handles layers 1/4.
 
     Subclasses **must** set ``PROVIDER_KEY`` to a unique string identifier
-    (e.g. ``"openai"``, ``"trapi"``).  This key is used by the concurrency
+    (e.g. ``"openai"``, ``"azure"``).  This key is used by the concurrency
     module to maintain independent semaphore pools per provider.
     """
 
