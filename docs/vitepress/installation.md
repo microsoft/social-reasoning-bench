@@ -29,7 +29,6 @@ Set the API key for your model provider in a `.env` file at the repo root:
 | OpenAI | `OPENAI_API_KEY` | `export OPENAI_API_KEY="sk-..."` |
 | Anthropic | `ANTHROPIC_API_KEY` | `export ANTHROPIC_API_KEY="sk-ant-..."` |
 | Gemini | `GEMINI_API_KEY` | `export GEMINI_API_KEY="..."` |
-| PhyAGI | `PHYAGI_API_KEY` | `export PHYAGI_API_KEY="..."` |
 | TRAPI | _(Azure AD auth)_ | No env var needed — uses `az login` |
 
 ## Model Name Formats
@@ -41,7 +40,6 @@ All CLI tools accept model names in these formats:
 | OpenAI | `{model}` or `openai/{model}` | `gpt-4.1` |
 | Anthropic | `claude-*` or `anthropic/claude-*` | `claude-sonnet-4` |
 | Gemini | `gemini-*` or `gemini/gemini-*` | `gemini-2.5-flash` |
-| PhyAGI | `phyagi/{model}` | `phyagi/gpt-5.1` |
 | TRAPI | `trapi/[{apiPath}/]{model}` | `trapi/gpt-4.1` or `trapi/msraif/shared/gpt-4.1` |
 
 See the [sage-llm README](https://github.com/microsoft/sage/tree/main/packages/sage-llm) for full details on model routing.
