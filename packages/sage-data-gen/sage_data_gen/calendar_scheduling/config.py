@@ -13,7 +13,7 @@ class PipelineConfig(BaseModel):
         description="Max retries when a generated task fails validation "
         "(no secret event at suboptimal preference time).",
     )
-    model: str = Field(description="Model for generation (e.g. 'phyagi/gpt-5.2')")
+    model: str = Field(description="Model for generation (e.g. 'azure_pool/gpt-5.2')")
     labeling_models: list[str] = Field(
         min_length=1,
         description="Models for majority-vote privacy labeling. "

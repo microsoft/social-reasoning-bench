@@ -236,7 +236,7 @@ class _AIMDController:
 # Internal state
 # ---------------------------------------------------------------------------
 
-KNOWN_PROVIDERS = ("openai", "anthropic", "google", "azure", "trapi", "phyagi")
+KNOWN_PROVIDERS = ("openai", "anthropic", "google", "azure", "trapi")
 
 
 @dataclass
