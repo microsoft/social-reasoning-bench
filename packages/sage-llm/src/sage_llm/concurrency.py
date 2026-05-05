@@ -66,7 +66,7 @@ class _ResizableSemaphore:
     """Semaphore whose capacity can be changed at runtime."""
 
     def __init__(self, capacity: int) -> None:
-        self._capacity = max(1, capacity)
+        self._capacity = max(0, capacity)
         self._count = 0
         self._cond = asyncio.Condition()
 
@@ -177,7 +177,7 @@ class _AIMDController:
             else:
                 self._upper_ema = 0.3 * old + 0.7 * self._upper_ema
             self.upper = max(1, int(self._upper_ema))
-            self.concurrency = old // 2  # can reach 0 (disabled)
+            self.concurrency = max(1, old // 2)
             self.n = max(1, 4 * old)
             self._skip = max(1, 4 * old)
             self._prev_tps = 0.0
@@ -208,19 +208,13 @@ class _AIMDController:
         asyncio.ensure_future(self.semaphore.set_capacity(self.concurrency))
         # Window already cleared; detect decrease from skip being set
         if self._skip > 0:
-            if self.concurrency == 0:
-                logger.warning(
-                    "Endpoint %s disabled — repeated errors at minimum concurrency.",
-                    dk,
-                )
-            else:
-                logger.warning(
-                    "Errors detected for %s. Reducing concurrency %d → %d (upper bound: %d).",
-                    dk,
-                    self._skip // 4,
-                    self.concurrency,
-                    self.upper,
-                )
+            logger.warning(
+                "Errors detected for %s. Reducing concurrency %d → %d (upper bound: %d).",
+                dk,
+                self._skip // 4,
+                self.concurrency,
+                self.upper,
+            )
         else:
             logger.info(
                 "Increasing concurrency for %s → %d (upper bound: %d, tps: %.0f).",
@@ -286,7 +280,7 @@ def _get_controller(provider_key: str, model: str) -> _AIMDController | None:
     key: _CKey = (provider_key, model)
     if key not in _aimd_controllers:
         size = _config.llm_size_for(provider_key)
-        _aimd_controllers[key] = _AIMDController(size, key=key) if size else None
+        _aimd_controllers[key] = _AIMDController(size, key=key) if size is not None else None
     return _aimd_controllers[key]
 
 
@@ -305,7 +299,7 @@ class _TaskState:
     def get_semaphore(self, provider_key: str) -> asyncio.Semaphore | None:
         if provider_key not in self._semaphores:
             size = self._resolve_task_size(provider_key)
-            self._semaphores[provider_key] = asyncio.Semaphore(size) if size else None
+            self._semaphores[provider_key] = asyncio.Semaphore(size) if size is not None else None
         return self._semaphores[provider_key]
 
     def _resolve_task_size(self, provider_key: str) -> int | None:

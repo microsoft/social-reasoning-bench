@@ -28,6 +28,7 @@ from contextlib import asynccontextmanager
 from typing import Any, TypeVar
 
 import openai
+import yaml
 from openai.types.chat import (
     ChatCompletion,
     ChatCompletionToolChoiceOptionParam,
@@ -85,10 +86,6 @@ class PoolConfig(BaseModel):
         p = P(path)
         raw = p.read_text()
         if p.suffix in (".yaml", ".yml"):
-            try:
-                import yaml
-            except ImportError as exc:
-                raise ImportError("pip install pyyaml for YAML config support") from exc
             data = yaml.safe_load(raw)
         else:
             data = json.loads(raw)

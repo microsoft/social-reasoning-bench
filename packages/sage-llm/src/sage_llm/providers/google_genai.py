@@ -15,7 +15,22 @@ from openai.types.chat import (
 )
 from openai.types.chat.chat_completion_message_tool_call import Function
 from openai.types.completion_usage import CompletionUsage
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
+
+_CONTENTS_ADAPTER: TypeAdapter[list[types.Content]] = TypeAdapter(list[types.Content])
+
+_FINISH_REASON_MAP: dict[types.FinishReason, str] = {
+    types.FinishReason.STOP: "stop",
+    types.FinishReason.MAX_TOKENS: "length",
+    types.FinishReason.UNEXPECTED_TOOL_CALL: "tool_calls",
+    types.FinishReason.MALFORMED_FUNCTION_CALL: "tool_calls",
+    types.FinishReason.SAFETY: "content_filter",
+    types.FinishReason.BLOCKLIST: "content_filter",
+    types.FinishReason.PROHIBITED_CONTENT: "content_filter",
+    types.FinishReason.SPII: "content_filter",
+    types.FinishReason.IMAGE_SAFETY: "content_filter",
+    types.FinishReason.IMAGE_PROHIBITED_CONTENT: "content_filter",
+}
 
 from ..concurrency import record_usage, with_llm_retry
 from ..tracing import LLMTrace
@@ -94,6 +109,7 @@ class GoogleProvider(SageModelProvider):
 
         async def _call(_ctx: Any) -> types.GenerateContentResponse:
             resp: types.GenerateContentResponse | None = None
+            last_reason: Any = "unknown"
             for attempt in range(3):
                 resp = await self._client.aio.models.generate_content(
                     model=model,
@@ -103,13 +119,21 @@ class GoogleProvider(SageModelProvider):
                 try:
                     _ensure_non_empty_response(resp)
                     return resp
-                except RuntimeError:
+                except RuntimeError as exc:
+                    last_reason = (
+                        resp.candidates[0].finish_reason if resp.candidates else "no_candidates"
+                    )
                     logger.info(
-                        "Gemini returned empty response (attempt %d/3), retrying",
+                        "Gemini empty response attempt %d/3 (finish_reason=%s): %s",
                         attempt + 1,
+                        last_reason,
+                        exc,
                     )
             assert resp is not None
-            logger.error("Gemini returned empty responses after 3 attempts")
+            logger.error(
+                "Gemini empty responses after 3 attempts (last finish_reason=%s)",
+                last_reason,
+            )
             return resp
 
         response, call_duration = await with_llm_retry(
@@ -196,7 +220,7 @@ def _translate_request(
     tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
     reasoning_effort: str | int | None = None,
     response_format: type[BaseModel] | None = None,
-) -> tuple[types.ContentListUnion, types.GenerateContentConfig]:
+) -> tuple[list[types.Content], types.GenerateContentConfig]:
     system_instruction: str | None = None
     contents: list[types.Content] = []
 
@@ -270,7 +294,7 @@ def _translate_request(
         reasoning_effort=reasoning_effort,
         response_format=response_format,
     )
-    return cast(types.ContentListUnion, contents), config
+    return _CONTENTS_ADAPTER.validate_python(contents), config
 
 
 def _translate_user(content: str | None) -> types.Content:
@@ -434,8 +458,11 @@ def _build_config(
 
     # Thinking
     if reasoning_effort is not None:
-        budget = reasoning_effort if isinstance(reasoning_effort, int) else 8192
-        cfg["thinking_config"] = types.ThinkingConfig(thinking_budget=budget, include_thoughts=True)
+        if not isinstance(reasoning_effort, int):
+            raise TypeError(f"Gemini requires an integer thinking_budget; got {reasoning_effort!r}")
+        cfg["thinking_config"] = types.ThinkingConfig(
+            thinking_budget=reasoning_effort, include_thoughts=True
+        )
 
     # Structured output
     if response_format is not None:
@@ -499,16 +526,17 @@ def _json_schema_to_google_schema(
     Returns:
         A :class:`types.Schema` instance suitable for the Gemini API.
     """
-    if defs is None:
-        defs = schema.get("$defs", {})
+    resolved_defs: dict[str, Any] = defs if defs is not None else schema.get("$defs", {})
 
     # Resolve $ref
     if "$ref" in schema:
         ref_name = schema["$ref"].rsplit("/", 1)[-1]
-        resolved = defs.get(ref_name, {})
+        if ref_name not in resolved_defs:
+            raise KeyError(f"$ref {schema['$ref']!r} not found in $defs")
+        resolved = resolved_defs[ref_name]
         # Sibling keys (e.g. description) override the resolved def
         merged = {**resolved, **{k: v for k, v in schema.items() if k != "$ref"}}
-        return _json_schema_to_google_schema(merged, defs)
+        return _json_schema_to_google_schema(merged, resolved_defs)
 
     kwargs: dict[str, Any] = {}
 
@@ -559,19 +587,18 @@ def _json_schema_to_google_schema(
         kwargs["property_ordering"] = list(schema["propertyOrdering"])
 
     # Recursive fields
-    if "properties" in schema and isinstance(schema["properties"], dict):
+    if "properties" in schema:
         kwargs["properties"] = {
-            name: _json_schema_to_google_schema(prop, defs)
+            name: _json_schema_to_google_schema(prop, resolved_defs)
             for name, prop in schema["properties"].items()
-            if isinstance(prop, dict)
         }
 
-    if "items" in schema and isinstance(schema["items"], dict):
-        kwargs["items"] = _json_schema_to_google_schema(schema["items"], defs)
+    if "items" in schema:
+        kwargs["items"] = _json_schema_to_google_schema(schema["items"], resolved_defs)
 
-    if "anyOf" in schema and isinstance(schema["anyOf"], list):
+    if "anyOf" in schema:
         kwargs["any_of"] = [
-            _json_schema_to_google_schema(s, defs) for s in schema["anyOf"] if isinstance(s, dict)
+            _json_schema_to_google_schema(s, resolved_defs) for s in schema["anyOf"]
         ]
 
     return types.Schema(**kwargs)
@@ -585,19 +612,19 @@ def _translate_tool_choice(
     if openai_choice == "required":
         return types.ToolConfig(
             function_calling_config=types.FunctionCallingConfig(
-                mode=cast(types.FunctionCallingConfigMode, "ANY")
+                mode=types.FunctionCallingConfigMode.ANY
             )
         )
     if openai_choice == "none":
         return types.ToolConfig(
             function_calling_config=types.FunctionCallingConfig(
-                mode=cast(types.FunctionCallingConfigMode, "NONE")
+                mode=types.FunctionCallingConfigMode.NONE
             )
         )
     if openai_choice["type"] == "function":
         return types.ToolConfig(
             function_calling_config=types.FunctionCallingConfig(
-                mode=cast(types.FunctionCallingConfigMode, "ANY"),
+                mode=types.FunctionCallingConfigMode.ANY,
                 allowed_function_names=[openai_choice["function"]["name"]],
             )
         )
@@ -665,13 +692,11 @@ def _to_google_message(response: types.GenerateContentResponse, model: str) -> G
     # Finish reason
     finish_reason = "stop"
     if response.candidates:
-        reason = getattr(response.candidates[0], "finish_reason", None)
-        if reason:
-            reason_str = str(reason).lower()
-            if "tool" in reason_str or "function" in reason_str:
-                finish_reason = "tool_calls"
-            elif "length" in reason_str or "max_tokens" in reason_str:
-                finish_reason = "length"
+        reason = response.candidates[0].finish_reason
+        if reason is None or reason in _FINISH_REASON_MAP:
+            finish_reason = _FINISH_REASON_MAP.get(reason, "stop") if reason else "stop"
+        else:
+            logger.warning("unknown Gemini finish_reason %r; defaulting to 'stop'", reason)
 
     # Usage
     usage = None
@@ -703,7 +728,7 @@ def _to_google_message(response: types.GenerateContentResponse, model: str) -> G
 
 def _serialize_sdk_kwargs(
     model: str,
-    contents: types.ContentListUnion,
+    contents: list[types.Content],
     config: types.GenerateContentConfig,
 ) -> dict[str, Any]:
     """Serialize request args for tracing. Best-effort dict conversion.

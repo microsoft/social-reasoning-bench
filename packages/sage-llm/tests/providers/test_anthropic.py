@@ -1,7 +1,7 @@
 """Tests for the Anthropic provider."""
 
 import json
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anthropic.types
@@ -9,6 +9,7 @@ import pytest
 from openai.types.chat import (
     ChatCompletionFunctionToolParam,
     ChatCompletionToolChoiceOptionParam,
+    ChatCompletionToolMessageParam,
     ChatCompletionToolParam,
 )
 from openai.types.chat.chat_completion_message_tool_call import (
@@ -21,9 +22,11 @@ from sage_llm.providers.anthropic import (
     AnthropicMessage,
     AnthropicProvider,
     _build_kwargs,
+    _extract_text,
     _structured_output_tool,
     _to_anthropic_message,
     _translate_messages,
+    _translate_tool,
     _translate_tool_choice,
     _translate_tools,
 )
@@ -295,11 +298,17 @@ class TestAnthropicProviderComplete:
     async def test_complete_basic(self, mock_cls):
         mock_client = AsyncMock()
         mock_cls.return_value = mock_client
-        mock_client.messages.create.return_value = _make_anthropic_response(
+        response = _make_anthropic_response(
             content=[
                 anthropic.types.TextBlock(type="text", text="hi"),
             ]
         )
+        stream_ctx = MagicMock()
+        stream_ctx.__aenter__ = AsyncMock(
+            return_value=MagicMock(get_final_message=AsyncMock(return_value=response))
+        )
+        stream_ctx.__aexit__ = AsyncMock(return_value=None)
+        mock_client.messages.stream = MagicMock(return_value=stream_ctx)
 
         provider = AnthropicProvider(api_key="test-key")
         trace = LLMTrace()
@@ -323,7 +332,7 @@ class TestAnthropicProviderComplete:
 
         mock_client = AsyncMock()
         mock_cls.return_value = mock_client
-        mock_client.messages.create.return_value = _make_anthropic_response(
+        response = _make_anthropic_response(
             content=[
                 anthropic.types.ToolUseBlock(
                     type="tool_use",
@@ -334,6 +343,12 @@ class TestAnthropicProviderComplete:
             ],
             stop_reason="tool_use",
         )
+        stream_ctx = MagicMock()
+        stream_ctx.__aenter__ = AsyncMock(
+            return_value=MagicMock(get_final_message=AsyncMock(return_value=response))
+        )
+        stream_ctx.__aexit__ = AsyncMock(return_value=None)
+        mock_client.messages.stream = MagicMock(return_value=stream_ctx)
 
         provider = AnthropicProvider()
         result = await provider.aparse(
@@ -344,6 +359,70 @@ class TestAnthropicProviderComplete:
 
         assert isinstance(result, Answer)
         assert result.text == "hello"
-        call_kwargs = mock_client.messages.create.call_args.kwargs
+        call_kwargs = mock_client.messages.stream.call_args.kwargs
         assert call_kwargs["tool_choice"]["type"] == "tool"
         assert call_kwargs["tool_choice"]["name"] == "output_Answer"
+
+
+class TestStrictBoundaryRaises:
+    """Behaviors we tightened: malformed inputs raise instead of silently defaulting."""
+
+    def test_tool_choice_none_raises(self):
+        with pytest.raises(ValueError, match="tool_choice='none'"):
+            _translate_tool_choice("none")
+
+    def test_extract_text_raises_on_unsupported_type(self):
+        with pytest.raises(TypeError, match="unsupported content type"):
+            _extract_text(42)
+        with pytest.raises(TypeError, match="unsupported content type"):
+            _extract_text(None)
+
+    def test_extract_text_raises_on_text_part_missing_text_field(self):
+        with pytest.raises(KeyError):
+            _extract_text([{"type": "text"}])  # missing "text" key
+
+    def test_translate_tool_raises_on_missing_content(self):
+        msg: dict = {"role": "tool", "tool_call_id": "abc"}
+        with pytest.raises(KeyError):
+            _translate_tool(cast(ChatCompletionToolMessageParam, msg))
+
+    def test_translate_tool_raises_on_missing_tool_call_id(self):
+        msg: dict = {"role": "tool", "content": "result"}
+        with pytest.raises(KeyError):
+            _translate_tool(cast(ChatCompletionToolMessageParam, msg))
+
+
+class TestReasoningEffortDoesNotOverrideMaxTokens:
+    """Caller's max_tokens must survive when reasoning_effort is also set."""
+
+    def test_int_reasoning_effort_preserves_max_tokens(self):
+        result = _build_kwargs(
+            system=anthropic.NOT_GIVEN,
+            temperature=None,
+            max_tokens=10000,
+            top_p=None,
+            stop=None,
+            tools=None,
+            tool_choice=None,
+            reasoning_effort=4000,
+            model="claude-sonnet-4-5",
+        )
+        assert result["max_tokens"] == 10000  # not silently set to 2*4000=8000
+        assert result["thinking"] == {"type": "enabled", "budget_tokens": 4000}
+
+
+class TestFinishReasonMapping:
+    def test_known_reason_mapped(self):
+        resp = _make_anthropic_response(stop_reason="max_tokens")
+        msg = _to_anthropic_message(resp, "claude-sonnet-4-5")
+        assert msg.completion_info is not None
+        assert msg.completion_info.finish_reason == "length"
+
+    def test_unknown_reason_warns_and_defaults_to_stop(self, caplog):
+        # "pause_turn" is a valid Anthropic stop_reason but not in our map.
+        resp = _make_anthropic_response(stop_reason="pause_turn")
+        with caplog.at_level("WARNING", logger="sage_llm.providers.anthropic"):
+            msg = _to_anthropic_message(resp, "claude-sonnet-4-5")
+        assert msg.completion_info is not None
+        assert msg.completion_info.finish_reason == "stop"
+        assert any("pause_turn" in r.message for r in caplog.records)

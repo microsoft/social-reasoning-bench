@@ -75,16 +75,15 @@ class TestTranslateRequest:
             {"role": "system", "content": "be helpful"},
             {"role": "user", "content": "hi"},
         ]
-        raw_contents, config = _translate_request(msgs)
-        assert isinstance(raw_contents, list)
-        assert len(raw_contents) == 1  # system not in contents
+        contents, config = _translate_request(msgs)
+        assert isinstance(contents, list)
+        assert len(contents) == 1  # system not in contents
         assert config.system_instruction == "be helpful"
 
     def test_user_message(self):
         msgs: list[SageMessage] = [{"role": "user", "content": "hello"}]
-        raw_contents, _ = _translate_request(msgs)
-        assert isinstance(raw_contents, list)
-        contents = cast(list[types.Content], raw_contents)
+        contents, _ = _translate_request(msgs)
+        assert isinstance(contents, list)
         assert len(contents) == 1
         assert contents[0].role == "user"
         assert contents[0].parts is not None
@@ -92,9 +91,8 @@ class TestTranslateRequest:
 
     def test_assistant_message(self):
         msgs: list[SageMessage] = [SageChatCompletionMessage(role="assistant", content="reply")]
-        raw_contents, _ = _translate_request(msgs)
-        assert isinstance(raw_contents, list)
-        contents = cast(list[types.Content], raw_contents)
+        contents, _ = _translate_request(msgs)
+        assert isinstance(contents, list)
         assert contents[0].role == "model"
 
     def test_thought_parts_injected(self):
@@ -105,9 +103,8 @@ class TestTranslateRequest:
                 thought_parts=[{"text": "thinking...", "thought": True}],
             )
         ]
-        raw_contents, _ = _translate_request(msgs)
-        assert isinstance(raw_contents, list)
-        contents = cast(list[types.Content], raw_contents)
+        contents, _ = _translate_request(msgs)
+        assert isinstance(contents, list)
         parts = contents[0].parts
         assert parts is not None
         assert parts[0].thought is True
@@ -227,8 +224,7 @@ class TestTranslateRequestToolNameResolution:
             assistant_msg,
             tool_msg,
         ]
-        raw_contents, _ = _translate_request(msgs)
-        contents = cast(list[types.Content], raw_contents)
+        contents, _ = _translate_request(msgs)
         # contents[0] = user, contents[1] = assistant, contents[2] = tool
         fr = _get_fr(contents[2])
         assert fr.name == "get_weather"
@@ -258,8 +254,7 @@ class TestTranslateRequestToolNameResolution:
             _tool_msg("sunny", "call_1"),
             _tool_msg("3pm", "call_2"),
         ]
-        raw_contents, _ = _translate_request(msgs)
-        contents = cast(list[types.Content], raw_contents)
+        contents, _ = _translate_request(msgs)
         assert _get_fr(contents[2]).name == "get_weather"
         assert _get_fr(contents[3]).name == "get_time"
 
@@ -282,8 +277,7 @@ class TestTranslateRequestToolNameResolution:
             assistant_msg,
             _tool_msg("you have 3 emails", "call_1"),
         ]
-        raw_contents, _ = _translate_request(msgs)
-        contents = cast(list[types.Content], raw_contents)
+        contents, _ = _translate_request(msgs)
         # Unsigned calls are NOT emitted as model text (that causes Gemini
         # to mimic the text pattern instead of using structured tool calls).
         model_parts = [c for c in contents if c.role == "model"]
@@ -698,3 +692,73 @@ class TestGoogleProviderComplete:
 
         assert isinstance(result, Answer)
         assert result.text == "hello"
+
+
+class TestReasoningEffortStrictness:
+    """Gemini only accepts integer thinking budgets — string tiers must raise."""
+
+    def test_string_reasoning_effort_raises(self):
+        with pytest.raises(TypeError, match="integer thinking_budget"):
+            _build_config(
+                system_instruction=None,
+                temperature=None,
+                max_tokens=8192,
+                top_p=None,
+                stop=None,
+                tools=None,
+                tool_choice=None,
+                reasoning_effort="high",
+                response_format=None,
+            )
+
+    def test_int_reasoning_effort_sets_thinking_config(self):
+        cfg = _build_config(
+            system_instruction=None,
+            temperature=None,
+            max_tokens=8192,
+            top_p=None,
+            stop=None,
+            tools=None,
+            tool_choice=None,
+            reasoning_effort=4096,
+            response_format=None,
+        )
+        assert cfg.thinking_config is not None
+        assert cfg.thinking_config.thinking_budget == 4096
+
+
+class TestFinishReasonMapping:
+    """Explicit map; warn-and-default on unknown."""
+
+    def test_safety_maps_to_content_filter(self):
+        resp = _make_google_response(finish_reason=types.FinishReason.SAFETY)
+        msg = _to_google_message(resp, "gemini-2.0-flash")
+        assert msg.completion_info is not None
+        assert msg.completion_info.finish_reason == "content_filter"
+
+    def test_max_tokens_maps_to_length(self):
+        resp = _make_google_response(finish_reason=types.FinishReason.MAX_TOKENS)
+        msg = _to_google_message(resp, "gemini-2.0-flash")
+        assert msg.completion_info is not None
+        assert msg.completion_info.finish_reason == "length"
+
+    def test_unexpected_tool_call_maps_to_tool_calls(self):
+        resp = _make_google_response(finish_reason=types.FinishReason.UNEXPECTED_TOOL_CALL)
+        msg = _to_google_message(resp, "gemini-2.0-flash")
+        assert msg.completion_info is not None
+        assert msg.completion_info.finish_reason == "tool_calls"
+
+    def test_malformed_function_call_maps_to_tool_calls(self):
+        resp = _make_google_response(finish_reason=types.FinishReason.MALFORMED_FUNCTION_CALL)
+        msg = _to_google_message(resp, "gemini-2.0-flash")
+        assert msg.completion_info is not None
+        assert msg.completion_info.finish_reason == "tool_calls"
+
+    def test_unknown_reason_warns_and_defaults_to_stop(self, caplog):
+        # OTHER is a real Gemini reason we don't map (catch-all bucket).
+        resp = _make_google_response(finish_reason=types.FinishReason.OTHER)
+        with caplog.at_level("WARNING", logger="sage_llm.providers.google_genai"):
+            msg = _to_google_message(resp, "gemini-2.0-flash")
+        assert msg.completion_info is not None
+        assert msg.completion_info.finish_reason == "stop"
+        assert any("OTHER" in r.message for r in caplog.records)

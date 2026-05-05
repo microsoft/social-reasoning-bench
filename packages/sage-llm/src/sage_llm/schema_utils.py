@@ -32,10 +32,9 @@ def inline_refs(
         A new schema dict with all ``$ref`` nodes replaced by their
         definitions and ``$defs`` removed.
     """
-    if defs is None:
-        defs = schema.get("$defs", {})
+    resolved_defs: dict[str, Any] = defs if defs is not None else schema.get("$defs", {})
 
-    result = _inline_node(schema, defs)
+    result = _inline_node(schema, resolved_defs)
 
     # Strip the top-level $defs since everything is now inlined.
     result.pop("$defs", None)
@@ -68,21 +67,19 @@ def _inline_node(
     result = dict(node)
 
     # Recurse into object properties.
-    if "properties" in result and isinstance(result["properties"], dict):
+    if "properties" in result:
         result["properties"] = {
-            name: _inline_node(prop, defs)
-            for name, prop in result["properties"].items()
-            if isinstance(prop, dict)
+            name: _inline_node(prop, defs) for name, prop in result["properties"].items()
         }
 
     # Recurse into array items.
-    if "items" in result and isinstance(result["items"], dict):
+    if "items" in result:
         result["items"] = _inline_node(result["items"], defs)
 
     # Recurse into anyOf / oneOf.
     for key in ("anyOf", "oneOf"):
-        if key in result and isinstance(result[key], list):
-            result[key] = [_inline_node(s, defs) if isinstance(s, dict) else s for s in result[key]]
+        if key in result:
+            result[key] = [_inline_node(s, defs) for s in result[key]]
 
     # Remove nested $defs that may appear after inlining.
     result.pop("$defs", None)
@@ -126,30 +123,30 @@ def _strict_node(
     # Resolve $ref first.
     if "$ref" in node:
         ref_name = node["$ref"].rsplit("/", 1)[-1]
-        resolved = defs.get(ref_name, {})
+        if ref_name not in defs:
+            raise KeyError(f"$ref {node['$ref']!r} not found in $defs")
+        resolved = defs[ref_name]
         merged = {**resolved, **{k: v for k, v in node.items() if k != "$ref"}}
         return _strict_node(merged, defs)
 
     result = dict(node)
 
     # Recurse into object properties + enforce strict constraints.
-    if "properties" in result and isinstance(result["properties"], dict):
+    if "properties" in result:
         result["properties"] = {
-            name: _strict_node(prop, defs)
-            for name, prop in result["properties"].items()
-            if isinstance(prop, dict)
+            name: _strict_node(prop, defs) for name, prop in result["properties"].items()
         }
         result["required"] = list(result["properties"].keys())
         result["additionalProperties"] = False
 
     # Recurse into array items.
-    if "items" in result and isinstance(result["items"], dict):
+    if "items" in result:
         result["items"] = _strict_node(result["items"], defs)
 
     # Recurse into anyOf / oneOf.
     for key in ("anyOf", "oneOf"):
-        if key in result and isinstance(result[key], list):
-            result[key] = [_strict_node(s, defs) if isinstance(s, dict) else s for s in result[key]]
+        if key in result:
+            result[key] = [_strict_node(s, defs) for s in result[key]]
 
     # Strip $defs from output.
     result.pop("$defs", None)

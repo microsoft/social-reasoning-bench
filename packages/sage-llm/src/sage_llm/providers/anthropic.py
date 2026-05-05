@@ -211,14 +211,15 @@ def _translate_messages(
 def _extract_text(content: Any) -> str:
     """Extract plain text from a message content field.
 
-    Handles str, list of content parts (extracts text parts), and None.
-
     Args:
-        content: Message content — a string, list of content-part dicts,
-            or ``None``.
+        content: Message content — a string or list of content-part dicts.
 
     Returns:
-        Extracted plain text string (empty string for ``None``).
+        Extracted plain text string.
+
+    Raises:
+        TypeError: If *content* is not a string or list.
+        KeyError: If a text-typed content part is missing its ``text`` field.
     """
     if isinstance(content, str):
         return content
@@ -226,11 +227,11 @@ def _extract_text(content: Any) -> str:
         parts = []
         for part in content:
             if isinstance(part, dict) and part.get("type") == "text":
-                parts.append(part.get("text", ""))
+                parts.append(part["text"])
             elif isinstance(part, str):
                 parts.append(part)
         return "\n".join(parts)
-    return ""
+    raise TypeError(f"unsupported content type for _extract_text: {type(content).__name__}")
 
 
 def _translate_assistant(msg: SageChatCompletionMessage) -> dict[str, Any]:
@@ -277,8 +278,8 @@ def _translate_tool(msg: ChatCompletionToolMessageParam) -> dict[str, Any]:
     Returns:
         Anthropic-format user message dict wrapping a ``tool_result`` block.
     """
-    content = str(msg.get("content", ""))
-    tool_call_id = str(msg.get("tool_call_id", ""))
+    content = msg["content"]
+    tool_call_id = msg["tool_call_id"]
 
     return {
         "role": "user",
@@ -330,7 +331,6 @@ def _build_kwargs(
     if reasoning_effort is not None:
         if isinstance(reasoning_effort, int):
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": reasoning_effort}
-            kwargs["max_tokens"] = 2 * reasoning_effort
         else:
             # String effort (e.g. for Opus 4.5)
             kwargs["reasoning_effort"] = reasoning_effort
@@ -357,15 +357,17 @@ def _translate_tools(openai_tools: list[ChatCompletionToolParam]) -> list[dict[s
 
 
 def _translate_tool_choice(openai_choice: ChatCompletionToolChoiceOptionParam) -> dict[str, Any]:
-    if openai_choice == "auto" or openai_choice is None:
+    if openai_choice == "auto":
         return {"type": "auto"}
     if openai_choice == "required":
         return {"type": "any"}
     if openai_choice == "none":
-        return {"type": "auto"}
+        # Anthropic has no equivalent — omitting tool_choice means "auto", not "none".
+        # Caller should omit tools entirely if they want "none" semantics.
+        raise ValueError("tool_choice='none' has no Anthropic equivalent; omit tools instead")
     if openai_choice["type"] == "function":
         return {"type": "tool", "name": openai_choice["function"]["name"]}
-    return {"type": "auto"}
+    raise ValueError(f"unsupported tool_choice: {openai_choice!r}")
 
 
 # ---------------------------------------------------------------------------
@@ -453,6 +455,12 @@ def _to_anthropic_message(response: anthropic.types.Message, model: str) -> Anth
         "tool_use": "tool_calls",
         "max_tokens": "length",
     }
+    stop_reason = response.stop_reason
+    if stop_reason is None or stop_reason in finish_reason_map:
+        finish_reason = finish_reason_map.get(stop_reason or "", "stop")
+    else:
+        logger.warning("unknown Anthropic stop_reason %r; defaulting to 'stop'", stop_reason)
+        finish_reason = "stop"
 
     return AnthropicMessage(
         role="assistant",
@@ -462,7 +470,7 @@ def _to_anthropic_message(response: anthropic.types.Message, model: str) -> Anth
         completion_info=SageChatCompletionInfo(
             id=response.id,
             model=model,
-            finish_reason=finish_reason_map.get(response.stop_reason or "", "stop"),
+            finish_reason=finish_reason,
             usage=CompletionUsage(
                 prompt_tokens=response.usage.input_tokens,
                 completion_tokens=response.usage.output_tokens,
