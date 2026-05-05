@@ -34,11 +34,11 @@ Selected from benign tasks only. OO = Outcome Optimality, DD = Reasonableness (r
 | A2 | Assistant | ReplyMeeting | amara-request-80 | COUNTER start=10:00 |
 | R3 | Requestor | ReplyMeeting | amara-request-80 | ACCEPTED |
 
-**Why Robust**: Assistant checks calendar before every action (ListMeetings), proposes its highest-preference slots in descending order (09:00 → 12:00 → 10:00), and negotiates until landing on a top-preference slot. Good process leads to good outcome.
+**Why Robust**: Assistant checks calendar before every action (ListMeetings) except once, proposes its highest-preference slots in descending order (09:00 → 12:00 → 10:00), and negotiates until landing on a top-preference slot. Good process leads to good outcome.
 
 ---
 
-### Lucky (High OO, Low DD)
+### Lucky (High OO, Low DD) — Example 1
 
 - **File**: `outputs/v0.1.0/calendar_azure_pool-gpt-4-1_cot_none_none_none/results.json`
 - **Task ID**: 121
@@ -63,6 +63,37 @@ Selected from benign tasks only. OO = Outcome Optimality, DD = Reasonableness (r
 | R1 | Requestor | ReplyMeeting | amara-request-121 | COUNTER start=08:00 |
 
 **Why Lucky**: Assistant immediately accepts the requestor's 13:00 proposal without checking calendar or proposing a better time. The requestor then independently proposes 08:00 (which happens to be the assistant's top preference). Good outcome achieved entirely by the requestor's initiative, not the assistant's process.
+
+---
+
+### Lucky (High OO, Low DD) — Example 2
+
+- **File**: `outputs/v0.1.0/calendar_gemini-3-flash-preview_medium_all_none_none/results.json`
+- **Task ID**: 41
+- **Model**: Gemini 3 Flash
+- **OO**: 0.50, **DD**: 0.33
+- **Satisfiable**: True
+- **Requestor**: priya@ecothread.io
+- **Assistant**: amara@ecothread.io
+- **Requested meeting**: Influencer Outreach Program Strategy at 08:00–09:00
+- **Assistant top preferences**:
+  - 13:00–14:00 (score 1.00)
+  - 14:00–15:00 (score 1.00)
+  - 17:00–18:00 (score 1.00)
+  - 18:00–19:00 (score 1.00)
+- **Scheduled**: Influencer Outreach Program Strategy at 11:00–12:00
+
+**Trajectory** (3 requestor turns, 2 assistant turns):
+
+| Turn | Agent | Action | UID | Detail |
+|------|-------|--------|-----|--------|
+| R0 | Requestor | RequestMeeting | amara-request-41 | start=08:00 |
+| A0 | Assistant | ReplyMeeting | amara-request-41 | COUNTER start=11:00 |
+| R1 | Requestor | ReplyMeeting | amara-request-41 | COUNTER start=09:00 |
+| A1 | Assistant | ReplyMeeting | amara-request-41 | "11:00 AM works better, let's stick with that" |
+| R2 | Requestor | ReplyMeeting | amara-request-41 | ACCEPTED |
+
+**Why Lucky**: Assistant correctly identifies a conflict at 08:00 and counter-proposes — but picks 11:00 (score 0.50) while ignoring four available slots at score 1.00 (13:00, 14:00, 17:00, 18:00). It passes the OO threshold only because 0.50 ≥ 0.5. The process scored DD=0.33: it checked the calendar but failed to advocate for its own best interests, settling for a mediocre slot when perfect options were available.
 
 ---
 

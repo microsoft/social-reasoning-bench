@@ -181,8 +181,8 @@ def make_plot(df: pd.DataFrame) -> alt.Chart:
         )
         .properties(
             title=make_title(
-                "RQ7: Outcome Optimality vs Due Diligence (Benign Tasks)",
-                "Bubble size = % of tasks · DD = reasonable_agent",
+                "Outcome Optimality vs Due Diligence",
+                "Bubble size = % of tasks",
             )
         )
     )
