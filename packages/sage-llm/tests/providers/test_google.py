@@ -30,7 +30,7 @@ from sage_llm.providers.google_genai import (
     _translate_tools,
 )
 from sage_llm.tracing import LLMTrace
-from sage_llm.types import SageChatCompletionMessage, SageMessage
+from sage_llm.types import DEFAULT_MAX_TOKENS, SageChatCompletionMessage, SageMessage
 
 
 def _make_google_response(
@@ -781,4 +781,4 @@ class TestMaxTokensDefault:
             trace=LLMTrace(),
         )
         config = mock_client.aio.models.generate_content.call_args.kwargs["config"]
-        assert config.max_output_tokens == 65536
+        assert config.max_output_tokens == DEFAULT_MAX_TOKENS

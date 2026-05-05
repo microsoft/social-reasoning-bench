@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from .providers import resolve_provider
 from .tracing import LLMTrace, SageRequest, tracer
-from .types import SageChatCompletionMessage, SageMessage
+from .types import DEFAULT_MAX_TOKENS, SageChatCompletionMessage, SageMessage
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
@@ -42,7 +42,7 @@ class SageModelClient:
         base_url: str | None = None,
         api_version: str | None = None,
         reasoning_effort: str | int | None = None,
-        max_tokens: int = 65536,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
     ):
         self.api_key = api_key
         self.base_url = base_url

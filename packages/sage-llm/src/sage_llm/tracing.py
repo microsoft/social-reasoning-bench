@@ -28,7 +28,7 @@ from typing import Any
 from openai.types.chat import ChatCompletionToolChoiceOptionParam, ChatCompletionToolParam
 from pydantic import BaseModel, Field
 
-from .types import SageChatCompletionMessage, SageMessage
+from .types import DEFAULT_MAX_TOKENS, SageChatCompletionMessage, SageMessage
 
 # ---------------------------------------------------------------------------
 # Trace
@@ -41,7 +41,7 @@ class SageRequest(BaseModel):
     model: str
     messages: list[SageMessage] = Field(default_factory=list)
     temperature: float | None = None
-    max_tokens: int = 65536
+    max_tokens: int = DEFAULT_MAX_TOKENS
     top_p: float | None = None
     stop: str | list[str] | None = None
     tools: list[ChatCompletionToolParam] | None = None

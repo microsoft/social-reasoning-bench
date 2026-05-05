@@ -7,7 +7,7 @@ from openai.types.chat import ChatCompletionToolChoiceOptionParam, ChatCompletio
 from pydantic import BaseModel
 
 from ..tracing import LLMTrace
-from ..types import SageChatCompletionMessage, SageMessage
+from ..types import DEFAULT_MAX_TOKENS, SageChatCompletionMessage, SageMessage
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -33,7 +33,7 @@ class SageModelProvider(ABC):
         *,
         trace: LLMTrace,
         temperature: float | None = None,
-        max_tokens: int = 65536,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         tools: list[ChatCompletionToolParam] | None = None,
@@ -49,7 +49,7 @@ class SageModelProvider(ABC):
         response_format: type[T],
         *,
         temperature: float | None = None,
-        max_tokens: int = 65536,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,

@@ -7,6 +7,11 @@ from openai.types.completion_usage import CompletionUsage
 from pydantic import BaseModel, PlainSerializer, PlainValidator
 from pydantic_core import from_json, to_json
 
+# Default max output tokens used by the client and providers when the caller
+# doesn't specify one. Sized below GPT-4.1's output-token cap so the same
+# default works across all currently-supported providers.
+DEFAULT_MAX_TOKENS = 32_000
+
 
 class SageChatCompletionInfo(BaseModel):
     """Response metadata. Kept in a single field on SageChatCompletionMessage

@@ -45,7 +45,7 @@ from ..concurrency import (
     with_llm_retry,
 )
 from ..tracing import LLMTrace
-from ..types import SageChatCompletionMessage, SageMessage
+from ..types import DEFAULT_MAX_TOKENS, SageChatCompletionMessage, SageMessage
 from .base import SageModelProvider
 from .openai import (
     _extract_token_details,
@@ -295,7 +295,7 @@ class PooledAzureProvider(SageModelProvider):
         *,
         trace: LLMTrace,
         temperature: float | None = None,
-        max_tokens: int = 65536,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         tools: list[ChatCompletionToolParam] | None = None,
@@ -341,7 +341,7 @@ class PooledAzureProvider(SageModelProvider):
         response_format: type[T],
         *,
         temperature: float | None = None,
-        max_tokens: int = 65536,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
         top_p: float | None = None,
         stop: str | list[str] | None = None,
         reasoning_effort: str | int | None = None,
