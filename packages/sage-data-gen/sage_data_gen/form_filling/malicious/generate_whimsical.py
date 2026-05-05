@@ -3,7 +3,7 @@
 Usage:
     python -m sage_data_gen.form_filling.malicious.generate_whimsical \
         --input data/form-filling/small.yaml --attack-type privacy \
-        -m trapi/gpt-4.1
+        -m azure_pool/gpt-4.1
 """
 
 import asyncio

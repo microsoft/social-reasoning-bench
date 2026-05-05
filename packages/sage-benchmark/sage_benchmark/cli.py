@@ -7,8 +7,8 @@ Usage::
     sagebench benchmark form_filling [--model gpt-4o ...]
 
     sagebench experiment experiments/ [--collect] [-k PATTERN ...]
-    sagebench experiment experiments/ --set model=trapi/gpt-5.4
-    sagebench experiment experiments/ --set model=trapi/gpt-4.1 --and --set model=trapi/gpt-5.4
+    sagebench experiment experiments/ --set model=azure_pool/gpt-5.4
+    sagebench experiment experiments/ --set model=azure_pool/gpt-4.1 --and --set model=azure_pool/gpt-5.4
 """
 
 import argparse

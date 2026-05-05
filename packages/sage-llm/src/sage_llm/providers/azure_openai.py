@@ -1,4 +1,4 @@
-"""Azure OpenAI provider — TRAPI and direct Azure deployments."""
+"""Azure OpenAI provider — direct Azure deployments."""
 
 import logging
 from typing import Any, Callable, TypeVar
@@ -67,7 +67,7 @@ def _get_azure_client(
 
 
 class AzureProvider(SageModelProvider):
-    """Provider for Azure OpenAI deployments (including TRAPI)."""
+    """Provider for Azure OpenAI deployments."""
 
     PROVIDER_KEY = "azure"
 

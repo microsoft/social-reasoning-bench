@@ -1,6 +1,6 @@
 # sage-llm
 
-LLM client library with direct provider implementations for OpenAI, Anthropic, Gemini, Azure, TRAPI, and PhyAGI. Provides reasoning model handling, structured outputs, multi-turn thinking preservation, and tracing.
+LLM client library with direct provider implementations for OpenAI, Anthropic, Gemini, and Azure. Provides reasoning model handling, structured outputs, multi-turn thinking preservation, and tracing.
 
 ## Install
 
@@ -49,7 +49,7 @@ export SAGE_LLM_TASK_SIZE=5      # per-task per-provider limit
 # Per-provider overrides
 export SAGE_LLM_SIZE_OPENAI=30
 export SAGE_LLM_SIZE_ANTHROPIC=10
-export SAGE_LLM_TASK_SIZE_TRAPI=3
+export SAGE_LLM_TASK_SIZE_AZURE=3
 ```
 
 **Programmatic** (overrides env vars):
@@ -62,7 +62,7 @@ concurrency.configure(
     task_size=5,        # default per-task per-provider limit
     providers={
         "anthropic": {"llm_size": 10},
-        "trapi": {"task_size": 3},
+        "azure": {"task_size": 3},
     },
 )
 ```
@@ -81,6 +81,6 @@ async with task_scope(task_size=5):
     await client.acomplete(model="openai/gpt-4.1", ...)
 ```
 
-Provider keys: `openai`, `anthropic`, `google`, `azure`, `trapi`, `phyagi`.
+Provider keys: `openai`, `anthropic`, `google`, `azure`.
 
 ## [Documentation](../../docs/vitepress/architecture.md)

@@ -76,9 +76,8 @@ Create a `.env` file at the repo root with API keys for your model provider(s) (
 | Anthropic | `ANTHROPIC_API_KEY` |
 | Gemini | `GEMINI_API_KEY` |
 | Azure pool | `SAGE_AZURE_POOL_PATH` |
-| TRAPI | _(Azure AD auth — uses `az login`, no env var needed)_ |
 
-Model name formats: `gpt-4.1`, `claude-sonnet-4`, `gemini-2.5-flash`, `trapi/gpt-4.1`, `azure_pool/gpt-5.4`. **`azure_pool/` is the recommended provider** — it load-balances across all Azure OpenAI deployments discovered by `sage-azure-pool`. See [sage-llm](packages/sage-llm/) for full details.
+Model name formats: `gpt-4.1`, `claude-sonnet-4`, `gemini-2.5-flash`, `azure_pool/gpt-5.4`. **`azure_pool/` is the recommended provider** — it load-balances across all Azure OpenAI deployments discovered by `sage-azure-pool`. See [sage-llm](packages/sage-llm/) for full details.
 
 ## Setting Up Azure Pool
 
