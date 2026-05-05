@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import logging
 from collections.abc import Sequence
+from typing import Any
 
 from sage_llm import SageModelClient
 
@@ -32,10 +33,14 @@ logger = logging.getLogger(__name__)
 def _create_client(
     base_url: str | None = None,
     reasoning_effort: str | int | None = None,
+    max_tokens: int | None = None,
 ) -> SageModelClient:
+    kwargs: dict[str, Any] = {"base_url": base_url}
     if reasoning_effort is not None:
-        return SageModelClient(base_url=base_url, reasoning_effort=reasoning_effort)
-    return SageModelClient(base_url=base_url)
+        kwargs["reasoning_effort"] = reasoning_effort
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    return SageModelClient(**kwargs)
 
 
 def _safe_avg(values: Sequence[float | None]) -> float | None:
@@ -75,6 +80,8 @@ class CalendarBenchmark(
         g.add_argument("--requestor-api-version", default=None)
         g.add_argument("--assistant-reasoning-effort", default=None)
         g.add_argument("--requestor-reasoning-effort", default=None)
+        g.add_argument("--assistant-max-tokens", type=int, default=None)
+        g.add_argument("--requestor-max-tokens", type=int, default=None)
         from ..base.benchmark import _parse_bool
 
         g.add_argument(
@@ -101,14 +108,17 @@ class CalendarBenchmark(
         self.assistant_client = _create_client(
             config.resolved_assistant_base_url,
             config.resolved_assistant_reasoning_effort,
+            config.resolved_assistant_max_tokens,
         )
         self.requestor_client = _create_client(
             config.resolved_requestor_base_url,
             config.resolved_requestor_reasoning_effort,
+            config.resolved_requestor_max_tokens,
         )
         self.judge_client = _create_client(
             config.resolved_judge_base_url,
             config.resolved_judge_reasoning_effort,
+            config.resolved_judge_max_tokens,
         )
 
         # Resolve system prompt

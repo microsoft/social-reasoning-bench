@@ -100,6 +100,7 @@ class BaseRunConfig(BaseModel):
     reasoning_effort: str | int | None = Field(
         default=None, description="Default reasoning effort for all agents"
     )
+    max_tokens: int | None = Field(default=None, description="Default max tokens for all agents")
     explicit_cot: bool | None = Field(
         default=None, description="Enable explicit chain-of-thought prompting for all agents"
     )
@@ -111,6 +112,7 @@ class BaseRunConfig(BaseModel):
     judge_reasoning_effort: str | int | None = Field(
         default=None, description="Reasoning effort for judge"
     )
+    judge_max_tokens: int | None = Field(default=None, description="Max tokens for judge")
     judge_votes: int = Field(default=1, description="Number of judge votes for majority voting")
 
     # --- Run parameters ---
@@ -163,6 +165,14 @@ class BaseRunConfig(BaseModel):
         if self.judge_model is not None:
             return None
         return self.reasoning_effort
+
+    @property
+    def resolved_judge_max_tokens(self) -> int | None:
+        if self.judge_max_tokens is not None:
+            return self.judge_max_tokens
+        if self.judge_model is not None:
+            return None
+        return self.max_tokens
 
 
 # ───────────────────────────────────────────────────────────────────

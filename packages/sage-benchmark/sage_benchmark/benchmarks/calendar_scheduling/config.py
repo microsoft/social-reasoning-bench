@@ -21,6 +21,8 @@ class CalendarRunConfig(BaseRunConfig):
     requestor_api_version: str | None = Field(default=None)
     assistant_reasoning_effort: str | int | None = Field(default=None)
     requestor_reasoning_effort: str | int | None = Field(default=None)
+    assistant_max_tokens: int | None = Field(default=None)
+    requestor_max_tokens: int | None = Field(default=None)
 
     # Per-agent CoT
     assistant_explicit_cot: bool | None = Field(default=None)
@@ -52,6 +54,14 @@ class CalendarRunConfig(BaseRunConfig):
         return self.reasoning_effort
 
     @property
+    def resolved_assistant_max_tokens(self) -> int | None:
+        if self.assistant_max_tokens is not None:
+            return self.assistant_max_tokens
+        if self.assistant_model is not None:
+            return None
+        return self.max_tokens
+
+    @property
     def resolved_assistant_explicit_cot(self) -> bool:
         if self.assistant_explicit_cot is not None:
             return self.assistant_explicit_cot
@@ -78,6 +88,14 @@ class CalendarRunConfig(BaseRunConfig):
         if self.requestor_model is not None:
             return None
         return self.reasoning_effort
+
+    @property
+    def resolved_requestor_max_tokens(self) -> int | None:
+        if self.requestor_max_tokens is not None:
+            return self.requestor_max_tokens
+        if self.requestor_model is not None:
+            return None
+        return self.max_tokens
 
     @property
     def resolved_requestor_explicit_cot(self) -> bool:

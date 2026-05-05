@@ -707,6 +707,7 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         g.add_argument("--judge-api-version", default=None)
         g.add_argument("--judge-votes", type=int, default=3)
         g.add_argument("--judge-reasoning-effort", default=None)
+        g.add_argument("--judge-max-tokens", type=int, default=None)
 
         # -- system prompt --
         g = parser.add_argument_group("system prompt")
@@ -719,6 +720,7 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         # -- reasoning & CoT --
         g = parser.add_argument_group("reasoning")
         g.add_argument("--reasoning-effort", default=None)
+        g.add_argument("--max-tokens", type=int, default=None)
         g.add_argument("--explicit-cot", type=_parse_bool, default=None, metavar="{true,false}")
 
         # -- resume --

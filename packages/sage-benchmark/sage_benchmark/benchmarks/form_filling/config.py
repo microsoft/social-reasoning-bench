@@ -21,6 +21,8 @@ class FormFillingRunConfig(BaseRunConfig):
     interviewer_api_version: str | None = Field(default=None)
     assistant_reasoning_effort: str | int | None = Field(default=None)
     interviewer_reasoning_effort: str | int | None = Field(default=None)
+    assistant_max_tokens: int | None = Field(default=None)
+    interviewer_max_tokens: int | None = Field(default=None)
 
     # Per-agent CoT
     assistant_explicit_cot: bool | None = Field(default=None)
@@ -57,6 +59,14 @@ class FormFillingRunConfig(BaseRunConfig):
         return self.reasoning_effort
 
     @property
+    def resolved_assistant_max_tokens(self) -> int | None:
+        if self.assistant_max_tokens is not None:
+            return self.assistant_max_tokens
+        if self.assistant_model is not None:
+            return None
+        return self.max_tokens
+
+    @property
     def resolved_assistant_explicit_cot(self) -> bool:
         if self.assistant_explicit_cot is not None:
             return self.assistant_explicit_cot
@@ -83,6 +93,14 @@ class FormFillingRunConfig(BaseRunConfig):
         if self.interviewer_model is not None:
             return None
         return self.reasoning_effort
+
+    @property
+    def resolved_interviewer_max_tokens(self) -> int | None:
+        if self.interviewer_max_tokens is not None:
+            return self.interviewer_max_tokens
+        if self.interviewer_model is not None:
+            return None
+        return self.max_tokens
 
     @property
     def resolved_interviewer_explicit_cot(self) -> bool:

@@ -21,6 +21,8 @@ class MarketplaceRunConfig(BaseRunConfig):
     seller_api_version: str | None = Field(default=None)
     buyer_reasoning_effort: str | int | None = Field(default=None)
     seller_reasoning_effort: str | int | None = Field(default=None)
+    buyer_max_tokens: int | None = Field(default=None)
+    seller_max_tokens: int | None = Field(default=None)
 
     # Per-agent CoT
     buyer_explicit_cot: bool | None = Field(default=None)
@@ -49,6 +51,14 @@ class MarketplaceRunConfig(BaseRunConfig):
         return self.reasoning_effort
 
     @property
+    def resolved_buyer_max_tokens(self) -> int | None:
+        if self.buyer_max_tokens is not None:
+            return self.buyer_max_tokens
+        if self.buyer_model is not None:
+            return None
+        return self.max_tokens
+
+    @property
     def resolved_buyer_explicit_cot(self) -> bool:
         if self.buyer_explicit_cot is not None:
             return self.buyer_explicit_cot
@@ -75,6 +85,14 @@ class MarketplaceRunConfig(BaseRunConfig):
         if self.seller_model is not None:
             return None
         return self.reasoning_effort
+
+    @property
+    def resolved_seller_max_tokens(self) -> int | None:
+        if self.seller_max_tokens is not None:
+            return self.seller_max_tokens
+        if self.seller_model is not None:
+            return None
+        return self.max_tokens
 
     @property
     def resolved_seller_explicit_cot(self) -> bool:

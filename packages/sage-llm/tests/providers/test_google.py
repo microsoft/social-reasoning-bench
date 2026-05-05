@@ -311,7 +311,7 @@ class TestBuildConfig:
         config = _build_config(
             system_instruction=None,
             temperature=None,
-            max_tokens=None,
+            max_tokens=8192,
             top_p=None,
             stop=None,
             tools=None,
@@ -329,7 +329,7 @@ class TestBuildConfig:
         config = _build_config(
             system_instruction=None,
             temperature=None,
-            max_tokens=None,
+            max_tokens=8192,
             top_p=None,
             stop=None,
             tools=None,
@@ -762,3 +762,23 @@ class TestFinishReasonMapping:
         assert msg.completion_info is not None
         assert msg.completion_info.finish_reason == "stop"
         assert any("OTHER" in r.message for r in caplog.records)
+
+
+class TestMaxTokensDefault:
+    """Caller-omitted max_tokens must propagate as the default to the SDK."""
+
+    @pytest.mark.asyncio
+    @patch("sage_llm.providers.google_genai.genai.Client")
+    async def test_acomplete_default_max_tokens_reaches_sdk(self, mock_cls):
+        mock_client = MagicMock()
+        mock_cls.return_value = mock_client
+        mock_client.aio.models.generate_content = AsyncMock(return_value=_make_google_response())
+
+        provider = GoogleProvider()
+        await provider.acomplete(
+            "gemini-2.0-flash",
+            [{"role": "user", "content": "hi"}],
+            trace=LLMTrace(),
+        )
+        config = mock_client.aio.models.generate_content.call_args.kwargs["config"]
+        assert config.max_output_tokens == 65536

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 from collections.abc import Sequence
+from typing import Any
 
 from sage_llm import SageModelClient
 
@@ -29,10 +30,14 @@ from .types import (
 def _create_client(
     base_url: str | None = None,
     reasoning_effort: str | int | None = None,
+    max_tokens: int | None = None,
 ) -> SageModelClient:
+    kwargs: dict[str, Any] = {"base_url": base_url}
     if reasoning_effort is not None:
-        return SageModelClient(base_url=base_url, reasoning_effort=reasoning_effort)
-    return SageModelClient(base_url=base_url)
+        kwargs["reasoning_effort"] = reasoning_effort
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    return SageModelClient(**kwargs)
 
 
 def _safe_avg(values: Sequence[float | None]) -> float | None:
@@ -68,6 +73,8 @@ class MarketplaceBenchmark(
         g.add_argument("--seller-api-version", default=None)
         g.add_argument("--buyer-reasoning-effort", default=None)
         g.add_argument("--seller-reasoning-effort", default=None)
+        g.add_argument("--buyer-max-tokens", type=int, default=None)
+        g.add_argument("--seller-max-tokens", type=int, default=None)
 
     @classmethod
     def create_config(cls, args: argparse.Namespace) -> MarketplaceRunConfig:
@@ -77,14 +84,17 @@ class MarketplaceBenchmark(
         self.buyer_client = _create_client(
             config.resolved_buyer_base_url,
             config.resolved_buyer_reasoning_effort,
+            config.resolved_buyer_max_tokens,
         )
         self.seller_client = _create_client(
             config.resolved_seller_base_url,
             config.resolved_seller_reasoning_effort,
+            config.resolved_seller_max_tokens,
         )
         self.judge_client = _create_client(
             config.resolved_judge_base_url,
             config.resolved_judge_reasoning_effort,
+            config.resolved_judge_max_tokens,
         )
 
         # Resolve system prompt once (same for all tasks)

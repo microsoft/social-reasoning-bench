@@ -41,7 +41,7 @@ class SageRequest(BaseModel):
     model: str
     messages: list[SageMessage] = Field(default_factory=list)
     temperature: float | None = None
-    max_tokens: int | None = None
+    max_tokens: int = 65536
     top_p: float | None = None
     stop: str | list[str] | None = None
     tools: list[ChatCompletionToolParam] | None = None

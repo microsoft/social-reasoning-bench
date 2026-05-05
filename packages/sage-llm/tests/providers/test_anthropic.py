@@ -426,3 +426,29 @@ class TestFinishReasonMapping:
         assert msg.completion_info is not None
         assert msg.completion_info.finish_reason == "stop"
         assert any("pause_turn" in r.message for r in caplog.records)
+
+
+class TestMaxTokensDefault:
+    """max_tokens default propagates from acomplete signature into SDK call."""
+
+    @pytest.mark.asyncio
+    @patch("sage_llm.providers.anthropic.anthropic.AsyncAnthropic")
+    async def test_acomplete_default_max_tokens_reaches_sdk(self, mock_cls):
+        mock_client = AsyncMock()
+        mock_cls.return_value = mock_client
+        response = _make_anthropic_response()
+        stream_ctx = MagicMock()
+        stream_ctx.__aenter__ = AsyncMock(
+            return_value=MagicMock(get_final_message=AsyncMock(return_value=response))
+        )
+        stream_ctx.__aexit__ = AsyncMock(return_value=None)
+        mock_client.messages.stream = MagicMock(return_value=stream_ctx)
+
+        provider = AnthropicProvider(api_key="test-key")
+        # Caller omits max_tokens
+        await provider.acomplete(
+            "claude-sonnet-4-5",
+            [{"role": "user", "content": "hi"}],
+            trace=LLMTrace(),
+        )
+        assert mock_client.messages.stream.call_args.kwargs["max_tokens"] == 65536

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 from collections.abc import Sequence
+from typing import Any
 
 from sage_llm import SageModelClient
 
@@ -27,10 +28,14 @@ from .types import (
 def _create_client(
     base_url: str | None = None,
     reasoning_effort: str | int | None = None,
+    max_tokens: int | None = None,
 ) -> SageModelClient:
+    kwargs: dict[str, Any] = {"base_url": base_url}
     if reasoning_effort is not None:
-        return SageModelClient(base_url=base_url, reasoning_effort=reasoning_effort)
-    return SageModelClient(base_url=base_url)
+        kwargs["reasoning_effort"] = reasoning_effort
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    return SageModelClient(**kwargs)
 
 
 def _safe_avg(values: Sequence[float | None]) -> float | None:
@@ -66,6 +71,8 @@ class FormFillingBenchmark(
         g.add_argument("--interviewer-api-version", default=None)
         g.add_argument("--assistant-reasoning-effort", default=None)
         g.add_argument("--interviewer-reasoning-effort", default=None)
+        g.add_argument("--assistant-max-tokens", type=int, default=None)
+        g.add_argument("--interviewer-max-tokens", type=int, default=None)
 
         g = parser.add_argument_group("form-filling options")
         g.add_argument(
@@ -89,14 +96,17 @@ class FormFillingBenchmark(
         self.assistant_client = _create_client(
             config.resolved_assistant_base_url,
             config.resolved_assistant_reasoning_effort,
+            config.resolved_assistant_max_tokens,
         )
         self.interviewer_client = _create_client(
             config.resolved_interviewer_base_url,
             config.resolved_interviewer_reasoning_effort,
+            config.resolved_interviewer_max_tokens,
         )
         self.judge_client = _create_client(
             config.resolved_judge_base_url,
             config.resolved_judge_reasoning_effort,
+            config.resolved_judge_max_tokens,
         )
 
     async def execute_task(

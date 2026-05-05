@@ -42,11 +42,13 @@ class SageModelClient:
         base_url: str | None = None,
         api_version: str | None = None,
         reasoning_effort: str | int | None = None,
+        max_tokens: int = 65536,
     ):
         self.api_key = api_key
         self.base_url = base_url
         self.api_version = api_version
         self.reasoning_effort = reasoning_effort
+        self.max_tokens = max_tokens
 
     async def acomplete(
         self,
@@ -69,13 +71,14 @@ class SageModelClient:
             api_version=self.api_version,
         )
         effort = reasoning_effort if reasoning_effort is not None else self.reasoning_effort
+        tokens = max_tokens if max_tokens is not None else self.max_tokens
 
         trace = LLMTrace(
             sage_request=SageRequest(
                 model=resolved,
                 messages=messages,
                 temperature=temperature,
-                max_tokens=max_tokens,
+                max_tokens=tokens,
                 top_p=top_p,
                 stop=stop,
                 tools=tools,
@@ -91,7 +94,7 @@ class SageModelClient:
                 messages,
                 trace=trace,
                 temperature=temperature,
-                max_tokens=max_tokens,
+                max_tokens=tokens,
                 top_p=top_p,
                 stop=stop,
                 tools=tools,
@@ -132,12 +135,13 @@ class SageModelClient:
             api_version=self.api_version,
         )
         effort = reasoning_effort if reasoning_effort is not None else self.reasoning_effort
+        tokens = max_tokens if max_tokens is not None else self.max_tokens
         return await provider.aparse(
             provider_model,
             messages,
             response_format,
             temperature=temperature,
-            max_tokens=max_tokens,
+            max_tokens=tokens,
             top_p=top_p,
             stop=stop,
             reasoning_effort=effort,
