@@ -67,6 +67,12 @@ class AnthropicProvider(SageModelProvider):
     def __init__(self, api_key: str | None = None):
         self._client = _get_anthropic_client(api_key)
 
+    async def _sdk_call(self, **kwargs):
+        async with self._client.messages.stream(**kwargs) as stream:
+            message = await stream.get_final_message()
+        return message
+
+
     async def acomplete(
         self,
         model: str,
@@ -97,7 +103,7 @@ class AnthropicProvider(SageModelProvider):
         response, call_duration = await with_llm_retry(
             self.PROVIDER_KEY,
             model,
-            lambda _: self._client.messages.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
+            lambda _: self._sdk_call(**sdk_kwargs),
         )
         record_usage(
             self.PROVIDER_KEY,
@@ -142,7 +148,7 @@ class AnthropicProvider(SageModelProvider):
         response, call_duration = await with_llm_retry(
             self.PROVIDER_KEY,
             model,
-            lambda _: self._client.messages.create(**sdk_kwargs),  # ty:ignore[no-matching-overload]
+            lambda _: self._sdk_call(**sdk_kwargs),
         )
         record_usage(
             self.PROVIDER_KEY,
@@ -325,6 +331,7 @@ def _build_kwargs(
     if reasoning_effort is not None:
         if isinstance(reasoning_effort, int):
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": reasoning_effort}
+            kwargs["max_tokens"] = 2 * reasoning_effort
         else:
             # String effort (e.g. for Opus 4.5)
             kwargs["reasoning_effort"] = reasoning_effort

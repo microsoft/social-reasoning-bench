@@ -1,0 +1,796 @@
+content: "In machine learning, deep learning (DL) focuses on utilizing multilayered\
+  \ neural networks to perform tasks such as classification, regression, and representation\
+  \ learning. The field takes inspiration from biological neuroscience and revolves\
+  \ around stacking artificial neurons into layers and \"training\" them to process\
+  \ data. The adjective \"deep\" refers to the use of multiple layers (ranging from\
+  \ three to several hundred or thousands) in the network. Methods used can be supervised,\
+  \ semi-supervised or unsupervised.[2]\n\n\nSome common deep learning network architectures\
+  \ include fully connected networks, deep belief networks, recurrent neural networks,\
+  \ convolutional neural networks, generative adversarial networks, transformers,\
+  \ and neural radiance fields. These architectures have been applied to fields including\
+  \ computer vision, speech recognition, natural language processing, machine translation,\
+  \ bioinformatics, drug design, medical image analysis, climate science, material\
+  \ inspection and board game programs, where they have produced results comparable\
+  \ to and in some cases surpassing human expert performance.[3][4][5]\n\n\nEarly\
+  \ forms of neural networks were inspired by information processing and distributed\
+  \ communication nodes in biological systems, particularly the human brain. However,\
+  \ current neural networks do not intend to model the brain function of organisms,\
+  \ and are generally seen as low-quality models for that purpose.[6]\n\n\nMost modern\
+  \ deep learning models are based on multi-layered neural networks such as convolutional\
+  \ neural networks and transformers, although they can also include propositional\
+  \ formulas or latent variables organized layer-wise in deep generative models such\
+  \ as the nodes in deep belief networks and deep Boltzmann machines.[7]\n\n\nFundamentally,\
+  \ deep learning refers to a class of machine learning algorithms in which a hierarchy\
+  \ of layers is used to transform input data into a progressively more abstract and\
+  \ composite representation. For example, in an image recognition model, the raw\
+  \ input may be an image (represented as a tensor of pixels). The first representational\
+  \ layer may attempt to identify basic shapes such as lines and circles, the second\
+  \ layer may compose and encode arrangements of edges, the third layer may encode\
+  \ a nose and eyes, and the fourth layer may recognize that the image contains a\
+  \ face.\n\n\nImportantly, a deep learning process can learn which features to optimally\
+  \ place at which level on its own. Prior to deep learning, machine learning techniques\
+  \ often involved hand-crafted feature engineering to transform the data into a more\
+  \ suitable representation for a classification algorithm to operate on. In the deep\
+  \ learning approach, features are not hand-crafted and the model discovers useful\
+  \ feature representations from the data automatically. This does not eliminate the\
+  \ need for hand-tuning; for example, varying numbers of layers and layer sizes can\
+  \ provide different degrees of abstraction.[8][2]\n\n\nThe word \"deep\" in \"deep\
+  \ learning\" refers to the number of layers through which the data is transformed.\
+  \ More precisely, deep learning systems have a substantial credit assignment path\
+  \ (CAP) depth. The CAP is the chain of transformations from input to output. CAPs\
+  \ describe potentially causal connections between input and output. For a feedforward\
+  \ neural network, the depth of the CAPs is that of the network and is the number\
+  \ of hidden layers plus one (as the output layer is also parameterized). For recurrent\
+  \ neural networks, in which a signal may propagate through a layer more than once,\
+  \ the CAP depth is potentially unlimited.[9] No universally agreed-upon threshold\
+  \ of depth divides shallow learning from deep learning, but most researchers agree\
+  \ that deep learning involves CAP depth higher than two. CAP of depth two has been\
+  \ shown to be a universal approximator in the sense that it can emulate any function.[10]\
+  \ Beyond that, more layers do not add to the function approximator ability of the\
+  \ network. Deep models (CAP > two) are able to extract better features than shallow\
+  \ models and hence, extra layers help in learning the features effectively.\n\n\n\
+  Deep learning architectures can be constructed with a greedy layer-by-layer method.[11]\
+  \ Deep learning helps to disentangle these abstractions and pick out which features\
+  \ improve performance.[8]\n\n\nDeep learning algorithms can be applied to unsupervised\
+  \ learning tasks. This is an important benefit because unlabeled data is more abundant\
+  \ than labeled data. Examples of deep structures that can be trained in an unsupervised\
+  \ manner are deep belief networks.[8][12]\n\n\nThe term deep learning was introduced\
+  \ to the machine learning community by Rina Dechter in 1986,[13] and to artificial\
+  \ neural networks by Igor Aizenberg and colleagues in 2000, in the context of Boolean\
+  \ threshold neurons.[14][15] The etymology of the term is more complicated.[16]\n\
+  \n\nDeep neural networks are generally interpreted in terms of the universal approximation\
+  \ theorem[17][18][19][20][21] or probabilistic inference.[22][23][8][9][24]\n\n\n\
+  The classic universal approximation theorem concerns the capacity of feedforward\
+  \ neural networks with a single hidden layer of finite size to approximate continuous\
+  \ functions.[17][18][19][20] In 1989, the first proof was published by George Cybenko\
+  \ for sigmoid activation functions[17] and was generalised to feed-forward multi-layer\
+  \ architectures in 1991 by Kurt Hornik.[18] Recent work also showed that universal\
+  \ approximation also holds for non-bounded activation functions such as Kunihiko\
+  \ Fukushima's rectified linear unit.[25][26]\n\n\nThe universal approximation theorem\
+  \ for deep neural networks concerns the capacity of networks with bounded width\
+  \ but the depth is allowed to grow. Lu et al.[21] proved that if the width of a\
+  \ deep neural network with ReLU activation is strictly larger than the input dimension,\
+  \ then the network can approximate any Lebesgue integrable function; if the width\
+  \ is smaller or equal to the input dimension, then a deep neural network is not\
+  \ a universal approximator.\n\n\nThe probabilistic interpretation[24] derives from\
+  \ the field of machine learning. It features inference,[23][7][8][9][12][24] as\
+  \ well as the optimization concepts of training and testing, related to fitting\
+  \ and generalization, respectively. More specifically, the probabilistic interpretation\
+  \ considers the activation nonlinearity as a cumulative distribution function.[24]\
+  \ The probabilistic interpretation led to the introduction of dropout as regularizer\
+  \ in neural networks. The probabilistic interpretation was introduced by researchers\
+  \ including Hopfield, Widrow and Narendra and popularized in surveys such as the\
+  \ one by Bishop.[27]\n\n\nThere are two types of artificial neural network (ANN):\
+  \ feedforward neural network (FNN) or multilayer perceptron (MLP) and recurrent\
+  \ neural networks (RNN). RNNs have cycles in their connectivity structure, whereas\
+  \ FNNs do not. In the 1920s, Wilhelm Lenz and Ernst Ising created the Ising model[28][29]\
+  \ which is essentially a non-learning RNN architecture consisting of neuron-like\
+  \ threshold elements. In 1972, Shun'ichi Amari made this architecture adaptive.[30][31]\
+  \ His learning RNN was republished by John Hopfield in 1982.[32] Other early recurrent\
+  \ neural networks were published by Kaoru Nakano in 1971.[33][34] Already in 1948,\
+  \ Alan Turing produced work on \"Intelligent Machinery\"  that was not published\
+  \ in his lifetime,[35] containing \"ideas related to artificial evolution and learning\
+  \ RNNs\".[31]\n\n\nFrank Rosenblatt (1958)[36] proposed the perceptron, an MLP with\
+  \ 3 layers: an input layer, a hidden layer with randomized weights that did not\
+  \ learn, and an output layer. He later published a 1962 book that also introduced\
+  \ variants and computer experiments, including a version with four-layer perceptrons\
+  \ \"with adaptive preterminal networks\" where the last two layers have learned\
+  \ weights (here he credits H. D. Block and B. W. Knight).[37]: section 16  The book\
+  \ cites an earlier network by R. D. Joseph (1960)[38] \"functionally equivalent\
+  \ to a variation of\" this four-layer system (the book mentions Joseph over 30 times).\
+  \ Should Joseph therefore be considered the originator of proper adaptive multilayer\
+  \ perceptrons with learning hidden units? Unfortunately, the learning algorithm\
+  \ was not a functional one, and fell into oblivion.\n\n\nThe first working deep\
+  \ learning algorithm was the Group method of data handling, a method to train arbitrarily\
+  \ deep neural networks, published by Alexey Ivakhnenko and Lapa in 1965. They regarded\
+  \ it as a form of polynomial regression,[39] or a generalization of Rosenblatt's\
+  \ perceptron to handle more complex, nonlinear, and hierarchical relationships.[40]\
+  \ A 1971 paper described a deep network with eight layers trained by this method,[41]\
+  \ which is based on layer by layer training through regression analysis. Superfluous\
+  \ hidden units are pruned using a separate validation set. Since the activation\
+  \ functions of the nodes are Kolmogorov-Gabor polynomials, these were also the first\
+  \ deep networks with multiplicative units or \"gates\".[31]\n\n\nThe first deep\
+  \ learning multilayer perceptron trained by stochastic gradient descent[42] was\
+  \ published in 1967 by Shun'ichi Amari.[43] In computer experiments conducted by\
+  \ Amari's student Saito, a five layer MLP with two modifiable layers learned  internal\
+  \ representations to classify non-linearily separable pattern classes.[31] Subsequent\
+  \ developments in hardware and hyperparameter tunings have made end-to-end stochastic\
+  \ gradient descent the currently dominant training technique.\n\n\nIn 1969, Kunihiko\
+  \ Fukushima introduced the ReLU (rectified linear unit) activation function.[25][31]\
+  \ The rectifier has become the most popular activation function for deep learning.[44]\n\
+  \n\nDeep learning architectures for convolutional neural networks (CNNs) with convolutional\
+  \ layers and downsampling layers began with the Neocognitron introduced by Kunihiko\
+  \ Fukushima in 1979, though not trained by backpropagation.[45][46]\n\n\nBackpropagation\
+  \ is an efficient application of the chain rule derived by Gottfried Wilhelm Leibniz\
+  \ in 1673[47] to networks of differentiable nodes. The terminology \"back-propagating\
+  \ errors\" was actually introduced in 1962 by Rosenblatt,[37] but he did not know\
+  \ how to implement this, although Henry J. Kelley had a continuous precursor of\
+  \ backpropagation in 1960 in the context of control theory.[48] The modern form\
+  \ of backpropagation was first published in Seppo Linnainmaa's master thesis (1970).[49][50][31]\
+  \ G.M. Ostrovski et al. republished it in 1971.[51][52] Paul Werbos applied backpropagation\
+  \ to neural networks in 1982[53] (his 1974 PhD thesis, reprinted in a 1994 book,[54]\
+  \ did not yet describe the algorithm[52]). In 1986, David E. Rumelhart et al. popularised\
+  \ backpropagation but did not cite the original work.[55][56]\n\n\nThe time delay\
+  \ neural network (TDNN) was introduced in 1987 by Alex Waibel to apply CNN to phoneme\
+  \ recognition. It used convolutions, weight sharing, and backpropagation.[57][58]\
+  \  In 1988, Wei Zhang applied a backpropagation-trained CNN to alphabet recognition.[59]\
+  \ \nIn 1989, Yann LeCun et al. created a CNN called LeNet for recognizing handwritten\
+  \ ZIP codes on mail. Training required 3 days.[60] In 1990, Wei Zhang implemented\
+  \ a CNN on optical computing hardware.[61] In 1991, a CNN was applied to medical\
+  \ image object segmentation[62] and breast cancer detection in mammograms.[63] LeNet-5\
+  \ (1998), a 7-level CNN by Yann LeCun et al., that classifies digits, was applied\
+  \ by several banks to recognize hand-written numbers on checks  digitized in 32x32\
+  \ pixel images.[64]\n\n\nRecurrent neural networks (RNN)[28][30] were further developed\
+  \ in the 1980s. Recurrence is used for sequence processing, and when a recurrent\
+  \ network is unrolled, it mathematically resembles a deep feedforward layer. Consequently,\
+  \ they have similar properties and issues, and their developments had mutual influences.\
+  \ In RNN, two early influential works were the Jordan network (1986)[65] and the\
+  \ Elman network (1990),[66] which applied RNN to study problems in cognitive psychology.\n\
+  \n\nIn the 1980s, backpropagation did not work well for deep learning with long\
+  \ credit assignment paths. To overcome this problem, in 1991, Jürgen Schmidhuber\
+  \ proposed a hierarchy of RNNs pre-trained one level at a time by self-supervised\
+  \ learning where each RNN tries to predict its own next input, which is the next\
+  \ unexpected input of the RNN below.[67][68] This \"neural history compressor\"\
+  \ uses predictive coding  to learn internal representations at multiple self-organizing\
+  \ time scales. This can substantially facilitate downstream deep learning. The RNN\
+  \ hierarchy can be collapsed into a single RNN, by  distilling a higher level chunker\
+  \ network into a lower level automatizer network.[67][68][31] In 1993, a neural\
+  \ history compressor solved a \"Very Deep Learning\" task that required more than\
+  \ 1000 subsequent layers in an RNN unfolded in time.[69] The \"P\" in ChatGPT refers\
+  \ to such pre-training.\n\n\nSepp Hochreiter's diploma thesis (1991)[70] implemented\
+  \ the neural history compressor,[67] and identified and analyzed the vanishing gradient\
+  \ problem.[70][71]  Hochreiter proposed recurrent residual connections to solve\
+  \ the vanishing gradient problem. This led to the long short-term memory (LSTM),\
+  \ published in 1995.[72] LSTM can learn \"very deep learning\" tasks[9] with long\
+  \ credit assignment paths that require memories of events that happened thousands\
+  \ of discrete time steps before. That LSTM was not yet the modern architecture,\
+  \ which required a \"forget gate\", introduced in 1999,[73] which became the standard\
+  \ RNN architecture.\n\n\nIn 1991, Jürgen Schmidhuber also published adversarial\
+  \ neural networks that contest with each other in the form of a zero-sum game, where\
+  \ one network's gain is the other network's loss.[74][75] The first network is a\
+  \ generative model that models a probability distribution over output patterns.\
+  \ The second network learns by gradient descent to predict the reactions of the\
+  \ environment to these patterns. This was called \"artificial curiosity\". In 2014,\
+  \ this principle was used in generative adversarial networks (GANs).[76]\n\n\nDuring\
+  \ 1985–1995, inspired by statistical mechanics, several architectures and methods\
+  \ were developed by Terry Sejnowski, Peter Dayan, Geoffrey Hinton, etc., including\
+  \ the Boltzmann machine,[77] restricted Boltzmann machine,[78] Helmholtz machine,[79]\
+  \ and the wake-sleep algorithm.[80] These were designed for unsupervised learning\
+  \ of deep generative models. However, those were more computationally expensive\
+  \ compared to backpropagation. Boltzmann machine learning algorithm, published in\
+  \ 1985, was briefly popular before being eclipsed by the backpropagation algorithm\
+  \ in 1986. (p. 112 [81]). A 1988 network became state of the art in protein structure\
+  \ prediction, an early application of deep learning to bioinformatics.[82]\n\n\n\
+  Both shallow and deep learning (e.g., recurrent nets) of ANNs for speech recognition\
+  \ have been explored for many years.[83][84][85] These methods never outperformed\
+  \ non-uniform internal-handcrafting Gaussian mixture model/Hidden Markov model (GMM-HMM)\
+  \ technology based on generative models of speech trained discriminatively.[86]\
+  \ Key difficulties have been analyzed, including gradient diminishing[70] and weak\
+  \ temporal correlation structure in neural predictive models.[87][88] Additional\
+  \ difficulties were the lack of training data and limited computing power.\n\n\n\
+  Most speech recognition researchers moved away from neural nets to pursue generative\
+  \ modeling. An exception was at SRI International in the late 1990s. Funded by the\
+  \ US government's NSA and DARPA, SRI researched in speech and speaker recognition.\
+  \ The speaker recognition team led by Larry Heck reported significant success with\
+  \ deep neural networks in speech processing in the 1998 NIST Speaker Recognition\
+  \ benchmark.[89][90] It was deployed in the Nuance Verifier, representing the first\
+  \ major industrial application of deep learning.[91]\n\n\nThe principle of elevating\
+  \ \"raw\" features over hand-crafted optimization was first explored successfully\
+  \ in the architecture of deep autoencoder on the \"raw\" spectrogram or linear filter-bank\
+  \ features in the late 1990s,[90] showing its superiority over the Mel-Cepstral\
+  \ features that contain stages of fixed transformation from spectrograms. The raw\
+  \ features of speech, waveforms, later produced excellent larger-scale results.[92]\n\
+  \n\nNeural networks entered a lull, and simpler models that use task-specific handcrafted\
+  \ features such as Gabor filters and support vector machines (SVMs) became the preferred\
+  \ choices in the 1990s and 2000s, because of artificial neural networks' computational\
+  \ cost and a lack of understanding of how the brain wires its biological networks.[citation\
+  \ needed]\n\n\nIn 2003, LSTM became competitive with traditional speech recognizers\
+  \ on certain tasks.[93] In 2006, Alex Graves, Santiago Fernández, Faustino Gomez,\
+  \ and Schmidhuber combined it with connectionist temporal classification (CTC)[94]\
+  \ in stacks of LSTMs.[95] In 2009, it became the first RNN to win a pattern recognition\
+  \ contest, in connected handwriting recognition.[96][9]\n\n\nIn 2006, publications\
+  \ by Geoff Hinton, Ruslan Salakhutdinov, Osindero and Teh[97][98] deep belief networks\
+  \ were developed for generative modeling. They are trained by training one restricted\
+  \ Boltzmann machine, then freezing it and training another one on top of the first\
+  \ one, and so on, then optionally fine-tuned using supervised backpropagation.[99]\
+  \ They could model high-dimensional probability distributions, such as the distribution\
+  \ of MNIST images, but convergence was slow.[100][101][102]\n\n\nThe impact of deep\
+  \ learning in industry began in the early 2000s, when CNNs already processed an\
+  \ estimated 10% to 20% of all the checks written in the US, according to Yann LeCun.[103]\
+  \ Industrial applications of deep learning to large-scale speech recognition started\
+  \ around 2010.\n\n\nThe 2009 NIPS Workshop on Deep Learning for Speech Recognition\
+  \ was motivated by the limitations of deep generative models of speech, and the\
+  \ possibility that given more capable hardware and large-scale data sets that deep\
+  \ neural nets might become practical. It was believed that pre-training DNNs using\
+  \ generative models of deep belief nets (DBN) would overcome the main difficulties\
+  \ of neural nets. However, it was discovered that replacing pre-training with large\
+  \ amounts of training data for straightforward backpropagation when using DNNs with\
+  \ large, context-dependent output layers produced error rates dramatically lower\
+  \ than then-state-of-the-art Gaussian mixture model (GMM)/Hidden Markov Model (HMM)\
+  \ and also than more-advanced generative model-based systems.[104] The nature of\
+  \ the recognition errors produced by the two types of systems was characteristically\
+  \ different,[105] offering technical insights into how to integrate deep learning\
+  \ into the existing highly efficient, run-time speech decoding system deployed by\
+  \ all major speech recognition systems.[23][106][107] Analysis around 2009–2010,\
+  \ contrasting the GMM (and other generative speech models) vs. DNN models, stimulated\
+  \ early industrial investment in deep learning for speech recognition.[105]  That\
+  \ analysis was done with comparable performance (less than 1.5% in error rate) between\
+  \ discriminative DNNs and generative models.[104][105][108]\nIn 2010, researchers\
+  \ extended deep learning from TIMIT to large vocabulary speech recognition, by adopting\
+  \ large output layers of the DNN based on context-dependent HMM states constructed\
+  \ by decision trees.[109][110][111][106]\n\n\nThe deep learning revolution started\
+  \ around CNN- and GPU-based computer vision.\n\n\nAlthough CNNs trained by backpropagation\
+  \ had been around for decades and GPU implementations of NNs for years,[112] including\
+  \ CNNs,[113] faster implementations of CNNs on GPUs were needed to progress on computer\
+  \ vision. Later, as deep learning becomes widespread, specialized hardware and algorithm\
+  \ optimizations were developed specifically for deep learning.[114]\n\n\nA key advance\
+  \ for the deep learning revolution was hardware advances, especially GPU. Some early\
+  \ work dated back to 2004.[112][113] In 2009, Raina, Madhavan, and Andrew Ng reported\
+  \ a 100M deep belief network trained on 30 Nvidia GeForce GTX 280 GPUs, an early\
+  \ demonstration of GPU-based deep learning. They reported up to 70 times faster\
+  \ training.[115]\n\n\nIn 2011, a CNN named DanNet[116][117] by Dan Ciresan, Ueli\
+  \ Meier, Jonathan Masci, Luca Maria Gambardella, and Jürgen Schmidhuber achieved\
+  \ for the first time superhuman performance in a visual pattern recognition contest,\
+  \ outperforming traditional methods by a factor of 3.[9] It then won more contests.[118][119]\
+  \ They also showed how max-pooling CNNs on GPU improved performance significantly.[3]\n\
+  \n\nIn 2012, Andrew Ng and Jeff Dean created an FNN that learned to recognize higher-level\
+  \ concepts, such as cats, only from watching unlabeled images taken from YouTube\
+  \ videos.[120]\n\n\nIn October 2012, AlexNet by Alex Krizhevsky, Ilya Sutskever,\
+  \ and Geoffrey Hinton[4] won the large-scale ImageNet competition by a significant\
+  \ margin over shallow machine learning methods. Further incremental improvements\
+  \ included the VGG-16 network by Karen Simonyan and Andrew Zisserman[121] and Google's\
+  \ Inceptionv3.[122]\n\n\nThe success in image classification was then extended to\
+  \ the more challenging task of generating descriptions (captions) for images, often\
+  \ as a combination of CNNs and LSTMs.[123][124][125]\n\n\nIn 2014, the state of\
+  \ the art was training \"very deep neural network\" with 20 to 30 layers.[126] Stacking\
+  \ too many layers led to a steep reduction in training accuracy,[127] known as the\
+  \ \"degradation\" problem.[128] In 2015, two techniques were developed to train\
+  \ very deep networks: the highway network was published in May 2015, and the residual\
+  \ neural network (ResNet)[129] in Dec 2015. ResNet behaves like an open-gated Highway\
+  \ Net.\n\n\nAround the same time, deep learning started impacting the field of art.\
+  \ Early examples included Google DeepDream (2015), and neural style transfer (2015),[130]\
+  \ both of which were based on pretrained image classification neural networks, such\
+  \ as VGG-19.\n\n\nGenerative adversarial network (GAN) by (Ian Goodfellow et al.,\
+  \ 2014)[131] (based on  Jürgen Schmidhuber's principle of artificial curiosity[74][76])\n\
+  became state of the art in generative modeling during 2014-2018 period. Excellent\
+  \ image quality is achieved by Nvidia's StyleGAN (2018)[132] based on the Progressive\
+  \ GAN by Tero Karras et al.[133] Here the GAN generator is grown from small to large\
+  \ scale in a pyramidal fashion. Image generation by GAN reached popular success,\
+  \ and provoked discussions concerning deepfakes.[134] Diffusion models (2015)[135]\
+  \ eclipsed GANs in generative modeling since then, with systems such as DALL·E 2\
+  \ (2022) and Stable Diffusion (2022).\n\n\nIn 2015, Google's speech recognition\
+  \ improved by 49% by an LSTM-based model, which they made available through Google\
+  \ Voice Search on smartphone.[136][137]\n\n\nDeep learning is part of state-of-the-art\
+  \ systems in various disciplines, particularly computer vision and automatic speech\
+  \ recognition (ASR). Results on commonly used evaluation sets such as TIMIT (ASR)\
+  \ and MNIST (image classification), as well as a range of large-vocabulary speech\
+  \ recognition tasks have steadily improved.[104][138] Convolutional neural networks\
+  \ were superseded for ASR by LSTM.[137][139][140][141] but are more successful in\
+  \ computer vision.\n\n\nYoshua Bengio, Geoffrey Hinton and Yann LeCun were awarded\
+  \ the 2018 Turing Award for \"conceptual and engineering breakthroughs that have\
+  \ made deep neural networks a critical component of computing\".[142]\n\n\nArtificial\
+  \ neural networks (ANNs) or connectionist systems are computing systems inspired\
+  \ by the biological neural networks that constitute animal brains. Such systems\
+  \ learn (progressively improve their ability) to do tasks by considering examples,\
+  \ generally without task-specific programming. For example, in image recognition,\
+  \ they might learn to identify images that contain cats by analyzing example images\
+  \ that have been manually labeled as \"cat\" or \"no cat\" and using the analytic\
+  \ results to identify cats in other images. They have found most use in applications\
+  \ difficult to express with a traditional computer algorithm using rule-based programming.\n\
+  \n\nAn ANN is based on a collection of connected units called artificial neurons,\
+  \ (analogous to biological neurons in a biological brain). Each connection (synapse)\
+  \ between neurons can transmit a signal to another neuron. The receiving (postsynaptic)\
+  \ neuron can process the signal(s) and then signal downstream neurons connected\
+  \ to it. Neurons may have state, generally represented by real numbers, typically\
+  \ between 0 and 1. Neurons and synapses may also have a weight that varies as learning\
+  \ proceeds, which can increase or decrease the strength of the signal that it sends\
+  \ downstream.\n\n\nTypically, neurons are organized in layers. Different layers\
+  \ may perform different kinds of transformations on their inputs. Signals travel\
+  \ from the first (input), to the last (output) layer, possibly after traversing\
+  \ the layers multiple times.\n\n\nThe original goal of the neural network approach\
+  \ was to solve problems in the same way that a human brain would. Over time, attention\
+  \ focused on matching specific mental abilities, leading to deviations from biology\
+  \ such as backpropagation, or passing information in the reverse direction and adjusting\
+  \ the network to reflect that information.\n\n\nNeural networks have been used on\
+  \ a variety of tasks, including computer vision, speech recognition, machine translation,\
+  \ social network filtering, playing board and video games and medical diagnosis.\n\
+  \n\nAs of 2017, neural networks typically have a few thousand to a few million units\
+  \ and millions of connections. Despite this number being several order of magnitude\
+  \ less than the number of neurons on a human brain, these networks can perform many\
+  \ tasks at a level beyond that of humans (e.g., recognizing faces, or playing \"\
+  Go\"[144]).\n\n\nA deep neural network (DNN) is an artificial neural network with\
+  \ multiple layers between the input and output layers.[7][9] There are different\
+  \ types of neural networks but they always consist of the same components: neurons,\
+  \ synapses, weights, biases, and functions.[145] These components as a whole function\
+  \ in a way that mimics functions of the human brain, and can be trained like any\
+  \ other ML algorithm.[citation needed]\n\n\nFor example, a DNN that is trained to\
+  \ recognize dog breeds will go over the given image and calculate the probability\
+  \ that the dog in the image is a certain breed. The user can review the results\
+  \ and select which probabilities the network should display (above a certain threshold,\
+  \ etc.) and return the proposed label. Each mathematical manipulation as such is\
+  \ considered a layer,[146] and complex DNN have many layers, hence the name \"deep\"\
+  \ networks.\n\n\nDNNs can model complex non-linear relationships. DNN architectures\
+  \ generate compositional models where the object is expressed as a layered composition\
+  \ of primitives.[147] The extra layers enable composition of features from lower\
+  \ layers, potentially modeling complex data with fewer units than a similarly performing\
+  \ shallow network.[7] For instance, it was proved that sparse multivariate polynomials\
+  \ are exponentially easier to approximate with DNNs than with shallow networks.[148]\n\
+  \n\nDeep architectures include many variants of a few basic approaches. Each architecture\
+  \ has found success in specific domains. It is not always possible to compare the\
+  \ performance of multiple architectures, unless they have been evaluated on the\
+  \ same data sets.[146]\n\n\nDNNs are typically feedforward networks in which data\
+  \ flows from the input layer to the output layer without looping back. At first,\
+  \ the DNN creates a map of virtual neurons and assigns random numerical values,\
+  \ or \"weights\", to connections between them. The weights and inputs are multiplied\
+  \ and return an output between 0 and 1. If the network did not accurately recognize\
+  \ a particular pattern, an algorithm would adjust the weights.[149] That way the\
+  \ algorithm can make certain parameters more influential, until it determines the\
+  \ correct mathematical manipulation to fully process the data.\n\n\nRecurrent neural\
+  \ networks, in which data can flow in any direction, are used for applications such\
+  \ as language modeling.[150][151][152][153][154] Long short-term memory is particularly\
+  \ effective for this use.[155][156]\n\n\nConvolutional neural networks (CNNs) are\
+  \ used in computer vision.[157] CNNs also have been applied to acoustic modeling\
+  \ for automatic speech recognition (ASR).[158]\n\n\nAs with ANNs, many issues can\
+  \ arise with naively trained DNNs. Two common issues are overfitting and computation\
+  \ time.\n\n\nDNNs are prone to overfitting because of the added layers of abstraction,\
+  \ which allow them to model rare dependencies in the training data. Regularization\
+  \ methods such as Ivakhnenko's unit pruning[41] or weight decay (\n\n\n\n\nℓ\n\n\
+  2\n\n\n\n\n{\\displaystyle \\ell _{2}}\n\n-regularization) or sparsity (\n\n\n\n\
+  \nℓ\n\n1\n\n\n\n\n{\\displaystyle \\ell _{1}}\n\n-regularization) can be applied\
+  \ during training to combat overfitting.[159] Alternatively dropout regularization\
+  \ randomly omits units from the hidden layers during training. This helps to exclude\
+  \ rare dependencies.[160] Another interesting recent development is research into\
+  \ models of just enough complexity through an estimation of the intrinsic complexity\
+  \ of the task being modelled. This approach has been successfully applied for multivariate\
+  \ time series prediction tasks such as traffic prediction.[161] Finally, data can\
+  \ be augmented via methods such as cropping and rotating such that smaller training\
+  \ sets can be increased in size to reduce the chances of overfitting.[162]\n\n\n\
+  DNNs must consider many training parameters, such as the size (number of layers\
+  \ and number of units per layer), the learning rate, and initial weights. Sweeping\
+  \ through the parameter space for optimal parameters may not be feasible due to\
+  \ the cost in time and computational resources. Various tricks, such as batching\
+  \ (computing the gradient on several training examples at once rather than individual\
+  \ examples)[163] speed up computation. Large processing capabilities of many-core\
+  \ architectures (such as GPUs or the Intel Xeon Phi) have produced significant speedups\
+  \ in training, because of the suitability of such processing architectures for the\
+  \ matrix and vector computations.[164][165]\n\n\nAlternatively, engineers may look\
+  \ for other types of neural networks with more straightforward and convergent training\
+  \ algorithms. CMAC (cerebellar model articulation controller) is one such kind of\
+  \ neural network. It doesn't require learning rates or randomized initial weights.\
+  \ The training process can be guaranteed to converge in one step with a new batch\
+  \ of data, and the computational complexity of the training algorithm is linear\
+  \ with respect to the number of neurons involved.[166][167]\n\n\nSince the 2010s,\
+  \ advances in both machine learning algorithms and computer hardware have led to\
+  \ more efficient methods for training deep neural networks that contain many layers\
+  \ of non-linear hidden units and a very large output layer.[168] By 2019, graphics\
+  \ processing units (GPUs), often with AI-specific enhancements, had displaced CPUs\
+  \ as the dominant method for training large-scale commercial cloud AI .[169] OpenAI\
+  \ estimated the hardware computation used in the largest deep learning projects\
+  \ from AlexNet (2012) to AlphaZero (2017) and found a 300,000-fold increase in the\
+  \ amount of computation required, with a doubling-time trendline of 3.4 months.[170][171]\n\
+  \n\nSpecial electronic circuits called deep learning processors were designed to\
+  \ speed up deep learning algorithms. Deep learning processors include neural processing\
+  \ units (NPUs) in Huawei cellphones[172] and cloud computing servers such as tensor\
+  \ processing units (TPU) in the Google Cloud Platform.[173] Cerebras Systems has\
+  \ also built a dedicated system to handle large deep learning models, the CS-2,\
+  \ based on the largest processor in the industry, the second-generation Wafer Scale\
+  \ Engine (WSE-2).[174][175]\n\n\nAtomically thin semiconductors are considered promising\
+  \ for energy-efficient deep learning hardware where the same basic device structure\
+  \ is used for both logic operations and data storage.\nIn 2020, Marega et al. published\
+  \ experiments with a large-area active channel material for developing logic-in-memory\
+  \ devices and circuits based on floating-gate field-effect transistors (FGFETs).[176]\n\
+  \n\nIn 2021, J. Feldmann et al. proposed an integrated photonic hardware accelerator\
+  \ for parallel convolutional processing.[177] The authors identify two key advantages\
+  \ of integrated photonics over its electronic counterparts: (1) massively parallel\
+  \ data transfer through wavelength division multiplexing in conjunction with frequency\
+  \ combs, and (2) extremely high data modulation speeds.[177] Their system can execute\
+  \ trillions of multiply-accumulate operations per second, indicating the potential\
+  \ of integrated photonics in data-heavy AI applications.[177]\n\n\nLarge-scale automatic\
+  \ speech recognition is the first and most convincing successful case of deep learning.\
+  \ LSTM RNNs can learn \"Very Deep Learning\" tasks[9] that involve multi-second\
+  \ intervals containing speech events separated by thousands of discrete time steps,\
+  \ where one time step corresponds to about 10 ms. LSTM with forget gates[156] is\
+  \ competitive with traditional speech recognizers on certain tasks.[93]\n\n\nThe\
+  \ initial success in speech recognition was based on small-scale recognition tasks\
+  \ based on TIMIT. The data set contains 630 speakers from eight major dialects of\
+  \ American English, where each speaker reads 10 sentences.[178] Its small size lets\
+  \ many configurations be tried. More importantly, the TIMIT task concerns phone-sequence\
+  \ recognition, which, unlike word-sequence recognition, allows weak phone bigram\
+  \ language models. This lets the strength of the acoustic modeling aspects of speech\
+  \ recognition be more easily analyzed. The error rates listed below, including these\
+  \ early results and measured as percent phone error rates (PER), have been summarized\
+  \ since 1991.\n\n\nThe debut of DNNs for speaker recognition in the late 1990s and\
+  \ speech recognition around 2009-2011 and of LSTM around 2003–2007, accelerated\
+  \ progress in eight major areas:[23][108][106]\n\n\nMore recent speech recognition\
+  \ models use Transformers or Temporal Convolution Networks with significant success\
+  \ and widespread applications.[183][184][185] All major commercial speech recognition\
+  \ systems (e.g., Microsoft Cortana, Xbox, Skype Translator, Amazon Alexa, Google\
+  \ Now, Apple Siri, Baidu and iFlyTek voice search, and a range of Nuance speech\
+  \ products, etc.) are based on deep learning.[23][186][187]\n\n\nA common evaluation\
+  \ set for image classification is the MNIST database data set. MNIST is composed\
+  \ of handwritten digits and includes 60,000 training examples and 10,000 test examples.\
+  \ As with TIMIT, its small size lets users test multiple configurations. A comprehensive\
+  \ list of results on this set is available.[188]\n\n\nDeep learning-based image\
+  \ recognition has become \"superhuman\", producing more accurate results than human\
+  \ contestants. This first occurred in 2011 in recognition of traffic signs, and\
+  \ in 2014, with recognition of human faces.[189][190]\n\n\nDeep learning-trained\
+  \ vehicles now interpret 360° camera views.[191] Another example is Facial Dysmorphology\
+  \ Novel Analysis (FDNA) used to analyze cases of human malformation connected to\
+  \ a large database of genetic syndromes.\n\n\nClosely related to the progress that\
+  \ has been made in image recognition is the increasing application of deep learning\
+  \ techniques to various visual art tasks. DNNs have proven themselves capable, for\
+  \ example, of\n\n\nNeural networks have been used for implementing language models\
+  \ since the early 2000s.[150] LSTM helped to improve machine translation and language\
+  \ modeling.[151][152][153]\n\n\nOther key techniques in this field are negative\
+  \ sampling[194] and word embedding. Word embedding, such as word2vec, can be thought\
+  \ of as a representational layer in a deep learning architecture that transforms\
+  \ an atomic word into a positional representation of the word relative to other\
+  \ words in the dataset; the position is represented as a point in a vector space.\
+  \ Using word embedding as an RNN input layer allows the network to parse sentences\
+  \ and phrases using an effective compositional vector grammar. A compositional vector\
+  \ grammar can be thought of as probabilistic context free grammar (PCFG) implemented\
+  \ by an RNN.[195] Recursive auto-encoders built atop word embeddings can assess\
+  \ sentence similarity and detect paraphrasing.[195] Deep neural architectures provide\
+  \ the best results for constituency parsing,[196] sentiment analysis,[197] information\
+  \ retrieval,[198][199] spoken language understanding,[200] machine translation,[151][201]\
+  \ contextual entity linking,[201] writing style recognition,[202] named-entity recognition\
+  \ (token classification),[203] text classification, and others.[204]\n\n\nRecent\
+  \ developments generalize word embedding to sentence embedding.\n\n\nGoogle Translate\
+  \ (GT) uses a large end-to-end long short-term memory (LSTM) network.[205][206][207][208]\
+  \ Google Neural Machine Translation (GNMT) uses an example-based machine translation\
+  \ method in which the system \"learns from millions of examples\".[206] It translates\
+  \ \"whole sentences at a time, rather than pieces\". Google Translate supports over\
+  \ one hundred languages.[206] The network encodes the \"semantics of the sentence\
+  \ rather than simply memorizing phrase-to-phrase translations\".[206][209] GT uses\
+  \ English as an intermediate between most language pairs.[209]\n\n\nA large percentage\
+  \ of candidate drugs fail to win regulatory approval. These failures are caused\
+  \ by insufficient efficacy (on-target effect), undesired interactions (off-target\
+  \ effects), or unanticipated toxic effects.[210][211] Research has explored use\
+  \ of deep learning to predict the biomolecular targets,[212][213] off-targets, and\
+  \ toxic effects of environmental chemicals in nutrients, household products and\
+  \ drugs.[214][215][216]\n\n\nAtomNet is a deep learning system for structure-based\
+  \ rational drug design.[217] AtomNet was used to predict novel candidate biomolecules\
+  \ for disease targets such as the Ebola virus[218] and multiple sclerosis.[219][218]\n\
+  \n\nIn 2017 graph neural networks were used for the first time to predict various\
+  \ properties of molecules in a large toxicology data set.[220] In 2019, generative\
+  \ neural networks were used to produce molecules that were validated experimentally\
+  \ all the way into mice.[221][222]\n\n\nRecommendation systems have used deep learning\
+  \ to extract meaningful features for a latent factor model for content-based music\
+  \ and journal recommendations.[223][224] Multi-view deep learning has been applied\
+  \ for learning user preferences from multiple domains.[225] The model uses a hybrid\
+  \ collaborative and content-based approach and enhances recommendations in multiple\
+  \ tasks.\n\n\nAn autoencoder ANN was used in bioinformatics, to predict gene ontology\
+  \ annotations and gene-function relationships.[226]\n\n\nIn medical informatics,\
+  \ deep learning was used to predict sleep quality based on data from wearables[227]\
+  \ and predictions of health complications from electronic health record data.[228]\n\
+  \n\nDeep neural networks have shown unparalleled performance in predicting protein\
+  \ structure, according to the sequence of the amino acids that make it up. In 2020,\
+  \ AlphaFold, a deep-learning based system, achieved a level of accuracy significantly\
+  \ higher than all previous computational methods.[229][230]\n\n\nDeep neural networks\
+  \ can be used to estimate the entropy of a stochastic process through an arrangement\
+  \ called a Neural Joint Entropy Estimator (NJEE).[231] Such an estimation provides\
+  \ insights on the effects of input random variables on an independent random variable.\
+  \ Practically, the DNN is trained as a classifier that maps an input vector or matrix\
+  \ X to an output probability distribution over the possible classes of random variable\
+  \ Y, given input X. For example, in image classification tasks, the NJEE maps a\
+  \ vector of pixels' color values to probabilities over possible image classes. In\
+  \ practice, the probability distribution of Y is obtained by a Softmax layer with\
+  \ number of nodes that is equal to the alphabet size of Y. NJEE uses continuously\
+  \ differentiable activation functions, such that the conditions for the universal\
+  \ approximation theorem holds. It is shown that this method provides a strongly\
+  \ consistent estimator and outperforms other methods in cases of large alphabet\
+  \ sizes.[231]\n\n\nDeep learning has been shown to produce competitive results in\
+  \ medical applications such as cancer cell classification, lesion detection, organ\
+  \ segmentation and image enhancement.[232][233] Modern deep learning tools demonstrate\
+  \ the high accuracy of detecting various diseases and the helpfulness of their use\
+  \ by specialists to improve the diagnosis efficiency.[234][235]\n\n\nFinding the\
+  \ appropriate mobile audience for mobile advertising is always challenging, since\
+  \ many data points must be considered and analyzed before a target segment can be\
+  \ created and used in ad serving by any ad server.[236] Deep learning has been used\
+  \ to interpret large, many-dimensioned advertising datasets. Many data points are\
+  \ collected during the request/serve/click internet advertising cycle. This information\
+  \ can form the basis of machine learning to improve ad selection.\n\n\nDeep learning\
+  \ has been successfully applied to inverse problems such as denoising, super-resolution,\
+  \ inpainting, and film colorization.[237] These applications include learning methods\
+  \ such as \"Shrinkage Fields for Effective Image Restoration\"[238] which trains\
+  \ on an image dataset, and Deep Image Prior, which trains on the image that needs\
+  \ restoration.\n\n\nDeep learning is being applied to financial fraud detection,\
+  \ tax evasion detection,[239] and anti-money laundering.[240]\n\n\nIn November 2023,\
+  \ researchers at Google DeepMind and Lawrence Berkeley National Laboratory announced\
+  \ that they had developed an AI system known as GNoME. This system has contributed\
+  \ to materials science by discovering over 2 million new materials within a relatively\
+  \ short timeframe. GNoME employs deep learning techniques to efficiently explore\
+  \ potential material structures, achieving a significant increase in the identification\
+  \ of stable inorganic crystal structures. The system's predictions were validated\
+  \ through autonomous robotic experiments, demonstrating a noteworthy success rate\
+  \ of 71%. The data of newly discovered materials is publicly available through the\
+  \ Materials Project database, offering researchers the opportunity to identify materials\
+  \ with desired properties for various applications. This development has implications\
+  \ for the future of scientific discovery and the integration of AI in material science\
+  \ research, potentially expediting material innovation and reducing costs in product\
+  \ development. The use of AI and deep learning suggests the possibility of minimizing\
+  \ or eliminating manual lab experiments and allowing scientists to focus more on\
+  \ the design and analysis of unique compounds.[241][242][243]\n\n\nThe United States\
+  \ Department of Defense applied deep learning to train robots in new tasks through\
+  \ observation.[244]\n\n\nPhysics informed neural networks have been used to solve\
+  \ partial differential equations in both forward and inverse problems in a data\
+  \ driven manner.[245] One example is the reconstructing fluid flow governed by the\
+  \ Navier-Stokes equations. Using physics informed neural networks does not require\
+  \ the often expensive mesh generation that conventional CFD methods rely on.[246][247]\
+  \ It is evident that geometric and physical constraints have a synergistic effect\
+  \ on neural PDE surrogates, thereby enhancing their efficacy in predicting stable\
+  \ and super long rollouts.[248]\n\n\nDeep backward stochastic differential equation\
+  \ method is a numerical method that combines deep learning with Backward stochastic\
+  \ differential equation (BSDE). This method is particularly useful for solving high-dimensional\
+  \ problems in financial mathematics. By leveraging the powerful function approximation\
+  \ capabilities of deep neural networks, deep BSDE addresses the computational challenges\
+  \ faced by traditional numerical methods in high-dimensional settings. Specifically,\
+  \ traditional methods like finite difference methods or Monte Carlo simulations\
+  \ often struggle with the curse of dimensionality, where computational cost increases\
+  \ exponentially with the number of dimensions. Deep BSDE methods, however, employ\
+  \ deep neural networks to approximate solutions of high-dimensional partial differential\
+  \ equations (PDEs), effectively reducing the computational burden.[249]\n\n\nIn\
+  \ addition, the integration of Physics-informed neural networks (PINNs) into the\
+  \ deep BSDE framework enhances its capability by embedding the underlying physical\
+  \ laws directly into the neural network architecture. This ensures that the solutions\
+  \ not only fit the data but also adhere to the governing stochastic differential\
+  \ equations. PINNs leverage the power of deep learning while respecting the constraints\
+  \ imposed by the physical models, resulting in more accurate and reliable solutions\
+  \ for financial mathematics problems.\n\n\nImage reconstruction is the reconstruction\
+  \ of the underlying images from the image-related measurements. Several works showed\
+  \ the better and superior performance of the deep learning methods compared to analytical\
+  \ methods for various applications, e.g., spectral imaging [250] and ultrasound\
+  \ imaging.[251]\n\n\nTraditional weather prediction systems solve a very complex\
+  \ system of partial differential equations. GraphCast is a deep learning based model,\
+  \ trained on a long history of weather data to predict how weather patterns change\
+  \ over time. It is able to  predict weather conditions for up to 10 days globally,\
+  \ at a very detailed level, and in under a minute, with precision similar to state\
+  \ of the art systems.[252][253]\n\n\nAn epigenetic clock is a biochemical test that\
+  \ can be used to measure age. Galkin et al. used deep neural networks to train an\
+  \ epigenetic aging clock of unprecedented accuracy using >6,000 blood samples.[254]\
+  \ The clock uses information from 1000 CpG sites and predicts people with certain\
+  \ conditions older than healthy controls: IBD, frontotemporal dementia, ovarian\
+  \ cancer, obesity. The aging clock was planned to be released for public use in\
+  \ 2021 by an Insilico Medicine spinoff company Deep Longevity.\n\n\nDeep learning\
+  \ is closely related to a class of theories of brain development (specifically,\
+  \ neocortical development) proposed by cognitive neuroscientists in the early 1990s.[255][256][257][258]\
+  \ These developmental theories were instantiated in computational models, making\
+  \ them predecessors of deep learning systems. These developmental models share the\
+  \ property that various proposed learning dynamics in the brain (e.g., a wave of\
+  \ nerve growth factor) support the self-organization somewhat analogous to the neural\
+  \ networks utilized in deep learning models. Like the neocortex, neural networks\
+  \ employ a hierarchy of layered filters in which each layer considers information\
+  \ from a prior layer (or the operating environment), and then passes its output\
+  \ (and possibly the original input), to other layers. This process yields a self-organizing\
+  \ stack of transducers, well-tuned to their operating environment. A 1995 description\
+  \ stated, \"...the infant's brain seems to organize itself under the influence of\
+  \ waves of so-called trophic-factors ... different regions of the brain become connected\
+  \ sequentially, with one layer of tissue maturing before another and so on until\
+  \ the whole brain is mature\".[259]\n\n\nA variety of approaches have been used\
+  \ to investigate the plausibility of deep learning models from a neurobiological\
+  \ perspective. On the one hand, several variants of the backpropagation algorithm\
+  \ have been proposed in order to increase its processing realism.[260][261] Other\
+  \ researchers have argued that unsupervised forms of deep learning, such as those\
+  \ based on hierarchical generative models and deep belief networks, may be closer\
+  \ to biological reality.[262][263] In this respect, generative neural network models\
+  \ have been related to neurobiological evidence about sampling-based processing\
+  \ in the cerebral cortex.[264]\n\n\nAlthough a systematic comparison between the\
+  \ human brain organization and the neuronal encoding in deep networks has not yet\
+  \ been established, several analogies have been reported. For example, the computations\
+  \ performed by deep learning units could be similar to those of actual neurons[265]\
+  \ and neural populations.[266] Similarly, the representations developed by deep\
+  \ learning models are similar to those measured in the primate visual system[267]\
+  \ both at the single-unit[268] and at the population[269] levels.\n\n\nFacebook's\
+  \ AI lab performs tasks such as automatically tagging uploaded pictures with the\
+  \ names of the people in them.[270]\n\n\nGoogle's DeepMind Technologies developed\
+  \ a system capable of learning how to play Atari video games using only pixels as\
+  \ data input. In 2015 they demonstrated their AlphaGo system, which learned the\
+  \ game of Go well enough to beat a professional Go player.[271][272][273] Google\
+  \ Translate uses a neural network to translate between more than 100 languages.\n\
+  \n\nIn 2017, Covariant.ai was launched, which focuses on integrating deep learning\
+  \ into factories.[274]\n\n\nAs of 2008,[275] researchers at The University of Texas\
+  \ at Austin (UT) developed a machine learning framework called Training an Agent\
+  \ Manually via Evaluative Reinforcement, or TAMER, which proposed new methods for\
+  \ robots or computer programs to learn how to perform tasks by interacting with\
+  \ a human instructor.[244] First developed as TAMER, a new algorithm called Deep\
+  \ TAMER was later introduced in 2018 during a collaboration between U.S. Army Research\
+  \ Laboratory (ARL) and UT researchers. Deep TAMER used deep learning to provide\
+  \ a robot with the ability to learn new tasks through observation.[244] Using Deep\
+  \ TAMER, a robot learned a task with a human trainer, watching video streams or\
+  \ observing a human perform a task in-person. The robot later practiced the task\
+  \ with the help of some coaching from the trainer, who provided feedback such as\
+  \ \"good job\" and \"bad job\".[276]\n\n\nDeep learning has attracted both criticism\
+  \ and comment, in some cases from outside the field of computer science.\n\n\nA\
+  \ main criticism concerns the lack of theory surrounding some methods.[277] Learning\
+  \ in the most common deep architectures is implemented using well-understood gradient\
+  \ descent. However, the theory surrounding other algorithms, such as contrastive\
+  \ divergence is less clear.[citation needed] (e.g., Does it converge? If so, how\
+  \ fast? What is it approximating?) Deep learning methods are often looked at as\
+  \ a black box, with most confirmations done empirically, rather than theoretically.[278]\n\
+  \n\nIn further reference to the idea that artistic sensitivity might be inherent\
+  \ in relatively low levels of the cognitive hierarchy, a published series of graphic\
+  \ representations of the internal states of deep (20-30 layers) neural networks\
+  \ attempting to discern within essentially random data the images on which they\
+  \ were trained[279] demonstrate a visual appeal: the original research notice received\
+  \ well over 1,000 comments, and was the subject of what was for a time the most\
+  \ frequently accessed article on The Guardian's[280] website.\n\n\nWith the support\
+  \ of Innovation Diffusion Theory (IDT), a study analyzed the diffusion of Deep Learning[281]\
+  \ in BRICS and OECD countries using data from Google Trends.\n\n\nSome deep learning\
+  \ architectures display problematic behaviors,[282] such as confidently classifying\
+  \ unrecognizable images as belonging to a familiar category of ordinary images (2014)[283]\
+  \ and misclassifying minuscule perturbations of correctly classified images (2013).[284]\
+  \ Goertzel hypothesized that these behaviors are due to limitations in their internal\
+  \ representations and that these limitations would inhibit integration into heterogeneous\
+  \ multi-component artificial general intelligence (AGI) architectures.[282] These\
+  \ issues may possibly be addressed by deep learning architectures that internally\
+  \ form states homologous to image-grammar[285] decompositions of observed entities\
+  \ and events.[282] Learning a grammar (visual or linguistic) from training data\
+  \ would be equivalent to restricting the system to commonsense reasoning that operates\
+  \ on concepts in terms of grammatical production rules and is a basic goal of both\
+  \ human language acquisition[286] and artificial intelligence (AI).[287]\n\n\nAs\
+  \ deep learning moves from the lab into the world, research and experience show\
+  \ that artificial neural networks are vulnerable to hacks and deception.[288] By\
+  \ identifying patterns that these systems use to function, attackers can modify\
+  \ inputs to ANNs in such a way that the ANN finds a match that human observers would\
+  \ not recognize. For example, an attacker can make subtle changes to an image such\
+  \ that the ANN finds a match even though the image looks to a human nothing like\
+  \ the search target. Such manipulation is termed an \"adversarial attack\".[289]\n\
+  \n\nIn 2016 researchers used one ANN to doctor images in trial and error fashion,\
+  \ identify another's focal points, and thereby generate images that deceived it.\
+  \ The modified images looked no different to human eyes. Another group showed that\
+  \ printouts of doctored images then photographed successfully tricked an image classification\
+  \ system.[290] One defense is reverse image search, in which a possible fake image\
+  \ is submitted to a site such as TinEye that can then find other instances of it.\
+  \ A refinement is to search using only parts of the image, to identify images from\
+  \ which that piece may have been taken.[291]\n\n\nAnother group showed that certain\
+  \ psychedelic spectacles could fool a facial recognition system into thinking ordinary\
+  \ people were celebrities, potentially allowing one person to impersonate another.\
+  \ In 2017 researchers added stickers to stop signs and caused an ANN to misclassify\
+  \ them.[290]\n\n\nANNs can however be further trained to detect attempts at deception,\
+  \ potentially leading attackers and defenders into an arms race similar to the kind\
+  \ that already defines the malware defense industry. ANNs have been trained to defeat\
+  \ ANN-based anti-malware software by repeatedly attacking a defense with malware\
+  \ that was continually altered by a genetic algorithm until it tricked the anti-malware\
+  \ while retaining its ability to damage the target.[290]\n\n\nIn 2016, another group\
+  \ demonstrated that certain sounds could make the Google Now voice command system\
+  \ open a particular web address, and hypothesized that this could \"serve as a stepping\
+  \ stone for further attacks (e.g., opening a web page hosting drive-by malware)\"\
+  .[290]\n\n\nIn \"data poisoning\", false data is continually smuggled into a machine\
+  \ learning system's training set to prevent it from achieving mastery.[290]\n\n\n\
+  The deep learning systems that are trained using supervised learning often rely\
+  \ on data that is created or annotated by humans, or both.[292] It has been argued\
+  \ that not only low-paid clickwork (such as on Amazon Mechanical Turk) is regularly\
+  \ deployed for this purpose, but also implicit forms of human microwork that are\
+  \ often not recognized as such.[293] The philosopher Rainer Mühlhoff distinguishes\
+  \ five types of \"machinic capture\" of human microwork to generate training data:\
+  \ (1) gamification (the embedding of annotation or computation tasks in the flow\
+  \ of a game), (2) \"trapping and tracking\" (e.g. CAPTCHAs for image recognition\
+  \ or click-tracking on Google search results pages), (3) exploitation of social\
+  \ motivations (e.g. tagging faces on Facebook to obtain labeled facial images),\
+  \ (4) information mining (e.g. by leveraging quantified-self devices such as activity\
+  \ trackers) and (5) clickwork.[293]\n"
+depth: 0
+links:
+- Deep_Learning_(South_Park)
+- Artificial_intelligence
+- Artificial_intelligence#Goals
+- Artificial_general_intelligence
+- Intelligent_agent
+- Recursive_self-improvement
+- Automated_planning_and_scheduling
+- Computer_vision
+- General_game_playing
+- Knowledge_representation_and_reasoning
+- Natural_language_processing
+- Robotics
+- AI_safety
+- Machine_learning
+- Symbolic_artificial_intelligence
+- Bayesian_network
+- Evolutionary_algorithm
+- Hybrid_intelligent_system
+- Artificial_intelligence_systems_integration
+- Open-source_artificial_intelligence
+- AI_data_center
+- Applications_of_artificial_intelligence
+- Machine_learning_in_bioinformatics
+- Deepfake
+- Machine_learning_in_earth_sciences
+- Applications_of_artificial_intelligence#Finance
+- Generative_artificial_intelligence
+- Artificial_intelligence_art
+- Generative_audio
+- Music_and_artificial_intelligence
+- Artificial_intelligence_in_government
+- Artificial_intelligence_in_healthcare
+- Artificial_intelligence_in_mental_health
+- Artificial_intelligence_in_industry
+- AI-assisted_software_development
+- Machine_translation
+- Artificial_intelligence_arms_race
+- Machine_learning_in_physics
+- List_of_artificial_intelligence_projects
+- Philosophy_of_artificial_intelligence
+- AI_alignment
+- Artificial_consciousness
+- Bitter_lesson
+- Chinese_room
+- Friendly_artificial_intelligence
+- Ethics_of_artificial_intelligence
+- Existential_risk_from_artificial_general_intelligence
+- Turing_test
+- Uncanny_valley
+- Human%E2%80%93AI_interaction
+- History_of_artificial_intelligence
+- Timeline_of_artificial_intelligence
+- Progress_in_artificial_intelligence
+- AI_winter
+- AI_boom
+- AI_bubble
+- Artificial_intelligence_controversies
+- Deepfake_pornography
+- Taylor_Swift_deepfake_pornography_controversy
+- Grok_sexual_deepfake_scandal
+- Google_Gemini_image_generation_controversy
+- It%27s_the_Most_Terrible_Time_of_the_Year
+- Removal_of_Sam_Altman_from_OpenAI
+- Statement_on_AI_Risk
+- Tay_(chatbot)
+- Th%C3%A9%C3%A2tre_D%27op%C3%A9ra_Spatial
+- Voiceverse_NFT_plagiarism_scandal
+- Glossary_of_artificial_intelligence
+- Machine_learning
+- Neural_network_(machine_learning)
+- Statistical_classification
+- Regression_analysis
+- Representation_learning
+- Neuroscience
+- Artificial_neuron
+- Supervised_learning
+- Semi-supervised_learning
+- Unsupervised_learning
+- Fully_connected_network
+- Deep_belief_network
+- Recurrent_neural_network
+- Convolutional_neural_network
+- Generative_adversarial_network
+- Transformer_(deep_learning)
+- Neural_radiance_field
+- Computer_vision
+- Speech_recognition
+- Natural_language_processing
+- Machine_translation
+- Bioinformatics
+- Drug_design
+- Medical_image_analysis
+- Climatology
+- Board_game
+- Biological_system
+- Human_brain
+- Neural_network_(machine_learning)
+- Convolutional_neural_network
+- Transformer_(neural_network)
+- Propositional_formula
+title: Deep learning
+total_links: 1459
+url: https://en.wikipedia.org/wiki/Deep_learning

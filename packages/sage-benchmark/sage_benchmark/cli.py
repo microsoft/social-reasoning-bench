@@ -298,6 +298,12 @@ def _run_experiment(argv: list[str]) -> None:
         help="Re-run evaluation (ignore checkpointed evaluation progress)",
     )
     parser.add_argument(
+        "--finalize",
+        action="store_true",
+        default=False,
+        help="Convert checkpoint.json to results.json without running any tasks",
+    )
+    parser.add_argument(
         "--logger",
         default="progress",
         choices=["verbose", "progress", "quiet"],
@@ -346,6 +352,7 @@ def _run_experiment(argv: list[str]) -> None:
             llm_concurrency=args.llm_concurrency,
             restart_exec=args.restart_exec,
             restart_eval=args.restart_eval,
+            finalize=args.finalize,
             logger_style=args.logger,
             log_level=args.log_level,
         )

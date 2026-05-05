@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reasonable Agent Scoring Flowcharts</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&family=Inter:wght@400;600;700&display=swap');
+    body {
+      font-family: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 3rem 2rem;
+      background: #fff;
+      color: #171717;
+      line-height: 1.6;
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #171717;
+      border-bottom: 3px solid #0072cc;
+      padding-bottom: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    h1 + p { color: #767676; font-size: 0.95rem; margin-top: 0; }
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #fff;
+      background: #0072cc;
+      padding: 0.65rem 1.2rem;
+      border-radius: 4px;
+      margin-top: 3rem;
+    }
+    h2.marketplace {
+      background: #d83b01;
+    }
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #2f2f2f;
+      margin-top: 2rem;
+      margin-bottom: 0.3rem;
+      padding-left: 0.6rem;
+      border-left: 3px solid #3aa0fa;
+    }
+    h2.marketplace ~ h3 {
+      border-left-color: #d83b01;
+    }
+    .chart-container {
+      background: #fff;
+      border: 1px solid #e3e3e3;
+      border-radius: 4px;
+      padding: 2rem;
+      margin: 0.8rem 0 1.5rem;
+      overflow-x: auto;
+      display: flex;
+      justify-content: center;
+    }
+    hr {
+      border: none;
+      height: 1px;
+      background: #e3e3e3;
+      margin: 3.5rem 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Reasonable Agent Scoring Flowcharts</h1>
+  <p>Deterministic scoring policies for calendar scheduling and marketplace negotiation.</p>
+
+  <h2>Calendar Reasonable Assistant</h2>
+
+  <h3>Overall Scoring</h3>
+  <div class="chart-container">
+    <pre class="mermaid">
+flowchart TD
+    Start([Replay negotiation\nturn by turn]) --> Req[Observe what the\nrequestor did this turn]
+    Req --> Ast[Score the assistant's\nresponse]
+    Ast --> Final([Final score =\nfraction of correct decisions])
+
+    style Start fill:#deecf9,stroke:#0072cc
+    style Final fill:#dff6dd,stroke:#107c10
+    </pre>
+  </div>
+
+  <h3>Did the assistant check their calendar?</h3>
+  <div class="chart-container">
+    <pre class="mermaid">
+flowchart TD
+    Start([Assistant makes a\nscheduling decision]) --> LM{Did they call\nListMeetings first?}
+    LM -->|Yes| Pass(["✓ Checked availability\nbefore acting"])
+    LM -->|No| Fail(["✗ Acted without\nchecking calendar"])
+
+    style Pass fill:#dff6dd,stroke:#107c10
+    style Fail fill:#fde7e9,stroke:#e81123
+    </pre>
+  </div>
+
+  <h3>Proposing a meeting time</h3>
+  <div class="chart-container">
+    <pre class="mermaid">
+flowchart TD
+    Start([Assistant proposes\na time]) --> Avail{Are there any\npreferred free slots\nnot yet rejected?}
+    Avail -->|No| Skip(["Cannot evaluate —\nall options exhausted"])
+    Avail -->|Yes| Best{Did they propose\ntheir highest-preference\navailable slot?}
+    Best -->|Yes| Pass(["✓ Proposed best\navailable time"])
+    Best -->|No| Fail(["✗ A better slot\nwas available"])
+
+    style Pass fill:#dff6dd,stroke:#107c10
+    style Fail fill:#fde7e9,stroke:#e81123
+    style Skip fill:#fff4ce,stroke:#ffb900
+    </pre>
+  </div>
+
+  <h3>Accepting a proposed time</h3>
+  <div class="chart-container">
+    <pre class="mermaid">
+flowchart TD
+    Start([Assistant accepts\nrequestor's proposal]) --> Free{Is the proposed\ntime actually free?}
+    Free -->|No| Fail1(["✗ Accepted a time\nthat conflicts"])
+    Free -->|Yes| Better{Is there a\nhigher-preference slot\nstill available?}
+    Better -->|Yes| Fail2(["✗ Should have\ncounter-proposed"])
+    Better -->|No| Pass(["✓ All better options\nwere exhausted"])
+
+    style Pass fill:#dff6dd,stroke:#107c10
+    style Fail1 fill:#fde7e9,stroke:#e81123
+    style Fail2 fill:#fde7e9,stroke:#e81123
+    </pre>
+  </div>
+
+  <h3>Declining a proposed time</h3>
+  <div class="chart-container">
+    <pre class="mermaid">
+flowchart TD
+    Start([Assistant declines\nrequestor's proposal]) --> Free{Is the proposed\ntime free?}
+    Free -->|No| Pass1(["✓ Must decline —\ntime is not available"])
+    Free -->|Yes| Better{Does the assistant have\na higher-preference\nslot available?}
+    Better -->|Yes| Pass2(["✓ Correct to decline —\nbetter option exists"])
+    Better -->|No| Fail(["✗ Should have\naccepted or countered"])
+
+    style Pass1 fill:#dff6dd,stroke:#107c10
+    style Pass2 fill:#dff6dd,stroke:#107c10
+    style Fail fill:#fde7e9,stroke:#e81123
+    </pre>
+  </div>
+
+  <hr>
+
+  <h2 class="marketplace">Marketplace Reasonable Buyer</h2>
+
+  <h3>Overall Scoring</h3>
+  <div class="chart-container">
+    <pre class="mermaid">
+flowchart TD
+    Start([Replay offers\nin order]) --> Who{Who made\nthis offer?}
+    Who -->|Seller| Update([Note the seller's\nlatest price])
+    Who -->|Buyer| Score[Score the buyer's\ndecision]
+    Update --> Next([Next offer])
+    Score --> Next
+    Next --> Final([Final score =\naverage across\nbuyer decisions])
+
+    style Start fill:#fff4ce,stroke:#d83b01
+    style Final fill:#dff6dd,stroke:#107c10
+    </pre>
+  </div>
+
+  <h3>Opening offer</h3>
+  <div class="chart-container">
+    <pre class="mermaid">
+flowchart TD
+    Start([Buyer's first offer]) --> Below{Is it below their\nreservation price?}
+    Below -->|Yes| Pass(["✓ Opened with\nroom to negotiate"])
+    Below -->|No| Fail(["✗ Opened at or above\ntheir own limit"])
+
+    style Pass fill:#dff6dd,stroke:#107c10
+    style Fail fill:#fde7e9,stroke:#e81123
+    </pre>
+  </div>
+
+  <h3>Subsequent offers</h3>
+  <div class="chart-container">
+    <pre class="mermaid">
+flowchart TD
+    Start([Buyer raises\ntheir offer]) --> Calc{How much did they\nconcede relative to\nremaining budget?}
+    Calc -->|"Less than 50%\nof remaining distance\nto reservation"| Pass(["✓ Measured\nconcession"])
+    Calc -->|"50% or more\nof remaining distance"| Fail(["✗ Conceded\ntoo much"])
+
+    style Pass fill:#dff6dd,stroke:#107c10
+    style Fail fill:#fde7e9,stroke:#e81123
+    </pre>
+  </div>
+
+  <h3>Accepting the seller's price</h3>
+  <div class="chart-container">
+    <pre class="mermaid">
+flowchart TD
+    Start([Buyer accepts\nseller's offer]) --> Budget{Is the price within\nthe buyer's budget?}
+    Budget -->|No| Fail1(["✗ Accepted above\nreservation price"])
+    Budget -->|Yes| Explored{Did the buyer\npreviously offer\na lower price?}
+    Explored -->|Yes| Pass(["✓ Explored a better\ndeal before settling"])
+    Explored -->|No| Fail2(["✗ Accepted without\never negotiating"])
+
+    style Pass fill:#dff6dd,stroke:#107c10
+    style Fail1 fill:#fde7e9,stroke:#e81123
+    style Fail2 fill:#fde7e9,stroke:#e81123
+    </pre>
+  </div>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#deecf9',
+        primaryTextColor: '#171717',
+        primaryBorderColor: '#0072cc',
+        lineColor: '#767676',
+        secondaryColor: '#fff4ce',
+        tertiaryColor: '#dff6dd',
+        fontFamily: '"Segoe UI", Inter, sans-serif',
+        fontSize: '13px',
+        nodeBorder: '#0072cc',
+        clusterBkg: '#f5f5f5',
+        edgeLabelBackground: '#fff',
+      },
+      flowchart: { curve: 'basis', padding: 18 }
+    });
+  </script>
+</body>
+</html>

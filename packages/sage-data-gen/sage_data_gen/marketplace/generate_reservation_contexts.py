@@ -26,6 +26,12 @@ class ReservationContextResponse(BaseModel):
     )
 
 
+# Fixed ZOPA percentages and listing multipliers.
+# Each product gets 5 ZOPA widths × 5 listing prices = 25 tasks.
+ZOPA_PCTS = [0.10, 0.30, 0.50, 0.70, 0.90]
+LISTING_MULTIPLIERS = [1.10, 1.30, 1.50, 1.70, 1.90]
+
+
 def _round_price(value: float) -> float:
     """Round to integer if >= 5, otherwise keep 2 decimal places."""
     if value >= 5:
@@ -35,35 +41,24 @@ def _round_price(value: float) -> float:
 
 def _compute_reservation_prices(
     reference_price: float,
-    rng: random.Random,
-    min_zopa_pct: float = 0.20,
-    max_zopa_pct: float = 0.60,
+    zopa_pct: float,
 ) -> tuple[float, float]:
-    """Compute seller and buyer reservation prices deterministically.
+    """Compute seller and buyer reservation prices from a fixed ZOPA percentage.
 
-    Seller reservation is set below reference_price, buyer reservation
-    above it, with total ZOPA width between min_zopa_pct and max_zopa_pct
-    of the reference price. Prices >= $5 are rounded to integers;
-    smaller prices keep cents.
+    ZOPA is split symmetrically around the reference price.
 
     Args:
         reference_price: Central market reference price.
-        rng: Seeded random instance.
-        min_zopa_pct: Minimum ZOPA as fraction of reference price.
-        max_zopa_pct: Maximum ZOPA as fraction of reference price.
+        zopa_pct: ZOPA as fraction of reference price (e.g. 0.40 for 40%).
 
     Returns:
         (seller_reservation, buyer_reservation) tuple.
     """
-    zopa_pct = rng.uniform(min_zopa_pct, max_zopa_pct)
     zopa = reference_price * zopa_pct
+    half = zopa / 2
 
-    # Split ZOPA symmetrically
-    seller_discount = zopa / 2
-    buyer_premium = zopa / 2
-
-    seller_res = _round_price(max(0.01, reference_price - seller_discount))
-    buyer_res = _round_price(reference_price + buyer_premium)
+    seller_res = _round_price(max(0.01, reference_price - half))
+    buyer_res = _round_price(reference_price + half)
 
     # Ensure buyer > seller
     if buyer_res <= seller_res:
@@ -110,12 +105,12 @@ async def _generate_one(
     context_id: str,
     catalog: CatalogEntry,
     max_retries: int,
-    rng: random.Random,
+    zopa_pct: float,
 ) -> ReservationContext:
     last_error: Exception | None = None
 
-    # Compute prices deterministically
-    seller_price, buyer_price = _compute_reservation_prices(catalog.reference_price, rng)
+    # Compute prices from fixed ZOPA percentage
+    seller_price, buyer_price = _compute_reservation_prices(catalog.reference_price, zopa_pct)
     prompt = _prompt_for_context(
         catalog=catalog,
         seller_reservation_price=seller_price,
@@ -151,18 +146,27 @@ async def generate_reservation_contexts(
     client: SageModelClient,
     model: str,
     catalog: list[CatalogEntry],
-    total_tasks: int,
     max_retries: int,
     max_concurrency: int,
     seed: int = 42,
 ) -> list[ReservationContext]:
-    rng = random.Random(seed)
-    # Pre-generate per-task RNG seeds so concurrent tasks are deterministic
-    task_seeds = [rng.randint(0, 2**31) for _ in range(total_tasks)]
+    """Generate reservation contexts: one per (product × ZOPA %).
+
+    Each catalog product gets exactly len(ZOPA_PCTS) contexts.
+    Total contexts = len(catalog) × len(ZOPA_PCTS).
+    Listing price variation is handled separately during assembly.
+    """
+    # Build task list: one context per (product, zopa_pct)
+    task_specs: list[tuple[int, CatalogEntry, float]] = []
+    idx = 0
+    for cat in catalog:
+        for zopa_pct in ZOPA_PCTS:
+            task_specs.append((idx, cat, zopa_pct))
+            idx += 1
 
     sem = asyncio.Semaphore(max_concurrency)
 
-    async def _bounded(*, i: int, cat: CatalogEntry) -> ReservationContext | None:
+    async def _bounded(*, i: int, cat: CatalogEntry, zopa_pct: float) -> ReservationContext | None:
         async with sem:
             try:
                 return await _generate_one(
@@ -171,21 +175,19 @@ async def generate_reservation_contexts(
                     context_id=f"rc_{i:04d}",
                     catalog=cat,
                     max_retries=max_retries,
-                    rng=random.Random(task_seeds[i]),
+                    zopa_pct=zopa_pct,
                 )
             except RuntimeError as e:
                 print(f"  Warning: skipping context rc_{i:04d} — {e}")
                 return None
 
-    coros = []
-    for i in range(total_tasks):
-        cat = catalog[i % len(catalog)]
-        coros.append(_bounded(i=i, cat=cat))
+    coros = [_bounded(i=i, cat=cat, zopa_pct=zp) for i, cat, zp in task_specs]
 
     results = await asyncio.gather(*coros)
     contexts = [r for r in results if r is not None]
-    if len(contexts) < total_tasks:
+    expected = len(task_specs)
+    if len(contexts) < expected:
         print(
-            f"  Generated {len(contexts)}/{total_tasks} contexts ({total_tasks - len(contexts)} failed)"
+            f"  Generated {len(contexts)}/{expected} contexts ({expected - len(contexts)} failed)"
         )
     return contexts

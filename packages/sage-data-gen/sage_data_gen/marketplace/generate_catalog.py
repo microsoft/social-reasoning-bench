@@ -23,22 +23,31 @@ def _slugify(text: str) -> str:
     return slug[:48] if slug else "item"
 
 
-def _catalog_prompt(catalog_size: int, existing_names: list[str]) -> str:
+PRICE_BUCKETS = [
+    ("$10–$30", 10, 30),
+    ("$30–$100", 30, 100),
+    ("$100–$500", 100, 500),
+    ("$500–$5000", 500, 5000),
+]
+
+
+def _catalog_prompt(count: int, price_range: str, existing_names: list[str]) -> str:
     avoid_clause = ""
     if existing_names:
         avoid_list = "\n".join(f"- {name}" for name in existing_names[:40])
         avoid_clause = (
             f"\nAvoid repeating these existing offering names (or near-duplicates):\n{avoid_list}\n"
         )
-    return f"""Generate a benchmark catalog of {catalog_size} negotiable offerings.
+    return f"""Generate a benchmark catalog of {count} negotiable offerings.
 
 Requirements:
 - Focus on mostly commodity-like offerings with stable, comparable specs.
 - Include a mix of goods and services.
+- All reference_price values MUST be in the range {price_range}.
 - For each offering, provide:
   1) name
   2) detailed description (2-3 sentences)
-  3) a positive reference_price
+  3) a positive reference_price within {price_range}
 - Avoid duplicates and near-duplicates.
 - Make the offering concrete enough that a buyer can compare an alternative for the exact same offering.
 {avoid_clause}"""
@@ -50,56 +59,71 @@ async def generate_catalog(
     catalog_size: int,
     max_retries: int,
 ) -> list[CatalogEntry]:
-    batch_size = min(40, catalog_size)
+    # Distribute catalog_size evenly across price buckets
+    per_bucket = catalog_size // len(PRICE_BUCKETS)
+    remainder = catalog_size - per_bucket * len(PRICE_BUCKETS)
+
     raw_entries: list[RawCatalogEntry] = []
     seen_names: set[str] = set()
-    stalled_batches = 0
-    last_error: Exception | None = None
 
-    while len(raw_entries) < catalog_size:
-        needed = catalog_size - len(raw_entries)
-        request_size = min(batch_size, needed)
-        prompt = _catalog_prompt(request_size, existing_names=[r.name for r in raw_entries])
+    for bucket_idx, (price_range, lo, hi) in enumerate(PRICE_BUCKETS):
+        target = per_bucket + (1 if bucket_idx < remainder else 0)
+        if target == 0:
+            continue
 
-        batch: list[RawCatalogEntry] = []
-        for _ in range(max_retries):
-            try:
-                result = await client.aparse(
-                    model=model,
-                    messages=[{"role": "user", "content": prompt}],
-                    response_format=CatalogResponse,
+        stalled_batches = 0
+        last_error: Exception | None = None
+
+        while len([e for e in raw_entries if lo <= e.reference_price <= hi]) < target:
+            needed = target - len([e for e in raw_entries if lo <= e.reference_price <= hi])
+            request_size = min(40, needed + 2)  # request a few extra for dedup headroom
+            prompt = _catalog_prompt(request_size, price_range, [r.name for r in raw_entries])
+
+            batch: list[RawCatalogEntry] = []
+            for _ in range(max_retries):
+                try:
+                    result = await client.aparse(
+                        model=model,
+                        messages=[{"role": "user", "content": prompt}],
+                        response_format=CatalogResponse,
+                    )
+                    if not result.entries:
+                        raise ValueError("Model returned 0 catalog entries in batch")
+                    batch = result.entries
+                    break
+                except Exception as e:
+                    last_error = e
+
+            if not batch:
+                raise RuntimeError(
+                    f"Failed to generate catalog batch for {price_range} after {max_retries} retries: {last_error}"
                 )
-                if not result.entries:
-                    raise ValueError("Model returned 0 catalog entries in batch")
-                batch = result.entries
+
+            before = len(raw_entries)
+            for item in batch:
+                key = item.name.strip().lower()
+                if not key or key in seen_names:
+                    continue
+                # Clamp price to bucket range
+                price = float(item.reference_price)
+                if price < lo:
+                    price = lo
+                elif price > hi:
+                    price = hi
+                item.reference_price = price
+                seen_names.add(key)
+                raw_entries.append(item)
+                if len([e for e in raw_entries if lo <= e.reference_price <= hi]) >= target:
+                    break
+
+            if len(raw_entries) == before:
+                stalled_batches += 1
+            else:
+                stalled_batches = 0
+
+            if stalled_batches >= max_retries:
+                print(f"  Warning: catalog generation stalled for {price_range}; got {len([e for e in raw_entries if lo <= e.reference_price <= hi])}/{target}")
                 break
-            except Exception as e:
-                last_error = e
-
-        if not batch:
-            raise RuntimeError(
-                f"Failed to generate catalog batch after {max_retries} retries: {last_error}"
-            )
-
-        before = len(raw_entries)
-        for item in batch:
-            key = item.name.strip().lower()
-            if not key or key in seen_names:
-                continue
-            seen_names.add(key)
-            raw_entries.append(item)
-            if len(raw_entries) >= catalog_size:
-                break
-
-        if len(raw_entries) == before:
-            stalled_batches += 1
-        else:
-            stalled_batches = 0
-
-        if stalled_batches >= max_retries:
-            raise RuntimeError(
-                f"Catalog generation stalled with duplicates; built {len(raw_entries)}/{catalog_size} entries."
-            )
 
     seen_ids: set[str] = set()
     catalog: list[CatalogEntry] = []

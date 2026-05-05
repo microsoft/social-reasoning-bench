@@ -577,6 +577,42 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         return eval_result
 
     # ------------------------------------------------------------------
+    # Finalize -- convert checkpoint to results without running tasks
+    # ------------------------------------------------------------------
+
+    def finalize(self) -> BenchmarkOutput[TConfig, TBenchmarkEvalResult, TEvalResult] | None:
+        """Convert checkpoint data to results.json without running any tasks.
+
+        Returns:
+            The ``BenchmarkOutput``, or ``None`` if there are no eval results to finalize.
+        """
+        bl = self._benchmark_logger
+        n_exec = len(self.prior_exec_results)
+        n_eval = len(self.prior_eval_results)
+        unevaluated = n_exec - n_eval
+
+        if n_eval == 0:
+            bl.warning("No evaluation results to finalize in %s", self.run_paths.output_dir)
+            return None
+
+        if unevaluated > 0:
+            bl.warning(
+                "%d tasks were executed but not evaluated (will be omitted from results)",
+                unevaluated,
+            )
+
+        all_eval = list(self.prior_eval_results)
+        all_eval.sort(key=lambda r: r.execution.task.id)
+        output = self._build_output(all_eval)
+        self._save_output(output)
+        bl.info(
+            "Finalized %d results to %s",
+            len(all_eval),
+            self.run_paths.results_path,
+        )
+        return output
+
+    # ------------------------------------------------------------------
     # Output building + saving
     # ------------------------------------------------------------------
 
@@ -691,6 +727,12 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         g.add_argument("--force-resume", action="store_true", default=False)
         g.add_argument("--restart-eval", action="store_true", default=False)
         g.add_argument("--restart-exec", action="store_true", default=False)
+        g.add_argument(
+            "--finalize",
+            action="store_true",
+            default=False,
+            help="Convert checkpoint.json to results.json without running any tasks",
+        )
 
         # -- handcrafted injection --
         g = parser.add_argument_group("handcrafted injection")
@@ -738,5 +780,13 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
             restart_eval=getattr(args, "restart_eval", False),
             benchmark_logger=bl,
         )
+
+        if getattr(args, "finalize", False):
+            output = benchmark.finalize()
+            if output is None:
+                import sys
+
+                sys.exit(1)
+            return
 
         asyncio.run(benchmark.run())

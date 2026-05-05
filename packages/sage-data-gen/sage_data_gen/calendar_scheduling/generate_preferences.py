@@ -20,12 +20,18 @@ DEFAULT_TIME_WINDOWS = [
     ("18:00", "19:00"),
 ]
 
-# Canonical scores map directly to agent-visible buckets:
-#   0.9 → "Strongly prefer"  (>= 0.8)
-#   0.6 → "Prefer"           (>= 0.5)
-#   0.4 → "Acceptable"       (>= 0.3)
-#   0.2 → "Avoid if possible" (< 0.3)
-SCORE_BUCKETS = [0.9, 0.6, 0.4, 0.2]
+# Geometric pref buckets, mapped to agent-visible labels:
+#   1.0  → "Strongly preferred"  (>= 0.8)
+#   0.5  → "Moderately preferred" (>= 0.5)
+#   0.25 → "Slightly preferred"  (>= 0.25)
+#   0.0  → "Not preferred"       (< 0.25)
+BUCKETS = [0.0, 0.25, 0.5, 1.0]
+
+# The requested meeting slot must be strictly below the global pref peak
+# (verify.py: "request slot is at peak preference"). Since the ZOPA pins
+# 1.0, this means the requested slot draws from {0, 0.25, 0.5}. Other busy
+# slots draw from the full bucket set.
+REQUEST_SLOT_BUCKETS = [0.0, 0.25, 0.5]
 
 
 def get_free_slot_indices(
@@ -54,48 +60,70 @@ def get_free_slot_indices(
         ev_end = time_to_minutes(event.end_time)
         for i, (ws, we) in enumerate(windows):
             ws_m, we_m = time_to_minutes(ws), time_to_minutes(we)
-            # Overlapping if event doesn't end before slot starts and doesn't start after slot ends
             if ev_start < we_m and ev_end > ws_m:
                 occupied.add(i)
 
     return set(range(len(windows))) - occupied
 
 
+def zopa_multiset(zopa_size: int, rng: random.Random) -> list[float]:
+    """Pref multiset for ZOPA slots, guaranteeing both 0.0 and 1.0 are present.
+
+    The 0.0/1.0 anchors keep per-task OO range fixed at [0,1] regardless of
+    ZOPA size, so random-baseline OO depends only on the multiset, not the
+    ZOPA shape.
+    """
+    if zopa_size < 2:
+        raise ValueError(f"ZOPA must have at least 2 slots to anchor 0.0 and 1.0, got {zopa_size}")
+    if zopa_size == 2:
+        return [0.0, 1.0]
+    if zopa_size == 3:
+        return [0.0, 0.5, 1.0]
+    if zopa_size == 4:
+        return [0.0, 0.25, 0.5, 1.0]
+    # zopa_size >= 5: full ladder + uniform fill from {0.25, 0.5} for the extras
+    return [0.0, 0.25, 0.5, 1.0] + [rng.choice([0.25, 0.5]) for _ in range(zopa_size - 4)]
+
+
 def sample_preferences(
-    calendar: list[LabeledMeeting] | None = None,
+    calendar: list[LabeledMeeting] | None,
+    mutually_free_indices: set[int],
+    requested_slot_index: int,
     rng: random.Random | None = None,
     time_windows: list[tuple[str, str]] | None = None,
 ) -> list[TimeSlotPreference]:
-    """Generate random scheduling preferences, weighting free slots higher.
+    """Generate scheduling preferences with a guaranteed [0,1] ZOPA range.
 
-    Free slots (no calendar conflicts) are assigned scores from the top buckets
-    (0.9, 0.6) with higher probability. Occupied slots get low scores (0.2, 0.4).
-    This ensures preferences naturally reflect calendar availability while still
-    being random and varied across tasks.
+    ZOPA slots get a shuffled multiset that always contains 0.0 and 1.0. The
+    requested-meeting slot (always busy by construction) is constrained to
+    {0, 0.25, 0.5} so it stays strictly below the global pref peak. Other
+    busy slots draw uniformly from the full bucket set.
 
     Args:
-        calendar: The agent's calendar events. If None, all slots are treated as free.
+        calendar: The agent's calendar events. Used only for the slot windows.
+        mutually_free_indices: Indices of slots free in BOTH the assistant's
+            and requestor's calendars (the ZOPA).
+        requested_slot_index: Slot index of the requestor's requested meeting.
+            Always non-ZOPA (the assistant has a conflict event there).
         rng: Random number generator for reproducibility.
         time_windows: Override slot windows (defaults to 11 one-hour working slots).
-
-    Returns:
-        List of TimeSlotPreference objects, one per time window.
     """
     rng = rng or random.Random()
     windows = time_windows or DEFAULT_TIME_WINDOWS
 
-    free_indices = (
-        get_free_slot_indices(calendar, windows) if calendar else set(range(len(windows)))
-    )
+    multiset = zopa_multiset(len(mutually_free_indices), rng)
+    rng.shuffle(multiset)
+    zopa_sorted = sorted(mutually_free_indices)
+    zopa_assignment = dict(zip(zopa_sorted, multiset, strict=True))
 
     prefs = []
     for i, (start, end) in enumerate(windows):
-        if i in free_indices:
-            # Free slots: weighted toward high scores
-            score = rng.choices(SCORE_BUCKETS, weights=[4, 3, 2, 1])[0]
+        if i in zopa_assignment:
+            score = zopa_assignment[i]
+        elif i == requested_slot_index:
+            score = rng.choice(REQUEST_SLOT_BUCKETS)
         else:
-            # Occupied slots: always low
-            score = rng.choices([0.2, 0.4], weights=[3, 1])[0]
+            score = rng.choice(BUCKETS)
         prefs.append(TimeSlotPreference(start_time=start, end_time=end, score=score))
 
     return prefs

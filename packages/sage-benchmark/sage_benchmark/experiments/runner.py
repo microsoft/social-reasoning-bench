@@ -275,6 +275,7 @@ async def run_multiple(
     llm_concurrency: int | None = None,
     restart_exec: bool = False,
     restart_eval: bool = False,
+    finalize: bool = False,
     logger_style: str = "progress",
     log_level: str = "info",
 ) -> tuple[int, int, int]:
@@ -292,6 +293,7 @@ async def run_multiple(
         llm_concurrency: Max total concurrent LLM calls per provider.
         restart_exec: Re-run execution (ignore checkpointed execution progress).
         restart_eval: Re-run evaluation (ignore checkpointed evaluation progress).
+        finalize: Convert checkpoint.json to results.json without running tasks.
         logger_style: Logger style — 'verbose', 'progress', or 'quiet'.
         log_level: Python logging level for library loggers (e.g. 'info', 'warning').
 
@@ -376,6 +378,22 @@ async def run_multiple(
             f"{remaining} to run"
         )
         total_tasks += remaining
+
+    if finalize:
+        print(f"\nFinalizing {len(prepared)} experiments...")
+        finalized = 0
+        for bm in prepared:
+            output = bm.finalize()
+            variant = bm.config.variant or bm.benchmark_name()
+            if output is not None:
+                print(f"  {variant}: finalized {len(output.results)} results")
+                bm.print_per_task_summary(output.results)
+                bm.print_evaluation_summary(output.evaluation)
+                finalized += 1
+            else:
+                print(f"  {variant}: no evaluation results to finalize")
+        print(f"\nFinalized {finalized}/{len(prepared)} experiments")
+        return (finalized, 0, len(prepared) - finalized)
 
     if total_tasks == 0:
         print("\nNo tasks to run (all completed)")

@@ -4,8 +4,10 @@ import asyncio
 
 import pytest
 from sage_llm.concurrency import (
+    MODEL_PRICING,
     _AIMDController,
     _config,
+    _estimate_cost,
     _get_controller,
     _pool_members,
     _ResizableSemaphore,
@@ -701,3 +703,48 @@ async def test_with_llm_retry_exhausts_retries():
     with pytest.raises(_FakeError):
         await with_llm_retry("openai", "m", sdk_call, max_retries=2)
     assert attempts == 3  # initial + 2 retries
+
+
+# ---------------------------------------------------------------------------
+# Cost estimation
+# ---------------------------------------------------------------------------
+
+
+def test_estimate_cost_known_model():
+    """Known model returns correct cost."""
+    # 1M prompt, 100K completion for claude-sonnet-4-6
+    # input: $3/M, output: $15/M
+    # input_cost = 1_000_000 * 3.0 / 1_000_000 = 3.00
+    # output_cost = 100_000 * 15.0 / 1_000_000 = 1.50
+    cost = _estimate_cost("anthropic/claude-sonnet-4-6", 1_000_000, 100_000)
+    assert cost == pytest.approx(4.50)
+
+
+def test_estimate_cost_gemini():
+    """Gemini model returns correct cost."""
+    cost = _estimate_cost("google/gemini-2.5-flash", 1_000_000, 1_000_000)
+    # input: 1M * $0.30/M = $0.30, output: 1M * $2.50/M = $2.50
+    assert cost == pytest.approx(2.80)
+
+
+def test_estimate_cost_unknown_model():
+    """Unknown model returns None."""
+    assert _estimate_cost("unknown/model-x", 1_000_000, 100_000) is None
+
+
+def test_model_pricing_has_expected_keys():
+    """Pricing table includes all expected models."""
+    expected = {
+        "claude-opus-4-7",
+        "claude-opus-4-6",
+        "claude-opus-4-5",
+        "claude-sonnet-4-6",
+        "claude-haiku-4-5",
+        "gemini-3-pro-preview",
+        "gemini-3-flash-preview",
+        "gemini-2.5-flash",
+        "gpt-5.4",
+        "gpt-5.2",
+        "gpt-4.1",
+    }
+    assert expected == set(MODEL_PRICING.keys())
