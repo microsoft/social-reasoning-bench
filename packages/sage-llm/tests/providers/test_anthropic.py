@@ -31,7 +31,7 @@ from sage_llm.providers.anthropic import (
     _translate_tools,
 )
 from sage_llm.tracing import LLMTrace
-from sage_llm.types import SageChatCompletionMessage, SageMessage
+from sage_llm.types import DEFAULT_MAX_TOKENS, SageChatCompletionMessage, SageMessage
 
 
 def _make_anthropic_response(
@@ -451,4 +451,4 @@ class TestMaxTokensDefault:
             [{"role": "user", "content": "hi"}],
             trace=LLMTrace(),
         )
-        assert mock_client.messages.stream.call_args.kwargs["max_tokens"] == 65536
+        assert mock_client.messages.stream.call_args.kwargs["max_tokens"] == DEFAULT_MAX_TOKENS
