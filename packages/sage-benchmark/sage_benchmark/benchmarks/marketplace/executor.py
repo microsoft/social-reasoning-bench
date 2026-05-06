@@ -202,41 +202,49 @@ async def execute_task(
     action_trace = []
     invalid_actions = 0
 
-    for round_num in range(1, max_rounds + 1):
-        env.state.current_round = round_num
-        benchmark_logger.info("Task %d - Round %d", task.id, round_num)
-        for resources, agent in [(seller_resources, seller_agent), (buyer_resources, buyer_agent)]:
+    error: str | None = None
+    try:
+        for round_num in range(1, max_rounds + 1):
+            env.state.current_round = round_num
+            benchmark_logger.info("Task %d - Round %d", task.id, round_num)
+            for resources, agent in [
+                (seller_resources, seller_agent),
+                (buyer_resources, buyer_agent),
+            ]:
+                if env.state.outcome.end_reason is not None:
+                    break
+
+                # Round 1 seller turn: force initial offer at listed price
+                if (
+                    round_num == 1
+                    and task.product.listed_price is not None
+                    and isinstance(agent, SellerAgent)
+                ):
+                    await _force_initial_seller_offer(agent, resources, task, action_trace)
+                    continue
+
+                unread_updates = resources.get_unread_updates()
+                agent.add_new_messages(unread_updates)
+                turn_invalid_actions, agent_ended = await _run_agent_turn(
+                    agent, resources, max_steps_per_turn, action_trace, benchmark_logger
+                )
+                invalid_actions += turn_invalid_actions
+
+                # If generation failed, _run_agent_turn returns ended=True but environment isn't ended yet.
+                if (
+                    agent_ended
+                    and not env.state.outcome.deal_reached
+                    and env.state.outcome.end_reason is None
+                ):
+                    env.state.outcome.ended_by = resources.role
+                    env.state.outcome.end_reason = "Agent generation error."
+                    break
+
             if env.state.outcome.end_reason is not None:
                 break
-
-            # Round 1 seller turn: force initial offer at listed price
-            if (
-                round_num == 1
-                and task.product.listed_price is not None
-                and isinstance(agent, SellerAgent)
-            ):
-                await _force_initial_seller_offer(agent, resources, task, action_trace)
-                continue
-
-            unread_updates = resources.get_unread_updates()
-            agent.add_new_messages(unread_updates)
-            turn_invalid_actions, agent_ended = await _run_agent_turn(
-                agent, resources, max_steps_per_turn, action_trace, benchmark_logger
-            )
-            invalid_actions += turn_invalid_actions
-
-            # If generation failed, _run_agent_turn returns ended=True but environment isn't ended yet.
-            if (
-                agent_ended
-                and not env.state.outcome.deal_reached
-                and env.state.outcome.end_reason is None
-            ):
-                env.state.outcome.ended_by = resources.role
-                env.state.outcome.end_reason = "Agent generation error."
-                break
-
-        if env.state.outcome.end_reason is not None:
-            break
+    except Exception as ex:
+        logger.exception("Error during execution.")
+        error = str(ex)
 
     if not env.state.outcome.deal_reached and env.state.outcome.end_reason is None:
         env.state.outcome.ended_by = "max_rounds"
@@ -251,4 +259,5 @@ async def execute_task(
         invalid_actions=invalid_actions,
         buyer_context=buyer_agent.messages,
         seller_context=seller_agent.messages,
+        error=error,
     )
