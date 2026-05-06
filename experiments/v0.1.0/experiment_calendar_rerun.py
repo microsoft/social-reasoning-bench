@@ -10,13 +10,13 @@ Differences from experiment.py:
 - Full small dataset, not the 3-task smoke set.
 
 To reproduce:
-    sagebench experiment experiments/v0.1.0/experiment_calendar_rerun.py
+    srbench experiment experiments/v0.1.0/experiment_calendar_rerun.py
 """
 
 from pathlib import Path
 from typing import Any, Literal
 
-from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConfig
+from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
 
 DATA_SIZE: Literal["small", "medium", "large"] = "small"
 

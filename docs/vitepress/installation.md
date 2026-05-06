@@ -13,12 +13,12 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ## Clone and Install
 
 ```bash
-git clone https://github.com/microsoft/sage.git
-cd sage
+git clone https://github.com/microsoft/srbench.git
+cd srbench
 uv sync --all-packages
 ```
 
-This installs all five workspace packages (`sage-benchmark`, `sage-data-gen`, `sage-llm`, `whimsygen`, `privacy-judge`) and their dependencies.
+This installs all five workspace packages (`srbench`, `srbench-data-gen`, `srbench-llm`, `whimsygen`, `privacy-judge`) and their dependencies.
 
 ## Environment Variables
 
@@ -40,20 +40,20 @@ All CLI tools accept model names in these formats:
 | Anthropic | `claude-*` or `anthropic/claude-*` | `claude-sonnet-4` |
 | Gemini | `gemini-*` or `gemini/gemini-*` | `gemini-2.5-flash` |
 
-See the [sage-llm README](https://github.com/microsoft/sage/tree/main/packages/sage-llm) for full details on model routing.
+See the [srbench-llm README](https://github.com/microsoft/srbench/tree/main/packages/srbench-llm) for full details on model routing.
 
 ## Verify Installation
 
 Run a quick smoke test to confirm everything works:
 
 ```bash
-sagebench experiment experiment_smoke.py -k calendar --collect
+srbench experiment experiment_smoke.py -k calendar --collect
 ```
 
 This should list the calendar smoke experiment without executing it. To actually run it:
 
 ```bash
-sagebench experiment experiment_smoke.py -k calendar
+srbench experiment experiment_smoke.py -k calendar
 ```
 
 ## Development

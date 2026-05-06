@@ -15,7 +15,7 @@ A function that returns a single `BaseRunConfig` subclass defines one benchmark 
 
 ```python
 # experiment_smoke.py
-from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConfig
+from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
 
 def experiment_calendar():
     return CalendarRunConfig(
@@ -29,7 +29,7 @@ def experiment_calendar():
 You can run it with the following command.
 
 ```bash
-sagebench experiment experiment_smoke.py
+srbench experiment experiment_smoke.py
 ```
 
 ## Sweep Experiment
@@ -38,7 +38,7 @@ A generator function that yields multiple configs defines a parameter sweep. All
 
 ```python
 # experiment_full.py
-from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConfig
+from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
 
 MODEL = "gpt-4.1"
 ATTACK_TYPES = ["privacy", "duty_of_care", "due_diligence"]
@@ -116,17 +116,17 @@ All configs inherit these fields:
 
 ```bash
 # Run all experiments in a file
-sagebench experiment experiment_full.py
+srbench experiment experiment_full.py
 
 # Preview without running
-sagebench experiment experiment_full.py --collect
+srbench experiment experiment_full.py --collect
 
 # Filter by pattern (matches variant names)
-sagebench experiment experiment_full.py -k calendar
-sagebench experiment experiment_full.py -k hand_crafted_privacy
+srbench experiment experiment_full.py -k calendar
+srbench experiment experiment_full.py -k hand_crafted_privacy
 
 # Run from a directory (discovers all experiment_*.py files)
-sagebench experiment ./experiments/
+srbench experiment ./experiments/
 ```
 
 ## Override Groups
@@ -138,7 +138,7 @@ Override groups let you cross-product your experiment configs with parameter var
 Run all experiments with a different model than what the file specifies.
 
 ```bash
-sagebench experiment experiment_full.py --set model=claude-sonnet-4
+srbench experiment experiment_full.py --set model=claude-sonnet-4
 ```
 
 This replaces the `model` field on every config yielded by the experiment file.
@@ -148,7 +148,7 @@ This replaces the `model` field on every config yielded by the experiment file.
 You can pass `--set` multiple times within the same group to override several fields at once.
 
 ```bash
-sagebench experiment experiment_full.py \
+srbench experiment experiment_full.py \
     --set model=gpt-4.1 \
     --set batch_size=64
 ```
@@ -158,7 +158,7 @@ sagebench experiment experiment_full.py \
 Separate override groups with `--and` to create a cross-product. Each experiment config is duplicated once per group.
 
 ```bash
-sagebench experiment experiment_full.py \
+srbench experiment experiment_full.py \
     --set model=gpt-4.1 \
     --and \
     --set model=claude-sonnet-4 \
@@ -173,7 +173,7 @@ If the experiment file yields 7 configs, this produces 21 total experiments (7 c
 Use `--collect` to see the expanded list of experiments before executing them.
 
 ```bash
-sagebench experiment experiment_full.py \
+srbench experiment experiment_full.py \
     --set model=gpt-4.1 --and --set model=claude-sonnet-4 \
     --collect
 ```

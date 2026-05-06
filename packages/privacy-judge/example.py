@@ -1,9 +1,9 @@
 """Example usage of Privacy Judge."""
 
 from privacy_judge import LeakageJudge
-from sage_llm import SageModelClient
+from srbench_llm import SRBenchModelClient
 
-client = SageModelClient()
+client = SRBenchModelClient()
 
 # LeakageJudge - detect if secrets are revealed
 print("=" * 60)

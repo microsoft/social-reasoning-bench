@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "srbench-llm"
+version = "0.1.0"
+description = "LLM client library with direct provider implementations"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=2.16.0",
+    "anthropic>=0.87.0,<0.88",
+    "google-genai>=1.63.0,<1.64",
+    "azure-identity>=1.23.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/srbench_llm"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: tests that make real API calls (skip with -m 'not integration')",
+]
+asyncio_mode = "auto"

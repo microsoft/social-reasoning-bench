@@ -6,7 +6,7 @@ footer: false
 ---
 
 <div class="dashboard-wrapper">
-  <iframe src="/sage/dashboard-app.html"></iframe>
+  <iframe src="/srbench/dashboard-app.html"></iframe>
 </div>
 
 <style scoped>

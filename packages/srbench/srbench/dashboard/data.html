@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SRBench Benchmark — Data Browser</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            srbench: {
+              50:  '#f0f6f1', 100: '#dceadf', 200: '#bbd6c1', 300: '#93bb9d',
+              400: '#7db88d', 500: '#6b9e78', 600: '#5a8a66', 700: '#4a7a56',
+              800: '#3d6347', 900: '#33523b',
+            },
+            gray: {
+              50:  '#fafafa', 100: '#f5f5f5', 200: '#e5e5e5', 300: '#d4d4d4',
+              400: '#a3a3a3', 500: '#737373', 600: '#525252', 700: '#404040',
+              800: '#262626', 900: '#171717', 950: '#0a0a0a',
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+  <style>
+    /* Sidebar file row — verbatim from dashboard/index.html */
+    .sidebar-file {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 8px; border-radius: 6px; font-size: 11px;
+      transition: background 0.15s; cursor: pointer;
+    }
+    .sidebar-file:hover { background: rgba(107, 158, 120, 0.08); }
+    .sidebar-file.selected { background: rgba(107, 158, 120, 0.15); }
+    .dark .sidebar-file:hover { background: rgba(107, 158, 120, 0.12); }
+    .dark .sidebar-file.selected { background: rgba(107, 158, 120, 0.2); }
+
+    /* Task row — from index.html's trace viewer */
+    .trace-task-row { cursor: pointer; transition: background 0.15s; }
+    .trace-task-row:hover { background: rgba(107, 158, 120, 0.08); }
+    .trace-task-row.selected { background: rgba(107, 158, 120, 0.15); }
+    .dark .trace-task-row:hover { background: rgba(107, 158, 120, 0.12); }
+    .dark .trace-task-row.selected { background: rgba(107, 158, 120, 0.2); }
+
+    .filter-btn { transition: all 0.15s; }
+    .filter-btn.active { box-shadow: 0 0 0 2px currentColor; }
+
+    /* Timeline + preferences — ported verbatim from index.html */
+    .tv-timeline { position: relative; height: 10rem; border-radius: 0.5rem; overflow: visible; }
+    .tv-event { position: absolute; border-radius: 4px; font-size: 11px; cursor: pointer; box-sizing: border-box; overflow: visible; }
+    .tv-event .tv-ev-content { position: absolute; inset: 2px 6px; overflow: hidden; }
+    .tv-event .tv-ev-label { display: block; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.2; }
+    .tv-event:hover { z-index: 100; }
+    .tv-event .tv-ev-popup {
+      display: none; position: absolute; top: 100%; left: 0; margin-top: 4px;
+      min-width: 240px; max-width: 320px; border-radius: 8px; padding: 10px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15); z-index: 1000;
+      white-space: normal; font-size: 12px;
+    }
+    .tv-event:hover .tv-ev-popup { display: block; }
+    .tv-hour-marker { position: absolute; top: 0; bottom: 0; width: 1px; }
+
+    .tv-pref-bar { position: absolute; bottom: 0; cursor: default; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15); }
+    .tv-pref-bar:hover { z-index: 10; filter: brightness(1.1); }
+    .tv-pref-popup {
+      display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      margin-bottom: 6px; min-width: 150px; border-radius: 6px; padding: 8px 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12); z-index: 100; white-space: nowrap; font-size: 11px;
+    }
+    .tv-pref-bar:hover .tv-pref-popup { display: block; }
+
+    .zopa-track { position: relative; height: 3rem; background: rgba(0,0,0,0.04);
+                  border-radius: 8px; overflow: visible; }
+    .dark .zopa-track { background: rgba(255,255,255,0.04); }
+    .zopa-band { position: absolute; top: 0; bottom: 0; border-radius: 8px; }
+    .zopa-marker { position: absolute; top: -4px; bottom: -4px; width: 2px; }
+    .zopa-label { position: absolute; bottom: -28px; transform: translateX(-50%);
+                  font-size: 10px; white-space: nowrap; font-weight: 500; }
+
+    .dropzone { border: 2px dashed rgba(107, 158, 120, 0.4); transition: all 0.2s; }
+    .dropzone.over { border-color: #6b9e78; background: rgba(107, 158, 120, 0.08); }
+    .dark .dropzone.over { background: rgba(107, 158, 120, 0.12); }
+
+    .prose-block { white-space: pre-wrap; word-wrap: break-word;
+                   font-size: 12px; line-height: 1.55; }
+
+    details > summary::-webkit-details-marker { display: none; }
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary .marker { transition: transform 0.15s; display: inline-block; }
+    details[open] > summary .marker { transform: rotate(90deg); }
+
+    .skel { background: linear-gradient(90deg, rgba(0,0,0,0.04) 0%,
+            rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.04) 100%);
+            background-size: 200% 100%; animation: skel 1.4s infinite; }
+    @keyframes skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-950 h-screen overflow-hidden flex flex-col text-gray-900 dark:text-gray-100">
+
+  <!-- Header -->
+  <header class="flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-5 py-3 flex items-center gap-4">
+    <div class="flex items-center gap-2">
+      <svg class="w-6 h-6 text-srbench-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 2c4 4 6 7 6 11a6 6 0 11-12 0c0-4 2-7 6-11z"/>
+      </svg>
+      <h1 class="text-base font-semibold tracking-tight">SRBench Benchmark</h1>
+      <span class="text-gray-400 dark:text-gray-500 text-sm">·</span>
+      <span class="text-sm text-gray-600 dark:text-gray-400">Data Browser</span>
+    </div>
+    <span id="header-tagline" class="hidden md:inline text-xs text-gray-500 dark:text-gray-400 ml-2">
+      Browse the scenarios behind each benchmark task.
+    </span>
+    <div class="flex-1"></div>
+    <button id="load-btn" class="px-3 py-1.5 text-sm font-medium rounded-md bg-srbench-600 hover:bg-srbench-700 text-white transition">
+      Load YAML files
+    </button>
+    <input id="file-input" type="file" multiple accept=".yaml,.yml" class="hidden">
+    <button id="clear-btn" class="hidden px-3 py-1.5 text-sm rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+      Clear
+    </button>
+    <button id="dark-toggle" class="p-2 rounded-md text-gray-500 hover:text-srbench-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition" title="Toggle dark mode">
+      <svg id="icon-sun" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36l-1.42 1.42M7.05 16.95l-1.41 1.41m12.72 0l-1.41-1.41M7.05 7.05L5.64 5.64M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+      <svg id="icon-moon" class="w-4 h-4 dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    </button>
+  </header>
+
+  <!-- Empty state -->
+  <div id="empty-state" class="flex-1 flex items-center justify-center p-8 overflow-auto">
+    <div class="max-w-2xl w-full">
+      <div id="dropzone" class="dropzone rounded-2xl p-12 bg-white dark:bg-gray-900 text-center">
+        <svg class="w-12 h-12 mx-auto mb-4 text-srbench-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m-7 4h14a2 2 0 002-2V8a2 2 0 00-2-2h-5l-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <h2 class="text-lg font-semibold mb-1">Drop YAML data files here</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-5">or use the <span class="font-medium text-srbench-600 dark:text-srbench-400">Load YAML files</span> button above</p>
+        <div class="text-xs text-gray-500 dark:text-gray-400 text-left bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-2">
+          <p class="font-medium text-gray-700 dark:text-gray-300">What this is</p>
+          <p>SRBench measures whether AI assistants act safely and effectively on behalf of their users in everyday agent-to-agent interactions. Each task in a benchmark is a self-contained scenario the assistant must navigate.</p>
+          <p class="font-medium text-gray-700 dark:text-gray-300 pt-2">Files to try</p>
+          <ul class="font-mono space-y-0.5 pl-4">
+            <li>data/calendar-scheduling/small.yaml — benign scheduling tasks</li>
+            <li>data/calendar-scheduling/small-whimsical-privacy.yaml — privacy attacks</li>
+            <li>data/marketplace/small.yaml — benign negotiations</li>
+            <li>data/marketplace/small-whimsical-due_diligence.yaml — duty-of-care attacks</li>
+          </ul>
+          <p class="pt-1">Drop multiple files to compare them.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main app (hidden until a file is loaded) -->
+  <div id="app" class="hidden flex-1 flex min-h-0">
+
+    <!-- Sidebar -->
+    <aside class="flex-shrink-0 w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+
+      <!-- Files section -->
+      <div class="flex-shrink-0 border-b border-gray-200 dark:border-gray-800">
+        <div class="px-3 pt-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Files <span id="files-count" class="text-gray-400 dark:text-gray-500 normal-case font-normal"></span>
+        </div>
+        <div id="files-list" class="px-1.5 pb-2 max-h-48 overflow-auto"></div>
+      </div>
+
+      <!-- Filters -->
+      <div id="filters-section" class="flex-shrink-0 px-3 pt-3 pb-2 border-b border-gray-200 dark:border-gray-800 space-y-2">
+        <div class="flex items-center gap-1.5">
+          <input id="search-input" type="search" placeholder="Search tasks…"
+                 class="w-full px-2.5 py-1.5 text-xs rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-1 focus:ring-srbench-500">
+        </div>
+        <div id="filter-chips" class="flex flex-wrap gap-1"></div>
+        <div id="free-slots-filter" class="hidden space-y-1">
+          <div class="flex items-center justify-between text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">
+            <span>Mutually free slots</span>
+            <span id="free-slots-range-label" class="text-gray-400 dark:text-gray-500 normal-case font-normal"></span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <input id="free-slots-min" type="number" min="0" placeholder="min" class="w-full px-2 py-1 text-xs rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-1 focus:ring-srbench-500">
+            <span class="text-xs text-gray-400">–</span>
+            <input id="free-slots-max" type="number" min="0" placeholder="max" class="w-full px-2 py-1 text-xs rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-1 focus:ring-srbench-500">
+          </div>
+        </div>
+        <div id="zopa-filter" class="hidden space-y-1">
+          <div class="flex items-center justify-between text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">
+            <span>ZOPA width ($)</span>
+            <span id="zopa-range-label" class="text-gray-400 dark:text-gray-500 normal-case font-normal"></span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <input id="zopa-min" type="number" step="0.01" placeholder="min" class="w-full px-2 py-1 text-xs rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-1 focus:ring-srbench-500">
+            <span class="text-xs text-gray-400">–</span>
+            <input id="zopa-max" type="number" step="0.01" placeholder="max" class="w-full px-2 py-1 text-xs rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-1 focus:ring-srbench-500">
+          </div>
+        </div>
+        <div id="sort-controls" class="hidden">
+          <label class="block text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-1">Sort by</label>
+          <select id="sort-select" class="w-full px-2 py-1 text-xs rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-1 focus:ring-srbench-500"></select>
+        </div>
+      </div>
+
+      <!-- Tasks list -->
+      <div class="flex-1 min-h-0 flex flex-col">
+        <div class="flex-shrink-0 px-3 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center justify-between">
+          <span>Tasks <span id="tasks-count" class="text-gray-400 dark:text-gray-500 normal-case font-normal"></span></span>
+          <span id="tasks-summary" class="text-gray-400 dark:text-gray-500 normal-case font-normal text-[10px]"></span>
+        </div>
+        <div id="tasks-list" class="flex-1 min-h-0 overflow-auto px-1.5 pb-3"></div>
+      </div>
+    </aside>
+
+    <!-- Main detail view -->
+    <main class="flex-1 min-h-0 overflow-auto bg-gray-50 dark:bg-gray-950">
+      <div id="detail-view" class="max-w-5xl mx-auto p-6"></div>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium bg-gray-800 text-gray-100 dark:bg-gray-200 dark:text-gray-900 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+<script>
+// ─────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────
+const state = {
+  files: [],            // [{ name, path, tasks: [...], benchmark }]
+  selectedFile: 0,
+  selectedTask: 0,
+  filterMalicious: 'all', // 'all' | 'benign' | 'malicious'
+  filterTarget: 'all',    // 'all' | 'privacy' | 'due_diligence' | ...
+  minFreeSlots: 0,        // calendar-only: only show tasks with free_slots_count >= this
+  maxFreeSlots: Infinity, // calendar-only: only show tasks with free_slots_count <= this
+  minZopa: -Infinity,     // marketplace-only: only show tasks with (buyer-seller) >= this
+  maxZopa: Infinity,      // marketplace-only: only show tasks with (buyer-seller) <= this
+  sortBy: 'id',           // 'id' | 'free_slots_{asc,desc}' | 'zopa_{asc,desc}'
+  search: '',
+};
+
+const TARGET_COLORS = {
+  privacy:           { bg: 'rgba(244, 114, 182, 0.15)', fg: '#db2777', name: 'Privacy' },
+  due_diligence:     { bg: 'rgba(245, 158, 11, 0.15)',  fg: '#d97706', name: 'Due diligence' },
+  duty_of_care:      { bg: 'rgba(168, 85, 247, 0.15)',  fg: '#9333ea', name: 'Duty of care' },
+  outcome_optimality:{ bg: 'rgba(56, 189, 248, 0.15)',  fg: '#0284c7', name: 'Outcome' },
+};
+
+const BENCHMARK_LABELS = {
+  calendar:     'Calendar scheduling',
+  marketplace:  'Marketplace negotiation',
+};
+
+// ─────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────
+(function init() {
+  // Dark mode — share the same localStorage key as index.html so the two
+  // dashboards stay in sync.
+  const stored = localStorage.getItem('srbench-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const dark = stored ? stored === 'dark' : prefersDark;
+  document.documentElement.classList.toggle('dark', dark);
+  document.getElementById('dark-toggle').addEventListener('click', () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('srbench-theme', isDark ? 'dark' : 'light');
+  });
+
+  // File loading
+  document.getElementById('load-btn').addEventListener('click', () => document.getElementById('file-input').click());
+  document.getElementById('file-input').addEventListener('change', e => loadFiles(Array.from(e.target.files)));
+  document.getElementById('clear-btn').addEventListener('click', clearAll);
+
+  // Drag and drop on the whole window
+  ['dragover', 'drop'].forEach(ev => {
+    window.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
+  });
+  const dz = document.getElementById('dropzone');
+  if (dz) {
+    dz.addEventListener('dragenter', () => dz.classList.add('over'));
+    dz.addEventListener('dragleave', e => { if (e.target === dz) dz.classList.remove('over'); });
+  }
+  window.addEventListener('drop', e => {
+    if (dz) dz.classList.remove('over');
+    const files = Array.from(e.dataTransfer.files).filter(f => /\.ya?ml$/i.test(f.name));
+    if (files.length) loadFiles(files);
+  });
+
+  // Search
+  document.getElementById('search-input').addEventListener('input', e => {
+    state.search = e.target.value.toLowerCase().trim();
+    renderTaskList();
+  });
+
+  // Free-slots filter
+  document.getElementById('free-slots-min').addEventListener('input', e => {
+    const v = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+    state.minFreeSlots = Number.isFinite(v) ? v : 0;
+    renderTaskList();
+  });
+  document.getElementById('free-slots-max').addEventListener('input', e => {
+    const v = e.target.value === '' ? Infinity : parseInt(e.target.value, 10);
+    state.maxFreeSlots = Number.isFinite(v) ? v : Infinity;
+    renderTaskList();
+  });
+
+  // ZOPA-width filter
+  document.getElementById('zopa-min').addEventListener('input', e => {
+    const v = e.target.value === '' ? -Infinity : parseFloat(e.target.value);
+    state.minZopa = Number.isFinite(v) ? v : -Infinity;
+    renderTaskList();
+  });
+  document.getElementById('zopa-max').addEventListener('input', e => {
+    const v = e.target.value === '' ? Infinity : parseFloat(e.target.value);
+    state.maxZopa = Number.isFinite(v) ? v : Infinity;
+    renderTaskList();
+  });
+
+  // Sort
+  document.getElementById('sort-select').addEventListener('change', e => {
+    state.sortBy = e.target.value;
+    renderTaskList();
+  });
+
+  // Keyboard nav
+  window.addEventListener('keydown', e => {
+    if (state.files.length === 0) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const visible = visibleTasks();
+    if (!visible.length) return;
+    const cur = visible.findIndex(t => t._idx === state.selectedTask);
+    if (e.key === 'ArrowDown' || e.key === 'j') {
+      e.preventDefault();
+      const next = visible[Math.min(visible.length - 1, cur + 1)];
+      if (next) selectTask(next._idx);
+    } else if (e.key === 'ArrowUp' || e.key === 'k') {
+      e.preventDefault();
+      const prev = visible[Math.max(0, cur - 1)];
+      if (prev) selectTask(prev._idx);
+    }
+  });
+})();
+
+// ─────────────────────────────────────────────
+// File loading
+// ─────────────────────────────────────────────
+async function loadFiles(fileObjs) {
+  for (const f of fileObjs) {
+    try {
+      const text = await f.text();
+      const data = jsyaml.load(text);
+      if (!data || !Array.isArray(data.tasks)) {
+        toast(`${f.name}: missing 'tasks' key — skipped`);
+        continue;
+      }
+      const benchmark = detectBenchmark(data.tasks);
+      // Replace if same name already loaded
+      const existing = state.files.findIndex(x => x.name === f.name);
+      const entry = { name: f.name, tasks: data.tasks, benchmark };
+      if (existing >= 0) state.files[existing] = entry;
+      else state.files.push(entry);
+    } catch (err) {
+      toast(`${f.name}: ${err.message}`);
+      console.error(err);
+    }
+  }
+  if (state.files.length === 0) return;
+  document.getElementById('empty-state').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('clear-btn').classList.remove('hidden');
+  state.selectedFile = Math.min(state.selectedFile, state.files.length - 1);
+  state.selectedTask = 0;
+  state.filterMalicious = 'all';
+  state.filterTarget = 'all';
+  state.search = '';
+  document.getElementById('search-input').value = '';
+  renderAll();
+}
+
+function clearAll() {
+  state.files = [];
+  state.selectedFile = 0;
+  state.selectedTask = 0;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('empty-state').classList.remove('hidden');
+  document.getElementById('clear-btn').classList.add('hidden');
+}
+
+function detectBenchmark(tasks) {
+  if (!tasks.length) return 'unknown';
+  const t = tasks[0];
+  if (t.type === 'calendar' || t.requestor) return 'calendar';
+  if (t.type === 'marketplace' || t.product) return 'marketplace';
+  return 'unknown';
+}
+
+function isMalicious(task) {
+  if (!task) return false;
+  const r = task.requestor, b = task.buyer, s = task.seller;
+  return !!(
+    (r && r.is_malicious) ||
+    (b && b.is_malicious) ||
+    (s && s.is_malicious)
+  );
+}
+
+function maliciousActor(task) {
+  if (task.requestor && task.requestor.is_malicious) return task.requestor;
+  if (task.buyer && task.buyer.is_malicious)         return task.buyer;
+  if (task.seller && task.seller.is_malicious)       return task.seller;
+  return null;
+}
+
+// ─────────────────────────────────────────────
+// Filtering / selection
+// ─────────────────────────────────────────────
+function currentFile() { return state.files[state.selectedFile]; }
+function currentTasks() { return currentFile()?.tasks || []; }
+
+function zopaWidth(t) {
+  const b = +t?.buyer?.reservation_price;
+  const s = +t?.seller?.reservation_price;
+  return Number.isFinite(b) && Number.isFinite(s) ? (b - s) : null;
+}
+
+function visibleTasks() {
+  const tasks = currentTasks();
+  const benchmark = currentFile()?.benchmark;
+  const isCalendar = benchmark === 'calendar';
+  const isMarketplace = benchmark === 'marketplace';
+  const filtered = tasks
+    .map((t, _idx) => ({ ...t, _idx }))
+    .filter(t => {
+      const mal = isMalicious(t);
+      if (state.filterMalicious === 'benign' && mal) return false;
+      if (state.filterMalicious === 'malicious' && !mal) return false;
+      if (state.filterTarget !== 'all') {
+        const m = maliciousActor(t);
+        if (!m || m.malicious_target !== state.filterTarget) return false;
+      }
+      if (isCalendar) {
+        const fs = t.free_slots_count;
+        if (typeof fs === 'number') {
+          if (fs < state.minFreeSlots) return false;
+          if (fs > state.maxFreeSlots) return false;
+        }
+      }
+      if (isMarketplace) {
+        const w = zopaWidth(t);
+        if (w != null) {
+          if (w < state.minZopa) return false;
+          if (w > state.maxZopa) return false;
+        }
+      }
+      if (state.search) {
+        const blob = JSON.stringify(t).toLowerCase();
+        if (!blob.includes(state.search)) return false;
+      }
+      return true;
+    });
+
+  if (state.sortBy !== 'id') {
+    if (isCalendar && state.sortBy.startsWith('free_slots_')) {
+      const dir = state.sortBy === 'free_slots_asc' ? 1 : -1;
+      filtered.sort((a, b) => {
+        const av = typeof a.free_slots_count === 'number' ? a.free_slots_count : Infinity;
+        const bv = typeof b.free_slots_count === 'number' ? b.free_slots_count : Infinity;
+        if (av !== bv) return dir * (av - bv);
+        return a.id - b.id;
+      });
+    } else if (isMarketplace && state.sortBy.startsWith('zopa_')) {
+      const dir = state.sortBy === 'zopa_asc' ? 1 : -1;
+      filtered.sort((a, b) => {
+        const av = zopaWidth(a) ?? Infinity;
+        const bv = zopaWidth(b) ?? Infinity;
+        if (av !== bv) return dir * (av - bv);
+        return a.id - b.id;
+      });
+    }
+  }
+  return filtered;
+}
+
+function selectFile(i) {
+  state.selectedFile = i;
+  state.selectedTask = 0;
+  state.filterMalicious = 'all';
+  state.filterTarget = 'all';
+  state.minFreeSlots = 0;
+  state.maxFreeSlots = Infinity;
+  state.minZopa = -Infinity;
+  state.maxZopa = Infinity;
+  state.sortBy = 'id';
+  state.search = '';
+  document.getElementById('search-input').value = '';
+  document.getElementById('free-slots-min').value = '';
+  document.getElementById('free-slots-max').value = '';
+  document.getElementById('zopa-min').value = '';
+  document.getElementById('zopa-max').value = '';
+  renderAll();
+}
+
+function selectTask(idx) {
+  state.selectedTask = idx;
+  renderTaskList();
+  renderDetail();
+}
+
+// ─────────────────────────────────────────────
+// Rendering — top level
+// ─────────────────────────────────────────────
+function renderAll() {
+  renderFileList();
+  renderFilters();
+  renderTaskList();
+  renderDetail();
+}
+
+// Benchmark color badge — styled like index.html's `benchmarkBadge`
+function benchmarkBadge(bm) {
+  const colors = {
+    calendar:     'bg-srbench-100 text-srbench-800 dark:bg-srbench-900 dark:text-srbench-300',
+    marketplace:  'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
+  };
+  const cls = colors[bm] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+  return `<span class="px-2 py-0.5 rounded text-[10px] font-medium ${cls}">${esc(bm)}</span>`;
+}
+
+function renderFileList() {
+  const list = document.getElementById('files-list');
+  document.getElementById('files-count').textContent = state.files.length ? `(${state.files.length})` : '';
+  list.innerHTML = state.files.map((f, i) => {
+    const malCount = f.tasks.filter(isMalicious).length;
+    const selected = i === state.selectedFile ? 'selected' : '';
+    return `
+      <div class="sidebar-file group ${selected}" data-i="${i}">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-1.5">
+            ${benchmarkBadge(f.benchmark)}
+            <span class="text-gray-700 dark:text-gray-300 font-medium truncate" title="${esc(f.name)}">${esc(f.name)}</span>
+          </div>
+          <div class="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+            ${f.tasks.length} task${f.tasks.length === 1 ? '' : 's'}${malCount > 0 ? ` · <span class="text-red-500 dark:text-red-400">${malCount} adversarial</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  list.querySelectorAll('.sidebar-file').forEach(el => {
+    el.addEventListener('click', () => selectFile(parseInt(el.dataset.i)));
+  });
+}
+
+function renderFilters() {
+  const tasks = currentTasks();
+  const file = currentFile();
+  const isCalendar = file?.benchmark === 'calendar';
+  const malCount = tasks.filter(isMalicious).length;
+  const benignCount = tasks.length - malCount;
+  const targets = new Set(tasks.map(t => maliciousActor(t)?.malicious_target).filter(Boolean));
+
+  // Per-benchmark filter & sort UI.
+  const fsBlock   = document.getElementById('free-slots-filter');
+  const zopaBlock = document.getElementById('zopa-filter');
+  const sortBlock = document.getElementById('sort-controls');
+  const sortSelect = document.getElementById('sort-select');
+  fsBlock.classList.add('hidden');
+  zopaBlock.classList.add('hidden');
+  sortBlock.classList.add('hidden');
+
+  if (isCalendar) {
+    const fsValues = tasks.map(t => t.free_slots_count).filter(v => typeof v === 'number');
+    if (fsValues.length) {
+      fsBlock.classList.remove('hidden');
+      sortBlock.classList.remove('hidden');
+      const lo = Math.min(...fsValues), hi = Math.max(...fsValues);
+      document.getElementById('free-slots-range-label').textContent = lo === hi ? `all = ${lo}` : `data: ${lo}–${hi}`;
+      document.getElementById('free-slots-min').placeholder = `${lo}`;
+      document.getElementById('free-slots-max').placeholder = `${hi}`;
+      sortSelect.innerHTML = `
+        <option value="id">Task ID</option>
+        <option value="free_slots_asc">Free slots — fewest first (hardest)</option>
+        <option value="free_slots_desc">Free slots — most first (easiest)</option>`;
+      sortSelect.value = state.sortBy;
+    }
+  } else if (file && file.benchmark === 'marketplace') {
+    const widths = tasks.map(zopaWidth).filter(v => v != null);
+    if (widths.length) {
+      zopaBlock.classList.remove('hidden');
+      sortBlock.classList.remove('hidden');
+      const lo = Math.min(...widths), hi = Math.max(...widths);
+      const fmt = v => Number.isInteger(v) ? `${v}` : v.toFixed(2);
+      document.getElementById('zopa-range-label').textContent = lo === hi ? `all = $${fmt(lo)}` : `data: $${fmt(lo)}–$${fmt(hi)}`;
+      document.getElementById('zopa-min').placeholder = fmt(lo);
+      document.getElementById('zopa-max').placeholder = fmt(hi);
+      sortSelect.innerHTML = `
+        <option value="id">Task ID</option>
+        <option value="zopa_asc">ZOPA width — narrowest first (hardest)</option>
+        <option value="zopa_desc">ZOPA width — widest first (easiest)</option>`;
+      sortSelect.value = state.sortBy;
+    }
+  }
+
+  const container = document.getElementById('filter-chips');
+  const chips = [];
+
+  const PALETTES = {
+    gray: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+    srbench: 'bg-srbench-100 text-srbench-800 dark:bg-srbench-900 dark:text-srbench-300',
+    red:  'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+    amber:'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
+    purple:'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    sky:  'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200',
+  };
+  const TARGET_PALETTE = {
+    privacy:            'purple',
+    due_diligence:      'amber',
+    duty_of_care:       'purple',
+    outcome_optimality: 'sky',
+  };
+  function pillBtn(label, active, palette, attrs) {
+    const ring = active ? 'ring-2 ring-offset-1 ring-offset-white dark:ring-offset-gray-900' : '';
+    return `<button class="px-2 py-0.5 rounded-full text-[10px] font-semibold filter-btn ${PALETTES[palette] || PALETTES.gray} ${ring}" ${attrs}>${esc(label)}</button>`;
+  }
+
+  // Malicious / benign filter
+  if (malCount > 0 && benignCount > 0) {
+    chips.push(pillBtn('All',                    state.filterMalicious === 'all',       'gray', 'data-mal="all"'));
+    chips.push(pillBtn(`Benign (${benignCount})`,state.filterMalicious === 'benign',    'srbench', 'data-mal="benign"'));
+    chips.push(pillBtn(`Adversarial (${malCount})`,state.filterMalicious === 'malicious','red',  'data-mal="malicious"'));
+  }
+
+  // Target filter (only if more than one target appears)
+  if (targets.size > 1) {
+    chips.push(`<span class="w-full h-px bg-gray-200 dark:bg-gray-800 my-1 block"></span>`);
+    chips.push(pillBtn('Any target', state.filterTarget === 'all', 'gray', 'data-target="all"'));
+    [...targets].sort().forEach(t => {
+      const palette = TARGET_PALETTE[t] || 'gray';
+      const label = (TARGET_COLORS[t]?.name) || t;
+      chips.push(pillBtn(label, state.filterTarget === t, palette, `data-target="${esc(t)}"`));
+    });
+  }
+
+  container.innerHTML = chips.join('');
+  container.querySelectorAll('button[data-mal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.filterMalicious = btn.dataset.mal;
+      renderTaskList();
+      renderFilters();
+    });
+  });
+  container.querySelectorAll('button[data-target]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.filterTarget = btn.dataset.target;
+      renderTaskList();
+      renderFilters();
+    });
+  });
+}
+
+function renderTaskList() {
+  const list = document.getElementById('tasks-list');
+  const visible = visibleTasks();
+  const total = currentTasks().length;
+  document.getElementById('tasks-count').textContent = `(${visible.length}${visible.length !== total ? ` / ${total}` : ''})`;
+
+  // If selected task is filtered out, jump to the first visible
+  if (visible.length && !visible.find(t => t._idx === state.selectedTask)) {
+    state.selectedTask = visible[0]._idx;
+    renderDetail();
+  }
+
+  if (!visible.length) {
+    list.innerHTML = `<div class="text-xs text-gray-400 dark:text-gray-500 italic px-3 py-3">No tasks match the current filters.</div>`;
+    return;
+  }
+
+  const benchmark = currentFile().benchmark;
+  const isCalendar = benchmark === 'calendar';
+  const isMarketplace = benchmark === 'marketplace';
+  const subjectHeader = isCalendar ? 'Requestor → Assistant'
+    : isMarketplace ? 'Product'
+    : 'Task';
+
+  const rows = visible.map(t => {
+    const selected = t._idx === state.selectedTask ? 'selected' : '';
+    const summary = taskSummary(t, benchmark);
+    const mal = isMalicious(t);
+    const actor = maliciousActor(t);
+    const target = actor?.malicious_target;
+    const targetBadge = target
+      ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">${esc(TARGET_COLORS[target]?.name || target)} attack</span>`
+      : (mal ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">adversarial</span>` : '');
+
+    let extra = '';
+    if (isCalendar) {
+      const fs = typeof t.free_slots_count === 'number' ? t.free_slots_count : null;
+      extra = fs != null
+        ? `<td class="px-2 py-1.5 text-center text-gray-600 dark:text-gray-400">${fs}</td>`
+        : `<td class="px-2 py-1.5 text-center text-gray-300 dark:text-gray-600">–</td>`;
+    } else if (isMarketplace) {
+      const w = zopaWidth(t);
+      const fmt = v => Number.isInteger(v) ? `$${v}` : `$${v.toFixed(2)}`;
+      const cls = w == null ? 'text-gray-300 dark:text-gray-600' : w < 0 ? 'text-red-500' : 'text-gray-600 dark:text-gray-400';
+      extra = `<td class="px-2 py-1.5 text-center ${cls}">${w == null ? '–' : fmt(w)}</td>`;
+    }
+
+    return `<tr class="trace-task-row border-b border-gray-100 dark:border-gray-800 text-xs text-gray-700 dark:text-gray-300 ${selected}" data-idx="${t._idx}">
+      <td class="px-2 py-1.5 text-gray-400 dark:text-gray-500">${t.id}</td>
+      <td class="px-2 py-1.5 max-w-[160px] truncate" title="${esc(summary)}">${esc(summary)}</td>
+      ${extra}
+      <td class="px-2 py-1.5 text-right">${targetBadge}</td>
+    </tr>`;
+  }).join('');
+
+  const headerExtra = isCalendar
+    ? '<th class="px-2 py-1.5 text-center" title="Mutually free slots">Free</th>'
+    : isMarketplace
+      ? '<th class="px-2 py-1.5 text-center" title="ZOPA width = buyer max − seller min">ZOPA</th>'
+      : '';
+  list.innerHTML = `<table class="w-full text-xs">
+    <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
+      <tr class="text-gray-500 dark:text-gray-400 font-medium text-[10px] uppercase tracking-wider">
+        <th class="px-2 py-1.5 text-left">#</th>
+        <th class="px-2 py-1.5 text-left">${esc(subjectHeader)}</th>
+        ${headerExtra}
+        <th class="px-2 py-1.5 text-right"></th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+
+  list.querySelectorAll('.trace-task-row').forEach(el => {
+    el.addEventListener('click', () => selectTask(parseInt(el.dataset.idx)));
+  });
+}
+
+function taskSummary(t, benchmark) {
+  if (benchmark === 'calendar') {
+    const r = t.requestor || {};
+    const a = t.assistant || {};
+    const m = r.requested_meeting || {};
+    const rName = r.name || 'Unknown';
+    const aName = a.name
+      || ((m.attendees || []).find(at => at.email !== r.email)?.email || 'Unknown').split('@')[0];
+    return `${rName} (Requestor) → ${aName} (Assistant)`;
+  }
+  if (benchmark === 'marketplace') {
+    return t.product?.name || `Task ${t.id}`;
+  }
+  return `Task ${t.id}`;
+}
+
+// ─────────────────────────────────────────────
+// Detail view — dispatch
+// ─────────────────────────────────────────────
+function renderDetail() {
+  const view = document.getElementById('detail-view');
+  const file = currentFile();
+  if (!file) { view.innerHTML = ''; return; }
+  const visible = visibleTasks();
+  const task = visible.find(t => t._idx === state.selectedTask) || visible[0];
+  if (!task) {
+    view.innerHTML = `<div class="text-sm text-gray-500 italic p-8 text-center">No task to show.</div>`;
+    return;
+  }
+  if (file.benchmark === 'calendar')        view.innerHTML = renderCalendarTask(task, file);
+  else if (file.benchmark === 'marketplace') view.innerHTML = renderMarketplaceTask(task, file);
+  else                                       view.innerHTML = renderGenericTask(task, file);
+  // <details> handles open/close natively — no JS toggle needed.
+}
+
+function renderHeader(task, file) {
+  const mal = isMalicious(task);
+  const actor = maliciousActor(task);
+  const sat = task.satisfiable;
+  const satBadge = sat === false
+    ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">Unsatisfiable</span>'
+    : sat === true
+      ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-srbench-100 text-srbench-800 dark:bg-srbench-900 dark:text-srbench-300">Satisfiable</span>'
+      : '';
+  const targetName = actor && actor.malicious_target ? (TARGET_COLORS[actor.malicious_target]?.name || actor.malicious_target) : 'Adversarial';
+  const malBadge = mal
+    ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">${esc(targetName)} attack</span>`
+    : '';
+
+  return `
+    <div class="flex items-start justify-between gap-3 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
+      <div>
+        <div class="text-[11px] font-mono text-gray-500 dark:text-gray-400 mb-0.5">${esc(file.name)} · Task ${task.id}</div>
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 leading-tight">${esc(taskSummary(task, file.benchmark))}</h2>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5 justify-end">
+        ${benchmarkBadge(file.benchmark)}
+        ${satBadge}
+        ${malBadge}
+      </div>
+    </div>
+  `;
+}
+
+function renderRawYamlBlock(task) {
+  const yaml = jsyaml.dump(task, { lineWidth: 100, noRefs: true });
+  return `
+    <details class="mt-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
+      <summary class="px-4 py-2.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg">
+        <span class="marker mr-1">▸</span>Raw YAML
+      </summary>
+      <pre class="px-4 pb-4 pt-1 text-[11px] font-mono overflow-auto max-h-96 whitespace-pre">${esc(yaml)}</pre>
+    </details>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// Detail view — Calendar
+// ─────────────────────────────────────────────
+function sectionHeading(title) {
+  return `<h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-1.5">${esc(title)}</h3>`;
+}
+
+function renderCalendarTask(task, file) {
+  const r = task.requestor || {};
+  const meeting = r.requested_meeting || {};
+  const assistant = task.assistant || {};
+  const assistantName = assistant.name || 'Assistant';
+  const requestorName = r.name || 'Requestor';
+  const mal = isMalicious(task);
+  const actor = maliciousActor(task);
+
+  // Ghost event = requested meeting overlaid on both calendars (preview)
+  const evt = meeting && meeting.start_time ? tvNormalizeEvent(meeting) : null;
+
+  // Requestor card: Assistant card uses srbench; Requestor uses gray (mirrors index.html)
+  const requestorMaliciousBadge = r.is_malicious
+    ? '<span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Malicious</span>'
+    : '';
+
+  const reqInstruction = r.is_malicious ? (r.malicious_prompt || '') : (r.instruction_message || '');
+  const reqInstructionLabel = r.is_malicious ? 'Instruction (adversarial)' : 'Instruction';
+  const requestorCard = `
+    <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+      <div class="flex items-center gap-2 mb-1">
+        <div class="w-2.5 h-2.5 bg-gray-400 rounded-full"></div>
+        <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">${esc(requestorName)} (Requestor)</span>
+        ${requestorMaliciousBadge}
+      </div>
+      <div class="text-sm text-gray-700 dark:text-gray-300">${esc(r.email || '')}</div>
+      ${r.is_malicious ? `<div class="mt-1.5 text-xs text-gray-600 dark:text-gray-400">
+        ${r.malicious_target ? `<div><span class="font-semibold">Target:</span> ${esc(String(r.malicious_target))}</div>` : ''}
+        ${r.malicious_strategy ? `<div><span class="font-semibold">Strategy:</span> ${esc(String(r.malicious_strategy))}</div>` : ''}
+      </div>` : ''}
+      ${reqInstruction ? `<details class="mt-2" open><summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">${esc(reqInstructionLabel)}</summary>
+        <div class="mt-1 bg-white dark:bg-gray-900 rounded p-2 text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap max-h-40 overflow-y-auto">${esc(reqInstruction)}</div>
+      </details>` : ''}
+    </div>
+  `;
+
+  const contacts = Array.isArray(assistant.contacts) ? assistant.contacts : [];
+  const requestorEmail = (r.email || '').toLowerCase();
+  const requestorInContacts = !!requestorEmail && contacts.some(c => (c.email || '').toLowerCase() === requestorEmail);
+
+  const contactsBlock = contacts.length ? `
+    <details class="mt-2" open><summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">
+      Contacts (${contacts.length}) ${requestorInContacts
+        ? '<span class="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 normal-case tracking-normal">Requestor is a known contact</span>'
+        : '<span class="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 normal-case tracking-normal">Requestor is not a known contact</span>'}
+    </summary>
+    <div class="mt-1 bg-white dark:bg-gray-900 rounded p-2 space-y-1 max-h-48 overflow-y-auto">
+      ${contacts.map(c => {
+        const isRequestor = (c.email || '').toLowerCase() === requestorEmail;
+        const wrapper = isRequestor
+          ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded px-1.5 py-1'
+          : '';
+        return `<div class="text-xs text-gray-700 dark:text-gray-300 ${wrapper}">
+          ${isRequestor ? '<span class="px-1 py-0.5 rounded text-[9px] font-semibold bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100 mr-1 align-middle">requestor</span>' : ''}
+          <span class="font-medium">${esc(c.name || '')}</span>
+          <span class="text-gray-500 dark:text-gray-400 font-mono ml-2">${esc(c.email || '')}</span>
+          ${c.note ? `<div class="text-gray-500 dark:text-gray-400 ml-0.5 text-[11px]">${esc(c.note)}</div>` : ''}
+        </div>`;
+      }).join('')}
+    </div></details>
+  ` : '';
+
+  const assistantCard = `
+    <div class="bg-srbench-50 dark:bg-srbench-900/20 border border-srbench-200 dark:border-srbench-800 rounded-lg p-3">
+      <div class="flex items-center gap-2 mb-1">
+        <div class="w-2.5 h-2.5 bg-srbench-500 rounded-full"></div>
+        <span class="text-xs font-semibold text-srbench-800 dark:text-srbench-200">${esc(assistantName)} (Assistant)</span>
+      </div>
+      <div class="text-sm text-srbench-700 dark:text-srbench-300">${esc(assistant.email || '')}</div>
+      ${assistant.instruction_message ? `<details class="mt-2" open><summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">Instruction</summary>
+        <div class="mt-1 bg-white dark:bg-gray-900 rounded p-2 text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap max-h-40 overflow-y-auto">${esc(assistant.instruction_message)}</div>
+      </details>` : ''}
+      ${contactsBlock}
+    </div>
+  `;
+
+  // Single combined view per role: calendar gantt + preference heatmap row
+  // sharing the same 24-hour x-axis.
+  const requestorTl = tvRenderCalendarWithPrefs(
+    `${esc(requestorName)} (Requestor)`, r.calendar || [], r.preferences || [], true, null, r.email || '', evt);
+  const assistantTl = tvRenderCalendarWithPrefs(
+    `${esc(assistantName)} (Assistant)`, assistant.calendar || [], assistant.preferences || [], true, null, assistant.email || '', evt);
+
+  return `
+    ${renderHeader(task, file)}
+
+    <div class="mb-5">${sectionHeading('Roles')}
+      <div class="grid md:grid-cols-2 gap-3">
+        ${requestorCard}
+        ${assistantCard}
+      </div>
+    </div>
+
+    <div class="mb-5">${sectionHeading('Calendars & time preferences')}
+      ${requestorTl}
+      ${assistantTl}
+    </div>
+
+    ${renderRawYamlBlock(task)}
+  `;
+}
+
+// ─── Calendar timeline + preferences (ported from dashboard/index.html) ───
+function tvNormalizeEvent(event) {
+  if (!event) return null;
+  const n = {...event};
+  if (event.start_time && n.start_time_24h == null) {
+    n.start_time_24h = typeof event.start_time === 'number' ? event.start_time : tvParseTimeString(event.start_time);
+  }
+  if (event.end_time && n.end_time_24h == null) {
+    n.end_time_24h = typeof event.end_time === 'number' ? event.end_time : tvParseTimeString(event.end_time);
+  }
+  if (n.duration_minutes == null && n.start_time_24h != null && n.end_time_24h != null) {
+    n.duration_minutes = tvMilToMinutes(n.end_time_24h) - tvMilToMinutes(n.start_time_24h);
+  }
+  return n;
+}
+
+function tvParseTimeString(s) {
+  if (typeof s === 'number') return s;
+  if (!s) return 0;
+  const [h, m] = String(s).split(':').map(Number);
+  return h * 100 + (m || 0);
+}
+
+function tvMilToMinutes(mil) { return Math.floor(mil / 100) * 60 + (mil % 100); }
+
+function tvFormatTime(mil) {
+  if (mil == null) return '?';
+  const h = Math.floor(mil / 100), m = mil % 100;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return m > 0 ? `${h12}:${m.toString().padStart(2, '0')} ${ampm}` : `${h12} ${ampm}`;
+}
+
+function tvFormatDuration(mins) {
+  if (!mins) return '?';
+  if (mins >= 60) { const h = Math.floor(mins / 60), m = mins % 60; return m > 0 ? `${h}h ${m}m` : `${h}h`; }
+  return `${mins}m`;
+}
+
+function tvParseTimeMinutes(t) {
+  if (!t) return 0;
+  const s = String(t);
+  const parts = s.split(':');
+  return parseInt(parts[0]) * 60 + parseInt(parts[1] || 0);
+}
+
+function tvFormatPrefTime(t) {
+  if (!t) return '';
+  const [h, m] = String(t).split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return m > 0 ? `${h12}:${m.toString().padStart(2, '0')} ${ampm}` : `${h12} ${ampm}`;
+}
+
+function tvComputeEventLayout(events) {
+  if (!events || events.length === 0) return [];
+  const layoutEvents = events.map((raw, idx) => ({ ...tvNormalizeEvent(raw), raw, originalIndex: idx }));
+  layoutEvents.sort((a, b) => tvMilToMinutes(a.start_time_24h) - tvMilToMinutes(b.start_time_24h));
+  const groups = []; let cur = []; let curEnd = 0;
+  for (const e of layoutEvents) {
+    const s = tvMilToMinutes(e.start_time_24h), end = s + (e.duration_minutes || 0);
+    if (cur.length === 0 || s < curEnd) { cur.push(e); curEnd = Math.max(curEnd, end); }
+    else { if (cur.length) groups.push(cur); cur = [e]; curEnd = end; }
+  }
+  if (cur.length) groups.push(cur);
+  for (const group of groups) {
+    const lanes = [];
+    for (const e of group) {
+      const s = tvMilToMinutes(e.start_time_24h), end = s + (e.duration_minutes || 0);
+      let lane = lanes.findIndex(l => s >= l);
+      if (lane === -1) { lane = lanes.length; lanes.push(end); } else { lanes[lane] = end; }
+      e.lane = lane;
+    }
+    for (const e of group) e.totalLanes = lanes.length;
+  }
+  return layoutEvents;
+}
+
+// Combined per-role view: calendar gantt + preference heatmap row sharing
+// the same 24-hour x-axis. Combines what dashboard/index.html splits across
+// `tvRenderCalendarTimeline` and `tvRenderPreferenceGraph` into one block.
+function tvRenderCalendarWithPrefs(title, events, prefs, isInitial, scheduledEvent, owner, ghostEvent) {
+  const hasEvents = Array.isArray(events) && events.length > 0;
+  const hasPrefs  = Array.isArray(prefs) && prefs.length > 0;
+  if (!hasEvents && !hasPrefs) return '';
+
+  // ── Calendar bars (mirrors tvRenderCalendarTimeline body) ──
+  let eventsWithGhost = hasEvents ? [...events] : [];
+  if (ghostEvent && ghostEvent.start_time_24h && ghostEvent.duration_minutes) {
+    eventsWithGhost.push({ ...ghostEvent, _isGhost: true });
+  }
+  const layout = tvComputeEventLayout(eventsWithGhost);
+  let hasPendingEvents = false;
+
+  let markers = '';
+  for (let h = 0; h <= 24; h++) markers += `<div class="tv-hour-marker bg-gray-200 dark:bg-gray-700" style="left:${(h/24)*100}%"></div>`;
+
+  const eventsHtml = layout.map(e => {
+    const raw = e.raw || {};
+    const isGhost = e._isGhost || raw._isGhost;
+    const startMins = tvMilToMinutes(e.start_time_24h);
+    const left = (startMins / 1440) * 100;
+    const width = ((e.duration_minutes || 0) / 1440) * 100;
+    const totalLanes = e.totalLanes || 1;
+    const lane = e.lane || 0;
+    const hPct = 100 / totalLanes;
+    const tPct = lane * hPct;
+
+    const attendees = raw.attendees || [];
+    const isPending = !isGhost && attendees.some(a => typeof a === 'object' && a.status && !['ACCEPTED', 'DECLINED'].includes(a.status.toUpperCase()));
+    const ownerStatus = attendees.find(a => typeof a === 'object' && a.email === owner)?.status?.toUpperCase();
+    const ownerAccepted = ownerStatus === 'ACCEPTED';
+    if (isPending) hasPendingEvents = true;
+
+    let cls;
+    if (isGhost) cls = 'bg-amber-200/60 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-2 border-dashed border-amber-500';
+    else if (!isInitial && scheduledEvent && e.title === scheduledEvent.title && e.start_time_24h === scheduledEvent.start_time_24h)
+      cls = 'bg-amber-500 text-white border border-amber-700 ring-2 ring-amber-300';
+    else if (isPending && ownerAccepted) cls = 'bg-amber-500 text-white border border-amber-700';
+    else if (isPending) cls = 'bg-amber-200/60 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-2 border-dashed border-amber-500';
+    else if (e.organizer && owner && e.organizer !== owner) cls = 'bg-gray-400 text-white border border-gray-500';
+    else cls = 'bg-srbench-500 text-white border border-srbench-700';
+
+    return `<div class="tv-event ${cls}" style="left:${left}%;width:${width}%;top:${tPct}%;height:${hPct}%">
+      <div class="tv-ev-content"><span class="tv-ev-label">${esc(e.title || '?')}</span></div>
+      <div class="tv-ev-popup bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+        <div class="font-semibold text-sm mb-1">${esc(e.title || '?')}</div>
+        ${isGhost ? '<div class="text-xs text-amber-600 dark:text-amber-400 mb-1">Requested (Preview)</div>' : ''}
+        ${isPending ? '<div class="text-[10px] px-1.5 py-0.5 mb-1 rounded bg-yellow-50 border border-yellow-300 text-yellow-800 dark:bg-yellow-900/40 dark:border-yellow-700 dark:text-yellow-300 font-medium">Pending responses — not yet confirmed</div>' : ''}
+        <div class="text-xs">${tvFormatTime(e.start_time_24h)} - ${tvFormatTime(e.end_time_24h)} (${tvFormatDuration(e.duration_minutes)})</div>
+        ${e.organizer ? `<div class="text-xs mt-0.5">Organizer: ${esc(e.organizer)}</div>` : ''}
+        ${(() => {
+          if (attendees.length === 0) return '';
+          const rows = attendees.map(a => {
+            const email = typeof a === 'string' ? a : a.email;
+            const status = typeof a === 'object' ? a.status : null;
+            let badge = '';
+            if (status) {
+              const s = status.toUpperCase();
+              if (s === 'ACCEPTED') badge = '<span class="text-[10px] px-1 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 font-medium">Accepted</span>';
+              else if (s === 'DECLINED') badge = '<span class="text-[10px] px-1 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 font-medium">Declined</span>';
+              else badge = '<span class="text-[10px] px-1 py-0.5 rounded bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300 font-medium">Pending</span>';
+            }
+            return `<div class="flex items-center justify-between gap-2 py-0.5"><span class="truncate">${esc(email)}</span>${badge}</div>`;
+          }).join('');
+          return `<div class="border-t border-gray-200 dark:border-gray-600 pt-1.5 mt-1.5">
+            <div class="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5">Attendees (${attendees.length})</div>
+            <div class="text-xs">${rows}</div>
+          </div>`;
+        })()}
+        ${isInitial && !isGhost ? `<div class="flex gap-2 mt-1 text-[10px]">
+          <span class="${e.is_movable ? 'text-srbench-600' : 'text-red-500'}">${e.is_movable ? 'Movable' : 'Fixed'}</span>
+          <span class="${e.is_secret ? 'text-purple-600' : 'text-gray-400'}">${e.is_secret ? 'Secret' : 'Public'}</span>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── Preference heatmap row (full-height blocks coloured by score) ──
+  let prefsHtml = '';
+  if (hasPrefs) {
+    prefsHtml = prefs.map(p => {
+      const sMins = tvParseTimeMinutes(p.start_time);
+      const eMins = tvParseTimeMinutes(p.end_time);
+      const left = (sMins / 1440) * 100;
+      const width = ((eMins - sMins) / 1440) * 100;
+      const score = +p.score;
+      const color = score >= 0.8 ? 'rgba(134,239,172,0.9)'
+                  : score >= 0.5 ? 'rgba(107,158,120,0.9)'
+                  : score >= 0.3 ? 'rgba(234,179,8,0.8)'
+                  : score >  0   ? 'rgba(239,68,68,0.6)'
+                  :                'rgba(0,0,0,0)';
+      const label = score >= 0.8 ? 'Strongly prefer' : score >= 0.5 ? 'Prefer' : score >= 0.3 ? 'Acceptable' : score > 0 ? 'Avoid' : 'Will not';
+      const heightPct = Math.max(0, Math.min(1, score)) * 100;
+      return `<div class="tv-pref-bar" style="left:${left}%;width:${width}%;height:${heightPct}%;background:${color};">
+        <div class="tv-pref-popup bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+          <div class="font-medium mb-0.5">${tvFormatPrefTime(p.start_time)} - ${tvFormatPrefTime(p.end_time)}</div>
+          <div>Score: <span class="font-semibold">${score.toFixed(2)}</span></div>
+          <div class="text-gray-500 dark:text-gray-400 mt-0.5">"${label}"</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  let ticks = '';
+  for (let h = 0; h <= 24; h++) {
+    const label = h === 0 ? '12a' : h === 12 ? '12p' : h === 24 ? '12a' : h < 12 ? `${h}a` : `${h-12}p`;
+    ticks += `<span class="absolute text-[10px] text-gray-400 dark:text-gray-500" style="left:${(h/24)*100}%;transform:translateX(-50%)">${label}</span>`;
+  }
+
+  const stripLabel = (text) => `<div class="absolute bottom-0 left-0 z-20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-white/70 dark:bg-gray-900/60 rounded-tr pointer-events-none">${esc(text)}</div>`;
+  // Override .tv-timeline's border-radius when a pref band sits below it,
+  // so the two bands connect cleanly. Pref band rounds its own bottom.
+  const calTopStyle = `border-top-left-radius:0.5rem;border-top-right-radius:0.5rem;`;
+  const calBotStyle = hasPrefs ? `border-bottom-left-radius:0;border-bottom-right-radius:0;` : `border-bottom-left-radius:0.5rem;border-bottom-right-radius:0.5rem;`;
+  const calendarBand = hasEvents
+    ? `<div class="tv-timeline bg-gray-50 dark:bg-gray-800 relative" style="height:8rem;${calTopStyle}${calBotStyle}">${stripLabel('Events')}${markers}<div class="absolute inset-0">${eventsHtml}</div></div>`
+    : `<div class="tv-timeline bg-gray-50 dark:bg-gray-800 relative flex items-center justify-center text-[11px] italic text-gray-400 dark:text-gray-500" style="height:8rem;${calTopStyle}${calBotStyle}">${stripLabel('Events')}No events</div>`;
+  const prefBand = hasPrefs
+    ? `<div class="relative bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700" style="height:3rem;border-bottom-left-radius:0.5rem;border-bottom-right-radius:0.5rem;">${stripLabel('Preferences')}${prefsHtml}</div>`
+    : '';
+  const calendarLegend = hasEvents ? `
+    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-srbench-500 border border-srbench-700 rounded"></span> Owned</span>
+    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-gray-400 border border-gray-500 rounded"></span> External</span>
+    ${ghostEvent ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-amber-100 border-2 border-dashed border-amber-500 rounded"></span> Requested</span>' : ''}
+    ${hasPendingEvents ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-amber-500 border-2 border-dashed border-amber-700 rounded"></span> Pending</span>' : ''}
+  ` : '';
+  const prefLegend = hasPrefs ? `
+    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(134,239,172,0.9)"></span> Strongly prefer</span>
+    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(107,158,120,0.9)"></span> Prefer</span>
+    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(234,179,8,0.8)"></span> Acceptable</span>
+    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(239,68,68,0.6)"></span> Avoid</span>
+  ` : '';
+
+  return `<div class="mb-5">
+    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">${title}</h3>
+    <div class="rounded-lg border border-gray-200 dark:border-gray-700">
+      ${calendarBand}
+      ${prefBand}
+    </div>
+    <div class="relative h-4 mt-0.5">${ticks}</div>
+    <div class="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-1">
+      ${calendarLegend}
+      ${hasEvents && hasPrefs ? '<span class="text-gray-300 dark:text-gray-600">·</span>' : ''}
+      ${prefLegend}
+    </div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────
+// Detail view — Marketplace
+// ─────────────────────────────────────────────
+function renderMarketplaceTask(task, file) {
+  const product = task.product || {};
+  const buyer = task.buyer || {};
+  const seller = task.seller || {};
+  const listed = +product.listed_price;
+  const buyerMax = +buyer.reservation_price;
+  const sellerMin = +seller.reservation_price;
+  const mal = isMalicious(task);
+  const actor = maliciousActor(task);
+  const malRole = buyer.is_malicious ? 'buyer' : seller.is_malicious ? 'seller' : null;
+
+  // Product card — index.html-style amber callout
+  const productCard = `
+    <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-3">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-[10px] font-semibold text-amber-800 dark:text-amber-200 uppercase tracking-wide mb-0.5">Product</div>
+          <div class="text-sm text-amber-700 dark:text-amber-300">${esc(product.name || '')}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-[10px] text-amber-700 dark:text-amber-300">Listed</div>
+          <div class="text-xl font-semibold text-amber-900 dark:text-amber-100">$${listed.toFixed(2)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Buyer = assistant under test in this benchmark (srbench card); Seller = counterparty (gray card)
+  const buyerInstruction = buyer.is_malicious ? (buyer.malicious_prompt || '') : (buyer.instruction_message || '');
+  const buyerInstructionLabel = buyer.is_malicious ? 'Instruction (adversarial)' : 'Instruction';
+  const sellerInstruction = seller.is_malicious ? (seller.malicious_prompt || '') : (seller.instruction_message || '');
+  const sellerInstructionLabel = seller.is_malicious ? 'Instruction (adversarial)' : 'Instruction';
+  const buyerCard = `
+    <div class="bg-srbench-50 dark:bg-srbench-900/20 border border-srbench-200 dark:border-srbench-800 rounded-lg p-3">
+      <div class="flex items-center gap-2 mb-1">
+        <div class="w-2.5 h-2.5 bg-srbench-500 rounded-full"></div>
+        <span class="text-xs font-semibold text-srbench-800 dark:text-srbench-200">Buyer (Assistant)</span>
+        ${buyer.is_malicious
+          ? '<span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Malicious</span>'
+          : ''}
+      </div>
+      ${buyer.reservation_price != null ? `<div class="text-xs text-srbench-600 dark:text-srbench-400">Reservation: $${(+buyer.reservation_price).toFixed(2)}</div>` : ''}
+      ${buyer.is_malicious ? `<div class="mt-1.5 text-xs text-gray-600 dark:text-gray-400">
+        ${buyer.malicious_target ? `<div><span class="font-semibold">Target:</span> ${esc(String(buyer.malicious_target))}</div>` : ''}
+        ${buyer.malicious_strategy ? `<div><span class="font-semibold">Strategy:</span> ${esc(String(buyer.malicious_strategy))}</div>` : ''}
+      </div>` : ''}
+      ${buyerInstruction ? `<details class="mt-2" open><summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">${esc(buyerInstructionLabel)}</summary>
+        <div class="mt-1 bg-white dark:bg-gray-900 rounded p-2 text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap max-h-48 overflow-y-auto">${esc(buyerInstruction)}</div>
+      </details>` : ''}
+    </div>
+  `;
+  const sellerCard = `
+    <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+      <div class="flex items-center gap-2 mb-1">
+        <div class="w-2.5 h-2.5 bg-gray-400 rounded-full"></div>
+        <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">Seller (Counterparty)</span>
+        ${seller.is_malicious
+          ? '<span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Malicious</span>'
+          : ''}
+      </div>
+      ${seller.reservation_price != null ? `<div class="text-xs text-gray-500 dark:text-gray-400">Reservation: $${(+seller.reservation_price).toFixed(2)}</div>` : ''}
+      ${seller.is_malicious ? `<div class="mt-1.5 text-xs text-gray-600 dark:text-gray-400">
+        ${seller.malicious_target ? `<div><span class="font-semibold">Target:</span> ${esc(String(seller.malicious_target))}</div>` : ''}
+        ${seller.malicious_strategy ? `<div><span class="font-semibold">Strategy:</span> ${esc(String(seller.malicious_strategy))}</div>` : ''}
+      </div>` : ''}
+      ${sellerInstruction ? `<details class="mt-2" open><summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">${esc(sellerInstructionLabel)}</summary>
+        <div class="mt-1 bg-white dark:bg-gray-900 rounded p-2 text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap max-h-48 overflow-y-auto">${esc(sellerInstruction)}</div>
+      </details>` : ''}
+    </div>
+  `;
+
+  return `
+    ${renderHeader(task, file)}
+
+    <div class="mb-5">${sectionHeading('Roles')}
+      ${productCard}
+      <div class="grid md:grid-cols-2 gap-3">
+        ${buyerCard}
+        ${sellerCard}
+      </div>
+    </div>
+
+    <div class="mb-5">${sectionHeading('Zone of Possible Agreement')}
+      ${renderZopa(buyerMax, sellerMin, listed, task.satisfiable)}
+    </div>
+
+    ${renderRawYamlBlock(task)}
+  `;
+}
+
+function renderZopa(buyerMax, sellerMin, listed) {
+  const all = [buyerMax, sellerMin, listed].filter(v => Number.isFinite(v));
+  if (!all.length) return '';
+  const lo = Math.min(...all) * 0.9;
+  const hi = Math.max(...all) * 1.1;
+  const span = hi - lo;
+  const pos = v => `${((v - lo) / span) * 100}%`;
+  const zopaExists = sellerMin <= buyerMax;
+  const zopaBand = zopaExists
+    ? `<div class="absolute top-0 bottom-0 bg-srbench-200/60 dark:bg-srbench-800/40" style="left:${pos(sellerMin)}; right:${100 - parseFloat(pos(buyerMax))}%;"></div>`
+    : `<div class="absolute top-0 bottom-0 bg-red-200/60 dark:bg-red-800/40" style="left:${pos(buyerMax)}; right:${100 - parseFloat(pos(sellerMin))}%;"></div>`;
+
+  return `
+    <div class="text-xs text-gray-600 dark:text-gray-400 mb-6">
+      ${zopaExists
+        ? 'Any price in the green band is mutually acceptable. The benchmark measures how close the agents land to <span class="font-medium text-gray-700 dark:text-gray-300">optimal</span> within this band.'
+        : 'No overlap between buyer\'s max and seller\'s min — <span class="text-red-600 dark:text-red-400 font-medium">no deal is possible</span>. The assistant should detect this and walk away.'}
+    </div>
+    <div class="relative h-12 bg-gray-100 dark:bg-gray-800 rounded-lg mt-10">
+      ${zopaBand}
+      <div class="absolute top-[-4px] bottom-[-4px] w-0.5 bg-red-500" style="left:${pos(sellerMin)}"></div>
+      <div class="absolute text-[10px] font-semibold text-red-700 dark:text-red-400 whitespace-nowrap" style="left:${pos(sellerMin)}; bottom:-32px; transform: translateX(-50%)">Seller min<br>$${sellerMin.toFixed(2)}</div>
+      <div class="absolute top-[-4px] bottom-[-4px] w-0.5 bg-blue-500" style="left:${pos(buyerMax)}"></div>
+      <div class="absolute text-[10px] font-semibold text-blue-700 dark:text-blue-400 whitespace-nowrap" style="left:${pos(buyerMax)}; top:-32px; transform: translateX(-50%)">Buyer max<br>$${buyerMax.toFixed(2)}</div>
+      <div class="absolute top-[-4px] bottom-[-4px] w-0.5 bg-amber-500" style="left:${pos(listed)}"></div>
+      <div class="absolute text-[10px] font-semibold text-amber-700 dark:text-amber-400 whitespace-nowrap bg-white dark:bg-gray-900 px-1.5 rounded" style="left:${pos(listed)}; top:50%; transform: translate(-50%, -50%)">Listed $${listed.toFixed(2)}</div>
+    </div>
+    <div class="h-7"></div>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// Detail view — Generic fallback
+// ─────────────────────────────────────────────
+function renderGenericTask(task, file) {
+  return `
+    ${renderHeader(task, file)}
+    <section class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 mb-4">
+      <p class="text-sm text-gray-600 dark:text-gray-400">
+        Detailed rendering for <span class="font-medium">${esc(file.benchmark)}</span> tasks is not implemented yet.
+        See the raw YAML below.
+      </p>
+    </section>
+    ${renderRawYamlBlock(task)}
+  `;
+}
+
+// ─────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────
+function esc(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = '0'; }, 3000);
+}
+</script>
+</body>
+</html>

@@ -20,7 +20,7 @@ The base class handles checkpointing, parallel execution, CLI parsing, output se
 ## Step 1: Create the Package Structure
 
 ```
-sage_benchmark/benchmarks/debate/
+srbench/benchmarks/debate/
   __init__.py
   config.py       # DebateRunConfig
   types.py        # Task, results, evaluation types
@@ -195,7 +195,7 @@ The `Benchmark` ABC requires 11 abstract methods. Here's a complete implementati
 from __future__ import annotations
 import argparse
 import asyncio
-from sage_llm import ModelClient
+from srbench_llm import ModelClient
 from ..base import Benchmark
 from .config import DebateRunConfig
 from .types import (
@@ -368,7 +368,7 @@ class DebateBenchmark(
 
 ## Step 5: Register the Benchmark
 
-Add your benchmark to `sage_benchmark/cli.py`:
+Add your benchmark to `srbench/cli.py`:
 
 ```python
 from .benchmarks.debate import DebateBenchmark
@@ -395,7 +395,7 @@ _BENCHMARK_BY_NAME: dict[str, type[Benchmark]] = {
 Now you can run it:
 
 ```bash
-sagebench benchmark debate --data ./data/debate/tasks.yaml --model gpt-4.1
+srbench benchmark debate --data ./data/debate/tasks.yaml --model gpt-4.1
 ```
 
 ## Step 6: Define Tools (Optional)
@@ -403,7 +403,7 @@ sagebench benchmark debate --data ./data/debate/tasks.yaml --model gpt-4.1
 If your agents need tool calling, define tools as Pydantic models extending `Tool`:
 
 ```python
-from sage_benchmark.shared.tool import Tool, ToolError
+from srbench.shared.tool import Tool, ToolError
 from pydantic import Field
 
 class SubmitArgument(Tool):
@@ -423,7 +423,7 @@ The class name becomes the tool name, the docstring becomes the description, and
 For multi-agent benchmarks, extend `BaseAgent`:
 
 ```python
-from sage_benchmark.shared.agent import BaseAgent
+from srbench.shared.agent import BaseAgent
 
 class DebateAgent(BaseAgent):
     """Agent that participates in a debate."""
@@ -492,7 +492,7 @@ Wrap `LeakageJudge` with your domain config. This keeps the domain configuration
 ```python
 # evaluation/privacy/leakage/judge.py
 from privacy_judge import LeakageJudge, LeakageJudgment
-from sage_llm import ModelClient
+from srbench_llm import ModelClient
 
 from .config import DEBATE_DOMAIN, DEBATE_EXAMPLES
 
@@ -534,7 +534,7 @@ This function extracts the relevant text from your execution result and feeds it
 
 ```python
 # evaluation/privacy/evaluate.py
-from sage_llm import ModelClient
+from srbench_llm import ModelClient
 from .leakage import DebateLeakageJudge
 from ...types import DebateExecutionResult, DebateLeakedSecret
 
@@ -620,7 +620,7 @@ The `detected_leaks` field flows into the `privacy_leaks` and `leakage_rate` com
 After adding privacy evaluation, your benchmark directory looks like this.
 
 ```
-sage_benchmark/benchmarks/debate/
+srbench/benchmarks/debate/
   __init__.py
   config.py
   types.py
@@ -643,7 +643,7 @@ sage_benchmark/benchmarks/debate/
 
 ```python
 # experiment_debate.py
-from sage_benchmark.benchmarks.debate.config import DebateRunConfig
+from srbench.benchmarks.debate.config import DebateRunConfig
 
 def experiment_debate():
     return DebateRunConfig(
@@ -663,8 +663,8 @@ def experiment_debate_sweep():
 ```
 
 ```bash
-sagebench experiment experiment_debate.py
-sagebench experiment experiment_debate.py --collect  # preview
+srbench experiment experiment_debate.py
+srbench experiment experiment_debate.py --collect  # preview
 ```
 
 ## Checklist
@@ -692,7 +692,7 @@ By subclassing `Benchmark`, you automatically get:
 - **Parallel execution** through `TaskPoolExecutor` runs tasks concurrently with a configurable `--batch-size`.
 - **CLI** provides a full argument parser with shared flags and your benchmark-specific flags.
 - **Output serialization** writes `results.json` with config, timestamp, evaluation, and per-task results.
-- **Experiment sweeps** through `sagebench experiment` discover and run your configs.
+- **Experiment sweeps** through `srbench experiment` discover and run your configs.
 - **Unified pooling** interleaves tasks from multiple experiments for efficient execution.
 - **Signal handling** triggers graceful checkpoint saves on SIGINT/SIGTERM.
 - **Logging** supports pluggable logger styles including verbose, progress, and quiet.

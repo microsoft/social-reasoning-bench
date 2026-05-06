@@ -9,13 +9,13 @@ small/whimsical files. The new yamls are loaded from the canonical
 data/calendar-scheduling/ paths in the repo root.
 
 To reproduce:
-    sagebench experiment experiments/v0.1.0-calendar-pref-regen-04302026 \\
+    srbench experiment experiments/v0.1.0-calendar-pref-regen-04302026 \\
         --output-base outputs/v0.1.0-calendar-pref-regen-04302026
 """
 
 from pathlib import Path
 
-from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConfig
+from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
 
 EXP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = EXP_DIR.parent.parent

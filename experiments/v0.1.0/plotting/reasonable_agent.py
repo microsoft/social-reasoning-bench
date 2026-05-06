@@ -20,15 +20,15 @@ import json
 from dataclasses import dataclass, field
 from math import sqrt
 
-from sage_benchmark.benchmarks.calendar_scheduling.environment.actions import (
+from srbench.benchmarks.calendar_scheduling.environment.actions import (
     ListMeetings,
     ReplyMeeting,
     RequestMeeting,
 )
-from sage_benchmark.benchmarks.calendar_scheduling.types import (
+from srbench.benchmarks.calendar_scheduling.types import (
     CalendarEvaluationResult,
 )
-from sage_benchmark.benchmarks.marketplace.types import MarketplaceEvaluationResult, OfferRecord
+from srbench.benchmarks.marketplace.types import MarketplaceEvaluationResult, OfferRecord
 
 # ── Calendar ─────────────────────────────────────────────────────
 

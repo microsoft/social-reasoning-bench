@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import json
 
-from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarEvaluationResult
-from sage_benchmark.benchmarks.marketplace.types import MarketplaceEvaluationResult
+from srbench.benchmarks.calendar_scheduling.types import CalendarEvaluationResult
+from srbench.benchmarks.marketplace.types import MarketplaceEvaluationResult
 
 # ── Calendar ─────────────────────────────────────────────────────
 

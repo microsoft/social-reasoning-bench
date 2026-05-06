@@ -1,12 +1,12 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'SAGE-Benchmark',
+  title: 'SRBench-Benchmark',
   description: 'Evaluating social reasoning capabilities of LLM agents',
-  base: '/sage/',
+  base: '/srbench/',
 
   head: [
-    ['link', { rel: 'icon', href: '/sage/favicon.ico' }],
+    ['link', { rel: 'icon', href: '/srbench/favicon.ico' }],
   ],
 
   themeConfig: {
@@ -17,13 +17,13 @@ export default defineConfig({
       {
         text: 'Packages',
         items: [
-          { text: 'sage-benchmark', link: '/running-benchmarks' },
-          { text: 'sage-data-gen', link: '/generating-data' },
+          { text: 'srbench', link: '/running-benchmarks' },
+          { text: 'srbench-data-gen', link: '/generating-data' },
           { text: 'WhimsyGen', link: '/whimsygen' },
           { text: 'Privacy Judge', link: '/privacy-judge' },
         ],
       },
-      { text: 'GitHub', link: 'https://github.com/microsoft/sage' },
+      { text: 'GitHub', link: 'https://github.com/microsoft/srbench' },
     ],
 
     sidebar: [
@@ -61,7 +61,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/microsoft/sage' },
+      { icon: 'github', link: 'https://github.com/microsoft/srbench' },
     ],
 
     search: {
@@ -73,7 +73,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/microsoft/sage/edit/main/docs/vitepress/:path',
+      pattern: 'https://github.com/microsoft/srbench/edit/main/docs/vitepress/:path',
       text: 'Edit this page on GitHub',
     },
 

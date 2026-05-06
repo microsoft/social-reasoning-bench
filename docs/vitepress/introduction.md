@@ -10,7 +10,7 @@ Current benchmarks evaluate agents in isolation and cannot measure how they hand
 
 ## Contributions
 
-SAGE provides three multi-agent environments, four evaluation dimensions beyond task completion, and an adversarial framework for stress-testing social reasoning.
+SRBench provides three multi-agent environments, four evaluation dimensions beyond task completion, and an adversarial framework for stress-testing social reasoning.
 
 ## Paper
 

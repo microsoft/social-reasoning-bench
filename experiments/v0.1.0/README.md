@@ -2,7 +2,7 @@
 
 ```
 # Re-run experiments
-sagebench experiment experiments/v0.1.0
+srbench experiment experiments/v0.1.0
 
 # Outputs land in: outputs/v0.1.0
 

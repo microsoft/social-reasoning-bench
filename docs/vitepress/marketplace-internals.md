@@ -61,7 +61,7 @@ The instruction messages are self-contained. They include the product details, t
 
 ## Data Generation
 
-The `sagegen marketplace` pipeline generates tasks through a 5-step process.
+The `srbench datagen marketplace` pipeline generates tasks through a 5-step process.
 
 ### Step 1. Generate Catalog
 

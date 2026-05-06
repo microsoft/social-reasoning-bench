@@ -123,7 +123,7 @@ class SeedManager:
             queue.append((topic, 0))
 
         headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; WhimsyGen/1.0; +https://github.com/microsoft/sage)"
+            "User-Agent": "Mozilla/5.0 (compatible; WhimsyGen/1.0; +https://github.com/microsoft/srbench)"
         }
 
         async with aiohttp.ClientSession(headers=headers) as session:

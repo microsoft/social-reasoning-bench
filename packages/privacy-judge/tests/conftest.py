@@ -1,17 +1,17 @@
 """Pytest configuration and fixtures for privacy-judge tests."""
 
 import pytest
-from sage_llm import SageModelClient
+from srbench_llm import SRBenchModelClient
 
 
 @pytest.fixture(scope="session")
-def model_client() -> SageModelClient:
+def model_client() -> SRBenchModelClient:
     """Shared model client for all tests.
 
     Returns:
-        A SageModelClient instance shared across the test session.
+        A SRBenchModelClient instance shared across the test session.
     """
-    return SageModelClient()
+    return SRBenchModelClient()
 
 
 @pytest.fixture(scope="session")

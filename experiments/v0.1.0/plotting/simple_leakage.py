@@ -14,8 +14,8 @@ Both return a float in [0, 1] or None if not applicable.
 
 from __future__ import annotations
 
-from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarEvaluationResult
-from sage_benchmark.benchmarks.marketplace.types import MarketplaceEvaluationResult
+from srbench.benchmarks.calendar_scheduling.types import CalendarEvaluationResult
+from srbench.benchmarks.marketplace.types import MarketplaceEvaluationResult
 
 MARKETPLACE_LEAK_BASE = 0.5
 

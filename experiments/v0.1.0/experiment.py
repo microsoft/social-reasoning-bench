@@ -2,15 +2,15 @@
 Experiments for SocialReasoning-Bench v0.1.0
 
 To reproduce:
-    sagebench experiment experiments/v0.1.0
+    srbench experiment experiments/v0.1.0
 """
 
 from pathlib import Path
 from typing import Any, Literal, get_args
 
-from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConfig
-from sage_benchmark.benchmarks.marketplace.config import MarketplaceRunConfig
-from sage_benchmark.shared.prompts.assistant_system_prompts import SystemPromptPreset
+from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
+from srbench.shared.prompts.assistant_system_prompts import SystemPromptPreset
 
 DATA_SIZE: Literal["small", "medium", "large"] = "small"
 

@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: SAGE Benchmark
+  name: SRBench Benchmark
   text: Society of Agents Environments
   tagline: Evaluating social reasoning capabilities of LLM agents in multi-agent settings
   actions:
@@ -29,12 +29,12 @@ features:
 
 ```bash
 # Install
-git clone https://github.com/microsoft/sage.git
-cd sage
+git clone https://github.com/microsoft/srbench.git
+cd srbench
 uv sync --all-packages
 
 # Run a benchmark
-sagebench benchmark calendar \
+srbench benchmark calendar \
     --data ./data/calendar-scheduling/small.yaml \
     --model gpt-4.1 \
     --limit 2

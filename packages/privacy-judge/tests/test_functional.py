@@ -119,7 +119,7 @@ def test_leakage_judge(
     """Test LeakageJudge on AgentLeak examples.
 
     Args:
-        model_client: Shared SageModelClient fixture.
+        model_client: Shared SRBenchModelClient fixture.
         default_model: Model identifier fixture.
         vertical: AgentLeak vertical category name.
         case_id: Unique identifier for the test case.
@@ -214,7 +214,7 @@ def test_leakage_judge_edge_cases(
     """Test LeakageJudge on synthetic edge cases.
 
     Args:
-        model_client: Shared SageModelClient fixture.
+        model_client: Shared SRBenchModelClient fixture.
         default_model: Model identifier fixture.
         case: Dictionary with input, secret, expected_leaked, and id.
     """
