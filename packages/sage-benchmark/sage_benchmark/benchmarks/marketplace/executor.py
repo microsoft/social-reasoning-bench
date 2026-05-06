@@ -242,10 +242,6 @@ async def execute_task(
         env.state.outcome.ended_by = "max_rounds"
         env.state.outcome.end_reason = "Reached max rounds without agreement."
 
-    error = None
-    if env.state.outcome.ended_by == "max_rounds":
-        error = f"Max rounds reached ({max_rounds}) without agreement"
-
     return MarketplaceExecutionResult(
         task=task,
         outcome=env.state.outcome,
@@ -255,5 +251,4 @@ async def execute_task(
         invalid_actions=invalid_actions,
         buyer_context=buyer_agent.messages,
         seller_context=seller_agent.messages,
-        error=error,
     )
