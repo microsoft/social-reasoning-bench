@@ -434,8 +434,22 @@ def _build_config(
 
     # Thinking
     if reasoning_effort is not None:
-        budget = reasoning_effort if isinstance(reasoning_effort, int) else 8192
-        cfg["thinking_config"] = types.ThinkingConfig(thinking_budget=budget, include_thoughts=True)
+        if isinstance(reasoning_effort, int):
+            # Integer effort for Gemini <3
+            cfg["thinking_config"] = types.ThinkingConfig(
+                thinking_budget=reasoning_effort, include_thoughts=True
+            )
+        else:
+            # String effort for Gemini 3+
+            level = types.ThinkingLevel(reasoning_effort)
+            # Google's enums allow arbitrary values, check that this matched the known values.
+            if level not in types.ThinkingLevel:
+                raise ValueError(
+                    f"Unsupported string reasoning_effort for Google: {reasoning_effort}"
+                )
+            cfg["thinking_config"] = types.ThinkingConfig(
+                thinking_level=level, include_thoughts=True
+            )
 
     # Structured output
     if response_format is not None:

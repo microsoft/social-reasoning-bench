@@ -313,7 +313,8 @@ class TestBuildConfig:
         assert config.temperature == 0.5
         assert config.max_output_tokens == 1000
 
-    def test_thinking_config(self):
+    def test_thinking_config_int_budget(self):
+        """Integer reasoning_effort → thinking_budget (Gemini <3)."""
         config = _build_config(
             system_instruction=None,
             temperature=None,
@@ -327,6 +328,56 @@ class TestBuildConfig:
         )
         assert config.thinking_config is not None
         assert config.thinking_config.thinking_budget == 4000
+        assert config.thinking_config.thinking_level is None
+        assert config.thinking_config.include_thoughts is True
+
+    def test_thinking_config_string_level(self):
+        """String reasoning_effort → thinking_level (Gemini 3+)."""
+        config = _build_config(
+            system_instruction=None,
+            temperature=None,
+            max_tokens=None,
+            top_p=None,
+            stop=None,
+            tools=None,
+            tool_choice=None,
+            reasoning_effort="LOW",
+            response_format=None,
+        )
+        assert config.thinking_config is not None
+        assert config.thinking_config.thinking_level == types.ThinkingLevel.LOW
+        assert config.thinking_config.thinking_budget is None
+        assert config.thinking_config.include_thoughts is True
+
+    def test_thinking_config_invalid_string_raises(self):
+        """Unknown string effort is rejected with ValueError."""
+        with pytest.raises(ValueError, match="Unsupported string reasoning_effort"):
+            _build_config(
+                system_instruction=None,
+                temperature=None,
+                max_tokens=None,
+                top_p=None,
+                stop=None,
+                tools=None,
+                tool_choice=None,
+                reasoning_effort="not-a-level",
+                response_format=None,
+            )
+
+    def test_thinking_config_omitted_when_none(self):
+        """No reasoning_effort → no thinking_config on the request."""
+        config = _build_config(
+            system_instruction=None,
+            temperature=None,
+            max_tokens=None,
+            top_p=None,
+            stop=None,
+            tools=None,
+            tool_choice=None,
+            reasoning_effort=None,
+            response_format=None,
+        )
+        assert config.thinking_config is None
 
     def test_response_format(self):
         class MyModel(BaseModel):
