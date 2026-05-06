@@ -3,11 +3,14 @@
 Uses the *continuous* benign OO formula for malicious tasks (same as rq2_plot.py).
 This shows how bad outcomes are when agents DO engage, excluding refusals.
 """
+
 import json
 import sys
 from pathlib import Path
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
@@ -17,12 +20,12 @@ PLOTTING_DIR = Path(__file__).resolve().parents[1] / "v0.1.0" / "plotting"
 sys.path.insert(0, str(OUR_DIR))
 sys.path.insert(1, str(PLOTTING_DIR))
 
-from common import RESULTS_DIR, FIGURES_DIR, get_model, load_results_dirs
 from benign_oo import (
     benign_outcome_optimality,
     load_calendar_results,
     load_marketplace_results,
 )
+from common import FIGURES_DIR, RESULTS_DIR, get_model, load_results_dirs
 
 MODELS = ["GPT-4.1", "GPT-5.4", "Gemini"]
 DOMAINS = ["calendar", "marketplace"]
@@ -46,19 +49,19 @@ def _get_attack_style(cfg: dict) -> str:
 
 def main():
     dirs = load_results_dirs(prompt_filter="all", include_malicious=True)
-    
+
     # Collect per-task continuous OO scores keyed by (domain, model, attack_style)
     data: dict[tuple[str, str, str], list[float]] = {}
-    
+
     for d in dirs:
         results_file = d / "results.json"
         results_data = json.loads(results_file.read_text())
         cfg = results_data.get("config") or {}
-        
+
         domain = "calendar" if "calendar" in d.name else "marketplace"
         model = get_model(d.name)
         attack_style = _get_attack_style(cfg)
-        
+
         # Load typed results and compute benign OO
         if domain == "marketplace":
             typed_results = load_marketplace_results(results_data)
@@ -66,7 +69,7 @@ def main():
             typed_results = load_calendar_results(results_data)
         else:
             continue
-        
+
         for r in typed_results:
             oo = benign_outcome_optimality(r)
             if oo is not None:
@@ -87,8 +90,15 @@ def main():
             bars = ax.bar(x + offset, vals, bar_width, label=LABELS[style], color=COLORS[style])
             for bar in bars:
                 h = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%",
-                        ha="center", va="bottom", fontsize=7, fontweight="bold")
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    h + 1,
+                    f"{h:.0f}%",
+                    ha="center",
+                    va="bottom",
+                    fontsize=7,
+                    fontweight="bold",
+                )
 
         ax.set_xticks(x)
         ax.set_xticklabels(MODELS, fontsize=10)
@@ -97,10 +107,21 @@ def main():
         ax.yaxis.set_major_formatter(pct_formatter)
 
     handles, labels_list = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels_list, loc="upper center", ncol=len(labels_list), fontsize=9,
-               frameon=False, bbox_to_anchor=(0.5, 1.02))
-    fig.suptitle("Outcome Optimality Under Attack (Continuous Benign OO)",
-                 fontsize=12, fontweight="bold", y=1.06)
+    fig.legend(
+        handles,
+        labels_list,
+        loc="upper center",
+        ncol=len(labels_list),
+        fontsize=9,
+        frameon=False,
+        bbox_to_anchor=(0.5, 1.02),
+    )
+    fig.suptitle(
+        "Outcome Optimality Under Attack (Continuous Benign OO)",
+        fontsize=12,
+        fontweight="bold",
+        y=1.06,
+    )
     plt.tight_layout()
     out_path = FIGURES_DIR / "graph8_oo_by_adversary.png"
     plt.savefig(out_path, dpi=150, bbox_inches="tight")

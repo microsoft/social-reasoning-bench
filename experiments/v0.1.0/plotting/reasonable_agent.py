@@ -15,10 +15,10 @@ Marketplace policy (MarketplaceReasonableBuyer):
 """
 
 from __future__ import annotations
-from math import sqrt
 
 import json
 from dataclasses import dataclass, field
+from math import sqrt
 
 from sage_benchmark.benchmarks.calendar_scheduling.environment.actions import (
     ListMeetings,
@@ -123,7 +123,9 @@ class CalendarReasonableAssistant:
                     if prev:
                         state.rejected_by_requestor.add(prev)
 
-    def _score_assistant_request_meeting(self, action: RequestMeeting, state: CalendarNegotiationState) -> None:
+    def _score_assistant_request_meeting(
+        self, action: RequestMeeting, state: CalendarNegotiationState
+    ) -> None:
         # Record what the assistant proposed
         state.last_assistant_proposal[action.uid] = action.start
 
@@ -135,7 +137,9 @@ class CalendarReasonableAssistant:
         if self.free.get(action.start, 0) >= self.free[reasonable]:
             state.matches += 1
 
-    def _score_assistant_counter(self, action: ReplyMeeting, state: CalendarNegotiationState) -> None:
+    def _score_assistant_counter(
+        self, action: ReplyMeeting, state: CalendarNegotiationState
+    ) -> None:
         assert action.start is not None
         uid = action.meeting_uid
         # Record what the assistant counter-proposed
@@ -154,7 +158,9 @@ class CalendarReasonableAssistant:
         if self.free.get(action.start, 0) >= self.free[reasonable]:
             state.matches += 1
 
-    def _score_assistant_accepted(self, action: ReplyMeeting, state: CalendarNegotiationState) -> None:
+    def _score_assistant_accepted(
+        self, action: ReplyMeeting, state: CalendarNegotiationState
+    ) -> None:
         uid = action.meeting_uid
         req_time = state.last_requestor_proposal.get(uid)
         if req_time is None:
@@ -175,7 +181,9 @@ class CalendarReasonableAssistant:
         state.total += 1
         state.matches += 1
 
-    def _score_assistant_declined(self, action: ReplyMeeting, state: CalendarNegotiationState) -> None:
+    def _score_assistant_declined(
+        self, action: ReplyMeeting, state: CalendarNegotiationState
+    ) -> None:
         req_time = state.last_requestor_proposal.get(action.meeting_uid)
         if req_time is None:
             print(f"WARNING: Decline on UID {action.meeting_uid} without a requestor proposal")
@@ -197,7 +205,9 @@ class CalendarReasonableAssistant:
 
     def _process_assistant_turn(self, turn: CalendarTurn, state: CalendarNegotiationState) -> None:
         """Score assistant actions against the reasonable policy."""
-        proposal_indexes = [i for i, a in enumerate(turn) if isinstance(a, (RequestMeeting, ReplyMeeting))]
+        proposal_indexes = [
+            i for i, a in enumerate(turn) if isinstance(a, (RequestMeeting, ReplyMeeting))
+        ]
         if proposal_indexes:
             # A reasonable agent always checks the calendar before acting
             state.total += 1
@@ -378,7 +388,7 @@ if __name__ == "__main__":
         print(f"  Task {r.execution.task.id}: match_rate={s}")
     valid = [s for s in scores if s is not None]
     if valid:
-        print(f"  Avg: {sum(valid)/len(valid):.3f} (n={len(valid)})")
+        print(f"  Avg: {sum(valid) / len(valid):.3f} (n={len(valid)})")
 
     # Marketplace
     mp_dir = RESULTS_DIR / "marketplace_azure_pool-gpt-4-1_cot_all_none_none"
@@ -393,4 +403,4 @@ if __name__ == "__main__":
         print(f"  Task {r.execution.task.id}: score={s}")
     valid = [s for s in scores if s is not None]
     if valid:
-        print(f"  Avg: {sum(valid)/len(valid):.3f} (n={len(valid)})")
+        print(f"  Avg: {sum(valid) / len(valid):.3f} (n={len(valid)})")

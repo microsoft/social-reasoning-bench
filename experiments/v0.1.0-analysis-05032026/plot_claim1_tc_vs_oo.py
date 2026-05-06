@@ -4,13 +4,13 @@ Generates graph1_tc_oo_by_model.png showing TC (grey), OO no-prompt (light green
 and OO with-prompt (dark green) per model, faceted by domain.
 """
 
-import numpy as np
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from common import FIGURES_DIR, load_benign_results
 from matplotlib.ticker import FuncFormatter
-
-from common import load_benign_results, FIGURES_DIR
 
 MODELS = ["GPT-4.1", "GPT-5.4", "Gemini"]
 DOMAINS = ["calendar", "marketplace"]
@@ -53,16 +53,39 @@ def main():
 
         offset = bar_width * 1.5
         bars1 = ax.bar(x - offset, tc_vals, bar_width, label="Task Completion", color="#9e9e9e")
-        bars2 = ax.bar(x - bar_width/2, oo_overall_vals, bar_width, label="Outcome Optimality (Overall)", color="#c8e6c9")
-        bars3 = ax.bar(x + bar_width/2, oo_none_vals, bar_width, label="Outcome Optimality (Basic Prompt)", color="#66bb6a")
-        bars4 = ax.bar(x + offset, oo_all_vals, bar_width, label="Outcome Optimality (Defensive Prompt)", color="#1b5e20")
+        bars2 = ax.bar(
+            x - bar_width / 2,
+            oo_overall_vals,
+            bar_width,
+            label="Outcome Optimality (Overall)",
+            color="#c8e6c9",
+        )
+        bars3 = ax.bar(
+            x + bar_width / 2,
+            oo_none_vals,
+            bar_width,
+            label="Outcome Optimality (Basic Prompt)",
+            color="#66bb6a",
+        )
+        bars4 = ax.bar(
+            x + offset,
+            oo_all_vals,
+            bar_width,
+            label="Outcome Optimality (Defensive Prompt)",
+            color="#1b5e20",
+        )
 
         for bars in [bars1, bars2, bars3, bars4]:
             for bar in bars:
                 h = bar.get_height()
                 ax.text(
-                    bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%",
-                    ha="center", va="bottom", fontsize=7, fontweight="bold",
+                    bar.get_x() + bar.get_width() / 2,
+                    h + 1,
+                    f"{h:.0f}%",
+                    ha="center",
+                    va="bottom",
+                    fontsize=7,
+                    fontweight="bold",
                 )
 
         ax.set_xticks(x)
@@ -72,12 +95,21 @@ def main():
         ax.yaxis.set_major_formatter(pct_formatter)
 
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=len(labels), fontsize=9,
-               frameon=False, bbox_to_anchor=(0.5, 1.02))
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        ncol=len(labels),
+        fontsize=9,
+        frameon=False,
+        bbox_to_anchor=(0.5, 1.02),
+    )
 
     fig.suptitle(
         "Task Completion vs Outcome Optimality (Benign Tasks)",
-        fontsize=12, fontweight="bold", y=1.06,
+        fontsize=12,
+        fontweight="bold",
+        y=1.06,
     )
     plt.tight_layout()
     out = FIGURES_DIR / "graph1_tc_oo_by_model.png"

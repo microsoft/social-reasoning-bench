@@ -2,11 +2,14 @@
 
 Same layout as graph8e but with 3 conditions: benign, hand-crafted, whimsical.
 """
+
 import json
 import sys
 from pathlib import Path
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
@@ -16,12 +19,12 @@ PLOTTING_DIR = Path(__file__).resolve().parents[1] / "v0.1.0" / "plotting"
 sys.path.insert(0, str(OUR_DIR))
 sys.path.insert(1, str(PLOTTING_DIR))
 
-from common import FIGURES_DIR, get_model, load_results_dirs
 from benign_oo import (
     benign_outcome_optimality,
     load_calendar_results,
     load_marketplace_results,
 )
+from common import FIGURES_DIR, get_model, load_results_dirs
 
 MODELS = ["GPT-4.1", "GPT-5.4", "Gemini"]
 DOMAINS = ["calendar", "marketplace"]
@@ -96,8 +99,15 @@ def main():
             bars = ax_ref.bar(x + offset, vals, bar_width, label=LABELS[cond], color=COLORS[cond])
             for bar in bars:
                 h = bar.get_height()
-                ax_ref.text(bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%",
-                            ha="center", va="bottom", fontsize=7, fontweight="bold")
+                ax_ref.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    h + 1,
+                    f"{h:.0f}%",
+                    ha="center",
+                    va="bottom",
+                    fontsize=7,
+                    fontweight="bold",
+                )
 
         ax_ref.set_xticks(x)
         ax_ref.set_xticklabels(MODELS, fontsize=10)
@@ -118,21 +128,38 @@ def main():
             bars = ax_oo.bar(x + offset, vals, bar_width, label=LABELS[cond], color=COLORS[cond])
             for bar in bars:
                 h = bar.get_height()
-                ax_oo.text(bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%",
-                           ha="center", va="bottom", fontsize=7, fontweight="bold")
+                ax_oo.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    h + 1,
+                    f"{h:.0f}%",
+                    ha="center",
+                    va="bottom",
+                    fontsize=7,
+                    fontweight="bold",
+                )
 
         ax_oo.set_xticks(x)
         ax_oo.set_xticklabels(MODELS, fontsize=10)
-        ax_oo.set_title(f"{DOMAIN_TITLES[domain]} — OO When Engaged", fontsize=11, fontweight="bold")
+        ax_oo.set_title(
+            f"{DOMAIN_TITLES[domain]} — OO When Engaged", fontsize=11, fontweight="bold"
+        )
         ax_oo.set_ylim(0, 115)
         ax_oo.yaxis.set_major_formatter(pct_formatter)
         ax_oo.set_ylabel("% outcome optimality")
 
     handles, labels_list = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels_list, loc="upper center", ncol=3, fontsize=10,
-               frameon=False, bbox_to_anchor=(0.5, 1.02))
-    fig.suptitle("Refusal Rate vs Outcome Quality by Attack Type",
-                 fontsize=13, fontweight="bold", y=1.05)
+    fig.legend(
+        handles,
+        labels_list,
+        loc="upper center",
+        ncol=3,
+        fontsize=10,
+        frameon=False,
+        bbox_to_anchor=(0.5, 1.02),
+    )
+    fig.suptitle(
+        "Refusal Rate vs Outcome Quality by Attack Type", fontsize=13, fontweight="bold", y=1.05
+    )
     plt.tight_layout()
     out_path = FIGURES_DIR / "graph8f_refusal_vs_oo_split.png"
     plt.savefig(out_path, dpi=150, bbox_inches="tight")

@@ -4,11 +4,14 @@ Generates two figures:
 - graph8c_tc_by_adversary.png: benign vs hand-crafted vs whimsical
 - graph8d_tc_adversary_merged.png: benign vs adversarial (merged)
 """
+
 import json
 import sys
 from pathlib import Path
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
@@ -18,8 +21,8 @@ PLOTTING_DIR = Path(__file__).resolve().parents[1] / "v0.1.0" / "plotting"
 sys.path.insert(0, str(OUR_DIR))
 sys.path.insert(1, str(PLOTTING_DIR))
 
-from common import FIGURES_DIR, get_model, load_results_dirs
 from benign_oo import load_calendar_results, load_marketplace_results
+from common import FIGURES_DIR, get_model, load_results_dirs
 
 MODELS = ["GPT-4.1", "GPT-5.4", "Gemini"]
 DOMAINS = ["calendar", "marketplace"]
@@ -77,8 +80,15 @@ def _plot_bars(data, conditions, colors, labels, title, filename):
             bars = ax.bar(x + offset, vals, bar_width, label=labels[cond], color=colors[cond])
             for bar in bars:
                 h = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%",
-                        ha="center", va="bottom", fontsize=7, fontweight="bold")
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    h + 1,
+                    f"{h:.0f}%",
+                    ha="center",
+                    va="bottom",
+                    fontsize=7,
+                    fontweight="bold",
+                )
 
         ax.set_xticks(x)
         ax.set_xticklabels(MODELS, fontsize=10)
@@ -87,8 +97,15 @@ def _plot_bars(data, conditions, colors, labels, title, filename):
         ax.yaxis.set_major_formatter(pct_formatter)
 
     handles, labels_list = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels_list, loc="upper center", ncol=len(labels_list), fontsize=9,
-               frameon=False, bbox_to_anchor=(0.5, 1.02))
+    fig.legend(
+        handles,
+        labels_list,
+        loc="upper center",
+        ncol=len(labels_list),
+        fontsize=9,
+        frameon=False,
+        bbox_to_anchor=(0.5, 1.02),
+    )
     fig.suptitle(title, fontsize=12, fontweight="bold", y=1.06)
     plt.tight_layout()
     out_path = FIGURES_DIR / filename

@@ -43,9 +43,13 @@ def _make_google_response(
 ) -> types.GenerateContentResponse:
     parts = []
     if thought_text:
-        parts.append(types.Part(text=thought_text, thought=True, thought_signature=thought_signature))
+        parts.append(
+            types.Part(text=thought_text, thought=True, thought_signature=thought_signature)
+        )
     if function_call:
-        parts.append(types.Part(function_call=function_call, thought_signature=fc_thought_signature))
+        parts.append(
+            types.Part(function_call=function_call, thought_signature=fc_thought_signature)
+        )
     if text:
         parts.append(types.Part(text=text))
 
@@ -530,9 +534,7 @@ class TestToGoogleMessage:
     def test_thought_signature_captured_on_thought_parts(self):
         """thought_signature on thought parts is preserved."""
         sig = b"thought-sig"
-        resp = _make_google_response(
-            text="answer", thought_text="thinking", thought_signature=sig
-        )
+        resp = _make_google_response(text="answer", thought_text="thinking", thought_signature=sig)
         msg = _to_google_message(resp, "gemini-2.0-flash")
 
         assert msg.thought_parts is not None

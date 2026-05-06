@@ -1,10 +1,10 @@
 """Shared data loading utilities for v0.1.0 analysis plots."""
 
+import glob
 import json
 import re
-import glob
-from pathlib import Path
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 
@@ -84,9 +84,15 @@ def get_prompt_type(model_dir: str) -> str | None:
     elif "_none_none_none" in model_dir:
         return "none"
     # cot dirs without explicit none_none suffix
-    elif "_cot_all_" in model_dir and "handcrafted" not in model_dir and "whimsical" not in model_dir:
+    elif (
+        "_cot_all_" in model_dir and "handcrafted" not in model_dir and "whimsical" not in model_dir
+    ):
         return "all"
-    elif "_cot_none_" in model_dir and "handcrafted" not in model_dir and "whimsical" not in model_dir:
+    elif (
+        "_cot_none_" in model_dir
+        and "handcrafted" not in model_dir
+        and "whimsical" not in model_dir
+    ):
         return "none"
     return None
 
@@ -131,19 +137,21 @@ def is_benign(result: dict, domain: str) -> bool:
         return task.get("variant") is None
 
 
-def load_results_dirs(prompt_filter: str | None = None, include_malicious: bool = False) -> list[Path]:
+def load_results_dirs(
+    prompt_filter: str | None = None, include_malicious: bool = False
+) -> list[Path]:
     """Load result directories with TARGET_MODELS filter and deduplication.
-    
+
     Args:
         prompt_filter: 'all', 'none', or None (both)
         include_malicious: if True, include handcrafted/whimsical dirs
-    
+
     Returns:
         Deduplicated list of Path objects sorted by run number.
     """
     seen: set[tuple] = set()
     dirs = []
-    
+
     for d in sorted(RESULTS_DIR.iterdir(), key=lambda p: (_run_number(p.name), p.name)):
         if not d.is_dir():
             continue
@@ -151,7 +159,7 @@ def load_results_dirs(prompt_filter: str | None = None, include_malicious: bool 
             continue
         if not is_target_model(d.name):
             continue
-        
+
         # Domain
         if "calendar" in d.name:
             domain = "calendar"
@@ -159,14 +167,14 @@ def load_results_dirs(prompt_filter: str | None = None, include_malicious: bool 
             domain = "marketplace"
         else:
             continue
-        
+
         # Prompt filter
         prompt = get_prompt(d.name)
         if prompt is None:
             continue
         if prompt_filter and prompt != prompt_filter:
             continue
-        
+
         # Malicious filter
         is_malicious_dir = "handcrafted" in d.name or "whimsical" in d.name
         if not include_malicious and is_malicious_dir:
@@ -174,7 +182,7 @@ def load_results_dirs(prompt_filter: str | None = None, include_malicious: bool 
         if include_malicious and not is_malicious_dir:
             # When loading malicious, still include benign for comparison
             pass
-        
+
         # Dedup by (domain, model_key, mode, prompt, condition)
         model_key = _get_model_key(d.name)
         mode = _get_mode(d.name)
@@ -184,7 +192,7 @@ def load_results_dirs(prompt_filter: str | None = None, include_malicious: bool 
             continue
         seen.add(dedup_key)
         dirs.append(d)
-    
+
     return dirs
 
 
@@ -204,7 +212,7 @@ def load_benign_results() -> list[TaskResult]:
         domain = "calendar" if "calendar" in d.name else "marketplace"
         model = get_model(d.name)
         prompt = get_prompt(d.name)
-        
+
         data = json.loads((d / "results.json").read_text())
         for r in data.get("results", []):
             oo = r.get("outcome_optimality")
@@ -213,7 +221,5 @@ def load_benign_results() -> list[TaskResult]:
             if not is_benign(r, domain):
                 continue
             tc = r.get("task_completed", False)
-            results.append(TaskResult(
-                domain=domain, model=model, prompt=prompt, oo=oo, tc=tc
-            ))
+            results.append(TaskResult(domain=domain, model=model, prompt=prompt, oo=oo, tc=tc))
     return results

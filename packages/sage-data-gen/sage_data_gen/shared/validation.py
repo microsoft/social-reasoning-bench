@@ -340,12 +340,16 @@ def score_validation_results(
     for strategy_idx, strategy in enumerate(strategies):
         group = groups.get(strategy_idx, [])
         if not group:
-            scores.append(StrategyScore(strategy=strategy, metric_value=None, strategy_idx=strategy_idx))
+            scores.append(
+                StrategyScore(strategy=strategy, metric_value=None, strategy_idx=strategy_idx)
+            )
             continue
 
         evaluation = benchmark.compute_evaluation(group)
         metric_value = _resolve_metric(target, evaluation)
-        scores.append(StrategyScore(strategy=strategy, metric_value=metric_value, strategy_idx=strategy_idx))
+        scores.append(
+            StrategyScore(strategy=strategy, metric_value=metric_value, strategy_idx=strategy_idx)
+        )
 
     # Print compact summary
     valid = [s.metric_value for s in scores if s.metric_value is not None]

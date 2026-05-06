@@ -128,7 +128,8 @@ class BaseRunConfig(BaseModel):
 
     # --- System prompt ---
     system_prompt: str | None = Field(
-        default=None, description="System prompt preset (e.g. privacy, dd_info_gathering, dd_advocacy, oo)"
+        default=None,
+        description="System prompt preset (e.g. privacy, dd_info_gathering, dd_advocacy, oo)",
     )
 
     # --- Handcrafted injection ---

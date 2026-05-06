@@ -2,11 +2,14 @@
 
 Layout: [Cal Refusal | Cal OO|Engaged | Mkt Refusal | Mkt OO|Engaged]
 """
+
 import json
 import sys
 from pathlib import Path
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
@@ -16,12 +19,12 @@ PLOTTING_DIR = Path(__file__).resolve().parents[1] / "v0.1.0" / "plotting"
 sys.path.insert(0, str(OUR_DIR))
 sys.path.insert(1, str(PLOTTING_DIR))
 
-from common import FIGURES_DIR, get_model, load_results_dirs
 from benign_oo import (
     benign_outcome_optimality,
     load_calendar_results,
     load_marketplace_results,
 )
+from common import FIGURES_DIR, get_model, load_results_dirs
 
 MODELS = ["GPT-4.1", "GPT-5.4", "Gemini"]
 DOMAINS = ["calendar", "marketplace"]
@@ -119,7 +122,9 @@ def main():
         for i, cond in enumerate(CONDITIONS):
             vals = []
             for model in MODELS:
-                s = stats.get((domain, model, cond), {"engaged": 0, "refused": 0, "oo_if_engaged": []})
+                s = stats.get(
+                    (domain, model, cond), {"engaged": 0, "refused": 0, "oo_if_engaged": []}
+                )
                 if metric == "refusal":
                     total = s["engaged"] + s["refused"]
                     vals.append(s["refused"] / total * 100 if total else 0)
@@ -130,8 +135,15 @@ def main():
             bars = ax.bar(x + offset, vals, bar_width, label=LABELS[cond], color=COLORS[cond])
             for bar in bars:
                 h = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%",
-                        ha="center", va="bottom", fontsize=12, fontweight="bold")
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    h + 1,
+                    f"{h:.0f}%",
+                    ha="center",
+                    va="bottom",
+                    fontsize=12,
+                    fontweight="bold",
+                )
 
         ax.set_xticks(x)
         ax.set_xticklabels(MODELS, fontsize=12)
@@ -140,8 +152,15 @@ def main():
         ax.yaxis.set_major_formatter(pct_formatter)
 
     handles, labels_list = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels_list, loc="upper center", ncol=2, fontsize=12,
-               frameon=False, bbox_to_anchor=(0.5, 1.02))
+    fig.legend(
+        handles,
+        labels_list,
+        loc="upper center",
+        ncol=2,
+        fontsize=12,
+        frameon=False,
+        bbox_to_anchor=(0.5, 1.02),
+    )
     fig.suptitle("Behavior Under Attack", fontsize=15, fontweight="bold", y=1.07)
     plt.tight_layout()
     out_path = FIGURES_DIR / "graph8j_refusal_oo_1row.png"

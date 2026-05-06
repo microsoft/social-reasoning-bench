@@ -65,7 +65,9 @@ def _make_personal() -> LabeledMeeting:
 
 def _full_calendar() -> list[LabeledMeeting]:
     """All 11 working slots occupied, plus sleep and personal blocks."""
-    return [_make_sleep()] + [_make_meeting(i) for i in range(NUM_WORKING_SLOTS)] + [_make_personal()]
+    return (
+        [_make_sleep()] + [_make_meeting(i) for i in range(NUM_WORKING_SLOTS)] + [_make_personal()]
+    )
 
 
 def _partial_calendar(n_busy: int) -> list[LabeledMeeting]:
@@ -119,7 +121,10 @@ class TestTrimRequestorCalendar:
         for target in [1, 3, 5, 7, 10]:
             cal = _full_calendar()
             result = trim_requestor_calendar(
-                cal, target, set(range(NUM_WORKING_SLOTS)), random.Random(42),
+                cal,
+                target,
+                set(range(NUM_WORKING_SLOTS)),
+                random.Random(42),
                 min_mutual_free_slots=0,
             )
             assert len(_get_free_slot_indices(result)) == target
@@ -128,7 +133,11 @@ class TestTrimRequestorCalendar:
         """Deficit removal + fullness trimming together hit the exact target."""
         cal = _full_calendar()
         result = trim_requestor_calendar(
-            cal, 5, {1, 3, 5, 7, 9}, random.Random(42), min_mutual_free_slots=3,
+            cal,
+            5,
+            {1, 3, 5, 7, 9},
+            random.Random(42),
+            min_mutual_free_slots=3,
         )
         free = _get_free_slot_indices(result)
         assert len(free) == 5
@@ -138,7 +147,11 @@ class TestTrimRequestorCalendar:
         """Starting with existing free slots, target is still reached exactly."""
         cal = _partial_calendar(8)  # 3 already free (slots 8, 9, 10)
         result = trim_requestor_calendar(
-            cal, 5, {8, 9, 10}, random.Random(42), min_mutual_free_slots=2,
+            cal,
+            5,
+            {8, 9, 10},
+            random.Random(42),
+            min_mutual_free_slots=2,
         )
         free = _get_free_slot_indices(result)
         assert len(free) == 5
@@ -149,7 +162,11 @@ class TestTrimRequestorCalendar:
         for seed in range(50):
             cal = _full_calendar()
             result = trim_requestor_calendar(
-                cal, 3, {1, 4, 7, 9}, random.Random(seed), min_mutual_free_slots=2,
+                cal,
+                3,
+                {1, 4, 7, 9},
+                random.Random(seed),
+                min_mutual_free_slots=2,
             )
             mutual = _get_free_slot_indices(result) & {1, 4, 7, 9}
             assert len(mutual) >= 2, f"seed={seed}: only {len(mutual)} mutual free"

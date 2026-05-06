@@ -78,7 +78,9 @@ def _build_malicious_parser() -> argparse.ArgumentParser:
     whim.add_argument("--strategies-file", type=Path)
     whim.add_argument("--rng-seed", type=int, default=42)
     whim.add_argument(
-        "--use-validated-best", type=Path, default=None,
+        "--use-validated-best",
+        type=Path,
+        default=None,
         help="Directory with validation_results_*.yaml from a previous --validate run. "
         "Injects the winning strategy directly (no LLM calls, no -m required).",
     )
@@ -227,7 +229,9 @@ def _malicious_main():
             injected = []
             for task in tasks:
                 injected.extend(mod.inject_whimsical(task, attack_type, strategy_text))
-            out = args.output or input_path.parent / f"{input_path.stem}-whimsical-{attack_type}.yaml"
+            out = (
+                args.output or input_path.parent / f"{input_path.stem}-whimsical-{attack_type}.yaml"
+            )
             mod.save(injected, out)
             print(f"  [{attack_type}] Injected validated best into {len(injected)} tasks → {out}")
         return

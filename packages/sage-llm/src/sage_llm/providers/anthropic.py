@@ -72,7 +72,6 @@ class AnthropicProvider(SageModelProvider):
             message = await stream.get_final_message()
         return message
 
-
     async def acomplete(
         self,
         model: str,

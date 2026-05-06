@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 
 import yaml
-
 from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarTask, TimeSlotPreference
 
 

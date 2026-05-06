@@ -424,9 +424,7 @@ class BaseAgent:
                     # Invalid tool calls -- echo them back with error details.
                     # Preserve the original message to keep provider-specific
                     # fields (e.g. thought_signature).
-                    messages.append(
-                        message.model_copy(update={"completion_info": None})
-                    )
+                    messages.append(message.model_copy(update={"completion_info": None}))
                     for tc in tool_calls:
                         messages.append(
                             {

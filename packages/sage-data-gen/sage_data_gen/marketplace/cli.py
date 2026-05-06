@@ -52,7 +52,9 @@ def _subset(tasks: list[MarketplaceTask], n: int) -> list[MarketplaceTask]:
     for t in tasks:
         by_product.setdefault(t.product.name, []).append(t)
     # Sort products by their listed price (use first task's price as proxy)
-    products_sorted = sorted(by_product.keys(), key=lambda p: by_product[p][0].product.listed_price or 0)
+    products_sorted = sorted(
+        by_product.keys(), key=lambda p: by_product[p][0].product.listed_price or 0
+    )
     # Pick products until we have enough tasks
     sampled: list[MarketplaceTask] = []
     # Spread evenly: pick from low, mid, high, etc.

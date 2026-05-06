@@ -180,4 +180,3 @@ class DueDiligenceJudge:
             messages=messages,
             response_format=DueDiligenceJudgement,
         )
-

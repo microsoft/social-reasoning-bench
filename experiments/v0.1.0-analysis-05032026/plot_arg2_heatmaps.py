@@ -5,16 +5,16 @@ bubble charts (Calendar + Marketplace rows × 3 model columns).
 Uses LLM judge DD scores.
 """
 
-import json
 import glob
+import json
 from pathlib import Path
 
-import numpy as np
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
-from common import get_model, is_benign, FIGURES_DIR
+from common import FIGURES_DIR, get_model, is_benign
 
 MODELS = ["GPT-4.1", "GPT-5.4", "Gemini"]
 DOMAINS = ["calendar", "marketplace"]
@@ -53,7 +53,8 @@ def main():
     # Collect per (domain, model) quadrant counts
     quadrant_counts = {}  # (domain, model) -> {"RC": n, "LF": n, "CG": n, "Neg": n}
 
-    from common import load_results_dirs, get_prompt
+    from common import get_prompt, load_results_dirs
+
     for d in load_results_dirs(prompt_filter=None, include_malicious=False):
         domain = "calendar" if "calendar" in d.name else "marketplace"
         model = get_model(d.name)
@@ -92,30 +93,48 @@ def main():
             ax.set_yticks([0, 1])
             ax.set_yticklabels(["Low OO", "High OO"], fontsize=9)
             ax.grid(True, alpha=0.3)
-            ax.set_aspect('equal')
+            ax.set_aspect("equal")
 
             for quad, (x, y) in QUADRANT_POSITIONS.items():
                 pct = 100 * counts[quad] / total if total > 0 else 0
                 size = pct * 40
                 if pct > 0:
-                    ax.scatter(x, y, s=size, c=QUADRANT_COLORS[quad], alpha=0.7,
-                               edgecolors='black', linewidth=0.5)
-                    ax.annotate(f"{pct:.0f}%", (x, y), ha='center', va='center',
-                                fontsize=9, fontweight='bold')
+                    ax.scatter(
+                        x,
+                        y,
+                        s=size,
+                        c=QUADRANT_COLORS[quad],
+                        alpha=0.7,
+                        edgecolors="black",
+                        linewidth=0.5,
+                    )
+                    ax.annotate(
+                        f"{pct:.0f}%",
+                        (x, y),
+                        ha="center",
+                        va="center",
+                        fontsize=9,
+                        fontweight="bold",
+                    )
                 else:
-                    ax.annotate("0%", (x, y), ha='center', va='center',
-                                fontsize=8, color='gray', alpha=0.5)
+                    ax.annotate(
+                        "0%", (x, y), ha="center", va="center", fontsize=8, color="gray", alpha=0.5
+                    )
 
             if row == 0:
-                ax.set_title(f"{model}", fontsize=12, fontweight='bold')
+                ax.set_title(f"{model}", fontsize=12, fontweight="bold")
             if col == 0:
-                ax.set_ylabel(f"{DOMAIN_TITLES[domain]}\n\nOutcome Optimality",
-                              fontsize=10, fontweight='bold')
+                ax.set_ylabel(
+                    f"{DOMAIN_TITLES[domain]}\n\nOutcome Optimality", fontsize=10, fontweight="bold"
+                )
             if row == 1:
                 ax.set_xlabel("Due Diligence", fontsize=10)
 
-    fig.suptitle("Duty of Care Quadrants by Model and Domain — LLM Judge DD\n(Reasoning-Only Runs, Benign Tasks)",
-                 fontsize=13, fontweight="bold")
+    fig.suptitle(
+        "Duty of Care Quadrants by Model and Domain — LLM Judge DD\n(Reasoning-Only Runs, Benign Tasks)",
+        fontsize=13,
+        fontweight="bold",
+    )
     plt.tight_layout()
     out = FIGURES_DIR / "graph6_heatmap_by_model.png"
     plt.savefig(out, dpi=150, bbox_inches="tight")

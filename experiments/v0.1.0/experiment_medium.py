@@ -30,6 +30,7 @@ CONCURRENCY: dict[str, Any] = {"batch_size": 200, "task_concurrency": 5, "llm_co
 
 ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
 
+
 def assistants():
     # Non-reasoning models
     for model in ["azure_pool/gpt-4.1"]:

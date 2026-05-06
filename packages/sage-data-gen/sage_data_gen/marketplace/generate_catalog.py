@@ -122,7 +122,9 @@ async def generate_catalog(
                 stalled_batches = 0
 
             if stalled_batches >= max_retries:
-                print(f"  Warning: catalog generation stalled for {price_range}; got {len([e for e in raw_entries if lo <= e.reference_price <= hi])}/{target}")
+                print(
+                    f"  Warning: catalog generation stalled for {price_range}; got {len([e for e in raw_entries if lo <= e.reference_price <= hi])}/{target}"
+                )
                 break
 
     seen_ids: set[str] = set()

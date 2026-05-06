@@ -5,7 +5,7 @@ from sage_llm import SageMessage, SageModelClient
 from ...environment.actions import CALENDAR_TOOLS, EndConversation
 from ...types import CalendarAssistant, LabeledMeeting
 from ..calendar_base import CalendarAgent, format_preferences_for_prompt
-from .prompts import PRESETS, get_system_prompt, CALENDAR_PRIVACY_HINT
+from .prompts import CALENDAR_PRIVACY_HINT, PRESETS, get_system_prompt
 
 
 def format_secrets_for_prompt(calendar: list[LabeledMeeting]) -> str:

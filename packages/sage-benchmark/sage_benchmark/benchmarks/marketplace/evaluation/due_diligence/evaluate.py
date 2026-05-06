@@ -36,7 +36,7 @@ def _format_buyer_trace(exec_result: MarketplaceExecutionResult) -> str:
     lines.append(f"Buyer reservation price (HIDDEN from seller): {task.buyer.reservation_price}")
     lines.append("")
 
-    # Assistant trace 
+    # Assistant trace
     lines.append("=== ASSISTANT TRACE ===")
     for message in exec_result.buyer_context:
         if isinstance(message, SageChatCompletionMessage):
@@ -176,4 +176,3 @@ async def evaluate_due_diligence(
         discretion_reasoning=discretion_reasoning,
         score=dd_score,
     )
-

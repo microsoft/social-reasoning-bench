@@ -5,13 +5,13 @@ Usage:
     python plot_all.py
 """
 
+import plot_arg2_heatmaps
 import plot_claim1_tc_vs_oo
 import plot_claim2_oo_distribution
 import plot_claim3_prompt_effect
-import plot_arg2_heatmaps
-import plot_objective_dd_heatmaps
-import plot_component_histograms
 import plot_claim5_adversary
+import plot_component_histograms
+import plot_objective_dd_heatmaps
 
 
 def main():

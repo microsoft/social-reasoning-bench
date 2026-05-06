@@ -99,9 +99,7 @@ def baselines_per_condition() -> dict[str, float]:
     return out
 
 
-def plot_comparison(
-    means: dict[tuple[str, str, str], float], baselines: dict[str, float]
-) -> None:
+def plot_comparison(means: dict[tuple[str, str, str], float], baselines: dict[str, float]) -> None:
     groups = [(m, a) for m in MODELS for a in ATTACKS]
     n = len(groups)
     width = 0.4
@@ -127,9 +125,7 @@ def plot_comparison(
         )
 
     ax.set_xticks(x)
-    ax.set_xticklabels(
-        [f"{m}\n{ATTACK_LABELS[a]}" for m, a in groups], fontsize=9
-    )
+    ax.set_xticklabels([f"{m}\n{ATTACK_LABELS[a]}" for m, a in groups], fontsize=9)
     ax.set_ylabel("Mean Outcome Optimality")
     ax.set_ylim(0, 1)
     ax.set_title("Validation: baseline vs new geometric scoring (small dataset, N=21)")

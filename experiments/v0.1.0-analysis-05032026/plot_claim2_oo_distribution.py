@@ -5,12 +5,12 @@ Generates:
 - graph_oo_jitter_completed_only.png (TC=1 only)
 """
 
-import numpy as np
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
-from common import load_benign_results, FIGURES_DIR
+from common import FIGURES_DIR, load_benign_results
 
 MODELS = ["GPT-4.1", "GPT-5.4", "Gemini"]
 COLORS = {"GPT-4.1": "#1f77b4", "GPT-5.4": "#ff7f0e", "Gemini": "#2ca02c"}
@@ -24,18 +24,24 @@ def _make_jitter_plot(results, title, filename, filter_tc=None):
 
     for ax, domain in zip(axes, DOMAINS):
         for i, model in enumerate(MODELS):
-            vals = np.array([
-                r.oo for r in results
-                if r.domain == domain and r.model == model
-                and (filter_tc is None or r.tc == filter_tc)
-            ])
+            vals = np.array(
+                [
+                    r.oo
+                    for r in results
+                    if r.domain == domain
+                    and r.model == model
+                    and (filter_tc is None or r.tc == filter_tc)
+                ]
+            )
             if len(vals) == 0:
                 continue
             jitter = np.random.normal(0, 0.08, size=len(vals))
             ax.scatter(i + jitter, vals, alpha=0.4, s=20, color=COLORS[model])
             mean_val = vals.mean()
             ax.hlines(mean_val, i - 0.25, i + 0.25, colors="black", linewidths=2, zorder=5)
-            ax.text(i + 0.28, mean_val, f"μ={mean_val:.2f}", fontsize=8, va="center", fontweight="bold")
+            ax.text(
+                i + 0.28, mean_val, f"μ={mean_val:.2f}", fontsize=8, va="center", fontweight="bold"
+            )
             ax.text(i, -0.07, f"n={len(vals)}", fontsize=7, color="grey", ha="center", alpha=0.7)
 
         ax.set_xticks(range(len(MODELS)))
@@ -48,12 +54,22 @@ def _make_jitter_plot(results, title, filename, filter_tc=None):
 
     # Labels on right side only
     axes[1].text(
-        len(MODELS) - 0.6, 0.0, "Best for\nrequestor",
-        fontsize=7, color="grey", va="center", ha="left",
+        len(MODELS) - 0.6,
+        0.0,
+        "Best for\nrequestor",
+        fontsize=7,
+        color="grey",
+        va="center",
+        ha="left",
     )
     axes[1].text(
-        len(MODELS) - 0.6, 1.0, "Best for\nassistant",
-        fontsize=7, color="grey", va="center", ha="left",
+        len(MODELS) - 0.6,
+        1.0,
+        "Best for\nassistant",
+        fontsize=7,
+        color="grey",
+        va="center",
+        ha="left",
     )
     axes[0].set_ylabel("OO (Deal Point within ZOPA)", fontsize=10)
     fig.suptitle(title, fontsize=13, fontweight="bold")

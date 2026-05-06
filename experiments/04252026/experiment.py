@@ -75,6 +75,7 @@ MKT_COUNTERPARTY_KWARGS: dict[str, Any] = {
 
 DATASET_SIZE = "small"
 
+
 def _model_tag(model: str) -> str:
     """'gpt-4.1' -> 'gpt-4.1'
 
@@ -265,5 +266,3 @@ def experiment_marketplace():
                     f"{mtag}_{cot_tag}",
                     explicit_cot=cot,
                 )
-
-

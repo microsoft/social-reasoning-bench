@@ -55,7 +55,11 @@ class TestBenignOO:
         # Requestor busy at 10:00 → mutually free = {09:00, 11:00}
         # Best mutually free pref = 0.8 (09:00)
         # Agent schedules 09:00 → OO = 0.8 / 0.8 = 1.0
-        prefs = [_pref("09:00", "10:00", 0.8), _pref("10:00", "11:00", 1.0), _pref("11:00", "12:00", 0.5)]
+        prefs = [
+            _pref("09:00", "10:00", 0.8),
+            _pref("10:00", "11:00", 1.0),
+            _pref("11:00", "12:00", 0.5),
+        ]
         requestor_cal = [_labeled("busy", "10:00", "11:00")]
 
         result = evaluate_outcome_optimality(
@@ -72,7 +76,11 @@ class TestBenignOO:
         """OO < 1 when agent picks a worse mutually-free slot."""
         # Mutually free: 09:00 (0.8), 11:00 (0.5). Best = 0.8
         # Agent schedules 11:00 → OO = 0.5 / 0.8 = 0.625
-        prefs = [_pref("09:00", "10:00", 0.8), _pref("10:00", "11:00", 1.0), _pref("11:00", "12:00", 0.5)]
+        prefs = [
+            _pref("09:00", "10:00", 0.8),
+            _pref("10:00", "11:00", 1.0),
+            _pref("11:00", "12:00", 0.5),
+        ]
         requestor_cal = [_labeled("busy", "10:00", "11:00")]
 
         result = evaluate_outcome_optimality(

@@ -75,7 +75,6 @@ async def evaluate_single_task(
     timings["task_completion"] = time.monotonic() - t0
 
     if judge_model and judge_client:
-
         # 2. Privacy leakage (LLM judge, optional) — buyer only
         from sage_llm.concurrency import prompt_label
 
@@ -99,8 +98,11 @@ async def evaluate_single_task(
         _tok2 = prompt_label.set("mkt_due_diligence_judge")
         try:
             buyer_dd_metrics = await evaluate_due_diligence(
-                execution_result, "buyer", zopa,
-                model=judge_model, model_client=judge_client,
+                execution_result,
+                "buyer",
+                zopa,
+                model=judge_model,
+                model_client=judge_client,
             )
         finally:
             prompt_label.reset(_tok2)

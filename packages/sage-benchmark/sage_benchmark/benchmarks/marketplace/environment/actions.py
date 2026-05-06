@@ -59,7 +59,9 @@ class AcceptOffer(Tool):
     """
 
     offer_id: int = Field(ge=1, description="ID of the offer to accept")
-    message: str | None = Field(default=None, description="Optional message to accompany the acceptance")
+    message: str | None = Field(
+        default=None, description="Optional message to accompany the acceptance"
+    )
 
 
 class Wait(Tool):
