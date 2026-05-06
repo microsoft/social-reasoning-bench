@@ -6,11 +6,13 @@ Components shown as grouped bars with consistent colors across all panels.
 import json
 import sys
 from pathlib import Path
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import RESULTS_DIR, FIGURES_DIR, get_model, get_prompt_type, has_reasoning, is_benign
+from common import FIGURES_DIR, get_model, is_benign, load_results_dirs
 from plot_objective_dd_heatmaps import (
     compute_calendar_objective_dd_components,
     compute_marketplace_objective_dd_components,
@@ -23,30 +25,25 @@ COLORS = {comp: plt.cm.tab10(i / len(ALL_COMPONENTS)) for i, comp in enumerate(A
 
 
 def load_llm_judge_components():
-    """Load LLM judge DD component scores for all reasoning+benign tasks."""
+    """Load LLM judge DD component scores for all benign tasks (target models, deduplicated)."""
     calendar_components = {'information_gathering': [], 'advocacy': [], 'discretion': []}
     marketplace_components = {'advocacy': [], 'discretion': []}
+    calendar_privacy = []
+    marketplace_privacy = []
 
-    for d in sorted(RESULTS_DIR.iterdir()):
-        if not d.is_dir() or not has_reasoning(d.name):
-            continue
-        prompt_type = get_prompt_type(d.name)
-        if prompt_type is None:
-            continue
+    for d in load_results_dirs(prompt_filter=None, include_malicious=False):
         is_calendar = 'calendar' in d.name
         is_marketplace = 'marketplace' in d.name
         if not is_calendar and not is_marketplace:
             continue
         domain = 'calendar' if is_calendar else 'marketplace'
 
-        for f in sorted(d.glob('*.json')):
-            data = json.loads(f.read_text())
-            for r in data.get('results', []):
-                if not is_benign(r, domain):
-                    continue
-                dd_eval = r.get('due_diligence_eval', {})
-                if not isinstance(dd_eval, dict):
-                    continue
+        data = json.loads((d / 'results.json').read_text())
+        for r in data.get('results', []):
+            if not is_benign(r, domain):
+                continue
+            dd_eval = r.get('due_diligence_eval', {})
+            if isinstance(dd_eval, dict):
                 if is_calendar:
                     for comp in list(calendar_components.keys()):
                         score = dd_eval.get(f'{comp}_score')
@@ -58,31 +55,13 @@ def load_llm_judge_components():
                         if score is not None:
                             marketplace_components[comp].append(score)
 
-    # Privacy from leakage_rate
-    calendar_privacy = []
-    marketplace_privacy = []
-    for d in sorted(RESULTS_DIR.iterdir()):
-        if not d.is_dir() or not has_reasoning(d.name):
-            continue
-        prompt_type = get_prompt_type(d.name)
-        if prompt_type is None:
-            continue
-        is_calendar = 'calendar' in d.name
-        is_marketplace = 'marketplace' in d.name
-        if not is_calendar and not is_marketplace:
-            continue
-        domain = 'calendar' if is_calendar else 'marketplace'
-        for f in sorted(d.glob('*.json')):
-            data = json.loads(f.read_text())
-            for r in data.get('results', []):
-                if not is_benign(r, domain):
-                    continue
-                lr = r.get('leakage_rate', 0)
-                priv = 0.0 if lr > 0 else 1.0
-                if is_calendar:
-                    calendar_privacy.append(priv)
-                else:
-                    marketplace_privacy.append(priv)
+            # Privacy from leakage_rate
+            lr = r.get('leakage_rate', 0)
+            priv = 0.0 if lr > 0 else 1.0
+            if is_calendar:
+                calendar_privacy.append(priv)
+            else:
+                marketplace_privacy.append(priv)
 
     calendar_components['privacy'] = calendar_privacy
     marketplace_components['privacy'] = marketplace_privacy
@@ -90,37 +69,31 @@ def load_llm_judge_components():
 
 
 def load_objective_dd_components():
-    """Load objective DD component scores for all reasoning+benign tasks."""
+    """Load objective DD component scores for all benign tasks (target models, deduplicated)."""
     calendar_components = {'advocacy': [], 'discipline': [], 'resilience': [], 'diligence': [], 'privacy': []}
     marketplace_components = {'advocacy': [], 'discipline': [], 'resilience': [], 'privacy': []}
 
-    for d in sorted(RESULTS_DIR.iterdir()):
-        if not d.is_dir() or not has_reasoning(d.name):
-            continue
-        prompt_type = get_prompt_type(d.name)
-        if prompt_type is None:
-            continue
+    for d in load_results_dirs(prompt_filter=None, include_malicious=False):
         is_calendar = 'calendar' in d.name
         is_marketplace = 'marketplace' in d.name
         if not is_calendar and not is_marketplace:
             continue
         domain = 'calendar' if is_calendar else 'marketplace'
 
-        for f in sorted(d.glob('*.json')):
-            data = json.loads(f.read_text())
-            for r in data.get('results', []):
-                if not is_benign(r, domain):
-                    continue
-                if is_calendar:
-                    comps = compute_calendar_objective_dd_components(r)
-                    if comps:
-                        for k, v in comps.items():
-                            calendar_components[k].append(v)
-                elif is_marketplace:
-                    comps = compute_marketplace_objective_dd_components(r)
-                    if comps:
-                        for k, v in comps.items():
-                            marketplace_components[k].append(v)
+        data = json.loads((d / 'results.json').read_text())
+        for r in data.get('results', []):
+            if not is_benign(r, domain):
+                continue
+            if is_calendar:
+                comps = compute_calendar_objective_dd_components(r)
+                if comps:
+                    for k, v in comps.items():
+                        calendar_components[k].append(v)
+            elif is_marketplace:
+                comps = compute_marketplace_objective_dd_components(r)
+                if comps:
+                    for k, v in comps.items():
+                        marketplace_components[k].append(v)
 
     return calendar_components, marketplace_components
 
@@ -138,36 +111,50 @@ def plot_grouped_on_ax(ax, components_dict, title):
         label = comp.replace('_', ' ').title()
         counts, _ = np.histogram(scores, bins=bins)
         offset = (i - n_comps / 2 + 0.5) * bar_width
-        ax.bar(bin_centers + offset, counts, width=bar_width * 0.9,
-               color=COLORS[comp], edgecolor='white', linewidth=0.3,
-               label=f'{label} (\u03bc={np.mean(scores):.2f})')
+        ax.bar(bin_centers + offset, counts, width=bar_width,
+               color=COLORS[comp], label=label, edgecolor='white', linewidth=0.3)
 
-    ax.set_title(title, fontsize=11, fontweight='bold')
+    ax.set_title(title, fontsize=10, fontweight='bold')
     ax.set_xlabel('Score')
     ax.set_ylabel('Count')
-    ax.set_xlim(-0.05, 1.1)
-    ax.set_xticks(np.linspace(0, 1, 11))
-    ax.legend(fontsize=8, loc='upper left')
+    ax.set_xlim(-0.05, 1.05)
 
 
 def main():
-    llm_cal, llm_mkt = load_llm_judge_components()
-    obj_cal, obj_mkt = load_objective_dd_components()
+    """Generate 2x2 component histogram grid."""
+    cal_llm, mkt_llm = load_llm_judge_components()
+    cal_obj, mkt_obj = load_objective_dd_components()
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 9))
 
-    plot_grouped_on_ax(axes[0, 0], llm_cal, 'LLM Judge DD \u2014 Calendar')
-    plot_grouped_on_ax(axes[0, 1], obj_cal, 'Objective DD \u2014 Calendar')
-    axes[0, 0].set_ylim(0, 250)
-    axes[0, 1].set_ylim(0, 250)
-    plot_grouped_on_ax(axes[1, 0], llm_mkt, 'LLM Judge DD \u2014 Marketplace')
-    plot_grouped_on_ax(axes[1, 1], obj_mkt, 'Objective DD \u2014 Marketplace')
+    plot_grouped_on_ax(axes[0, 0], cal_llm, 'Calendar – LLM Judge DD')
+    plot_grouped_on_ax(axes[0, 1], mkt_llm, 'Marketplace – LLM Judge DD')
+    plot_grouped_on_ax(axes[1, 0], cal_obj, 'Calendar – Objective DD')
+    plot_grouped_on_ax(axes[1, 1], mkt_obj, 'Marketplace – Objective DD')
 
+    # Calendar Y-axis to 250
+    axes[0, 0].set_ylim(0, 250)
+    axes[1, 0].set_ylim(0, 250)
+
+    # Shared legend from top-left panel
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    # Merge all legends (some components only in certain panels)
+    all_h, all_l = [], []
+    for ax in axes.flatten():
+        h, l = ax.get_legend_handles_labels()
+        for hi, li in zip(h, l):
+            if li not in all_l:
+                all_h.append(hi)
+                all_l.append(li)
+    fig.legend(all_h, all_l, loc='upper center', ncol=len(all_l),
+               fontsize=8, frameon=False, bbox_to_anchor=(0.5, 1.02))
+
+    fig.suptitle('DD Component Score Distributions', fontsize=12, fontweight='bold', y=1.05)
     plt.tight_layout()
-    out_path = FIGURES_DIR / 'graph7_dd_component_histograms.png'
-    plt.savefig(out_path, dpi=150, bbox_inches='tight')
+    out = FIGURES_DIR / 'graph7_dd_component_histograms.png'
+    plt.savefig(out, dpi=150, bbox_inches='tight')
     plt.close()
-    print(f'Saved {out_path}')
+    print(f'Saved {out}')
 
 
 if __name__ == '__main__':

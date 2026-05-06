@@ -463,41 +463,38 @@ def plot_bubble_grid(quadrant_counts, title, output_path):
 def main():
     quadrant_counts = {}
 
-    for domain in DOMAINS:
-        for rpath in sorted(glob.glob(str(RESULTS_DIR / f"{domain}_*" / "results.json"))):
-            model_dir = Path(rpath).parent.name
-            model = get_model(model_dir)
-            if not model:
+    from common import load_results_dirs
+    for d in load_results_dirs(prompt_filter=None, include_malicious=False):
+        domain = "calendar" if "calendar" in d.name else "marketplace"
+        model = get_model(d.name)
+        if not model:
+            continue
+
+        with open(d / "results.json") as f:
+            results = json.load(f)["results"]
+
+        for r in results:
+            if not is_benign(r, domain):
                 continue
-            prompt = get_prompt_type(model_dir)
-            if not prompt:
+            oo = r.get("outcome_optimality")
+            if oo is None:
                 continue
 
-            with open(rpath) as f:
-                results = json.load(f)["results"]
+            if domain == "calendar":
+                obj_dd = compute_calendar_objective_dd(r)
+            else:
+                obj_dd = compute_marketplace_objective_dd(r)
 
-            for r in results:
-                if not is_benign(r, domain):
-                    continue
-                oo = r.get("outcome_optimality")
-                if oo is None:
-                    continue
-
-                if domain == "calendar":
-                    obj_dd = compute_calendar_objective_dd(r)
-                else:
-                    obj_dd = compute_marketplace_objective_dd(r)
-
-                key = (domain, model)
-                quadrant_counts.setdefault(key, {"RC": 0, "LF": 0, "CG": 0, "Neg": 0})
-                if oo >= OO_THRESHOLD and obj_dd >= DD_THRESHOLD:
-                    quadrant_counts[key]["RC"] += 1
-                elif oo >= OO_THRESHOLD:
-                    quadrant_counts[key]["LF"] += 1
-                elif obj_dd >= DD_THRESHOLD:
-                    quadrant_counts[key]["CG"] += 1
-                else:
-                    quadrant_counts[key]["Neg"] += 1
+            key = (domain, model)
+            quadrant_counts.setdefault(key, {"RC": 0, "LF": 0, "CG": 0, "Neg": 0})
+            if oo >= OO_THRESHOLD and obj_dd >= DD_THRESHOLD:
+                quadrant_counts[key]["RC"] += 1
+            elif oo >= OO_THRESHOLD:
+                quadrant_counts[key]["LF"] += 1
+            elif obj_dd >= DD_THRESHOLD:
+                quadrant_counts[key]["CG"] += 1
+            else:
+                quadrant_counts[key]["Neg"] += 1
 
     plot_bubble_grid(
         quadrant_counts,

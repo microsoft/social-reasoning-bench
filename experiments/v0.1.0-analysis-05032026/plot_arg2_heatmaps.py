@@ -14,7 +14,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from common import get_model, get_prompt_type, is_benign, RESULTS_DIR, FIGURES_DIR
+from common import get_model, is_benign, FIGURES_DIR
 
 MODELS = ["GPT-4.1", "GPT-5.4", "Gemini"]
 DOMAINS = ["calendar", "marketplace"]
@@ -53,31 +53,28 @@ def main():
     # Collect per (domain, model) quadrant counts
     quadrant_counts = {}  # (domain, model) -> {"RC": n, "LF": n, "CG": n, "Neg": n}
 
-    for domain in DOMAINS:
-        for rpath in sorted(glob.glob(str(RESULTS_DIR / f"{domain}_*" / "results.json"))):
-            model_dir = Path(rpath).parent.name
-            model = get_model(model_dir)
-            if not model:
+    from common import load_results_dirs, get_prompt
+    for d in load_results_dirs(prompt_filter=None, include_malicious=False):
+        domain = "calendar" if "calendar" in d.name else "marketplace"
+        model = get_model(d.name)
+        if not model:
+            continue
+
+        with open(d / "results.json") as f:
+            results = json.load(f)["results"]
+
+        for r in results:
+            oo = r.get("outcome_optimality")
+            dd = r.get("due_diligence")
+            if oo is None or dd is None:
                 continue
-            prompt = get_prompt_type(model_dir)
-            if not prompt:
+            if not is_benign(r, domain):
                 continue
 
-            with open(rpath) as f:
-                results = json.load(f)["results"]
-
-            for r in results:
-                oo = r.get("outcome_optimality")
-                dd = r.get("due_diligence")
-                if oo is None or dd is None:
-                    continue
-                if not is_benign(r, domain):
-                    continue
-
-                key = (domain, model)
-                quadrant_counts.setdefault(key, {"RC": 0, "LF": 0, "CG": 0, "Neg": 0})
-                q = _classify_quadrant(oo, dd)
-                quadrant_counts[key][q] += 1
+            key = (domain, model)
+            quadrant_counts.setdefault(key, {"RC": 0, "LF": 0, "CG": 0, "Neg": 0})
+            q = _classify_quadrant(oo, dd)
+            quadrant_counts[key][q] += 1
 
     # Plot 2×3 bubble charts
     fig, axes = plt.subplots(2, 3, figsize=(14, 9))
