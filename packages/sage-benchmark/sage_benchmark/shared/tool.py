@@ -2,7 +2,6 @@
 
 Unifies the identical Tool and ToolError definitions from:
 - calendar_scheduling/types.py
-- form_filling/environment/actions.py
 - marketplace/types.py
 
 Each benchmark can subclass Tool to define its own tool actions.

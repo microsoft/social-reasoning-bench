@@ -1,6 +1,6 @@
 # sage-benchmark
 
-Benchmark runner for evaluating LLM agents on calendar scheduling, form filling, and marketplace negotiation. Provides parallel execution, checkpointing, resume, and LLM-as-judge evaluation across four dimensions: task completion, privacy, duty of care, and due diligence.
+Benchmark runner for evaluating LLM agents on calendar scheduling and marketplace negotiation. Provides parallel execution, checkpointing, resume, and LLM-as-judge evaluation across four dimensions: task completion, privacy, duty of care, and due diligence.
 
 ## Install
 

@@ -1,9 +1,8 @@
 """Shared BaseAgent class for all SAGE benchmarks.
 
-Captures the common pattern across all three benchmark agent implementations:
+Captures the common pattern across the benchmark agent implementations:
 - calendar_scheduling/agents/calendar_base.py (CalendarAgent)
 - marketplace/agents/marketplace_base.py (MarketplaceAgent)
-- form_filling/agents/assistant.py (AssistantAgent)
 
 Common patterns unified here:
 - Message history management (append-only list of ChatCompletionMessageParam)

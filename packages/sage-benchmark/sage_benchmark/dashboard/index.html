@@ -243,7 +243,6 @@
           <button class="tab-btn active px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="overview">Overview</button>
           <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="calendar" disabled>Calendar</button>
           <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="marketplace" disabled>Marketplace</button>
-          <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="form_filling" disabled>Form Filling</button>
           <div class="flex-1"></div>
           <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="annotator" disabled>
             <span class="flex items-center gap-1.5">
@@ -416,7 +415,6 @@ const CORE_METRICS = {
 const BENCHMARK_COLORS = {
   calendar:     { bg: 'rgba(107, 158, 120, 0.7)', border: '#6b9e78' },  // sage green
   marketplace:  { bg: 'rgba(180, 130, 80, 0.7)',  border: '#b48250' },  // warm amber
-  form_filling: { bg: 'rgba(120, 140, 180, 0.7)', border: '#788cb4' },  // slate blue
 };
 
 const ATTACK_TYPE_COLORS = {
@@ -452,7 +450,7 @@ const SERIES_PALETTE = [
 ];
 
 const DIMENSION_DEFS = {
-  benchmark:      { label: 'Benchmark',      colorMap: BENCHMARK_COLORS, order: ['calendar', 'marketplace', 'form_filling'] },
+  benchmark:      { label: 'Benchmark',      colorMap: BENCHMARK_COLORS, order: ['calendar', 'marketplace'] },
   model:          { label: 'Model',          colorMap: null },
   attackType:     { label: 'Attack Type',    colorMap: ATTACK_TYPE_COLORS, order: ['none', 'privacy', 'outcome_optimality', 'due_diligence'] },
   attackStyle:    { label: 'Attack Style',   colorMap: null },
@@ -572,10 +570,6 @@ function parseAttackFromTasks(results) {
   // Primary: read attack info directly from task data
   for (const r of (results || [])) {
     const task = r.execution?.task || r.task || {};
-    // Form filling: fields on task directly
-    if (task.is_malicious && task.malicious_target) {
-      return { attackType: task.malicious_target.replace(/-/g, '_'), attackStyle: (task.malicious_strategy || 'unknown').replace(/-/g, '_') };
-    }
     // Calendar: fields on task.requestor
     const req = task.requestor || {};
     if (req.is_malicious && req.malicious_target) {
@@ -623,7 +617,6 @@ function parseBenchmarkFromPaths(paths) {
   for (const p of paths) {
     if (p.includes('calendar')) return 'calendar';
     if (p.includes('marketplace')) return 'marketplace';
-    if (p.includes('form')) return 'form_filling';
   }
   return null;
 }
@@ -632,10 +625,8 @@ function detectBenchmark(json) {
   const cfg = json.config || {};
   if ('requestor_model' in cfg || 'assistant_system_prompt' in cfg) return 'calendar';
   if ('buyer_model' in cfg || 'seller_model' in cfg) return 'marketplace';
-  if ('interviewer_model' in cfg || 'prompt_type' in cfg) return 'form_filling';
   const firstTask = (json.results?.[0])?.execution?.task;
-  if (firstTask?.type) return firstTask.type === 'marketplace' ? 'marketplace' : firstTask.type === 'calendar' ? 'calendar' : 'form_filling';
-  if (firstTask?.form_info) return 'form_filling';
+  if (firstTask?.type) return firstTask.type === 'marketplace' ? 'marketplace' : firstTask.type === 'calendar' ? 'calendar' : 'unknown';
   if (firstTask?.product) return 'marketplace';
   if (firstTask?.requestor || firstTask?.assistant) return 'calendar';
   return 'unknown';
@@ -969,7 +960,7 @@ const fileCountSpan = document.getElementById('file-count');
 // Generate benchmark trace-viewer tabs from template
 (function initBenchmarkTabs() {
   const container = document.getElementById('benchmark-tabs-container');
-  const benchmarks = ['calendar', 'marketplace', 'form_filling'];
+  const benchmarks = ['calendar', 'marketplace'];
   benchmarks.forEach(bm => {
     const tab = document.createElement('div');
     tab.id = 'tab-' + bm;
@@ -1267,7 +1258,6 @@ function benchmarkBadge(bm) {
   const colors = {
     calendar:     'bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300',
     marketplace:  'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
-    form_filling: 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
   };
   return `<span class="px-2 py-0.5 rounded text-xs font-medium ${colors[bm] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}">${esc(bm)}</span>`;
 }
@@ -1297,7 +1287,7 @@ function updateTabs() {
   const loadedBenchmarks = new Set(state.experiments.map(e => e.benchmark));
   document.querySelectorAll('.tab-btn').forEach(btn => {
     const tab = btn.dataset.tab;
-    if (['calendar', 'marketplace', 'form_filling'].includes(tab)) {
+    if (['calendar', 'marketplace'].includes(tab)) {
       btn.disabled = !loadedBenchmarks.has(tab);
     }
     if (tab === 'annotator') {
@@ -1319,7 +1309,6 @@ function renderActiveTab() {
     case 'overview': renderOverview(filtered); break;
     case 'calendar': renderBenchmarkTab('calendar', filtered.filter(e => e.benchmark === 'calendar')); break;
     case 'marketplace': renderBenchmarkTab('marketplace', filtered.filter(e => e.benchmark === 'marketplace')); break;
-    case 'form_filling': renderBenchmarkTab('form_filling', filtered.filter(e => e.benchmark === 'form_filling')); break;
     case 'annotator': renderAnnotatorTab(filtered); break;
   }
   pushViewState();
@@ -2022,7 +2011,6 @@ function renderScatterColumn(container, experiments, colIdx) {
 const tvState = {
   calendar:     { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {}, activeDetailTab: 'outcomes' },
   marketplace:  { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {}, activeDetailTab: 'outcomes' },
-  form_filling: { expIdx: null, taskIdx: 0, sortCol: null, sortAsc: true, filters: {}, activeDetailTab: 'outcomes' },
 };
 
 function tvMetricCell(val, format, good) {
@@ -2455,21 +2443,6 @@ function tvRenderDetail(benchmark, result, experiment) {
     }
   }
 
-  // Post-render: field eval filter buttons
-  if (activeTab === 'outcomes' && benchmark === 'form_filling') {
-    detail.querySelectorAll('.tv-field-filter').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const filter = btn.dataset.filter;
-        const rows = detail.querySelectorAll('tr[data-match]');
-        rows.forEach(row => {
-          row.classList.toggle('hidden', filter !== 'all' && row.dataset.match !== filter);
-        });
-        // Highlight active filter button
-        detail.querySelectorAll('.tv-field-filter').forEach(b => b.classList.remove('ring-2', 'ring-gray-400'));
-        btn.classList.add('ring-2', 'ring-gray-400');
-      });
-    });
-  }
 }
 
 // Trace tab: merges conversation + per-agent trace
@@ -2577,8 +2550,6 @@ function tvIsEffortAction(benchmark, toolName, args) {
   if (benchmark === 'calendar') {
     if (toolName === 'RequestMeeting') return true;
     if (toolName === 'ReplyMeeting' && argsStr.includes('COUNTER')) return true;
-  } else if (benchmark === 'form_filling') {
-    if (toolName === 'SearchFiles' || toolName === 'ReadFile') return true;
   } else if (benchmark === 'marketplace') {
     if (toolName === 'MakeOffer') return true;
   }
@@ -2677,31 +2648,6 @@ function tvRenderEvalMetrics(r, benchmark) {
     groups += tvRenderMetricGroup('Effort', [
       mc('Effort Actions', r.due_diligence_eval?.effort_action_count, { format: 'int' }),
       mc('Price Range', r.due_diligence_eval?.price_range_explored, { format: 'percent', good: 'high' }),
-    ]);
-  } else if (benchmark === 'form_filling') {
-    groups += tvRenderMetricGroup('Correctness', [
-      mc('F1', r.correctness?.f1_score, { format: 'percent', good: 'high' }),
-      mc('Accuracy', r.correctness?.accuracy, { format: 'percent', good: 'high' }),
-      mc('Precision', r.correctness?.precision, { format: 'percent', good: 'high' }),
-      mc('Recall', r.correctness?.recall, { format: 'percent', good: 'high' }),
-      mc('Exact', r.correctness?.exact_matches, { format: 'int' }),
-      mc('Semantic', r.correctness?.semantic_matches, { format: 'int' }),
-      mc('Grounded', r.correctness?.grounded_matches, { format: 'int' }),
-      mc('Filled', r.correctness?.total_filled_by_agent, { format: 'int', subtitle: `/ ${r.correctness?.total_should_fill ?? '?'}` }),
-    ]);
-    groups += tvRenderMetricGroup('Privacy', [
-      mc('Form Privacy', r.form_privacy?.privacy_score, { format: 'percent', good: 'high' }),
-      mc('Conv Privacy', r.conversation_privacy?.privacy_score, { format: 'percent', good: 'high' }),
-    ]);
-    groups += tvRenderMetricGroup('Due Diligence', [
-      mc('Masked Acc', r.due_diligence_eval?.masked_field_accuracy, { format: 'percent', good: 'high' }),
-      mc('Masked Fields', r.due_diligence_eval?.total_masked_fields, { format: 'int', subtitle: `${r.due_diligence_eval?.total_findable ?? '?'}f / ${r.due_diligence_eval?.total_unfindable ?? '?'}u` }),
-      mc('Effort Actions', r.due_diligence_eval?.effort_action_count, { format: 'int' }),
-    ]);
-    groups += tvRenderMetricGroup('Duty of Care', [
-      mc('Pydantic', r.pydantic_validation_passed, { format: 'bool' }),
-      mc('DoC Min', r.duty_of_care_eval?.min_score, { format: 'percent', good: 'high' }),
-      mc('DoC Fields', r.duty_of_care_eval?.total_fields, { format: 'int' }),
     ]);
   }
 
@@ -2854,181 +2800,6 @@ function tvRenderTaskContext(r, benchmark, experiment) {
       </div>
     </div>`;
 
-  } else if (benchmark === 'form_filling') {
-    const task = r.execution?.task || {};
-    const formInfo = task.form_info || {};
-    const persona = task.persona || {};
-    const isMalicious = task.is_malicious;
-
-    // Agent contexts
-    const aCtx = r.execution?.assistant_context || [];
-    const aSys = aCtx.find(m => m.role === 'system')?.content || '';
-    const aUser = aCtx.find(m => m.role === 'user')?.content || '';
-    const intCtx = r.execution?.interviewer_context || [];
-    const intSys = intCtx.find(m => m.role === 'system')?.content || '';
-    const intUser = intCtx.find(m => m.role === 'user')?.content || '';
-
-    // Task ID + termination_reason badge
-    html += `<div class="flex flex-wrap items-center gap-2 mb-3">
-      <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">Task ${esc(String(task.id ?? '?'))}</span>
-      ${r.execution?.termination_reason
-        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200">${esc(r.execution.termination_reason)}</span>`
-        : ''}
-    </div>`;
-
-    // Form model card — show ground truth fields as the form schema
-    const gtFields = Array.isArray(task.ground_truth) ? task.ground_truth : [];
-    const secrets = Array.isArray(task.secrets) ? task.secrets : [];
-    const negInfo = Array.isArray(task.negative_info) ? task.negative_info : [];
-
-    // Group secrets per field (by question_id or related_to_field)
-    const secretsByField = {};
-    secrets.forEach(s => {
-      const fid = s.question_id || s.related_to_field || '_unlinked';
-      if (!secretsByField[fid]) secretsByField[fid] = [];
-      secretsByField[fid].push(s);
-    });
-    // Group negative info per field
-    const negByField = {};
-    negInfo.forEach(ni => {
-      if (!negByField[ni.field_id]) negByField[ni.field_id] = [];
-      ni.negative_info?.forEach(p => negByField[ni.field_id].push(p));
-    });
-
-    html += `<div class="mb-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-      <div class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Form Model</div>
-      <div class="text-sm font-medium text-gray-800 dark:text-gray-100 mb-2">${esc(formInfo.title || 'Form ' + (task.id ?? '?'))}</div>
-      ${gtFields.length > 0 ? `<div class="overflow-x-auto max-h-56 overflow-y-auto"><table class="w-full text-[11px]">
-        <thead class="sticky top-0 bg-gray-100 dark:bg-gray-700"><tr class="text-gray-500 dark:text-gray-400 font-medium">
-          <th class="py-1 px-2 text-left">Field ID</th>
-          <th class="py-1 px-2 text-left">Label</th>
-          <th class="py-1 px-2 text-center">Type</th>
-          <th class="py-1 px-2 text-left">Secrets</th>
-          <th class="py-1 px-2 text-left">Negative Info</th>
-        </tr></thead>
-        <tbody>${gtFields.map(f => {
-          const fieldSecrets = secretsByField[f.field_id] || [];
-          const fieldNeg = negByField[f.field_id] || [];
-          const secretChips = fieldSecrets.map(s =>
-            `<span class="inline-block px-1 py-0.5 rounded text-[9px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 max-w-[100px] truncate" title="${esc(s.detail_content || s.secret_type || '')}">${esc(s.secret_type || 'secret')}</span>`
-          ).join(' ');
-          const negChips = fieldNeg.map(n =>
-            `<span class="inline-block px-1 py-0.5 rounded text-[9px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 max-w-[100px] truncate" title="${esc(n.detail || '')}">${esc(n.detail?.slice(0, 20) || 'neg')}</span>`
-          ).join(' ');
-          return `<tr class="border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-          <td class="py-1 px-2 font-mono">${esc(f.field_id || '?')}</td>
-          <td class="py-1 px-2">${esc(f.field_label || '')}</td>
-          <td class="py-1 px-2 text-center"><span class="px-1.5 py-0.5 rounded text-[9px] font-medium ${f.is_open_ended ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'}">${f.is_open_ended ? 'open-ended' : 'factual'}</span></td>
-          <td class="py-1 px-2">${secretChips || '<span class="text-gray-300 dark:text-gray-600">-</span>'}</td>
-          <td class="py-1 px-2">${negChips || '<span class="text-gray-300 dark:text-gray-600">-</span>'}</td>
-        </tr>`;
-        }).join('')}</tbody>
-      </table></div>` : '<div class="text-xs text-gray-400">No field definitions available</div>'}
-      ${formInfo.extracted_text ? `<details class="mt-2">
-        <summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">OCR Text</summary>
-        <div class="mt-1 bg-white dark:bg-gray-900 rounded p-2 text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap max-h-40 overflow-y-auto">${esc(formInfo.extracted_text)}</div>
-      </details>` : ''}
-    </div>`;
-
-    // Artifacts accordion
-    const fsArtifacts = Array.isArray(task.filesystem_artifacts) ? task.filesystem_artifacts : [];
-    const legacyArtifacts = Array.isArray(task.artifacts) ? task.artifacts : [];
-    const allArtifacts = fsArtifacts.length > 0 ? fsArtifacts : legacyArtifacts;
-
-    // For context-mode artifacts, derive contains_answer_for from validation.field_coverage
-    const artifactFieldMap = {};  // artifact index → [field_id, ...]
-    const fieldCoverage = task.validation?.field_coverage || [];
-    fieldCoverage.forEach(fc => {
-      (fc.found_in_artifacts || []).forEach(idx => {
-        const key = String(idx);
-        if (!artifactFieldMap[key]) artifactFieldMap[key] = [];
-        artifactFieldMap[key].push(fc.field_id || fc.field_label || '?');
-      });
-    });
-
-    if (allArtifacts.length > 0) {
-      html += `<details class="mb-3">
-        <summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 font-semibold">Artifacts (${allArtifacts.length})</summary>
-        <div class="mt-2 space-y-2">
-          ${allArtifacts.map((a, ai) => {
-            const aType = a.artifact_type || 'unknown';
-            const aId = a.id || `artifact-${ai}`;
-            const typeCls = aType === 'email' ? 'bg-sage-100 text-sage-700 dark:bg-sage-900 dark:text-sage-300' : aType === 'calendar' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
-            // Use explicit contains_answer_for if present, otherwise derive from validation
-            const answersFor = a.contains_answer_for || artifactFieldMap[String(ai)] || [];
-            const secretsIn = a.contains_secrets || [];
-            const negIn = a.contains_negative_info || [];
-            const distractorFor = a.is_distractor_for || [];
-            const tags = [
-              ...answersFor.map(f => `<span class="px-1 py-0.5 rounded text-[9px] bg-sage-100 text-sage-700 dark:bg-sage-900 dark:text-sage-300" title="Answers field">${esc(f)}</span>`),
-              ...secretsIn.map(s => `<span class="px-1 py-0.5 rounded text-[9px] bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300" title="Contains secret">${esc(s)}</span>`),
-              ...negIn.map(n => `<span class="px-1 py-0.5 rounded text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300" title="Contains negative info">${esc(n)}</span>`),
-              ...distractorFor.map(d => `<span class="px-1 py-0.5 rounded text-[9px] bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" title="Distractor for field">${esc(d)}</span>`),
-            ];
-            return `<details class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-              <summary class="px-3 py-2 flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition text-xs">
-                <span class="px-1.5 py-0.5 rounded text-[9px] font-medium ${typeCls}">${esc(aType)}</span>
-                <span class="font-medium text-gray-700 dark:text-gray-300">${esc(aId)}</span>
-                ${tags.length ? `<span class="flex gap-1 flex-wrap">${tags.join('')}</span>` : ''}
-              </summary>
-              <div class="px-3 py-2 border-t border-gray-200 dark:border-gray-700">
-                <pre class="text-[10px] text-gray-600 dark:text-gray-400 whitespace-pre-wrap max-h-48 overflow-y-auto">${esc(a.content || '(empty)')}</pre>
-              </div>
-            </details>`;
-          }).join('')}
-        </div>
-      </details>`;
-    }
-
-    // Persona card
-    html += `<div class="mb-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-      <div class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Persona</div>
-      <div class="text-sm text-gray-800 dark:text-gray-100">${esc(persona.full_name || '?')}</div>
-      <div class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-        ${persona.age != null ? `Age: ${esc(String(persona.age))}` : ''}
-        ${persona.occupation ? ` · ${esc(persona.occupation)}` : ''}
-        ${persona.city || persona.state ? ` · ${esc([persona.city, persona.state].filter(Boolean).join(', '))}` : ''}
-      </div>
-    </div>`;
-
-    // Assistant + Interviewer cards with prompts
-    html += `<div class="grid md:grid-cols-2 gap-3 mb-3">
-      <div class="bg-sage-50 dark:bg-sage-900/20 border border-sage-200 dark:border-sage-800 rounded-lg p-3">
-        <div class="flex items-center gap-2 mb-1">
-          <span class="text-xs font-semibold text-sage-800 dark:text-sage-200">Assistant</span>
-          ${pvBadge}
-        </div>
-        ${promptDetail('System Prompt', aSys)}
-        ${promptDetail('User Message', aUser)}
-      </div>
-      <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-        <div class="flex items-center gap-2 mb-1">
-          <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">Interviewer</span>
-          ${isMalicious
-            ? '<span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Malicious</span>'
-            : '<span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300">Benign</span>'}
-        </div>
-        ${isMalicious ? `<div class="mt-1 text-xs text-gray-600 dark:text-gray-400">
-          ${task.malicious_target ? `<div><span class="font-semibold">Target:</span> ${esc(String(task.malicious_target))}</div>` : ''}
-          ${task.malicious_strategy ? `<div><span class="font-semibold">Strategy:</span> ${esc(String(task.malicious_strategy))}</div>` : ''}
-        </div>` : ''}
-        ${promptDetail('System Prompt', intSys)}
-        ${promptDetail('User Prompt', intUser)}
-      </div>
-    </div>`;
-
-    // Stats row
-    const secretsCount = Array.isArray(task.secrets) ? task.secrets.length : 0;
-    const negativeInfoCount = Array.isArray(task.negative_info) ? task.negative_info.length : 0;
-    const groundTruthCount = task.ground_truth ? Object.keys(task.ground_truth).length : 0;
-    const filesystemCount = Array.isArray(task.filesystem_artifacts) ? task.filesystem_artifacts.length : 0;
-
-    html += `<div class="flex flex-wrap gap-2">
-      ${tvRenderMetricCard('Secrets', secretsCount, { format: 'int' })}
-      ${tvRenderMetricCard('Negative Info', negativeInfoCount, { format: 'int' })}
-      ${tvRenderMetricCard('Ground Truth Fields', groundTruthCount, { format: 'int' })}
-      ${tvRenderMetricCard('FS Artifacts', filesystemCount, { format: 'int' })}
-    </div>`;
   }
 
   html += '</div>';
@@ -3480,200 +3251,6 @@ function tvRenderOutcomes(r, benchmark) {
       </div>`;
     }
 
-  } else {
-    // form_filling
-    const submission = r.execution?.form_submission || {};
-    const correctness = r.correctness || {};
-    const formPrivacy = r.form_privacy || {};
-    const convPrivacy = r.conversation_privacy || {};
-    const dutyOfCare = r.duty_of_care_eval || {};
-    const dueDiligence = r.due_diligence_eval || {};
-
-    // Field evaluations table
-    const fieldEvals = correctness.field_evaluations || [];
-    if (fieldEvals.length > 0) {
-      const matchCounts = { exact: 0, semantic: 0, grounded: 0, miss: 0 };
-      fieldEvals.forEach(fe => {
-        const mt = fe.exact_match ? 'exact' : fe.semantic_match ? 'semantic' : fe.grounded ? 'grounded' : 'miss';
-        matchCounts[mt]++;
-      });
-      html += `<div class="mb-3">
-        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Field Evaluations (${fieldEvals.length})</div>
-        <div class="flex gap-1 mb-2">
-          <button class="tv-field-filter px-2 py-1 rounded text-[10px] font-medium bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300" data-filter="all">All (${fieldEvals.length})</button>
-          <button class="tv-field-filter px-2 py-1 rounded text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" data-filter="miss">Misses (${matchCounts.miss})</button>
-          <button class="tv-field-filter px-2 py-1 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300" data-filter="semantic">Semantic (${matchCounts.semantic})</button>
-          <button class="tv-field-filter px-2 py-1 rounded text-[10px] font-medium bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400" data-filter="grounded">Grounded (${matchCounts.grounded})</button>
-          <button class="tv-field-filter px-2 py-1 rounded text-[10px] font-medium bg-sage-100 text-sage-700 dark:bg-sage-900 dark:text-sage-300" data-filter="exact">Exact (${matchCounts.exact})</button>
-        </div>
-        <div class="overflow-x-auto"><table class="w-full text-xs">
-          <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800"><tr class="border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-medium">
-            <th class="py-1.5 px-2 text-left">Field ID</th><th class="py-1.5 px-2">Match</th>
-            <th class="py-1.5 px-2 text-left">Expected</th><th class="py-1.5 px-2 text-left">Got</th>
-            <th class="py-1.5 px-2 text-left">Reason</th>
-          </tr></thead>
-          <tbody>${fieldEvals.map(fe => {
-            const matchType = fe.exact_match ? 'exact' : fe.semantic_match ? 'semantic' : fe.grounded ? 'grounded' : 'miss';
-            const matchCls = matchType === 'exact' ? 'bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300'
-              : matchType === 'semantic' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300'
-              : matchType === 'grounded' ? 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-            const rowTint = matchType === 'exact' ? 'tv-field-exact' : matchType === 'semantic' ? 'tv-field-semantic' : matchType === 'miss' ? 'tv-field-miss' : '';
-            return `<tr class="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 ${rowTint}" data-match="${matchType}">
-              <td class="py-1.5 px-2 font-medium">${esc(fe.field_id || fe.field_name || '?')}</td>
-              <td class="py-1.5 px-2 text-center"><span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${matchCls}">${matchType}</span></td>
-              <td class="py-1.5 px-2 text-xs whitespace-pre-wrap">${esc(String(fe.expected_value ?? '-'))}</td>
-              <td class="py-1.5 px-2 text-xs whitespace-pre-wrap">${esc(String(fe.actual_value ?? '-'))}</td>
-              <td class="py-1.5 px-2 text-xs whitespace-pre-wrap text-gray-500 dark:text-gray-400">${esc(fe.reason || '')}</td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table></div>
-      </div>`;
-    }
-
-    // Due diligence: masked field evaluations
-    const maskedEvals = dueDiligence.masked_field_evals || [];
-    if (maskedEvals.length > 0) {
-      html += `<div class="mb-3">
-        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Due Diligence: Masked Field Evaluations (${maskedEvals.length})</div>
-        <div class="overflow-x-auto max-h-[250px] overflow-y-auto"><table class="w-full text-xs">
-          <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800"><tr class="border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-medium">
-            <th class="py-1.5 px-2 text-left">Field ID</th><th class="py-1.5 px-2">Findability</th>
-            <th class="py-1.5 px-2">Correct</th><th class="py-1.5 px-2 text-left">Agent Answer</th>
-            <th class="py-1.5 px-2 text-left">Expected</th><th class="py-1.5 px-2 text-left">Matched Distractor</th>
-          </tr></thead>
-          <tbody>${maskedEvals.map(mfe => {
-            const findBadgeCls = mfe.findability === 'findable'
-              ? 'bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300'
-              : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-            const correctBadge = mfe.answer_correct
-              ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sage-100 text-sage-800 dark:bg-sage-900 dark:text-sage-300">Yes</span>'
-              : '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">No</span>';
-            return `<tr class="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-              <td class="py-1.5 px-2 font-medium">${esc(mfe.field_id || '?')}</td>
-              <td class="py-1.5 px-2 text-center"><span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${findBadgeCls}">${esc(mfe.findability || '?')}</span></td>
-              <td class="py-1.5 px-2 text-center">${correctBadge}</td>
-              <td class="py-1.5 px-2 max-w-[150px] truncate" title="${esc(mfe.agent_answer || '-')}">${esc(mfe.agent_answer || '-')}</td>
-              <td class="py-1.5 px-2 max-w-[150px] truncate" title="${esc(mfe.expected_answer || '-')}">${esc(mfe.expected_answer || '-')}</td>
-              <td class="py-1.5 px-2 max-w-[150px] truncate" title="${esc(mfe.matched_distractor || '-')}">${esc(mfe.matched_distractor || '-')}</td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table></div>
-      </div>`;
-    }
-
-    // Duty of care per-field table
-    const docFieldEvals = dutyOfCare.field_evaluations || [];
-    if (docFieldEvals.length > 0) {
-      const scoreCell = (val) => {
-        if (val == null) return '<span class="text-gray-400">-</span>';
-        const cls = val >= 4 ? 'text-sage-600 dark:text-sage-400' : val >= 3 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500 dark:text-red-400';
-        return `<span class="${cls} font-medium">${val}</span>`;
-      };
-      html += `<div class="mb-3">
-        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Duty of Care: Per-Field (${docFieldEvals.length})</div>
-        <div class="overflow-x-auto max-h-[250px] overflow-y-auto"><table class="w-full text-xs">
-          <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800"><tr class="border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-medium">
-            <th class="py-1.5 px-2 text-left">Field ID</th><th class="py-1.5 px-2 text-left">Field Label</th>
-            <th class="py-1.5 px-2">Overall</th><th class="py-1.5 px-2">Neg Fact</th>
-            <th class="py-1.5 px-2">Framing</th><th class="py-1.5 px-2">Scope</th>
-            <th class="py-1.5 px-2">Advocacy</th><th class="py-1.5 px-2 text-left">Summary</th>
-          </tr></thead>
-          <tbody>${docFieldEvals.map(dfe => {
-            const overallPct = dfe.overall_score != null ? (dfe.overall_score * 100).toFixed(0) + '%' : '-';
-            const overallCls = dfe.overall_score != null
-              ? (dfe.overall_score >= 0.8 ? 'text-sage-600 dark:text-sage-400' : dfe.overall_score >= 0.5 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500 dark:text-red-400')
-              : 'text-gray-400';
-            const summary = dfe.summary || '';
-            const truncSummary = summary.length > 50 ? summary.slice(0, 50) + '...' : summary;
-            return `<tr class="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-              <td class="py-1.5 px-2 font-medium">${esc(dfe.field_id || '?')}</td>
-              <td class="py-1.5 px-2 max-w-[120px] truncate" title="${esc(dfe.field_label || '')}">${esc(dfe.field_label || '-')}</td>
-              <td class="py-1.5 px-2 text-center font-bold ${overallCls}">${overallPct}</td>
-              <td class="py-1.5 px-2 text-center">${scoreCell(dfe.negative_fact_inclusion_score)}</td>
-              <td class="py-1.5 px-2 text-center">${scoreCell(dfe.framing_quality_score)}</td>
-              <td class="py-1.5 px-2 text-center">${scoreCell(dfe.scope_discipline_score)}</td>
-              <td class="py-1.5 px-2 text-center">${scoreCell(dfe.advocacy_effectiveness_score)}</td>
-              <td class="py-1.5 px-2 max-w-[200px] truncate" title="${esc(summary)}">${esc(truncSummary)}</td>
-            </tr>${dfe.raw_judgment && Object.keys(dfe.raw_judgment).length > 0 ? `<tr class="border-t border-gray-100 dark:border-gray-800"><td colspan="8" class="px-2 py-1">
-              <details><summary class="text-[9px] text-gray-400 cursor-pointer">Raw Judgment</summary>
-                <pre class="mt-1 text-[9px] text-gray-500 dark:text-gray-400 whitespace-pre-wrap max-h-32 overflow-y-auto">${esc(JSON.stringify(dfe.raw_judgment, null, 2))}</pre>
-              </details>
-            </td></tr>` : ''}`;
-          }).join('')}</tbody>
-        </table></div>
-      </div>`;
-    }
-
-    // Privacy evaluation
-    const secretsLeaked = formPrivacy.secrets_leaked || formPrivacy.secrets_leaked_in_form || [];
-    const convLeaked = convPrivacy.secrets_leaked_in_conversation || [];
-    const formChecked = formPrivacy.secrets_checked || [];
-    const convChecked = convPrivacy.secrets_checked || [];
-    const formLeakDetails = formPrivacy.leakage_details || [];
-    const convLeakDetails = convPrivacy.leakage_details || [];
-
-    function tvRenderLeakDetail(detail, source) {
-      const content = detail.secret_content || '';
-      const reasoning = detail.reasoning || '';
-      const secretType = detail.secret_type || 'unknown';
-      const itemKey = detail.item_key || '';
-      return `<div class="mb-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">LEAKED</span>
-          <span class="text-[10px] text-gray-400 dark:text-gray-500">${esc(source)}</span>
-          ${secretType !== 'unknown' && secretType ? `<span class="text-[10px] text-gray-400 dark:text-gray-500">${esc(secretType)}</span>` : ''}
-          ${itemKey ? `<span class="text-[10px] text-gray-400 dark:text-gray-500">in ${esc(itemKey)}</span>` : ''}
-        </div>
-        <div class="text-xs text-gray-700 dark:text-gray-300 mb-1.5">${esc(content)}</div>
-        ${reasoning ? `<div class="text-[10px] text-gray-500 dark:text-gray-400 italic border-t border-gray-200 dark:border-gray-700 pt-1.5 mt-1.5">${esc(reasoning)}</div>` : ''}
-      </div>`;
-    }
-
-    const allLeakDetails = [
-      ...formLeakDetails.map(d => ({ ...d, _source: 'Form' })),
-      ...convLeakDetails.map(d => ({ ...d, _source: 'Conversation' })),
-    ];
-
-    html += `<div class="mb-3">
-      <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Privacy Evaluation</div>
-      <div class="flex flex-wrap gap-3 mb-2 text-[10px] text-gray-500 dark:text-gray-400">
-        <span>Form: <span class="font-medium ${secretsLeaked.length > 0 ? 'text-red-500' : 'text-sage-600 dark:text-sage-400'}">${secretsLeaked.length} leaked</span> / ${formChecked.length} checked</span>
-        <span>Conversation: <span class="font-medium ${convLeaked.length > 0 ? 'text-red-500' : 'text-sage-600 dark:text-sage-400'}">${convLeaked.length} leaked</span> / ${convChecked.length} checked</span>
-      </div>
-      ${allLeakDetails.length > 0
-        ? allLeakDetails.map(d => tvRenderLeakDetail(d, d._source)).join('')
-        : '<div class="text-xs text-sage-600 dark:text-sage-400">No leaks detected</div>'}
-      ${formChecked.length > 0 || convChecked.length > 0 ? `<details class="mt-2"><summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">Secrets Checked (${formChecked.length + convChecked.length})</summary>
-        <div class="mt-1 space-y-1">
-          ${[...formChecked.map(s => ({s, src: 'Form'})), ...convChecked.map(s => ({s, src: 'Conv'}))].map(({s, src}) =>
-            `<div class="bg-gray-50 dark:bg-gray-800 rounded p-2 text-xs text-gray-600 dark:text-gray-400">
-              <span class="text-[9px] text-gray-400 dark:text-gray-500 uppercase">${src}:</span>
-              <span class="ml-1">${esc(typeof s === 'string' ? (s.length > 120 ? s.slice(0, 120) + '...' : s) : JSON.stringify(s))}</span>
-            </div>`
-          ).join('')}
-        </div>
-      </details>` : ''}
-    </div>`;
-
-    // Form submission JSON
-    if (Object.keys(submission).length > 0) {
-      html += `<div class="mb-3">
-        <details><summary class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">Form Submission (JSON)</summary>
-          <pre class="mt-1 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-xs text-gray-700 dark:text-gray-300 overflow-x-auto max-h-[300px] overflow-y-auto">${esc(JSON.stringify(submission, null, 2))}</pre>
-        </details>
-      </div>`;
-    }
-
-    // Pydantic validation errors
-    if (r.pydantic_validation_errors?.length > 0) {
-      html += `<div class="mb-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-        <div class="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide mb-1">Pydantic Validation Errors</div>
-        <ul class="list-disc list-inside text-xs text-red-800 dark:text-red-200 space-y-0.5">
-          ${r.pydantic_validation_errors.map(e => `<li>${esc(typeof e === 'string' ? e : JSON.stringify(e))}</li>`).join('')}
-        </ul>
-      </div>`;
-    }
   }
 
   html += '</div>';
@@ -3790,34 +3367,9 @@ function tvRenderConversation(r, benchmark) {
       </div>
     </div>`;
     return wrapper + html + '</div>';
-
-  } else {
-    // form_filling
-    const conversation = r.execution?.conversation || [];
-    if (conversation.length === 0) return wrapper + '</div>';
-
-    let html = `<div class="mb-4">
-      <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Conversation (${conversation.length} messages)</h3>
-      <div class="space-y-2">
-        ${conversation.map(msg => {
-          const isInterviewer = (msg.from_agent || '').toLowerCase().includes('interviewer') || (msg.from_agent || '').toLowerCase().includes('user');
-          const bgCls = isInterviewer ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700' : 'bg-sage-50 dark:bg-sage-900/20 border-sage-200 dark:border-sage-800';
-          const labelCls = isInterviewer ? 'text-gray-500 dark:text-gray-400' : 'text-sage-600 dark:text-sage-400';
-          const textCls = isInterviewer ? 'text-gray-800 dark:text-gray-200' : 'text-sage-800 dark:text-sage-200';
-          return `<div class="flex ${isInterviewer ? 'justify-start' : 'justify-end'}">
-            <div class="w-[85%] rounded-lg border ${bgCls} p-3">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="text-xs font-medium ${labelCls}">${esc(msg.from_agent || '?')}</span>
-                ${msg.round != null ? `<span class="text-[10px] text-gray-400">R${msg.round}</span>` : ''}
-              </div>
-              <div class="text-sm ${textCls} whitespace-pre-wrap">${esc(msg.content || '')}</div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`;
-    return wrapper + html + '</div>';
   }
+
+  return wrapper + '</div>';
 }
 
 // ─── Section 7: Per-Agent Trace ──────────────────────
@@ -3893,18 +3445,6 @@ function tvRenderPerAgentTrace(r, benchmark) {
     html += `<details class="mt-3"><summary class="text-[10px] text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">Available Tools</summary>
       ${tvRenderToolSections(r.execution?.requestor_tools, r.execution?.assistant_tools, 'Requestor', 'Assistant')}
     </details>`;
-
-  } else if (benchmark === 'form_filling') {
-    html += `<div class="grid md:grid-cols-2 gap-3 mb-4">
-      <div>
-        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Interviewer</div>
-        <div class="space-y-1.5 font-mono overflow-y-auto" style="max-height:calc(100vh - 16rem)" data-trace-col>${renderCtx(r.execution?.interviewer_context, 'form_filling', 'Interviewer')}</div>
-      </div>
-      <div>
-        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Assistant</div>
-        <div class="space-y-1.5 font-mono overflow-y-auto" style="max-height:calc(100vh - 16rem)" data-trace-col>${renderCtx(r.execution?.assistant_context, 'form_filling', 'Assistant')}</div>
-      </div>
-    </div>`;
 
   } else {
     // marketplace — show buyer/seller chat contexts side-by-side
@@ -4099,32 +3639,7 @@ function buildAnnotationQueue(experiments) {
         });
       }
 
-      if (exp.benchmark === 'form_filling') {
-        const formPrivacy = raw.form_privacy || {};
-        const convPrivacy = raw.conversation_privacy || {};
-
-        // Form source: each form field is a "message"
-        const formSubmission = raw.execution?.form_submission || {};
-        const formMsgs = Object.entries(formSubmission).map(([k, v]) => ({ content: `${k}: ${v}` }));
-        const formChecked = formPrivacy.secrets_checked || [];
-        const formLeaked = new Set((formPrivacy.secrets_leaked || formPrivacy.secrets_leaked_in_form || []).map(s => typeof s === 'string' ? s : JSON.stringify(s)));
-        const formDetails = formPrivacy.leakage_details || [];
-        pushPairs(formMsgs, formChecked, 'form', formLeaked,
-          (s, i) => formDetails.find(d => d.secret_content === s || d.secret_id === i) || {});
-
-        // Conversation source: visible messages from the assistant
-        const conversation = raw.execution?.conversation || [];
-        const convMsgs = conversation.filter(m => {
-          const agent = (m.from_agent || '').toLowerCase();
-          return !agent.includes('interviewer') && !agent.includes('user');
-        });
-        const convChecked = convPrivacy.secrets_checked || [];
-        const convLeaked = new Set((convPrivacy.secrets_leaked_in_conversation || []).map(s => typeof s === 'string' ? s : JSON.stringify(s)));
-        const convDetails = convPrivacy.leakage_details || [];
-        pushPairs(convMsgs, convChecked, 'conversation', convLeaked,
-          (s, i) => convDetails.find(d => d.secret_content === s || d.secret_id === i) || {});
-
-      } else if (exp.benchmark === 'calendar') {
+      if (exp.benchmark === 'calendar') {
         const execTask = raw.execution?.task || {};
         const assistant = execTask.assistant || {};
         const allSecrets = (assistant.calendar || []).filter(e => e.is_secret);
@@ -4519,22 +4034,8 @@ function renderAnnotatorTab(experiments) {
         </div>
         <div class="text-sm text-sage-800 dark:text-sage-200 whitespace-pre-wrap">${esc(msg.content || '')}</div>
       </div>`;
-    } else if (item.source === 'form') {
-      // Form field entry
-      msgHtml = `<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3">
-        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Form Field</div>
-        <div class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">${esc(msg.content || '')}</div>
-      </div>`;
     } else {
-      // Form filling conversation bubble (matches tvRenderConversation form_filling)
-      const bgCls = 'bg-sage-50 dark:bg-sage-900/20 border-sage-200 dark:border-sage-800';
-      msgHtml = `<div class="rounded-lg border ${bgCls} p-3">
-        <div class="flex items-center gap-2 mb-1">
-          <span class="text-xs font-medium text-sage-600 dark:text-sage-400">${esc(msg.from_agent || 'Assistant')}</span>
-          ${msg.round != null ? `<span class="text-[10px] text-gray-400">R${msg.round}</span>` : ''}
-        </div>
-        <div class="text-sm text-sage-800 dark:text-sage-200 whitespace-pre-wrap">${esc(msg.content || '')}</div>
-      </div>`;
+      msgHtml = '<div class="text-xs text-gray-400 p-2">Unsupported message source</div>';
     }
 
     // Inline layout: nav bar, then two columns (messages | secret + verdict)

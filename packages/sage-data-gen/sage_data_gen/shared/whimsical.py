@@ -184,7 +184,7 @@ class StrategyProvider:
 
 
 # ---------------------------------------------------------------------------
-# CLI / IO helpers for strategy-only generation (form-filling, marketplace)
+# CLI / IO helpers for strategy-only generation (marketplace)
 # ---------------------------------------------------------------------------
 
 
@@ -513,8 +513,7 @@ async def run_pooled_validation(
     Args:
         args: Parsed CLI namespace with model, validation, and output options.
         attack_types: List of attack type keys to validate.
-        benchmark_name: One of ``"calendar"``, ``"form-filling"``,
-            ``"marketplace"``.
+        benchmark_name: One of ``"calendar"`` or ``"marketplace"``.
         load_fn: ``load_fn([path]) -> list[task]``.
         inject_fn: ``inject_fn(task, attack_type, strategy_text) -> list[task]``.
         save_fn: ``save_fn(tasks, output_path)``.
@@ -659,16 +658,13 @@ def _get_task_descriptions(benchmark_name: str) -> dict[str, str]:
     """Get TASK_DESCRIPTIONS dict for the benchmark.
 
     Args:
-        benchmark_name: One of ``"calendar"``, ``"form-filling"``, or
-            ``"marketplace"``.
+        benchmark_name: One of ``"calendar"`` or ``"marketplace"``.
 
     Returns:
         Dict mapping attack type keys to task description strings.
     """
     if benchmark_name == "calendar":
         from sage_data_gen.calendar_scheduling.malicious import TASK_DESCRIPTIONS
-    elif benchmark_name == "form-filling":
-        from sage_data_gen.form_filling.malicious import TASK_DESCRIPTIONS
     else:
         from sage_data_gen.marketplace.malicious import TASK_DESCRIPTIONS
     return TASK_DESCRIPTIONS

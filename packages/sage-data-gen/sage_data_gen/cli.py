@@ -5,11 +5,10 @@ from pathlib import Path
 from types import ModuleType
 
 from sage_data_gen.calendar_scheduling.cli import main as calendar_main
-from sage_data_gen.form_filling.cli import main as form_filling_main
 from sage_data_gen.marketplace.cli import main as marketplace_main
 
-SUBCOMMANDS = ("calendar", "form-filling", "marketplace", "malicious")
-BENCHMARKS = ("calendar", "form-filling", "marketplace")
+SUBCOMMANDS = ("calendar", "marketplace", "malicious")
+BENCHMARKS = ("calendar", "marketplace")
 
 
 # ---------------------------------------------------------------------------
@@ -21,16 +20,13 @@ def _get_malicious_module(benchmark: str) -> ModuleType:
     """Import and return the malicious module for a benchmark.
 
     Args:
-        benchmark: Benchmark name (``"calendar"``, ``"form-filling"``, or
-            ``"marketplace"``).
+        benchmark: Benchmark name (``"calendar"`` or ``"marketplace"``).
 
     Returns:
         The benchmark-specific ``malicious`` module.
     """
     if benchmark == "calendar":
         from sage_data_gen.calendar_scheduling import malicious as mod
-    elif benchmark == "form-filling":
-        from sage_data_gen.form_filling import malicious as mod
     else:
         from sage_data_gen.marketplace import malicious as mod
     return mod
@@ -321,8 +317,6 @@ def main():
 
     if subcommand == "calendar":
         calendar_main()
-    elif subcommand == "form-filling":
-        form_filling_main()
     elif subcommand == "marketplace":
         marketplace_main()
     elif subcommand == "malicious":

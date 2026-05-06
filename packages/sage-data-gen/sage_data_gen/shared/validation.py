@@ -195,7 +195,7 @@ def prepare_validation_benchmark(
     Args:
         strategies: Candidate strategies to evaluate.
         validation_tasks: Small set of base tasks to test each strategy against.
-        benchmark_name: One of ``"calendar"``, ``"form-filling"``, ``"marketplace"``.
+        benchmark_name: One of ``"calendar"`` or ``"marketplace"``.
         attack_type: Attack type key (must exist in :data:`ATTACK_METRIC_MAP`).
         inject_fn: ``inject_fn(task, attack_type, strategy_text) → list[task]``.
         assistant_model: Model identifier for the agent under test.
@@ -263,7 +263,6 @@ def prepare_validation_benchmark(
     # Map generic counterparty args to benchmark-specific role names
     counterparty_role = {
         "calendar": "requestor",
-        "form-filling": "interviewer",
         "marketplace": "seller",
     }.get(benchmark_name)
     if counterparty_role and counterparty_model:

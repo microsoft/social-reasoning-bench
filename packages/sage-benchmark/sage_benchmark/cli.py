@@ -4,7 +4,6 @@ Usage::
 
     sagebench benchmark calendar [--model gpt-4o ...]
     sagebench benchmark marketplace [--model gpt-4o ...]
-    sagebench benchmark form_filling [--model gpt-4o ...]
 
     sagebench experiment experiments/ [--collect] [-k PATTERN ...]
     sagebench experiment experiments/ --set model=azure_pool/gpt-5.4

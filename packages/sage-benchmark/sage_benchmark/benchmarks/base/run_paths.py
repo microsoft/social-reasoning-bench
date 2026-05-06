@@ -1,7 +1,7 @@
 """Run paths management for benchmark output directories.
 
 Provides a unified RunPaths class that all benchmarks (calendar scheduling,
-marketplace, form-filling) use to manage output file paths:
+marketplace) use to manage output file paths:
     - results/eval file
     - checkpoint file
     - log files (timestamped)
