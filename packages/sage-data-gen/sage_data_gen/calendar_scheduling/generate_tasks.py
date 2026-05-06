@@ -654,9 +654,7 @@ async def generate_task_for_archetype(
                     start_time="09:00",  # placeholder, set in assembly
                     end_time="10:00",  # placeholder, set in assembly
                     attendees=[
-                        Attendee(
-                            email=requestor_emp.email, status=AttendeeStatus.ACCEPTED
-                        ),
+                        Attendee(email=requestor_emp.email, status=AttendeeStatus.ACCEPTED),
                         Attendee(email=employee.email, status=AttendeeStatus.AWAITING_RESPONSE),
                     ],
                 ),
