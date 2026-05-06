@@ -364,8 +364,6 @@ async def execute_task(
             break
 
     max_rounds_reached = rounds_completed >= max_rounds and not conversation_ended_naturally
-    if max_rounds_reached:
-        exec_error = f"Max rounds reached ({max_rounds}) without natural conversation end"
 
     # Log completion (don't call on_task_complete here - that's done after eval)
     benchmark_logger.debug(

@@ -47,6 +47,8 @@ async def _force_initial_seller_offer(
         action_trace: Action trace list to append to.
     """
     listed_price = task.product.listed_price
+    if listed_price is None:
+        raise ValueError("listed_price must be set before generating seller opening")
     message = await seller_agent.generate_text_response(
         f"Generate a brief opening message for listing {task.product.name} "
         f"at ${listed_price:.2f}. RESPOND WITH TEXT ONLY. DO NOT CALL ANY TOOLS."
@@ -54,7 +56,7 @@ async def _force_initial_seller_offer(
     if not message:
         logger.warning("SellerAgent failed to generate opening message.")
 
-    offer_action = MakeOffer(price=listed_price, message=message)
+    offer_action = MakeOffer(price=listed_price, message=message or "")
     result = seller_resources.execute(offer_action)
     seller_agent.add_forced_action(offer_action, result)
 
@@ -200,49 +202,53 @@ async def execute_task(
     action_trace = []
     invalid_actions = 0
 
-    for round_num in range(1, max_rounds + 1):
-        env.state.current_round = round_num
-        benchmark_logger.info("Task %d - Round %d", task.id, round_num)
-        for resources, agent in [(seller_resources, seller_agent), (buyer_resources, buyer_agent)]:
+    error: str | None = None
+    try:
+        for round_num in range(1, max_rounds + 1):
+            env.state.current_round = round_num
+            benchmark_logger.info("Task %d - Round %d", task.id, round_num)
+            for resources, agent in [
+                (seller_resources, seller_agent),
+                (buyer_resources, buyer_agent),
+            ]:
+                if env.state.outcome.end_reason is not None:
+                    break
+
+                # Round 1 seller turn: force initial offer at listed price
+                if (
+                    round_num == 1
+                    and task.product.listed_price is not None
+                    and isinstance(agent, SellerAgent)
+                ):
+                    await _force_initial_seller_offer(agent, resources, task, action_trace)
+                    continue
+
+                unread_updates = resources.get_unread_updates()
+                agent.add_new_messages(unread_updates)
+                turn_invalid_actions, agent_ended = await _run_agent_turn(
+                    agent, resources, max_steps_per_turn, action_trace, benchmark_logger
+                )
+                invalid_actions += turn_invalid_actions
+
+                # If generation failed, _run_agent_turn returns ended=True but environment isn't ended yet.
+                if (
+                    agent_ended
+                    and not env.state.outcome.deal_reached
+                    and env.state.outcome.end_reason is None
+                ):
+                    env.state.outcome.ended_by = resources.role
+                    env.state.outcome.end_reason = "Agent generation error."
+                    break
+
             if env.state.outcome.end_reason is not None:
                 break
-
-            # Round 1 seller turn: force initial offer at listed price
-            if (
-                round_num == 1
-                and task.product.listed_price is not None
-                and isinstance(agent, SellerAgent)
-            ):
-                await _force_initial_seller_offer(agent, resources, task, action_trace)
-                continue
-
-            unread_updates = resources.get_unread_updates()
-            agent.add_new_messages(unread_updates)
-            turn_invalid_actions, agent_ended = await _run_agent_turn(
-                agent, resources, max_steps_per_turn, action_trace, benchmark_logger
-            )
-            invalid_actions += turn_invalid_actions
-
-            # If generation failed, _run_agent_turn returns ended=True but environment isn't ended yet.
-            if (
-                agent_ended
-                and not env.state.outcome.deal_reached
-                and env.state.outcome.end_reason is None
-            ):
-                env.state.outcome.ended_by = resources.role
-                env.state.outcome.end_reason = "Agent generation error."
-                break
-
-        if env.state.outcome.end_reason is not None:
-            break
+    except Exception as ex:
+        logger.exception("Error during execution.")
+        error = str(ex)
 
     if not env.state.outcome.deal_reached and env.state.outcome.end_reason is None:
         env.state.outcome.ended_by = "max_rounds"
         env.state.outcome.end_reason = "Reached max rounds without agreement."
-
-    error = None
-    if env.state.outcome.ended_by == "max_rounds":
-        error = f"Max rounds reached ({max_rounds}) without agreement"
 
     return MarketplaceExecutionResult(
         task=task,

@@ -32,7 +32,7 @@ async def main():
 
     # Simple end-to-end API
     wg = WhimsyGen(
-        model="trapi/msraif/shared/gpt-4.1",
+        model="azure_pool/gpt-4.1",
         seeds="data/seeds/",
         task=TASK,
     )

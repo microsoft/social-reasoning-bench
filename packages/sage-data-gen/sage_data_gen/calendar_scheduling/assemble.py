@@ -181,6 +181,7 @@ def trim_requestor_calendar(
     assistant_free_slots: set[int],
     rng: random.Random,
     min_mutual_free_slots: int,
+    requested_slot_index: int | None = None,
 ) -> list[LabeledMeeting]:
     """Trim the requestor's calendar ensuring requestor_fullness AND at least min_mutual_free_slots overlapping free slots.
 
@@ -190,10 +191,21 @@ def trim_requestor_calendar(
         assistant_free_slots: Set of slot indices already free in the assistant's calendar.
         rng: Seeded random instance for deterministic slot removal.
         min_mutual_free_slots: Minimum number of mutually free slots to guarantee.
+        requested_slot_index: Slot index of the requested meeting time. If set,
+            any requestor event at this slot is removed so the requestor's own
+            proposal doesn't conflict with their calendar.
 
     Returns:
         Trimmed requestor calendar sorted by start time.
     """
+    # First, ensure the requested meeting slot is free on the requestor's calendar
+    if requested_slot_index is not None:
+        requestor_calendar = [
+            event
+            for event in requestor_calendar
+            if _slot_index_for_time(event.start_time) != requested_slot_index
+        ]
+
     # Get the occupied slots on the requestor calendar
     requestor_occupied_slots = _get_occupied_slot_indices(requestor_calendar)
 
@@ -302,6 +314,7 @@ def assemble_tasks(
                 assistant_free,
                 req_rng,
                 min_mutual_free_slots,
+                requested_slot_index=conflict_slot,
             )
 
             # 5e: Generate preferences based on final trimmed calendars.

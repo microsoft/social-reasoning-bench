@@ -29,9 +29,6 @@ class TestHandleModelAliases:
         assert _handle_model_aliases("openai/gpt-4o") == "openai/gpt-4o"
         assert _handle_model_aliases("gemini/gemini-2.0-flash") == "gemini/gemini-2.0-flash"
 
-    def test_trapi_unchanged(self):
-        assert _handle_model_aliases("trapi/gpt-4.1") == "trapi/gpt-4.1"
-
 
 def _make_mock_provider():
     provider = MagicMock()

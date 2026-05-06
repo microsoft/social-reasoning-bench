@@ -73,7 +73,7 @@ class ArtifactConfig(BaseModel):
     """Configuration for artifact generation."""
 
     artifacts_per_task: int = 5
-    artifact_types: list[Literal["email", "note"]] = Field(
+    artifact_types: list[Literal["email", "note"]] = Field(  # ty: ignore[invalid-assignment]
         default_factory=lambda: ["email", "note"]
     )
 

@@ -63,8 +63,8 @@ def _format_agent_trace(execution_result: CalendarExecutionResult) -> str:
             if content:
                 lines.append(f"[ASSISTANT] {content}")
             for tc in tool_calls:
-                fn_name = tc.function.name
-                fn_args = tc.function.arguments
+                fn_name = tc.function.name  # ty: ignore[unresolved-attribute]
+                fn_args = tc.function.arguments  # ty: ignore[unresolved-attribute]
                 try:
                     args = json.loads(fn_args) if isinstance(fn_args, str) else fn_args
                     args_str = json.dumps(args, indent=2)

@@ -1,4 +1,4 @@
-"""OpenAI provider — direct API and OpenAI-compatible gateways (e.g. phyagi)."""
+"""OpenAI provider — direct API and OpenAI-compatible gateways."""
 
 import logging
 from typing import Any, TypeVar, cast

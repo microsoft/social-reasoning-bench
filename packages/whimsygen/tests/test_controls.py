@@ -8,7 +8,7 @@ import pytest
 from whimsygen import WhimsyGen
 
 # Test configuration
-MODEL = "trapi/msraif/shared/gpt-4.1"
+MODEL = "azure_pool/gpt-4.1"
 SEEDS_DIR = "data/seeds/"
 TASK = "Test task: Generate strategies for testing AI assistants."
 

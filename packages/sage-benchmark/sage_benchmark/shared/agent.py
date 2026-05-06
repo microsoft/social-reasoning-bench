@@ -165,7 +165,7 @@ class BaseAgent:
         if len(tool_calls) != 1:
             raise ValueError("Can only call add_tool_call_result after exactly one tool call")
         tc0 = tool_calls[0]
-        tool_call_id = tc0["id"] if isinstance(tc0, dict) else tc0.id
+        tool_call_id = tc0["id"] if isinstance(tc0, dict) else tc0.id  # ty: ignore[unresolved-attribute]
         self._messages.append(
             {
                 "role": "tool",

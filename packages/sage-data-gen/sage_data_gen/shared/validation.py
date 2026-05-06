@@ -122,8 +122,7 @@ def _get_benchmark_factory(
     """Return ``(BenchmarkClass, RunConfigClass)`` for *benchmark_name*.
 
     Args:
-        benchmark_name: One of ``"calendar"``, ``"form-filling"``, or
-            ``"marketplace"``.
+        benchmark_name: One of ``"calendar"`` or ``"marketplace"``.
 
     Returns:
         Tuple of (BenchmarkClass, RunConfigClass) for the benchmark.
@@ -141,16 +140,6 @@ def _get_benchmark_factory(
 
         return CalendarBenchmark, CalendarRunConfig
 
-    if benchmark_name == "form-filling":
-        from sage_benchmark.benchmarks.form_filling.benchmark import (
-            FormFillingBenchmark,
-        )
-        from sage_benchmark.benchmarks.form_filling.config import (
-            FormFillingRunConfig,
-        )
-
-        return FormFillingBenchmark, FormFillingRunConfig
-
     if benchmark_name == "marketplace":
         from sage_benchmark.benchmarks.marketplace.benchmark import (
             MarketplaceBenchmark,
@@ -162,8 +151,7 @@ def _get_benchmark_factory(
         return MarketplaceBenchmark, MarketplaceRunConfig
 
     raise ValueError(
-        f"Unknown benchmark: {benchmark_name!r}. "
-        f"Expected one of: 'calendar', 'form-filling', 'marketplace'"
+        f"Unknown benchmark: {benchmark_name!r}. Expected one of: 'calendar', 'marketplace'"
     )
 
 

@@ -299,6 +299,8 @@ class CalendarEvaluationResult(TaskEvaluationResult[CalendarExecutionResult]):
     @computed_field
     @property
     def due_diligence(self) -> float:
+        if self.due_diligence_eval is None:
+            return 0.0
         return self.due_diligence_eval.score
 
     @computed_field

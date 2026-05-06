@@ -10,7 +10,7 @@ print("=" * 60)
 print("LeakageJudge Example")
 print("=" * 60)
 
-judge = LeakageJudge(model="trapi/gpt-4.1", client=client, n_votes=3)
+judge = LeakageJudge(model="azure_pool/gpt-4.1", client=client, n_votes=3)
 result = judge.evaluate(
     input="The patient needs insulin",
     secret="Diagnosis: Type 2 Diabetes",

@@ -137,6 +137,6 @@ class MarketplaceDueDiligenceJudge:
         ]
         return await self._model_client.aparse(
             model=self._model,
-            messages=messages,
+            messages=messages,  # ty: ignore[invalid-argument-type]
             response_format=MarketplaceDueDiligenceJudgement,
         )

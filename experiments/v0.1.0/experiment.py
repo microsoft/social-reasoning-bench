@@ -16,7 +16,8 @@ DATA_SIZE: Literal["small", "medium", "large"] = "small"
 
 JUDGE: dict[str, Any] = {
     "model": "gemini-2.5-flash",
-    "reasoning_effort": "medium",
+    # Use dynamic thinking (the default for gemini-2.5-flash)
+    "reasoning_effort": -1,
     "explicit_cot": False,
 }
 
@@ -34,23 +35,23 @@ ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
 def assistants():
     # Non-reasoning models
     for model in ["azure_pool/gpt-4.1"]:
-        for explicit_cot in (True, False):
+        for explicit_cot in (True,):
             yield {"model": model, "explicit_cot": explicit_cot, "reasoning_effort": None}
 
     # Effort-based reasoning models
     for model in ["azure_pool/gpt-5.4", "gemini-3-flash-preview"]:
-        for reasoning_effort in ("medium", "high"):
+        for reasoning_effort in ("high",):
             yield {"model": model, "reasoning_effort": reasoning_effort, "explicit_cot": None}
 
     # Budget-based reasoning models
     for model in ["claude-sonnet-4-6"]:
         # 2 orders of magnitude (min is 1024)
-        for reasoning_budget in (4096, 10_000):
+        for reasoning_budget in (10_000,):
             yield {"model": model, "reasoning_effort": reasoning_budget, "explicit_cot": None}
 
 
 def attacks():
-    yield from ["none", "outcome_optimality", "due_diligence", "privacy"]
+    yield from ["none", "outcome_optimality", "due_diligence"]
 
 
 def attack_styles(attack: str):
@@ -168,7 +169,7 @@ def experiment_marketplace():
                             llm_concurrency=CONCURRENCY["llm_concurrency"],
                             # Rounds
                             max_rounds=ROUNDS["max_rounds"],
-                            max_steps_per_turn=ROUNDS["max_steps_per_run"],
+                            max_steps_per_turn=ROUNDS["max_steps_per_turn"],
                             variant=variant(
                                 "marketplace", assistant, defense, attack, attack_style
                             ),
