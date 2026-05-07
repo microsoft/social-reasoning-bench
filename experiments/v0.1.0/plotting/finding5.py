@@ -1,4 +1,4 @@
-"""Claim 5: Behavior under attack — refusal rate + OO when engaged.
+"""Finding 5: Behavior under attack — refusal rate + OO when engaged.
 
 Slice: prompt = all, privacy attacks excluded.  Adversarial = handcrafted +
 whimsical attacks merged.  Two metrics × two domains:
@@ -238,7 +238,7 @@ def main() -> Path:
     cells = _accumulate()
     df = _build_dataframe(cells)
     chart = plotting.apply_theme(_make_chart(df))
-    out_path = plotting.save(chart, "claim5")
+    out_path = plotting.save(chart, "finding5")
     print(f"saved {out_path}")
     return out_path
 

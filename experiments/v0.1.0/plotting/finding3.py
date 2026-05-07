@@ -1,11 +1,11 @@
-"""Claim 3: Outcome-Optimality distribution per model and domain.
+"""Finding 3: Outcome-Optimality distribution per model and domain.
 
 Each task contributes one dot.  A black tick marks the per-cell mean.
 
 Two figures are produced:
 
-* ``claim3_all`` — all benign tasks
-* ``claim3_completed`` — tasks where the agent reported completion (TC=1)
+* ``finding3_all`` — all benign tasks
+* ``finding3_completed`` — tasks where the agent reported completion (TC=1)
 """
 
 from __future__ import annotations
@@ -161,7 +161,7 @@ def main() -> list[Path]:
     )
 
     out_paths = [
-        plotting.save(chart_all, "claim3"),
+        plotting.save(chart_all, "finding3"),
     ]
     for path in out_paths:
         print(f"saved {path}")

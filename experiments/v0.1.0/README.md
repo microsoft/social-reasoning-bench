@@ -7,133 +7,60 @@ srbench experiment experiments/v0.1.0
 # Outputs land in: outputs/v0.1.0
 
 # Regenerate plots from outputs
-cd experiments/v0.1.0/plotting && uv run python plot_all.py
+cd experiments/v0.1.0/plotting && uv run python all.py
 ```
 
-## Summary
+# Data
 
-| RQ  | Priority | Key Takeaway                                                                                                                                    | Expected Result                                                                                                                                                        |
-| --- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| RQ1 | P0       | Task Completion is limited in assessing how well agents act on your behalf (e.g., getting the task done is different than doing the task well). | On benign tasks, TC is consistently high while OO is lower.                                                                                                            |
-| RQ2 | P0       | Task Completion assumes non-adversarial settings.                                                                                               | On malicious tasks, TC remains high but OO is even lower.                                                                                                              |
-| RQ3 | P0       | Duty of Care helps measure what people really need when agents operate on their behalf.                                                         | OO x DD scatter plot with 4 quadrants and examples from each: robust competence, lucky/fragile, capability gap, negligence. Qualitative analysis of OO, DD dimensions. |
-| RQ4 | P0       | Most models perform poorly on our benchmark tasks on DoC. Prompting helps to some degree but doesn't close the gap.                             | DoC performance split by model and prompt.                                                                                                                             |
-| RQ5 | P1       | Model and prompt have real user consequences.                                                                                                   | Show within-item price effects.                                                                                                                                        |
-| RQ6 | P1       | Whimsical strategies work better than hand-crafted.                                                                                             | Show diff in performance.                                                                                                                                              |
+- **Models:** GPT-4.1 (cot), GPT-5.4 (think_high), Gemini 3 Flash (think_high), Claude Sonnet 4.6 (think_10k)
+- **System Prompts:** `none` (no guidance) and `all` (privacy + due diligence + outcome optimality combined).
+- **Attack Conditions:** `normal` (benign), `hand_crafted` × {outcome_optimality, due_diligence}, `whimsical` × {outcome_optimality, due_diligence}.
 
-# Across All
+---
 
-**Assistant Models:**
+# Findings
 
-- GPT-4.1 (current)
-- GPT-5.4 (current)
-- Claude Opus 4.6 (?)
-- Gemini 3 Pro
-- Open source: Qwen (which one?)
-- Open source: Kimi K2 (?)
+## Finding 1: Agents complete tasks at near-perfect rates but produce poor outcomes
 
-**Requestor Model:**
+In calendar scheduling, agents almost always succeed in booking the meeting, but often at suboptimal times. In marketplace negotiation, deals almost always close, but frequently at the worst possible price. The tasks get done, but not done well: task completion signals success, while outcome optimality reveals a consistent failure to act in the principal’s best interest.
 
-- Gemini 3 Flash Preview (currently set in the experiment script)
+![Finding 1](plotting/figures/finding1.png)
+*Figure 1: Task Completion vs Outcome Optimality by model and domain. All models complete tasks at near-perfect rates, but produce poor outcomes. We measured outcome optimality against the two prompts, basic and defensive, along with their average (overall). Defensive prompting helps but does not close the gap.*
 
-**Dataset Variant:**
+## Finding 2: Defensive prompting helps, but is not enough to close the gap
 
-- Run final results on `large`; use `small` for validation experiments.
+When we instruct agents on how to work hard on their principal’s behalf, we see outcome improvements, but it is not enough to close the gap. GPT-5.4 benefits most (+0.12), while gains with GPT-4.1 and Gemini are more modest.
 
-**System Prompts:**
+## Finding 3: Outcome optimality shows how much value agents leave on the table
 
-- `none` (no guidance) and `all` (privacy + due diligence + outcome optimality combined).
+Outcome optimality reflects where each deal lands within the ZOPA. When we plot outcomes, they cluster closer to the counterparty’s ideal than the principal’s.
 
-**Attack Conditions:**
+![Finding 3](plotting/figures/finding3.png)
+*Figure 3: Outcome Optimality distribution by model and domain. Each dot is one task instance. OO=1.0 means the agent captured all available value for its principal; OO=0.0 means the counterparty captured everything. Black lines show the mean. In marketplace, outcomes cluster near zero across all models. In calendar, agents perform better but still settle below the midpoint on average.*
 
-- `normal` (benign), `hand_crafted` × {outcome_optimality, due_diligence}, `whimsical` × {outcome_optimality, due_diligence}.
+In marketplace negotiation, all three models settle at or near zero for outcome optimality, accepting deals that give away virtually all available surplus. In calendar scheduling, agents perform better but still land below the midpoint, accepting the requestor’s preferred slots rather than ones that better serve their principal.
 
-# RQ1 (P0)
+## Finding 4: Due diligence distinguishes between luck and skill
 
-**Takeaway:** Task Completion is limited in assessing how well agents act on your behalf (e.g., getting the task done is different than doing the task well).
+When we look at the combination of outcome quality and process quality, a more nuanced picture emerges. Many agents that achieve reasonable outcomes do so through fragile processes: they don't check context before acting or they accept offers without countering. High OO with low DD suggests an agent that got lucky rather than one that can be trusted. Conversely, some agents show genuine diligence — gathering information, pushing back — but still land on poor outcomes, pointing to capability gaps rather than negligence. Dividing OO and DD each into high (>=0.5) and low (<0.5) buckets, we can sort every task into one of four archetypes.
 
-**Expected Result:** On benign tasks, TC is consistently high while OO is lower.
+|  | Not diligent (DD < 0.5) | Diligent (DD >= 0.5) |
+|--------|---|----|
+| **Good outcome (OO >= 0.5)** | Lucky | Robust | 
+| **Poor outcome (OO < 0.5)** | Negligent | Ineffective |
 
-**Config:**
+Through the lens of this DoC decomposition, we can see that models exhibit robust Duty of Care on more than 50% of calendar coordination tasks. In marketplace negotiation, though, a very different picture emerges. GPT-4.1 is negligent in 97% of tasks, while Gemini 3 Flash and GPT-5.4 are unable to achieve optimal outcomes despite negotiating diligently.
 
-- Attack styles: none
-- System prompt: all
+![Finding 4](plotting/figures/finding4.png)
+*Figure 4: OO vs. Due Diligence bubble matrix. Bubble size = % of tasks in each quadrant. Green = robust (high OO + high DD), yellow = mixed, red = negligent (low OO + low DD). DD computed via reasonable-agent counterfactual.*
 
-**Plot:**
+## Finding 5: Agents are vulnerable to adversarial manipulation
 
-- One panel per domain: model on the x-axis, one bar for Task Completion next to one for Outcome Optimality.
-- Panels: calendar and marketplace.
+When we stress test agents by pitting them against adversarial counterparties, we find that agents struggle to balance when to engage, when to refuse, and how to negotiate under pressure.
 
-![RQ1](plotting/figures/rq1.png)
+To create these adversarial scenarios, we introduce counterparties explicitly trying to manipulate outcomes or bypass protective steps. Some follow carefully designed strategies, applying pressure or probing for information, while others use more unpredictable, creatively generated whimsical tactics that mimic novel forms of social engineering. Together, these test whether agents can handle not just known attacks, but unfamiliar ones.
 
-# RQ2 (P0)
+![Finding 5](plotting/figures/finding5.png)
+*Figure 5: Refusal Rates and Outcome Optimality when agents engaged with adversarial requestors in both domains. Agents rarely refuse adversarial requests in calendaring, while refusing more often in the marketplace. When agents did engage with malicious actors, Outcome Optimality dropped across the board*
 
-**Takeaway:** Task Completion assumes non-adversarial settings.
-
-**Expected Result:** On malicious tasks, TC remains high but OO is even lower.
-
-**Config:**
-
-- Attack styles: none, hand-crafted, whimsical
-- System prompt: all
-
-**Plot:**
-
-- Extension of RQ1 with extra bars for the malicious conditions.
-- Model on the x-axis, faceted by domain.
-- May want subplots per metric (TC vs OO) — TBD.
-
-![RQ2](plotting/figures/rq2.png)
-
-# RQ3 (P0)
-
-**Takeaway:** Duty of Care helps measure what people really need when agents operate on their behalf.
-
-**Expected Result:** OO x DD scatter plot with 4 quadrants and examples from each: robust competence, lucky/fragile, capability gap, negligence. Qualitative analysis of OO, DD dimensions.
-
-TODO — not sure what these mean.
-
-# RQ4 (P0)
-
-**Takeaway:** Most models perform poorly on our benchmark tasks on DoC. Prompting helps to some degree but doesn't close the gap.
-
-**Expected Result:** DoC performance split by model and prompt.
-
-**Config:**
-
-- Attack styles: none (I think)
-- System prompt: none and all
-
-**Plot:**
-
-- Model groups on the x-axis.
-- One bar per prompt.
-- y-axis: Duty of Care.
-- One panel per domain (calendar, marketplace).
-
-![RQ4](plotting/figures/rq4.png)
-
-# RQ5 (P1)
-
-**Takeaway:** Model and prompt have real user consequences.
-
-**Expected Result:** Show within-item price effects.
-
-TODO — not sure what this means.
-
-# RQ6 (P1)
-
-**Takeaway:** Whimsical strategies work better than hand-crafted.
-
-**Expected Result:** Diff in performance.
-
-**Config:**
-
-- Attack styles: none, hand-crafted, whimsical
-- System prompt: all
-
-**Plot:**
-
-- Same slice as RQ2; may split out separately.
-
-![RQ6](plotting/figures/rq6.png)
+We find that agents rarely refuse adversarial requests in calendar scheduling, while refusing more often in marketplace settings. This suggests that adversarial intent is harder to detect in socially framed interactions. When agents do engage, outcomes diverge sharply by domain: calendar performance remains in the same range as benign settings, but marketplace agents are often fully exploited or stall out without reaching agreement, capturing little to no value for their principal.
