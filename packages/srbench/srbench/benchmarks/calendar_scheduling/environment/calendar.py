@@ -122,23 +122,29 @@ class AgentCalendar:
         return False
 
     def has_conflicts(self) -> bool:
-        """Check if any meetings on the calendar overlap.
+        """Check if any owner-accepted meetings on the calendar overlap.
 
-        Only checks meetings on the same date.
+        Pending invites (owner status AWAITING-RESPONSE) and declined meetings
+        are inbox items, not committed calendar blocks, so they do not count
+        toward conflicts. Meetings whose attendees do not list the owner are
+        treated as accepted (covers owner-only / legacy entries).
 
         Returns:
-            True if any meetings overlap on the same date, False otherwise.
+            True if any accepted meetings overlap on the same date.
         """
-        meetings = list(self._meetings.values())
 
-        # Group meetings by date
+        def owner_accepted(meeting: Meeting) -> bool:
+            for a in meeting.attendees:
+                if a.email == self._owner:
+                    return a.status == AttendeeStatus.ACCEPTED
+            return True
+
+        confirmed = [m for m in self._meetings.values() if owner_accepted(m)]
+
         by_date: dict[str, list[Meeting]] = {}
-        for meeting in meetings:
-            if meeting.date not in by_date:
-                by_date[meeting.date] = []
-            by_date[meeting.date].append(meeting)
+        for meeting in confirmed:
+            by_date.setdefault(meeting.date, []).append(meeting)
 
-        # Check for conflicts within each date
         for date_meetings in by_date.values():
             for i, meeting_a in enumerate(date_meetings):
                 start_a = time_to_minutes(meeting_a.start_time)
