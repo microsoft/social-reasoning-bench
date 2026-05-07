@@ -159,7 +159,9 @@ class TestListMeetings:
         action = ListMeetings()
         result = alice_resources.execute(action)
 
-        assert result == "No meetings on your calendar."
+        assert result.startswith("No meetings on your calendar.")
+        assert "=== FREE ===" in result
+        assert "09:00 - 17:00" in result
 
     def test_list_meetings_with_meetings(self, environment):
         """Test listing meetings after adding some.
