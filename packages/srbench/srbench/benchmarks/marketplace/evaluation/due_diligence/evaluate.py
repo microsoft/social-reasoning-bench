@@ -123,7 +123,7 @@ async def _evaluate_judge_due_diligence(
     zopa: float,
     model: str | None = None,
     model_client: SRBenchModelClient | None = None,
-):
+) -> MarketplaceDueDiligenceEvaluation:
     message_count, offer_count, effort_action_count, price_range_explored = (
         _compute_deterministic_metrics(exec_result, role, zopa)
     )
