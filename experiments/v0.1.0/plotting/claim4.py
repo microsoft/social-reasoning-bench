@@ -73,16 +73,12 @@ def _collect_binned_tasks() -> list[BinnedTask]:
     benign_all_prompt = loader.RunDimsFilter(defense_prompt="all", include_attacks=False)
     for run in loader.iter_runs(filters=benign_all_prompt):
         for result in run.iter_results():
-            oo = benign_outcome_optimality(result)
-            dd = reasonable_score(result)
-            if oo is None or dd is None:
-                continue
             binned.append(
                 BinnedTask(
                     domain_label=run.dims.domain_label,
                     model_label=run.dims.model_label,
-                    oo_bin=_bin(oo, high_label=OO_HIGH, low_label=OO_LOW),
-                    dd_bin=_bin(dd, high_label=DD_HIGH, low_label=DD_LOW),
+                    oo_bin=_bin(result.outcome_optimality, high_label=OO_HIGH, low_label=OO_LOW),
+                    dd_bin=_bin(result.due_diligence, high_label=DD_HIGH, low_label=DD_LOW),
                 )
             )
 
@@ -219,7 +215,7 @@ def _make_chart(df: pd.DataFrame) -> alt.FacetChart:
         )
         .properties(
             title=plotting.make_title(
-                "Claim 4: Outcome Optimality vs. Due Diligence (Benign Tasks)",
+                "Outcome Optimality vs. Due Diligence (Benign Tasks)",
                 "Bubble size = % of tasks · DD = reasonable-agent counterfactual",
             )
         )

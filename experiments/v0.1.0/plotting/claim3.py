@@ -68,20 +68,9 @@ def _points_to_df(points: list[TaskPoint]) -> pd.DataFrame:
 
 # ── Plot ─────────────────────────────────────────────────────────
 
-
-# Non-semantic series colors — sage/plum/teal are reserved for cross-series
-# comparisons where no value judgment is implied.  Amber and rose are saved
-# for semantic uses (mixed/bad outcomes; see claim4 cells, claim5 adversarial).
-MODEL_SERIES_COLORS: list[str] = [
-    plotting.SERIES.sage,
-    plotting.SERIES.plum,
-    plotting.SERIES.teal,
-]
-
-
 def _make_chart(df: pd.DataFrame, title: str, subtitle: str) -> alt.FacetChart:
     model_order = sorted(df["model_label"].unique())
-    color_range = MODEL_SERIES_COLORS[: len(model_order)]
+    color_range = plotting.PALETTE.series[: len(model_order)]
 
     base = alt.Chart(df).transform_joinaggregate(
         mean_oo="mean(oo)",
@@ -165,7 +154,7 @@ def main() -> list[Path]:
     chart_all = plotting.apply_theme(
         _make_chart(
             df_all,
-            "Claim 3: OO Distribution on Benign Tasks",
+            "OO Distribution on Benign Tasks",
             "Each dot = one task · black tick = mean",
         )
     )

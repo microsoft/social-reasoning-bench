@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import altair as alt
@@ -49,12 +49,13 @@ class Gray:
 class Series:
     """Saturated accents — primary chart palette."""
 
-    sage: str = "#1bab49"
-    teal: str = "#00a5da"
-    plum: str = "#9973ef"
-    amber: str = "#e7c100"
-    rose: str = "#e62e23"
-
+    sage: str = "#6b9e78"
+    tile: str = "#3d8aa8"
+    apricot: str = "#e08545"
+    guard: str = "#d44545"
+    shell: str = "#e8b8a8"
+    sand: str = "#dcd4a8"
+    honey: str = "#e8c878"
 
 SAGE = Sage()
 GRAY = Gray()
@@ -71,21 +72,23 @@ class Palette:
 
     # Neutral baselines — same gray everywhere a "reference / non-adversarial"
     # bar appears (task completion in claim1, benign requestor in claim5).
-    task_completion: str = GRAY.g400
-    benign: str = GRAY.g400
+    task_completion: str = SERIES.sand
+    benign: str = SERIES.sand
 
     # Outcome Optimality breakdown — non-semantic series colors
     oo_overall: str = SERIES.sage
-    oo_basic: str = SERIES.teal
-    oo_defensive: str = SERIES.plum
+    oo_basic: str = SERIES.tile
+    oo_defensive: str = SERIES.apricot
 
     # Adversarial condition
-    adversarial: str = SERIES.rose
+    adversarial: str = SERIES.guard
 
     # OO×DD bubble cells
     cell_robust: str = SERIES.sage
-    cell_mixed: str = SERIES.amber
-    cell_negligent: str = SERIES.rose
+    cell_mixed: str = SERIES.honey
+    cell_negligent: str = SERIES.guard
+
+    series: list[str] = field(default_factory=lambda: [SERIES.sage, SERIES.tile, SERIES.apricot, SERIES.guard, SERIES.shell])
 
 
 PALETTE = Palette()

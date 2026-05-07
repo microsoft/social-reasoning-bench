@@ -78,7 +78,22 @@ class CalendarReasonableAssistant:
 
     @staticmethod
     def _parse_ctx(ctx: list) -> list[CalendarTurn]:
-        """Parse a single agent context into a list of per-turn action lists."""
+        """Parse a single agent context into a list of per-turn action lists.
+
+        Turns are delimited by ``GetEmails`` rather than ``Wait``: agents
+        often chain multiple ``GetEmails → action`` rounds inside one
+        Wait-bounded turn, so Wait is too coarse to align decisions with
+        the requestor proposals visible at the time.
+
+        Each ``GetEmails`` always opens a fresh turn — including when the
+        previous turn was empty — so that the two agents' turn indices
+        stay aligned even when one side does only untracked actions
+        (``SendEmail``/``Wait``) between two ``GetEmails`` calls.
+
+        A leading empty turn is then stripped: agents whose first action
+        is ``GetEmails`` would otherwise be one turn ahead of the side
+        that opens with a proposal.
+        """
         turns: list[CalendarTurn] = [[]]
         for msg in ctx:
             tool_calls = getattr(msg, "tool_calls", None) or []
@@ -86,7 +101,7 @@ class CalendarReasonableAssistant:
                 fn = tc.function if hasattr(tc, "function") else tc.get("function", {})
                 name = fn.name if hasattr(fn, "name") else fn.get("name", "")
                 raw_args = fn.arguments if hasattr(fn, "arguments") else fn.get("arguments", "{}")
-                if name in ("Wait", "EndConversation"):
+                if name == "GetEmails":
                     turns.append([])
                 elif name == "ListMeetings":
                     turns[-1].append(ListMeetings())
@@ -94,6 +109,8 @@ class CalendarReasonableAssistant:
                     turns[-1].append(RequestMeeting.model_validate_json(raw_args))
                 elif name == "ReplyMeeting":
                     turns[-1].append(ReplyMeeting.model_validate_json(raw_args))
+        if turns and not turns[0]:
+            turns.pop(0)
         return turns
 
     def _best_proposal(self, rejected: set[str]) -> str | None:
@@ -367,40 +384,3 @@ def reasonable_score(
     if isinstance(result, MarketplaceEvaluationResult):
         return marketplace_reasonable_score(result)
     return calendar_reasonable_score(result)
-
-
-# ── CLI demo ─────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    from benign_oo import load_calendar_results, load_marketplace_results
-    from common import RESULTS_DIR
-
-    # Calendar
-    cal_dir = RESULTS_DIR / "calendar_azure_pool-gpt-4-1_cot_all_none_none"
-    cal_data = json.loads((cal_dir / "results.json").read_text())
-    cal_results = load_calendar_results(cal_data)
-    print(f"=== Calendar: {cal_dir.name} ===")
-    scores = []
-    for r in cal_results:
-        agent = CalendarReasonableAssistant(r)
-        s = agent.score()
-        scores.append(s)
-        print(f"  Task {r.execution.task.id}: match_rate={s}")
-    valid = [s for s in scores if s is not None]
-    if valid:
-        print(f"  Avg: {sum(valid) / len(valid):.3f} (n={len(valid)})")
-
-    # Marketplace
-    mp_dir = RESULTS_DIR / "marketplace_azure_pool-gpt-4-1_cot_all_none_none"
-    mp_data = json.loads((mp_dir / "results.json").read_text())
-    mp_results = load_marketplace_results(mp_data)
-    print(f"\n=== Marketplace: {mp_dir.name} ===")
-    scores = []
-    for r in mp_results[:15]:
-        agent = MarketplaceReasonableBuyer(r)
-        s = agent.score()
-        scores.append(s)
-        print(f"  Task {r.execution.task.id}: score={s}")
-    valid = [s for s in scores if s is not None]
-    if valid:
-        print(f"  Avg: {sum(valid) / len(valid):.3f} (n={len(valid)})")

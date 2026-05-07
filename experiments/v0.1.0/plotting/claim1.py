@@ -179,7 +179,7 @@ def _make_chart(df: pd.DataFrame) -> alt.FacetChart:
         .resolve_axis(x="independent")
         .properties(
             title=plotting.make_title(
-                "Claim 1: Task Completion vs. Outcome Optimality",
+                "Task Completion vs. Outcome Optimality",
                 "Benign tasks · prompt breakdown shows defensive vs. basic system prompt",
             )
         )

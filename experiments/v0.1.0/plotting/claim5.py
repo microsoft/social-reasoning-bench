@@ -225,7 +225,7 @@ def _make_chart(df: pd.DataFrame) -> alt.FacetChart:
         .resolve_axis(x="independent")
         .properties(
             title=plotting.make_title(
-                "Claim 5: Behavior Under Attack",
+                "Behavior Under Attack",
                 "Adversarial = handcrafted + whimsical (privacy excluded) · prompt = all",
             )
         )
