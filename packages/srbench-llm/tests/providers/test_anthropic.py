@@ -289,16 +289,31 @@ class TestStructuredOutputTool:
         assert "input_schema" in tool
 
 
+def _mock_stream_returning(response: anthropic.types.Message) -> MagicMock:
+    """Build a mock for ``client.messages.stream(**kwargs)``.
+
+    The provider uses ``async with client.messages.stream(...) as stream`` then
+    ``await stream.get_final_message()``, so the mock must return an async
+    context manager (not a coroutine, which is what AsyncMock would produce).
+    """
+    stream_obj = MagicMock()
+    stream_obj.get_final_message = AsyncMock(return_value=response)
+    cm = MagicMock()
+    cm.__aenter__ = AsyncMock(return_value=stream_obj)
+    cm.__aexit__ = AsyncMock(return_value=None)
+    return MagicMock(return_value=cm)
+
+
 class TestAnthropicProviderComplete:
     @pytest.mark.asyncio
     @patch("srbench_llm.providers.anthropic.anthropic.AsyncAnthropic")
     async def test_complete_basic(self, mock_cls):
-        mock_client = AsyncMock()
+        mock_client = MagicMock()
         mock_cls.return_value = mock_client
-        mock_client.messages.create.return_value = _make_anthropic_response(
-            content=[
-                anthropic.types.TextBlock(type="text", text="hi"),
-            ]
+        mock_client.messages.stream = _mock_stream_returning(
+            _make_anthropic_response(
+                content=[anthropic.types.TextBlock(type="text", text="hi")]
+            )
         )
 
         provider = AnthropicProvider(api_key="test-key")
@@ -321,18 +336,20 @@ class TestAnthropicProviderComplete:
         class Answer(BaseModel):
             text: str
 
-        mock_client = AsyncMock()
+        mock_client = MagicMock()
         mock_cls.return_value = mock_client
-        mock_client.messages.create.return_value = _make_anthropic_response(
-            content=[
-                anthropic.types.ToolUseBlock(
-                    type="tool_use",
-                    id="tu_1",
-                    name="output_Answer",
-                    input={"text": "hello"},
-                ),
-            ],
-            stop_reason="tool_use",
+        mock_client.messages.stream = _mock_stream_returning(
+            _make_anthropic_response(
+                content=[
+                    anthropic.types.ToolUseBlock(
+                        type="tool_use",
+                        id="tu_1",
+                        name="output_Answer",
+                        input={"text": "hello"},
+                    ),
+                ],
+                stop_reason="tool_use",
+            )
         )
 
         provider = AnthropicProvider()
@@ -344,6 +361,6 @@ class TestAnthropicProviderComplete:
 
         assert isinstance(result, Answer)
         assert result.text == "hello"
-        call_kwargs = mock_client.messages.create.call_args.kwargs
+        call_kwargs = mock_client.messages.stream.call_args.kwargs
         assert call_kwargs["tool_choice"]["type"] == "tool"
         assert call_kwargs["tool_choice"]["name"] == "output_Answer"
