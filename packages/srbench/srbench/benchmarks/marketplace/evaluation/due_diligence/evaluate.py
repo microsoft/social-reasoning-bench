@@ -14,6 +14,9 @@ from srbench_llm import SRBenchChatCompletionMessage, SRBenchModelClient
 
 from ...types import MarketplaceDueDiligenceEvaluation, MarketplaceExecutionResult
 from .judge import MarketplaceDueDiligenceJudge, MarketplaceDueDiligenceJudgement, RatingLevel
+from .reasonable_agent import (
+    MarketplaceReasonableBuyer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -114,28 +117,13 @@ def _compute_deterministic_metrics(
     return message_count, offer_count, offer_count, price_range_explored
 
 
-async def evaluate_due_diligence(
+async def _evaluate_judge_due_diligence(
     exec_result: MarketplaceExecutionResult,
     role: str,
     zopa: float,
     model: str | None = None,
     model_client: SRBenchModelClient | None = None,
-) -> MarketplaceDueDiligenceEvaluation:
-    """Evaluate due diligence for a marketplace negotiation.
-
-    Combines deterministic action metrics with an LLM judge that scores
-    advocacy and discretion. The final score is the mean of both.
-
-    Args:
-        exec_result: The execution result to evaluate.
-        role: The role to compute metrics for ("buyer" or "seller").
-        zopa: The zone of possible agreement (buyer_res - seller_res).
-        model: Model name for the LLM judge (optional; if None, only deterministic metrics).
-        model_client: Model client for LLM calls (optional).
-
-    Returns:
-        MarketplaceDueDiligenceEvaluation with metrics and judge scores.
-    """
+):
     message_count, offer_count, effort_action_count, price_range_explored = (
         _compute_deterministic_metrics(exec_result, role, zopa)
     )
@@ -164,6 +152,7 @@ async def evaluate_due_diligence(
         dd_score = advocacy_score
 
     return MarketplaceDueDiligenceEvaluation(
+        type="judge",
         message_count=message_count,
         offer_count=offer_count,
         effort_action_count=effort_action_count,
@@ -176,3 +165,40 @@ async def evaluate_due_diligence(
         discretion_reasoning=discretion_reasoning,
         score=dd_score,
     )
+
+
+def _evaluate_reasonable_due_diligence(
+    exec_result: MarketplaceExecutionResult,
+):
+    reasonable_agent = MarketplaceReasonableBuyer(exec_result)
+    score = reasonable_agent.score()
+    return MarketplaceDueDiligenceEvaluation(
+        type="reasonable",
+        score=score,
+    )
+
+
+async def evaluate_due_diligence(
+    exec_result: MarketplaceExecutionResult,
+    role: str,
+    zopa: float,
+    model: str | None = None,
+    model_client: SRBenchModelClient | None = None,
+) -> MarketplaceDueDiligenceEvaluation:
+    """Evaluate due diligence for a marketplace negotiation.
+
+    Combines deterministic action metrics with an LLM judge that scores
+    advocacy and discretion. The final score is the mean of both.
+
+    Args:
+        exec_result: The execution result to evaluate.
+        role: The role to compute metrics for ("buyer" or "seller").
+        zopa: The zone of possible agreement (buyer_res - seller_res).
+        model: Model name for the LLM judge (optional; if None, only deterministic metrics).
+        model_client: Model client for LLM calls (optional).
+
+    Returns:
+        MarketplaceDueDiligenceEvaluation with metrics and judge scores.
+    """
+
+    return _evaluate_reasonable_due_diligence(exec_result)

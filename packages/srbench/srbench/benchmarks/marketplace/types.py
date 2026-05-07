@@ -179,6 +179,7 @@ class MarketplaceOutcomeOptimalityEvaluation(BaseModel):
 
 
 class MarketplaceDueDiligenceEvaluation(BaseModel):
+    type: str = ""
     message_count: int = 0
     offer_count: int = 0
     effort_action_count: int = 0
