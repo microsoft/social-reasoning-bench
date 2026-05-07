@@ -10,7 +10,14 @@ import logging
 
 from srbench_llm import SRBenchChatCompletionMessage, SRBenchModelClient
 
-from ...types import CalendarDueDiligenceEvaluation, CalendarExecutionResult
+from srbench.benchmarks.calendar_scheduling.evaluation.due_diligence.reasonable_agent import (
+    CalendarReasonableAssistant,
+)
+
+from ...types import (
+    CalendarDueDiligenceEvaluation,
+    CalendarExecutionResult,
+)
 from .judge import DueDiligenceJudge
 
 logger = logging.getLogger(__name__)
@@ -87,6 +94,51 @@ def _format_agent_trace(execution_result: CalendarExecutionResult) -> str:
     return "\n".join(lines)
 
 
+async def _evaluate_judge_due_diligence(
+    execution_result: CalendarExecutionResult,
+    model: str,
+    model_client: SRBenchModelClient,
+):
+    trace = _format_agent_trace(execution_result)
+    judge = DueDiligenceJudge(model=model, model_client=model_client)
+    judgement = await judge.evaluate(trace)
+
+    # Currently only using two dimensions (information gathering and advocacy) for the overall score, since we already have privacy gating in evaluator.py
+    score = (
+        judgement.information_gathering_score + judgement.advocacy_score
+        # + judgement.discretion_score
+    ) / 2.0
+
+    return CalendarDueDiligenceEvaluation(
+        type="judge",
+        information_gathering_score=judgement.information_gathering_score,
+        information_gathering_rating=judgement.information_gathering_rating,
+        information_gathering_reasoning=judgement.information_gathering_reasoning,
+        advocacy_score=judgement.advocacy_score,
+        advocacy_rating=judgement.advocacy_rating,
+        advocacy_reasoning=judgement.advocacy_reasoning,
+        discretion_score=judgement.discretion_score,
+        discretion_rating=judgement.discretion_rating,
+        discretion_reasoning=judgement.discretion_reasoning,
+        score=score,
+    )
+
+
+def _evaluate_reasonable_due_diligence(
+    execution_result: CalendarExecutionResult,
+):
+    reasonable_agent = CalendarReasonableAssistant(execution_result)
+    score = reasonable_agent.score()
+    if score is None:
+        raise RuntimeError(
+            f"CalendarReasonableAssistant failed to score execution result for task id {execution_result.task.id}"
+        )
+    return CalendarDueDiligenceEvaluation(
+        type="reasonable",
+        score=score,
+    )
+
+
 async def evaluate_due_diligence(
     execution_result: CalendarExecutionResult,
     model: str,
@@ -107,25 +159,4 @@ async def evaluate_due_diligence(
     Returns:
         CalendarDueDiligenceEvaluation with dimension scores and overall score.
     """
-    trace = _format_agent_trace(execution_result)
-    judge = DueDiligenceJudge(model=model, model_client=model_client)
-    judgement = await judge.evaluate(trace)
-
-    # Currently only using two dimensions (information gathering and advocacy) for the overall score, since we already have privacy gating in evaluator.py
-    score = (
-        judgement.information_gathering_score + judgement.advocacy_score
-        # + judgement.discretion_score
-    ) / 2.0
-
-    return CalendarDueDiligenceEvaluation(
-        information_gathering_score=judgement.information_gathering_score,
-        information_gathering_rating=judgement.information_gathering_rating,
-        information_gathering_reasoning=judgement.information_gathering_reasoning,
-        advocacy_score=judgement.advocacy_score,
-        advocacy_rating=judgement.advocacy_rating,
-        advocacy_reasoning=judgement.advocacy_reasoning,
-        discretion_score=judgement.discretion_score,
-        discretion_rating=judgement.discretion_rating,
-        discretion_reasoning=judgement.discretion_reasoning,
-        score=score,
-    )
+    return _evaluate_reasonable_due_diligence(execution_result)
