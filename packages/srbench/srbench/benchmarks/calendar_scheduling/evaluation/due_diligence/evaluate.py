@@ -128,7 +128,9 @@ def _evaluate_reasonable_due_diligence(
     execution_result: CalendarExecutionResult,
 ):
     reasonable_agent = CalendarReasonableAssistant(execution_result)
-    score = reasonable_agent.score() or 0
+    score = reasonable_agent.score()
+    if score is None:
+        raise RuntimeError(f"CalendarReasonableAssistant failed to score execution result for task id {execution_result.task.id}")
     return CalendarDueDiligenceEvaluation(
         type="reasonable",
         score=score,
