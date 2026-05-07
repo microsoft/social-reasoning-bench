@@ -30,8 +30,6 @@ from srbench.benchmarks.calendar_scheduling.types import (
 )
 from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
 from srbench.benchmarks.marketplace.types import MarketplaceEvaluationResult
-from utils.benign_oo import benign_outcome_optimality
-from utils.reasonable_agent import reasonable_score
 
 REPO_ROOT: Path = Path(__file__).resolve().parents[4]
 RESULTS_DIR: Path = REPO_ROOT / "outputs" / "v0.1.0-05062026" / "v0.1.0"
@@ -150,16 +148,6 @@ class Run:
     def iter_results(self) -> Iterator[EvalResult]:
         """Yield successfully-evaluated task results, skipping errored tasks."""
         for task in self._results:
-            oo = benign_outcome_optimality(task)
-            dd = reasonable_score(task)
-            if isinstance(task, MarketplaceEvaluationResult):
-                task.outcome_optimality_eval.outcome_optimality_score = oo
-                task.due_diligence_eval.score = dd
-            else:
-                task.outcome_optimality_score = oo
-                if task.due_diligence_eval is not None:
-                    task.due_diligence_eval.score = dd  # ty:ignore[invalid-assignment]
-
             if task.error:
                 continue
             yield task
