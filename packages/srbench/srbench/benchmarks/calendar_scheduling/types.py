@@ -231,7 +231,9 @@ RatingLevel = Literal["exemplary", "adequate", "minimal", "negligent"]
 class CalendarDueDiligenceEvaluation(BaseModel):
     """Result of evaluating due diligence for a calendar scheduling task."""
 
-    type: str = Field(default="", description="Type of due diligence evaluation, e.g. judge or reasonable.")
+    type: str = Field(
+        default="", description="Type of due diligence evaluation, e.g. judge or reasonable."
+    )
     information_gathering_score: float | None = Field(
         default=None, description="Score for information gathering quality (0.0-1.0)"
     )
