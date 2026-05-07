@@ -136,7 +136,7 @@ def _make_chart(df: pd.DataFrame) -> alt.FacetChart:
     color_range = [METRIC_COLORS[name] for name in METRIC_ORDER]
 
     base = alt.Chart(df).encode(
-        x=alt.X("model_label:N", title=None, axis=alt.Axis(labelAngle=-30)),
+        x=alt.X("model_label:N", title=None),
         y=alt.Y(
             "score:Q",
             title=None,

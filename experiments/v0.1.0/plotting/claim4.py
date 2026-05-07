@@ -23,8 +23,6 @@ from pathlib import Path
 import altair as alt
 import pandas as pd
 from utils import loader, plotting
-from utils.benign_oo import benign_outcome_optimality
-from utils.reasonable_agent import reasonable_score
 
 # ── Bin labels and palette ───────────────────────────────────────
 

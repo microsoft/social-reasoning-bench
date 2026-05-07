@@ -55,7 +55,8 @@ class Series:
     guard: str = "#d44545"
     shell: str = "#e8b8a8"
     sand: str = "#dcd4a8"
-    honey: str = "#e8c878"
+    flare: str = "#f5c518"
+
 
 SAGE = Sage()
 GRAY = Gray()
@@ -85,10 +86,18 @@ class Palette:
 
     # OO×DD bubble cells
     cell_robust: str = SERIES.sage
-    cell_mixed: str = SERIES.honey
+    cell_mixed: str = SERIES.flare
     cell_negligent: str = SERIES.guard
 
-    series: list[str] = field(default_factory=lambda: [SERIES.sage, SERIES.tile, SERIES.apricot, SERIES.guard, SERIES.shell])
+    series: list[str] = field(
+        default_factory=lambda: [
+            SERIES.sage,
+            SERIES.tile,
+            SERIES.apricot,
+            SERIES.guard,
+            SERIES.shell,
+        ]
+    )
 
 
 PALETTE = Palette()
@@ -113,6 +122,9 @@ def make_title(text: str, subtitle: str = "") -> alt.TitleParams:
 ThemableChart = alt.Chart | alt.LayerChart | alt.HConcatChart | alt.FacetChart
 
 
+_MULTILINE_LABEL_EXPR = "split(datum.label, '\\n')"
+
+
 def apply_theme(chart: ThemableChart) -> ThemableChart:
     """Apply consistent typography and axis styling."""
     return (
@@ -125,6 +137,10 @@ def apply_theme(chart: ThemableChart) -> ThemableChart:
             grid=False,
             domainColor="#000",
             tickColor="#000",
+        )
+        .configure_axisX(
+            labelExpr=_MULTILINE_LABEL_EXPR,
+            labelAngle=0,
         )
         .configure_axisY(
             labelFontSize=11,
@@ -159,6 +175,7 @@ def apply_theme(chart: ThemableChart) -> ThemableChart:
             labelFontSize=12,
             titleFontSize=12,
             labelFontWeight="bold",
+            labelExpr=_MULTILINE_LABEL_EXPR,
         )
     )
 

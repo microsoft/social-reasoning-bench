@@ -68,6 +68,7 @@ def _points_to_df(points: list[TaskPoint]) -> pd.DataFrame:
 
 # ── Plot ─────────────────────────────────────────────────────────
 
+
 def _make_chart(df: pd.DataFrame, title: str, subtitle: str) -> alt.FacetChart:
     model_order = sorted(df["model_label"].unique())
     color_range = plotting.PALETTE.series[: len(model_order)]
@@ -82,7 +83,6 @@ def _make_chart(df: pd.DataFrame, title: str, subtitle: str) -> alt.FacetChart:
             "model_label:N",
             title=None,
             sort=model_order,
-            axis=alt.Axis(labelAngle=-30),
         ),
         xOffset=alt.XOffset(
             "jitter:Q",
@@ -92,6 +92,7 @@ def _make_chart(df: pd.DataFrame, title: str, subtitle: str) -> alt.FacetChart:
             "oo:Q",
             title="Outcome Optimality",
             scale=alt.Scale(domain=[-0.05, 1.05]),
+            axis=alt.Axis(grid=True, gridColor=plotting.GRAY.g200),
         ),
         color=alt.Color(
             "model_label:N",

@@ -23,13 +23,12 @@ from sage_benchmark.benchmarks.calendar_scheduling.types import (
 )
 from sage_benchmark.benchmarks.marketplace.types import MarketplaceEvaluationResult
 from utils import loader, plotting
-from utils.benign_oo import benign_outcome_optimality
 
 # ── Series definitions ───────────────────────────────────────────
 
 
-CONDITION_BENIGN = "Benign Requestor"
-CONDITION_ADVERSARIAL = "Adversarial Requestor"
+CONDITION_BENIGN = "Benign Counterparty"
+CONDITION_ADVERSARIAL = "Adversarial Counterpart"
 
 CONDITION_ORDER: list[str] = [CONDITION_BENIGN, CONDITION_ADVERSARIAL]
 CONDITION_COLORS: dict[str, str] = {
@@ -57,14 +56,14 @@ def _classify(result: loader.EvalResult, max_rounds: int) -> TaskOutcome:
         deal_reached = result.execution.outcome.deal_reached
         ended_by = result.execution.outcome.ended_by or ""
         if deal_reached:
-            return TaskOutcome(refused=False, engaged_oo=benign_outcome_optimality(result))
+            return TaskOutcome(refused=False, engaged_oo=result.outcome_optimality)
         if ended_by == "max_rounds":
             return TaskOutcome(refused=False, engaged_oo=0.0)
         return TaskOutcome(refused=True, engaged_oo=None)
 
     if isinstance(result, CalendarEvaluationResult):
         if result.scheduled_meeting is not None:
-            return TaskOutcome(refused=False, engaged_oo=benign_outcome_optimality(result))
+            return TaskOutcome(refused=False, engaged_oo=result.outcome_optimality)
         if result.execution.rounds_completed >= max_rounds:
             return TaskOutcome(refused=False, engaged_oo=0.0)
         return TaskOutcome(refused=True, engaged_oo=None)
@@ -175,7 +174,7 @@ def _make_chart(df: pd.DataFrame) -> alt.FacetChart:
     color_range = [CONDITION_COLORS[name] for name in CONDITION_ORDER]
 
     base = alt.Chart(df).encode(
-        x=alt.X("model_label:N", title=None, axis=alt.Axis(labelAngle=-30)),
+        x=alt.X("model_label:N", title=None),
         y=alt.Y(
             "score:Q",
             title=None,
@@ -207,7 +206,7 @@ def _make_chart(df: pd.DataFrame) -> alt.FacetChart:
 
     return (
         (bars + labels)
-        .properties(width=260, height=180)
+        .properties(width=340, height=180)
         .facet(
             row=alt.Row(
                 "domain:N",

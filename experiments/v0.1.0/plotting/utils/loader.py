@@ -30,9 +30,8 @@ from sage_benchmark.benchmarks.calendar_scheduling.types import (
 )
 from sage_benchmark.benchmarks.marketplace.config import MarketplaceRunConfig
 from sage_benchmark.benchmarks.marketplace.types import MarketplaceEvaluationResult
-
-from .benign_oo import benign_outcome_optimality
-from .reasonable_agent import reasonable_score
+from utils.benign_oo import benign_outcome_optimality
+from utils.reasonable_agent import reasonable_score
 
 REPO_ROOT: Path = Path(__file__).resolve().parents[4]
 RESULTS_DIR: Path = REPO_ROOT / "outputs" / "v0.1.0-05062026" / "v0.1.0"
@@ -53,7 +52,7 @@ MODE_PRETTY: dict[str, str] = {
     "medium": "think_med",
     "high": "think_high",
     "low": "think_low",
-    "10000": "think_10k"
+    "10000": "think_10k",
 }
 
 DOMAIN_PRETTY: dict[str, str] = {
@@ -132,7 +131,7 @@ class RunDims:
             if self.reasoning_effort
             else "no_cot"
         )
-        return f"{pretty_model} ({pretty_mode})"
+        return f"{pretty_model}\n({pretty_mode})"
 
     @property
     def domain_label(self) -> str:
@@ -160,7 +159,6 @@ class Run:
                 task.outcome_optimality_score = oo
                 if task.due_diligence_eval is not None:
                     task.due_diligence_eval.score = dd  # ty:ignore[invalid-assignment]
-
 
             if task.error:
                 continue
