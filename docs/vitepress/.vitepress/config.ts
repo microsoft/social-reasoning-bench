@@ -3,10 +3,10 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'SocialReasoningBench',
   description: 'Evaluate the social reasoning capabilities of LLM agents in multi-agent environments',
-  base: '/srbench/',
+  base: '/social-reasoning-bench/',
 
   head: [
-    ['link', { rel: 'icon', href: '/srbench/favicon.ico' }],
+    ['link', { rel: 'icon', href: '/social-reasoning-bench/favicon.ico' }],
   ],
 
   themeConfig: {
@@ -18,7 +18,7 @@ export default defineConfig({
       { text: 'Data Generation', link: '/generating-data' },
       { text: 'LLMs', link: '/llm' },
       { text: 'Dashboard', link: '/dashboard' },
-      { text: 'GitHub', link: 'https://github.com/microsoft/srbench' },
+      { text: 'GitHub', link: 'https://github.com/microsoft/social-reasoning-bench' },
     ],
 
     sidebar: [
@@ -42,7 +42,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/microsoft/srbench' },
+      { icon: 'github', link: 'https://github.com/microsoft/social-reasoning-bench' },
     ],
 
     search: {
@@ -54,7 +54,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/microsoft/srbench/edit/main/docs/vitepress/:path',
+      pattern: 'https://github.com/microsoft/social-reasoning-bench/edit/main/docs/vitepress/:path',
       text: 'Edit this page on GitHub',
     },
 
