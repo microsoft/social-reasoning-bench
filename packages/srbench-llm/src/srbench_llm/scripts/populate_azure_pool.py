@@ -1,30 +1,34 @@
 #!/usr/bin/env python3
 """Populate azure pool config files for all Azure OpenAI deployments.
 
-Queries the Azure CLI for all deployments on cognitive services accounts
-matching a prefix (default: ``aif-endpoints-*``) and writes one JSON file
-per model to an output directory.  Set ``SRBENCH_AZURE_POOL_PATH`` to point
-at the output directory.
+Queries the Azure CLI for deployments on cognitive services accounts and
+writes one JSON file per model to an output directory.  Pass
+``--pattern <prefix>`` to limit discovery to accounts whose name starts
+with that prefix; omit it to scan every account in the subscription.
+Set ``SRBENCH_AZURE_POOL_PATH`` to point at the output directory.
 
 Usage::
 
-    # All models, default prefix → configs/azure_pool/
-    python scripts/populate_azure_pool.py
+    # All accounts, all models → configs/azure_pool/
+    srbench llm azure-pool populate
+
+    # Filter accounts by name prefix
+    srbench llm azure-pool populate --pattern my-endpoints-
 
     # Specific models only
-    python scripts/populate_azure_pool.py --models gpt-5.2 gpt-4.1
+    srbench llm azure-pool populate --models gpt-5.2 gpt-4.1
 
-    # Custom account prefix and subscription
-    python scripts/populate_azure_pool.py --prefix my-openai- --subscription <id>
+    # Custom subscription
+    srbench llm azure-pool populate --subscription <id>
 
     # Custom output directory
-    python scripts/populate_azure_pool.py --output-dir configs/my-pool
+    srbench llm azure-pool populate --output-dir configs/my-pool
 
     # Custom API version
-    python scripts/populate_azure_pool.py --api-version 2025-04-01-preview
+    srbench llm azure-pool populate --api-version 2025-04-01-preview
 
     # Dry run (print to stdout, don't write files)
-    python scripts/populate_azure_pool.py --dry-run
+    srbench llm azure-pool populate --dry-run
 """
 
 from __future__ import annotations
@@ -60,16 +64,22 @@ def run_az(args: list[str], timeout: int = 30) -> list[dict]:
     return json.loads(result.stdout) if result.stdout.strip() else []
 
 
-def list_accounts(subscription: str, prefix: str) -> list[dict]:
-    """List cognitive services accounts matching prefix.
+def list_accounts(subscription: str, pattern: str | None) -> list[dict]:
+    """List cognitive services accounts, optionally filtered by name prefix.
 
     Args:
         subscription: Azure subscription ID or name.
-        prefix: Name prefix used to filter cognitive services accounts.
+        pattern: Optional name prefix used to filter cognitive services
+            accounts. If ``None``, every account in the subscription is
+            returned.
 
     Returns:
         List of matching account dicts with name, resource group, and endpoint.
     """
+    projection = "{name:name, rg:resourceGroup, endpoint:properties.endpoint}"
+    query = (
+        f"[?starts_with(name, '{pattern}')].{projection}" if pattern else f"[].{projection}"
+    )
     return run_az(
         [
             "cognitiveservices",
@@ -78,7 +88,7 @@ def list_accounts(subscription: str, prefix: str) -> list[dict]:
             "--subscription",
             subscription,
             "--query",
-            f"[?starts_with(name, '{prefix}')].{{name:name, rg:resourceGroup, endpoint:properties.endpoint}}",
+            query,
         ]
     )
 
@@ -112,18 +122,21 @@ def list_deployments(account_name: str, resource_group: str, subscription: str) 
     )
 
 
-def discover_all(subscription: str, prefix: str) -> dict[str, list[dict]]:
+def discover_all(subscription: str, pattern: str | None) -> dict[str, list[dict]]:
     """Discover all deployments grouped by model name.
 
     Args:
         subscription: Azure subscription ID or name.
-        prefix: Name prefix used to filter cognitive services accounts.
+        pattern: Optional name prefix used to filter cognitive services
+            accounts. If ``None``, every account in the subscription is
+            scanned.
 
     Returns:
         Dictionary mapping model names to lists of endpoint/deployment dicts.
     """
-    accounts = list_accounts(subscription, prefix)
-    print(f"Found {len(accounts)} accounts matching '{prefix}*'")
+    accounts = list_accounts(subscription, pattern)
+    scope = f"matching '{pattern}*'" if pattern else "in subscription"
+    print(f"Found {len(accounts)} accounts {scope}")
 
     by_model: dict[str, list[dict]] = defaultdict(list)
 
@@ -193,9 +206,9 @@ def main() -> None:
         help="Azure subscription ID (default: MSR LIT)",
     )
     parser.add_argument(
-        "--prefix",
-        default="aif-endpoints-",
-        help="Cognitive services account name prefix (default: aif-endpoints-)",
+        "--pattern",
+        default=None,
+        help="Cognitive services account name prefix to filter on (default: scan all accounts)",
     )
     parser.add_argument(
         "--models", nargs="+", default=None, help="Specific models to include (default: all)"
@@ -216,7 +229,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    by_model = discover_all(args.subscription, args.prefix)
+    by_model = discover_all(args.subscription, args.pattern)
 
     print(f"\nDiscovered models:")
     for model in sorted(by_model.keys()):
