@@ -1,9 +1,9 @@
 # Generating Data
 
-The `sagegen` CLI generates benchmark task data for all three domains.
+The `srbench datagen` CLI generates benchmark task data for all three domains.
 
 ```bash
-sagegen {calendar, form-filling, marketplace} [options]
+srbench datagen {calendar, form-filling, marketplace} [options]
 ```
 
 ## Calendar Scheduling
@@ -13,7 +13,7 @@ Generates synthetic calendar scheduling tasks with LLM-generated company/employe
 ### Quick Start
 
 ```bash
-sagegen calendar --output-dir data/calendar-scheduling
+srbench datagen calendar --output-dir data/calendar-scheduling
 ```
 
 ### Pipeline
@@ -73,13 +73,13 @@ Takes a form image, runs a multi-stage LLM pipeline, and produces a complete eva
 ### Quick Start
 
 ```bash
-sagegen form-filling --image path/to/form.png --output-dir ./output/
+srbench datagen form-filling --image path/to/form.png --output-dir ./output/
 ```
 
 You can also run the pipeline from Python.
 
 ```python
-from sage_data_gen.form_filling import generate_form_task
+from srbench_data_gen.form_filling import generate_form_task
 
 task_dir = generate_form_task(image_path="form.png", output_dir="./output/")
 ```
@@ -129,7 +129,7 @@ form_{id}/
 You can generate tasks from the pre-filtered `common_forms.jsonl` (1427 forms from HuggingFace `jbarrow/CommonForms`).
 
 ```python
-from sage_data_gen.form_filling.common_form_batch_creation import run_batch
+from srbench_data_gen.form_filling.common_form_batch_creation import run_batch
 
 summary = run_batch(
     input_jsonl="common_forms.jsonl",
@@ -146,7 +146,7 @@ Generates buyer-seller negotiation tasks with LLM-generated product catalogs and
 ### Quick Start
 
 ```bash
-sagegen marketplace --output-dir data/marketplace
+srbench datagen marketplace --output-dir data/marketplace
 ```
 
 ### Pipeline
@@ -190,17 +190,17 @@ Hand-crafted variants use scripted adversarial injections that rewrite task inst
 
 ```bash
 # Calendar
-python -m sage_data_gen.calendar_scheduling.malicious.generate_hand_crafted \
+python -m srbench_data_gen.calendar_scheduling.malicious.generate_hand_crafted \
     --input data/calendar-scheduling/small.yaml \
     --attack-type privacy
 
 # Form filling
-python -m sage_data_gen.form_filling.malicious.generate_hand_crafted \
+python -m srbench_data_gen.form_filling.malicious.generate_hand_crafted \
     --input data/form-filling/tasks/ \
     --attack-type privacy
 
 # Marketplace
-python -m sage_data_gen.marketplace.malicious.generate_hand_crafted \
+python -m srbench_data_gen.marketplace.malicious.generate_hand_crafted \
     --input data/marketplace/small.yaml \
     --attack-type privacy
 ```
@@ -210,7 +210,7 @@ python -m sage_data_gen.marketplace.malicious.generate_hand_crafted \
 Whimsical variants use [WhimsyGen](/whimsygen) to generate creative, unconventional adversarial strategies extracted from Wikipedia.
 
 ```bash
-python -m sage_data_gen.calendar_scheduling.malicious.generate_whimsical \
+python -m srbench_data_gen.calendar_scheduling.malicious.generate_whimsical \
     --input data/calendar-scheduling/small.yaml \
     --attack-type privacy \
     -m gemini-2.5-flash \

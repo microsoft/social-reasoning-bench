@@ -163,7 +163,7 @@ This hides latency because while the consumer processes results, producers conti
 
 ## Models
 
-WhimsyGen uses `sage-llm` for model access. The following formats are supported.
+WhimsyGen uses `srbench-llm` for model access. The following formats are supported.
 
 - `openai/gpt-4.1`
 - `gemini/gemini-2.5-pro`

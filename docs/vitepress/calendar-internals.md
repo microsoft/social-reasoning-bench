@@ -59,7 +59,7 @@ Each labeled meeting in the calendar has a `uid`, `title`, `description`, `date`
 
 ## Data Generation
 
-The `sagegen calendar` pipeline generates tasks through a 7-step process that combines LLM generation with deterministic assembly.
+The `srbench datagen calendar` pipeline generates tasks through a 7-step process that combines LLM generation with deterministic assembly.
 
 ### Step 1. Generate Companies
 

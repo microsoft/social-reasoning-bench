@@ -1,4 +1,4 @@
-# Human Annotation Guidelines — SAGE Benchmark
+# Human Annotation Guidelines — SRBench Benchmark
 
 ## Purpose
 

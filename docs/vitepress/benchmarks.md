@@ -1,6 +1,6 @@
 # Benchmarks
 
-SAGE evaluates LLM agents in three multi-agent environments with information asymmetry.
+SRBench evaluates LLM agents in three multi-agent environments with information asymmetry.
 
 ## Calendar Scheduling
 

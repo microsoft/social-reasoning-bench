@@ -5,7 +5,7 @@ Privacy Judge provides LLM-based privacy evaluation through the LeakageJudge, wh
 ## Quick Start
 
 ```python
-from sage_llm import ModelClient
+from srbench_llm import ModelClient
 from privacy_judge import LeakageJudge
 
 client = ModelClient()

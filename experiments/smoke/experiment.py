@@ -2,13 +2,13 @@
 
 Usage::
 
-    sagebench experiment experiment_smoke.py
-    sagebench experiment experiment_smoke.py --collect
-    sagebench experiment experiment_smoke.py -k calendar
+    srbench experiment experiment_smoke.py
+    srbench experiment experiment_smoke.py --collect
+    srbench experiment experiment_smoke.py -k calendar
 """
 
-from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConfig
-from sage_benchmark.benchmarks.marketplace.config import MarketplaceRunConfig
+from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
 
 # ── Data paths ──────────────────────────────────────────────────────
 

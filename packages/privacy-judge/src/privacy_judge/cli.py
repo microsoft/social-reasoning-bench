@@ -8,7 +8,7 @@ from pathlib import Path
 
 import click
 import yaml
-from sage_llm import SageModelClient
+from srbench_llm import SRBenchModelClient
 
 from .executor import TaskPoolExecutor
 from .leakage import LeakageExample, LeakageJudge
@@ -204,7 +204,7 @@ async def run_leakage_batch(
         ex_data = load_yaml_file(ex_path)
         default_examples = parse_leakage_examples(ex_data.get("examples", []))
 
-    client = SageModelClient()
+    client = SRBenchModelClient()
 
     async def process_case(case: dict, case_idx: int) -> dict:
         case_id = case.get("id", f"case_{case_idx}")
@@ -394,7 +394,7 @@ def leakage(
         ex_data = load_yaml_file(examples)
         examples_list = parse_leakage_examples(ex_data.get("examples", []))
 
-    client = SageModelClient()
+    client = SRBenchModelClient()
     judge = LeakageJudge(
         model=model,
         client=client,

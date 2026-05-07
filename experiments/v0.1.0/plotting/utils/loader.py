@@ -1,4 +1,4 @@
-"""Load v0.1.0 benchmark runs into typed sage_benchmark BaseModels.
+"""Load v0.1.0 benchmark runs into typed srbench BaseModels.
 
 Each ``outputs/v0.1.0/<variant>/results.json`` is parsed into:
 
@@ -24,12 +24,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeAlias
 
-from sage_benchmark.benchmarks.calendar_scheduling.config import CalendarRunConfig
-from sage_benchmark.benchmarks.calendar_scheduling.types import (
+from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+from srbench.benchmarks.calendar_scheduling.types import (
     CalendarEvaluationResult,
 )
-from sage_benchmark.benchmarks.marketplace.config import MarketplaceRunConfig
-from sage_benchmark.benchmarks.marketplace.types import MarketplaceEvaluationResult
+from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
+from srbench.benchmarks.marketplace.types import MarketplaceEvaluationResult
 from utils.benign_oo import benign_outcome_optimality
 from utils.reasonable_agent import reasonable_score
 

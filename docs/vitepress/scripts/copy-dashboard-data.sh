@@ -11,4 +11,4 @@ PUBLIC="$DOCS_DIR/public"
 
 mkdir -p "$PUBLIC"
 
-cp "$REPO_ROOT/packages/sage-benchmark/sage_benchmark/dashboard/index.html" "$PUBLIC/dashboard-app.html"
+cp "$REPO_ROOT/packages/srbench/srbench/dashboard/index.html" "$PUBLIC/dashboard-app.html"

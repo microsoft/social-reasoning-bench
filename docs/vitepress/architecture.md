@@ -3,11 +3,11 @@
 ## Monorepo Structure
 
 ```
-sage/
+srbench/
   packages/
-    sage-benchmark/    # Benchmark runner, CLI, evaluation
-    sage-data-gen/     # Data generation pipelines
-    sage-llm/          # Multi-provider LLM client
+    srbench/    # Benchmark runner, CLI, evaluation
+    srbench-data-gen/     # Data generation pipelines
+    srbench-llm/          # Multi-provider LLM client
     whimsygen/         # Adversarial strategy generation
     privacy-judge/     # Privacy evaluation judges
 ```
@@ -15,14 +15,14 @@ sage/
 **Dependency graph:**
 
 ```
-sage-benchmark ──→ sage-llm
+srbench ──→ srbench-llm
        │               ↑
        │          whimsygen
        │               ↑
-sage-data-gen    privacy-judge
+srbench-data-gen    privacy-judge
 ```
 
-All packages share `sage-llm` for unified model access across providers.
+All packages share `srbench-llm` for unified model access across providers.
 
 ## Benchmark ABC
 
@@ -144,7 +144,7 @@ Subclassed by `CalendarAgent`, `AssistantAgent` (form-filling), and `Marketplace
 Tools are defined as Pydantic models:
 
 ```python
-from sage_benchmark.shared.tool import Tool
+from srbench.shared.tool import Tool
 
 class SendEmail(Tool):
     """Send an email to a recipient."""

@@ -18,10 +18,10 @@ from pathlib import Path
 
 import altair as alt
 import pandas as pd
-from sage_benchmark.benchmarks.calendar_scheduling.types import (
+from srbench.benchmarks.calendar_scheduling.types import (
     CalendarEvaluationResult,
 )
-from sage_benchmark.benchmarks.marketplace.types import MarketplaceEvaluationResult
+from srbench.benchmarks.marketplace.types import MarketplaceEvaluationResult
 from utils import loader, plotting
 
 # ── Series definitions ───────────────────────────────────────────

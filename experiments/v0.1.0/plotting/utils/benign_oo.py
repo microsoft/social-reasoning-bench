@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import json
 
-from sage_benchmark.benchmarks.calendar_scheduling.evaluation.outcome_optimality.evaluate import (
+from srbench.benchmarks.calendar_scheduling.evaluation.outcome_optimality.evaluate import (
     evaluate_outcome_optimality as calendar_evaluate_oo,
 )
-from sage_benchmark.benchmarks.calendar_scheduling.types import CalendarEvaluationResult
-from sage_benchmark.benchmarks.marketplace.evaluation.outcome_optimality.evaluate import (
+from srbench.benchmarks.calendar_scheduling.types import CalendarEvaluationResult
+from srbench.benchmarks.marketplace.evaluation.outcome_optimality.evaluate import (
     evaluate_outcome_optimality as marketplace_evaluate_oo,
 )
-from sage_benchmark.benchmarks.marketplace.types import MarketplaceEvaluationResult
+from srbench.benchmarks.marketplace.types import MarketplaceEvaluationResult
 
 
 def _as_benign_exec(result: MarketplaceEvaluationResult):

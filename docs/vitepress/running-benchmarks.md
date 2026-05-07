@@ -1,9 +1,9 @@
 # Experiment Reproduction
 
-The `sagebench` CLI has two modes:
+The `srbench` CLI has two modes:
 
-- **`sagebench benchmark`** runs a single benchmark with explicit flags.
-- **`sagebench experiment`** runs experiment sweeps from Python config files.
+- **`srbench benchmark`** runs a single benchmark with explicit flags.
+- **`srbench experiment`** runs experiment sweeps from Python config files.
 
 ## Running Individual Benchmarks
 
@@ -12,7 +12,7 @@ The `sagebench` CLI has two modes:
 Two agents (Assistant + Requestor) negotiate to schedule a meeting. The assistant must protect private calendar events while finding a suitable time slot.
 
 ```bash
-sagebench benchmark calendar \
+srbench benchmark calendar \
     --data ./data/calendar-scheduling/small.yaml \
     --model gpt-4.1 \
     --assistant-system-prompt default \
@@ -33,7 +33,7 @@ The following flags are specific to calendar scheduling.
 An assistant fills out forms based on information gathered through conversation with an interviewer agent.
 
 ```bash
-sagebench benchmark form_filling \
+srbench benchmark form_filling \
     --data ./data/form-filling/tasks/ \
     --interviewer-model gpt-4.1 \
     --assistant-model gpt-4.1 \
@@ -54,7 +54,7 @@ The following flags are specific to form filling.
 A buyer and seller agent negotiate the price of a product. Each has hidden reservation prices they should not reveal.
 
 ```bash
-sagebench benchmark marketplace \
+srbench benchmark marketplace \
     --data ./data/marketplace/small.yaml \
     --model gpt-4.1 \
     --max-steps-per-turn 3 \
@@ -93,22 +93,22 @@ Experiment files define multiple benchmark runs to execute together. The runner 
 
 ```bash
 # Run all experiments in a file
-sagebench experiment experiment_full.py
+srbench experiment experiment_full.py
 
 # Preview experiments without running
-sagebench experiment experiment_full.py --collect
+srbench experiment experiment_full.py --collect
 
 # Filter by name pattern
-sagebench experiment experiment_full.py -k calendar
+srbench experiment experiment_full.py -k calendar
 
 # Control parallelism
-sagebench experiment experiment_full.py --batch-size 100
+srbench experiment experiment_full.py --batch-size 100
 
 # Override config fields across all experiments
-sagebench experiment experiment_full.py --set model=claude-sonnet-4
+srbench experiment experiment_full.py --set model=claude-sonnet-4
 
 # Cross-product with multiple models using --and
-sagebench experiment experiment_full.py \
+srbench experiment experiment_full.py \
     --set model=gpt-4.1 \
     --and \
     --set model=claude-sonnet-4
@@ -150,7 +150,7 @@ The `results.json` file contains the following fields.
 After running experiments, use the dashboard to visually compare results across benchmarks, models, and attack types.
 
 ```bash
-sagebench dashboard
+srbench dashboard
 ```
 
 This opens an interactive HTML dashboard in your browser. Load one or more `results.json` files from your experiment outputs to start exploring.
@@ -172,11 +172,11 @@ Runs checkpoint progress automatically. If a run is interrupted:
 
 ```bash
 # Resume from checkpoint (default: looks for checkpoint in output dir)
-sagebench benchmark calendar --data ... --model ... --resume
+srbench benchmark calendar --data ... --model ... --resume
 
 # Force re-run execution (keep evaluation)
-sagebench benchmark calendar --data ... --model ... --resume --restart-exec
+srbench benchmark calendar --data ... --model ... --resume --restart-exec
 
 # Force re-run evaluation (keep execution)
-sagebench benchmark calendar --data ... --model ... --resume --restart-eval
+srbench benchmark calendar --data ... --model ... --resume --restart-eval
 ```

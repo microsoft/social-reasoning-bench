@@ -3,8 +3,8 @@
 from collections.abc import AsyncIterator
 
 import yaml
-from sage_benchmark.shared.errors import is_fatal_error
-from sage_llm import SageModelClient
+from srbench.shared.errors import is_fatal_error
+from srbench_llm import SRBenchModelClient
 
 from ..core.models import Seed, Strategy
 
@@ -26,7 +26,7 @@ class StrategyExtractor:
             reasoning_effort: Reasoning effort for the model (e.g., "medium", "high")
         """
         self.model = model
-        self._client = SageModelClient(reasoning_effort=reasoning_effort)
+        self._client = SRBenchModelClient(reasoning_effort=reasoning_effort)
 
     async def sample(
         self,

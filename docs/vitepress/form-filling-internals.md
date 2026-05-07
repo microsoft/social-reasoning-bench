@@ -67,7 +67,7 @@ For filesystem mode, the **filesystem_artifacts** field contains a larger set of
 
 ## Data Generation
 
-The `sagegen form-filling` pipeline generates tasks from form images through a multi-stage LLM pipeline.
+The `srbench datagen form-filling` pipeline generates tasks from form images through a multi-stage LLM pipeline.
 
 ### Stage 1. Parse Form Image
 

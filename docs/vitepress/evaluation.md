@@ -1,6 +1,6 @@
 # Evaluation
 
-SAGE evaluates every task on four dimensions.
+SRBench evaluates every task on four dimensions.
 
 ## Task Completion
 

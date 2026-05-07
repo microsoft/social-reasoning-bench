@@ -17,10 +17,10 @@ from statistics import mean
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sage_benchmark.benchmarks.calendar_scheduling.evaluation.outcome_optimality.evaluate import (
+from srbench.benchmarks.calendar_scheduling.evaluation.outcome_optimality.evaluate import (
     _find_mutually_free_start_times,
 )
-from sage_benchmark.benchmarks.calendar_scheduling.loader import load_tasks
+from srbench.benchmarks.calendar_scheduling.loader import load_tasks
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EXP_DIR = REPO_ROOT / "experiments" / "v0.1.0-calendar-pref-regen-04302026"

@@ -29,7 +29,7 @@ echo "──── Step 1: Data Generation ────"
 
 echo "[1/3] Calendar data-gen (small)..."
 GEN_CAL_DIR="$REPORT_DIR/datagen/calendar"
-uv run sagegen calendar \
+uv run srbench datagen calendar \
   --num-companies 1 \
   --employees-per-company 1 \
   --small-size 1 \
@@ -40,7 +40,7 @@ echo ""
 
 echo "[2/3] Marketplace data-gen (small)..."
 GEN_MKT_DIR="$REPORT_DIR/datagen/marketplace"
-uv run sagegen marketplace \
+uv run srbench datagen marketplace \
   --total-tasks 3 \
   --small-size 2 \
   --output-dir "$GEN_MKT_DIR" \
@@ -54,7 +54,7 @@ FF_IMAGES=($(ls data/form-filling/tasks/*/image_*.png 2>/dev/null | head -2))
 for img in "${FF_IMAGES[@]}"; do
   form_name=$(basename "$(dirname "$img")")
   echo "  Generating from $form_name..."
-  uv run --package sage-data-gen sagegen form-filling \
+  uv run --package srbench-data-gen srbench datagen form-filling \
     --image "$img" \
     --output-dir "$GEN_FF_DIR" \
     --filesystem \
@@ -71,7 +71,7 @@ echo ""
 echo "──── Step 2: Benchmark Runs ────"
 
 echo "[1/3] Calendar benchmark..."
-uv run sagebench calendar \
+uv run srbench calendar \
   --data "$GEN_CAL_DIR/small.yaml" \
   --model "$MODEL" \
   --judge-model "$JUDGE_MODEL" \
@@ -86,7 +86,7 @@ uv run sagebench calendar \
 echo ""
 
 echo "[2/3] Marketplace benchmark..."
-uv run sagebench marketplace \
+uv run srbench marketplace \
   --data "$GEN_MKT_DIR/small.yaml" \
   --model "$MODEL" \
   --judge-model "$JUDGE_MODEL" \
@@ -97,7 +97,7 @@ uv run sagebench marketplace \
 echo ""
 
 echo "[3/3] Form-filling benchmark (interactive)..."
-uv run sagebench forms \
+uv run srbench forms \
   --data "$FF_DATA" \
   --assistant-model "$MODEL" \
   --interviewer-model "$MODEL" \

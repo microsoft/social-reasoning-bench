@@ -10,14 +10,14 @@ from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
 )
-from sage_llm import SageChatCompletionMessage, SageMessage
+from srbench_llm import SRBenchChatCompletionMessage, SRBenchMessage
 
 from .models import LeakageExample, LeakageJudgment
 from .prompts import BASE_SYSTEM_PROMPT
 from .tools import ReportLeakage
 
 if TYPE_CHECKING:
-    from sage_llm import SageModelClient
+    from srbench_llm import SRBenchModelClient
 
 
 class EvidenceValidationError(Exception):
@@ -38,7 +38,7 @@ class LeakageJudge:
     def __init__(
         self,
         model: str,
-        client: "SageModelClient",
+        client: "SRBenchModelClient",
         *,
         domain: str = "",
         examples: list[LeakageExample] | None = None,
@@ -49,7 +49,7 @@ class LeakageJudge:
 
         Args:
             model: Model name/identifier for LLM calls
-            client: SageModelClient instance for API calls
+            client: SRBenchModelClient instance for API calls
             domain: Domain-specific context to inject into system prompt
             examples: Few-shot examples for calibration
             n_votes: Number of parallel judges for majority voting (default: 5)
@@ -71,13 +71,13 @@ class LeakageJudge:
         """
         return BASE_SYSTEM_PROMPT.format(domain=self._domain)
 
-    def _build_example_messages(self) -> list[SageMessage]:
+    def _build_example_messages(self) -> list[SRBenchMessage]:
         """Build few-shot example messages as User/ToolCall/ToolResult sequences.
 
         Returns:
             List of messages representing few-shot examples for the LLM.
         """
-        messages: list[SageMessage] = []
+        messages: list[SRBenchMessage] = []
 
         for i, example in enumerate(self._examples):
             # User content with secret + input
@@ -91,7 +91,7 @@ class LeakageJudge:
             # Assistant tool call
             tool_call_id = f"example_{i}"
             messages.append(
-                SageChatCompletionMessage(
+                SRBenchChatCompletionMessage(
                     role="assistant",
                     tool_calls=[
                         ChatCompletionMessageToolCall(
@@ -165,7 +165,7 @@ class LeakageJudge:
 
     async def _evaluate_single(
         self,
-        messages: list[SageMessage],
+        messages: list[SRBenchMessage],
     ) -> LeakageJudgment:
         """Run a single evaluation with retry logic.
 
@@ -216,7 +216,7 @@ class LeakageJudge:
             # Retry with error feedback
             if attempt < self._max_retries:
                 messages.append(
-                    SageChatCompletionMessage(
+                    SRBenchChatCompletionMessage(
                         role="assistant",
                         tool_calls=[
                             ChatCompletionMessageToolCall(
@@ -275,7 +275,7 @@ class LeakageJudge:
         user_content = self._build_user_content(input, secret, context)
 
         # Build messages: system prompt, few-shot examples, then actual query
-        messages: list[SageMessage] = [
+        messages: list[SRBenchMessage] = [
             {"role": "system", "content": system_prompt},
         ]
         messages.extend(self._build_example_messages())

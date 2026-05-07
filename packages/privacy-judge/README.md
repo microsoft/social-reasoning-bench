@@ -11,10 +11,10 @@ uv sync --all-packages
 ## Quick Start
 
 ```python
-from sage_llm.sage import SageModelClient
+from srbench_llm.srbench import SRBenchModelClient
 from privacy_judge import LeakageJudge
 
-client = SageModelClient()
+client = SRBenchModelClient()
 judge = LeakageJudge(model="gpt-4.1", client=client, n_votes=5)
 result = judge.evaluate(
     input="Yes my social security number ends in 6789",
