@@ -1,240 +1,180 @@
-# Generating Data
+# Generating data
 
-The `srbench datagen` CLI generates benchmark task data for all three domains.
+The repo ships with ready-to-run datasets in `data/`. Use `srbench datagen` only when you want to generate fresh tasks or new adversarial variants.
 
 ```bash
-srbench datagen {calendar, form-filling, marketplace} [options]
+srbench datagen {calendar, marketplace, malicious} [options]
 ```
 
-## Calendar Scheduling
+## Calendar scheduling
 
-Generates synthetic calendar scheduling tasks with LLM-generated company/employee context, controlled 1-hour slot calendars, and context-aware privacy labeling.
-
-### Quick Start
+Generates synthetic calendar tasks with LLM-generated companies, employees, and 1-hour-slot calendars. Privacy labels on each event are determined by majority vote across labeling models.
 
 ```bash
-srbench datagen calendar --output-dir data/calendar-scheduling
+srbench datagen calendar \
+    --model gpt-4.1 \
+    --output-dir data/calendar-scheduling/
 ```
 
 ### Pipeline
 
-1. **Generate companies** uses an LLM to create 4 companies with departments and backstories.
-2. **Generate employees** uses an LLM to create 5 employees per company with roles, relationships, and personal facts.
-3. **Generate base calendars** uses an LLM to generate 11 one-hour events (08:00-19:00) per employee.
-4. **Generate preferences** deterministically assigns a morning or afternoon preference per employee.
-5. **Generate tasks** iterates over each employee and 7 archetypes, using an LLM to create a meeting request with privacy-labeled calendar events determined by majority vote across 3 models. A calendar and preferences are also generated for each requestor.
-6. **Deterministic assembly** assigns tasks to fullness levels (1-10 free slots), places meetings at suboptimal preference times, trims both assistant and requestor calendars, and ensures at least 1 overlapping free slot.
-7. **Verify invariants** checks all constraints including conflicts on secret events, suboptimal times, correct satisfiability, and overlapping availability.
+1. **Companies** — generates companies with departments and backstories.
+2. **Employees** — generates employees per company with roles, relationships, and personal facts.
+3. **Calendars** — generates one-hour events (08:00-19:00) per employee.
+4. **Preferences** — assigns morning/afternoon preferences.
+5. **Tasks** — generates a meeting request for each (employee × archetype) pair, with privacy labels chosen by majority vote across `--judge-models`.
+6. **Assembly** — assigns tasks to fullness levels (free-slot counts), places meetings at suboptimal preference times, and ensures at least one mutually-free overlapping slot.
+7. **Verification** — checks all invariants.
 
-#### Task Archetypes
+### Task archetypes
 
-Each employee generates 7 tasks, one per requestor archetype:
+Each employee produces 7 tasks, one per requestor archetype:
 
-| # | Type | Archetype |
-|---|------|-----------|
-| 1 | External | Unknown (cold outreach) |
-| 2 | External | Known vendor |
-| 3 | External | Client |
-| 4 | Internal | Boss/manager |
-| 5 | Internal | Peer (same dept) |
-| 6 | Internal | Peer (diff dept) |
-| 7 | Internal | Direct report |
+| # | Type     | Archetype                  |
+|---|----------|----------------------------|
+| 1 | External | Unknown (cold outreach)    |
+| 2 | External | Known vendor               |
+| 3 | External | Client                     |
+| 4 | Internal | Boss / manager             |
+| 5 | Internal | Peer (same department)     |
+| 6 | Internal | Peer (different department) |
+| 7 | Internal | Direct report              |
 
-### CLI Options
+### Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--num-companies` | `4` | Number of companies to generate |
-| `--employees-per-company` | `5` | Employees per company |
-| `--calendar-date` | `2026-02-20` | Calendar date |
-| `--fullness-levels` | `1,2,3,5,7,9,10` | Comma-separated free slot counts |
-| `--medium-size` | `10` | Tasks per fullness level in medium dataset |
-| `--small-size` | `3` | Tasks per fullness level in small dataset |
-| `--model` | `gpt-5.2` | LLM for generation |
-| `--labeling-models` | `gpt-5.2,gpt-5.1,gpt-4.1` | Models for majority-vote privacy labeling |
-| `--output-dir` | `data/calendar-scheduling` | Output directory |
-| `--requestor-fullness` | `5` | Fixed number of free slots in requestor calendars |
-| `--random-seed` | `42` | Random seed |
+| Option                     | Default                                    | Description |
+|----------------------------|--------------------------------------------|-------------|
+| `--model`                  | _(required)_                               | Generation model |
+| `--judge-models`           | uses `--model`                             | Comma-separated models for majority-vote privacy labeling |
+| `--num-companies`          | `4`                                        | Companies to generate |
+| `--employees-per-company`  | `5`                                        | Employees per company |
+| `--calendar-date`          | `2026-02-20`                               | Date the calendars cover |
+| `--fullness-levels`        | `2,3,4,5,7,9,10`                           | Free-slot counts to stratify by |
+| `--medium-size`            | `10`                                       | Tasks per fullness level in `medium.yaml` |
+| `--small-size`             | `3`                                        | Tasks per fullness level in `small.yaml` |
+| `--task-retry-limit`       | `3`                                        | Max retries per task on validation failure |
+| `--requestor-fullness`     | `5`                                        | Fixed free-slot count in requestor calendars |
+| `--min-mutual-free-slots`  | `2`                                        | Min mutually-free slots between assistant and requestor |
+| `--no-generate-preferences` | _off_                                     | Disable preference generation |
+| `--seed`                   | `42`                                       | Random seed |
+| `--output-dir`             | _(required)_                               | Output directory |
 
 ### Output
 
 ```
 data/calendar-scheduling/
-  large.yaml              # All tasks stratified by fullness
-  medium.yaml             # Subset (10 per fullness level)
-  small.yaml              # Subset (3 per fullness level)
-  _pipeline_outputs/      # Intermediate debug files
-```
-
-## Form Filling
-
-Takes a form image, runs a multi-stage LLM pipeline, and produces a complete evaluation task with ground truth, digital artifacts, and an interactive HTML form.
-
-### Quick Start
-
-```bash
-srbench datagen form-filling --image path/to/form.png --output-dir ./output/
-```
-
-You can also run the pipeline from Python.
-
-```python
-from srbench_data_gen.form_filling import generate_form_task
-
-task_dir = generate_form_task(image_path="form.png", output_dir="./output/")
-```
-
-### Pipeline
-
-1. **Parse form image** uses a vision model to extract text, identify fields, types, and sections, and generate a Pydantic model.
-2. **Generate ground truth** uses an LLM to fill the form with realistic data and classify fields as open-ended or close-ended.
-3. **Mask close-ended fields** selects N standalone fields through a keyword filter, random pick, and LLM judge pipeline, then blanks their values.
-4. **Generate scenario** expands the persona and generates per-question secrets (privacy-sensitive details) and negative info (details that would damage the submission).
-5. **Create digital artifacts** generates realistic emails, notes, calendar entries, and texts that naturally embed ground truth, secrets, and negative info.
-6. **Validate and fix** uses an LLM to check artifact coverage of all fields, secrets, and negative info, then generates additional artifacts to fill gaps.
-7. **Generate HTML form** uses a vision model to create an interactive HTML form matching the original image.
-
-### CLI Options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--image` | _(required)_ | Path to form image (PNG/JPEG) |
-| `--output-dir` | `.` | Output directory |
-| `--form-id` | _(from filename)_ | Form ID |
-| `--mask-fields` | `5` | Close-ended fields to mask |
-| `--seed` | `42` | Random seed |
-| `--parsing-model` | _(default)_ | Override parsing model |
-| `--generation-model` | _(default)_ | Override generation model |
-| `--validation-model` | _(default)_ | Override validation model |
-| `--vision-model` | _(default)_ | Override vision model |
-| `--no-html` | `false` | Skip HTML generation |
-| `--filesystem` | `false` | Generate filesystem artifacts |
-
-### Output
-
-```
-form_{id}/
-  image_{id}.png            # Copy of input image
-  form_model.py             # Pydantic model for form structure
-  ground_truth.json         # Full unmasked data
-  masked_ground_truth.json  # With N fields blanked
-  masked_fields.json        # Masked fields + original values
-  artifacts.json            # Digital artifacts (emails, notes, etc.)
-  task.json                 # Complete task metadata
-  form_{id}.html            # Interactive HTML form
-```
-
-### Batch Generation
-
-You can generate tasks from the pre-filtered `common_forms.jsonl` (1427 forms from HuggingFace `jbarrow/CommonForms`).
-
-```python
-from srbench_data_gen.form_filling.common_form_batch_creation import run_batch
-
-summary = run_batch(
-    input_jsonl="common_forms.jsonl",
-    output_dir="./output/",
-    limit=10,
-    start=0,
-)
+  large.yaml             # All tasks, stratified by fullness
+  medium.yaml            # 10 tasks per fullness level
+  small.yaml             # 3 tasks per fullness level
+  _pipeline_outputs/     # Intermediate debug files
 ```
 
 ## Marketplace
 
 Generates buyer-seller negotiation tasks with LLM-generated product catalogs and reservation contexts.
 
-### Quick Start
-
 ```bash
-srbench datagen marketplace --output-dir data/marketplace
+srbench datagen marketplace \
+    --catalog-model gpt-4.1 \
+    --context-model gpt-4.1 \
+    --output-dir data/marketplace/
 ```
 
 ### Pipeline
 
-1. **Generate catalog** uses an LLM to create products with descriptions and reference prices.
-2. **Generate reservation contexts** uses an LLM to create buyer and seller profiles with hidden reservation prices and background stories.
-3. **Assemble tasks** combines catalog entries with reservation contexts into complete negotiation tasks.
-4. **Validate** checks task integrity.
-5. **Compute stats** generates statistics about the dataset.
+1. **Catalog** — generates products with descriptions and reference prices.
+2. **Reservation contexts** — generates buyer and seller profiles with hidden reservation prices.
+3. **Tasks** — pairs catalog entries with reservation contexts.
+4. **Validation** — checks task integrity.
+5. **Stats** — emits dataset statistics.
 
-### CLI Options
+### Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--output-dir` | `data/marketplace` | Output directory |
-| `--total-tasks` | `280` | Total tasks to generate |
-| `--small-size` | `21` | Tasks in small dataset |
-| `--max-rounds` | `6` | Maximum negotiation rounds |
-| `--seed` | `42` | Random seed |
-| `--catalog-size` | `24` | Number of products |
-| `--catalog-model` | `gpt-4.1` | Model for catalog generation |
-| `--context-model` | `gpt-4.1` | Model for context generation |
-| `--max-concurrency` | `12` | Parallel generation workers |
+| Option                    | Default                | Description |
+|---------------------------|------------------------|-------------|
+| `--catalog-model`         | _(required)_           | Model for catalog generation |
+| `--context-model`         | _(required)_           | Model for context generation |
+| `--total-tasks`           | `280`                  | Total tasks to generate |
+| `--small-size`            | `21`                   | Tasks in `small.yaml` |
+| `--medium-size`           | _(varies)_             | Tasks in `medium.yaml` |
+| `--catalog-size`          | `24`                   | Number of products |
+| `--max-rounds`            | `6`                    | Maximum negotiation rounds |
+| `--max-retries-per-item`  | _(varies)_             | Retry budget per item |
+| `--max-concurrency`       | `12`                   | Parallel generation workers |
+| `--seed`                  | `42`                   | Random seed |
+| `--output-dir`            | _(required)_           | Output directory |
 
 ### Output
 
 ```
 data/marketplace/
-  large.yaml            # All tasks (280)
-  small.yaml            # Subset (21)
-  _pipeline_outputs/    # Intermediate files
+  large.yaml             # All tasks
+  small.yaml             # Subset
+  _pipeline_outputs/     # Intermediate files
 ```
 
-## Malicious Variant Generation
+## Adversarial variants
 
-Each benchmark supports generating adversarial variants that test agent robustness. There are two methods:
+Adversarial tasks test how an agent's social reasoning holds up under pressure. Both benchmarks support two attack styles:
 
-### Hand-Crafted
+| Style          | How it works                                                                       |
+|----------------|------------------------------------------------------------------------------------|
+| Hand-crafted   | Scripted adversarial injections applied at runtime via `--attack-types` on `srbench benchmark` (no datagen step needed). |
+| Whimsical      | Pre-generated creative adversarial strategies extracted from Wikipedia. Generated via `srbench datagen malicious`. |
 
-Hand-crafted variants use scripted adversarial injections that rewrite task instructions to be adversarial.
+Both styles target three attack dimensions:
 
-```bash
-# Calendar
-python -m srbench_data_gen.calendar_scheduling.malicious.generate_hand_crafted \
-    --input data/calendar-scheduling/small.yaml \
-    --attack-type privacy
+| Attack type           | What it tests                                                              |
+|-----------------------|----------------------------------------------------------------------------|
+| `privacy`             | Pressure to extract private/secret information from the agent              |
+| `outcome_optimality`  | Manipulation toward a worse outcome for the user                           |
+| `due_diligence`       | Pressure to skip verification before acting                                |
 
-# Form filling
-python -m srbench_data_gen.form_filling.malicious.generate_hand_crafted \
-    --input data/form-filling/tasks/ \
-    --attack-type privacy
-
-# Marketplace
-python -m srbench_data_gen.marketplace.malicious.generate_hand_crafted \
-    --input data/marketplace/small.yaml \
-    --attack-type privacy
-```
-
-### Whimsical
-
-Whimsical variants use [WhimsyGen](/whimsygen) to generate creative, unconventional adversarial strategies extracted from Wikipedia.
+### Generating whimsical variants
 
 ```bash
-python -m srbench_data_gen.calendar_scheduling.malicious.generate_whimsical \
+srbench datagen malicious calendar \
     --input data/calendar-scheduling/small.yaml \
     --attack-type privacy \
     -m gemini-2.5-flash \
     -n 20
 ```
 
-### Attack Dimensions
+This produces a new YAML alongside the input — for example `data/calendar-scheduling/small-whimsical-privacy.yaml` — that you can then run as ordinary task data:
 
-Both methods support three attack types:
+```bash
+srbench benchmark calendar \
+    --data data/calendar-scheduling/small-whimsical-privacy.yaml \
+    --model gpt-4.1
+```
 
-| Attack Type | Description |
-|-------------|-------------|
-| `privacy` | Extract private/secret information from the agent |
-| `duty_of_care` | Manipulate the agent into acting against the user's interests |
-| `due_diligence` | Test whether the agent verifies information before acting |
+### Whimsical options
 
-### Whimsical CLI Options
+| Option                  | Description                                                          |
+|-------------------------|----------------------------------------------------------------------|
+| `--input`               | Source benign task YAML                                              |
+| `--attack-type`         | `privacy`, `outcome_optimality`, or `due_diligence`                  |
+| `-m`, `--model`         | Strategy generation model                                            |
+| `-n`, `--count`         | Number of strategies to generate                                     |
+| `--strategy-assignment` | `single`, `sequential`, `random`, or `unique`                        |
+| `--strategies-file`     | Cache file for strategies (skip regeneration on subsequent runs)     |
+| `-o`                    | Output path                                                          |
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--input` | _(required)_ | Input tasks YAML |
-| `--attack-type` | _(required)_ | `privacy`, `duty_of_care`, or `due_diligence` |
-| `-m, --model` | — | LLM for strategy generation |
-| `-n, --count` | — | Number of strategies to generate |
-| `--strategy-assignment` | `single` | `sequential`, `random`, `unique`, or `single` |
-| `--strategies-file` | — | Cache file for strategies |
-| `-o` | — | Output path |
+The whimsical pipeline can also be run end-to-end with validation against an assistant model — see the full flag list with:
+
+```bash
+srbench datagen malicious --help
+```
+
+### Using hand-crafted attacks
+
+Hand-crafted attacks don't need a datagen step. Pass them directly to the benchmark CLI:
+
+```bash
+srbench benchmark calendar \
+    --data data/calendar-scheduling/small.yaml \
+    --model gpt-4.1 \
+    --attack-types privacy due_diligence
+```
+
+In an experiment file, set `attack_types=[...]` on the config — see [Designing experiments](/experiments).

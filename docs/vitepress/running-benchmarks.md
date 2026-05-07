@@ -1,182 +1,177 @@
-# Experiment Reproduction
+# Running benchmarks
 
-The `srbench` CLI has two modes:
+`srbench benchmark` runs a single benchmark with explicit flags. It's the right entry point when you want to evaluate one model on one dataset.
 
-- **`srbench benchmark`** runs a single benchmark with explicit flags.
-- **`srbench experiment`** runs experiment sweeps from Python config files.
+For multi-model or multi-condition sweeps, use [`srbench experiment`](/experiments) instead.
 
-## Running Individual Benchmarks
+## Basic usage
 
-### Calendar Scheduling
+```bash
+srbench benchmark <name> --data <path> --model <model> [options]
+```
 
-Two agents (Assistant + Requestor) negotiate to schedule a meeting. The assistant must protect private calendar events while finding a suitable time slot.
+Available benchmarks:
+
+| Name           | Scenario                                                                |
+|----------------|-------------------------------------------------------------------------|
+| `calendar`     | Assistant + requestor schedule a meeting while protecting calendar privacy |
+| `marketplace`  | Buyer + seller negotiate price while each hides a reservation price     |
+
+## Calendar scheduling
 
 ```bash
 srbench benchmark calendar \
-    --data ./data/calendar-scheduling/small.yaml \
+    --data data/calendar-scheduling/small.yaml \
     --model gpt-4.1 \
-    --assistant-system-prompt default \
-    --expose-preferences false \
     --limit 2
 ```
 
-The following flags are specific to calendar scheduling.
+| Flag                          | Description                                       |
+|-------------------------------|---------------------------------------------------|
+| `--assistant-model`           | Override model for the calendar assistant         |
+| `--requestor-model`           | Override model for the meeting requestor          |
+| `--assistant-reasoning-effort` | Reasoning effort for the assistant               |
+| `--requestor-reasoning-effort` | Reasoning effort for the requestor               |
+| `--assistant-explicit-cot`    | `true`/`false` — chain-of-thought for the assistant |
+| `--requestor-explicit-cot`    | `true`/`false` — chain-of-thought for the requestor |
+| `--expose-preferences`        | `true`/`false` — share scheduling preferences (default `true`) |
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--assistant-model` | Model for the calendar assistant | _(inherits `--model`)_ |
-| `--requestor-model` | Model for the meeting requestor | _(inherits `--model`)_ |
-| `--expose-preferences` | Share scheduling preferences with assistant | `false` |
-
-### Form Filling
-
-An assistant fills out forms based on information gathered through conversation with an interviewer agent.
-
-```bash
-srbench benchmark form_filling \
-    --data ./data/form-filling/tasks/ \
-    --interviewer-model gpt-4.1 \
-    --assistant-model gpt-4.1 \
-    --judge-model gpt-4.1 \
-    --limit 2
-```
-
-The following flags are specific to form filling.
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--assistant-model` | Model for the form-filling assistant | _(inherits `--model`)_ |
-| `--interviewer-model` | Model for the interviewer | _(inherits `--model`)_ |
-| `--single-field-mode` | Fill one field at a time | `false` |
-
-### Marketplace
-
-A buyer and seller agent negotiate the price of a product. Each has hidden reservation prices they should not reveal.
+## Marketplace
 
 ```bash
 srbench benchmark marketplace \
-    --data ./data/marketplace/small.yaml \
+    --data data/marketplace/small.yaml \
     --model gpt-4.1 \
-    --max-steps-per-turn 3 \
     --limit 2
 ```
 
-The following flags are specific to marketplace.
+| Flag                       | Description                                |
+|----------------------------|--------------------------------------------|
+| `--buyer-model`            | Override model for the buyer               |
+| `--seller-model`           | Override model for the seller              |
+| `--buyer-reasoning-effort` | Reasoning effort for the buyer             |
+| `--seller-reasoning-effort` | Reasoning effort for the seller           |
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--buyer-model` | Model for the buyer agent | _(inherits `--model`)_ |
-| `--seller-model` | Model for the seller agent | _(inherits `--model`)_ |
+## Common flags
 
-## Common CLI Flags
+These flags work on every benchmark.
 
-These flags work across all three benchmarks:
+### Data and limits
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--data` | YAML files or directories with task data | _(required)_ |
-| `--limit` | Maximum number of tasks to run | _(all)_ |
-| `--batch-size` | Number of parallel tasks | `32` |
-| `--model` | Default model for all agents | _(required)_ |
-| `--judge-model` | Model for LLM-as-judge evaluation | _(inherits `--model`)_ |
-| `--judge-votes` | Number of majority votes for judge | `3` |
-| `--assistant-system-prompt` | System prompt preset | `none` |
-| `--max-rounds` | Maximum conversation rounds | `20` |
-| `--max-steps-per-turn` | Maximum tool calls per agent turn | `20` |
-| `--resume` | Resume from checkpoint | `false` |
-| `--output-dir` | Output directory | `outputs/` |
-| `--logger` | Logging style: `verbose`, `progress`, `quiet` | `progress` |
+| Flag             | Description                                | Default |
+|------------------|--------------------------------------------|---------|
+| `--data`         | YAML file or directory of task data        | _(required)_ |
+| `--limit`        | Maximum number of tasks to run             | _(all)_ |
+| `--max-rounds`   | Maximum conversation rounds per task       | `20`    |
+| `--max-steps-per-turn` | Maximum tool calls per agent turn    | varies  |
 
-## Running Experiment Sweeps
+### Model
 
-Experiment files define multiple benchmark runs to execute together. The runner pools tasks across all experiments for efficient execution.
+| Flag             | Description                                |
+|------------------|--------------------------------------------|
+| `--model`        | Default model for all agents (required unless per-agent overrides set) |
+| `--reasoning-effort` | Default reasoning effort for all agents |
+| `--explicit-cot`     | `true`/`false` — explicit chain-of-thought |
+| `--base-url`     | Override base URL (for self-hosted endpoints) |
+| `--api-version`  | Override API version                       |
+
+### Judge
+
+The judge is the LLM-as-judge that evaluates each task on the four dimensions.
+
+| Flag                        | Description                                |
+|-----------------------------|--------------------------------------------|
+| `--judge-model`             | Model for evaluation (defaults to `--model`) |
+| `--judge-votes`             | Majority-vote count                        |
+| `--judge-reasoning-effort`  | Reasoning effort for the judge             |
+
+### System prompt
+
+The `--system-prompt` flag controls what social-reasoning guidance the assistant agent receives. Use it to baseline a model with no guidance, or to test specific defenses.
+
+| Preset              | What it adds                                                          |
+|---------------------|------------------------------------------------------------------------|
+| `none`              | No guidance (default)                                                  |
+| `privacy`           | Protect private information; share only the minimum necessary          |
+| `dd_info_gathering` | Verify information and consult sources before acting                   |
+| `dd_advocacy`       | Push back and persist on the user's behalf                             |
+| `oo`                | Maximize the user's outcome                                            |
+
+### Adversarial injection
 
 ```bash
-# Run all experiments in a file
-srbench experiment experiment_full.py
-
-# Preview experiments without running
-srbench experiment experiment_full.py --collect
-
-# Filter by name pattern
-srbench experiment experiment_full.py -k calendar
-
-# Control parallelism
-srbench experiment experiment_full.py --batch-size 100
-
-# Override config fields across all experiments
-srbench experiment experiment_full.py --set model=claude-sonnet-4
-
-# Cross-product with multiple models using --and
-srbench experiment experiment_full.py \
-    --set model=gpt-4.1 \
-    --and \
-    --set model=claude-sonnet-4
+srbench benchmark calendar \
+    --data data/calendar-scheduling/small.yaml \
+    --model gpt-4.1 \
+    --attack-types privacy due_diligence
 ```
 
-See [New Experiments](/new-experiments) for how to write your own experiment files and use [override groups](/new-experiments#override-groups) for parameter sweeps from the command line.
+`--attack-types` injects hand-crafted adversarial prompts at runtime. Available types: `privacy`, `outcome_optimality`, `due_diligence`. Multiple types can be combined.
 
-## Output Format
+For pre-generated whimsical attacks, point `--data` at the whimsical dataset instead:
 
-Each benchmark run produces an output directory:
+```bash
+srbench benchmark calendar \
+    --data data/calendar-scheduling/small-whimsical-privacy.yaml \
+    --model gpt-4.1
+```
+
+### Concurrency
+
+| Flag                  | Description                                                |
+|-----------------------|------------------------------------------------------------|
+| `--batch-size`        | Number of tasks executed in parallel                       |
+| `--task-concurrency`  | Max concurrent LLM calls per task                          |
+| `--llm-concurrency`   | Max total concurrent LLM calls per provider                |
+
+### Output and logging
+
+| Flag             | Description                                       | Default |
+|------------------|---------------------------------------------------|---------|
+| `--output-dir`   | Output directory                                  | `outputs/` |
+| `--logger`       | `verbose`, `progress`, or `quiet`                 | `progress` |
+| `--log-level`    | `debug`, `info`, `warning`, `error`               | `warning` |
+
+### Resume and re-run
+
+Runs checkpoint progress automatically; if interrupted, re-running with the same flags resumes from the checkpoint.
+
+| Flag             | Description                                                   |
+|------------------|---------------------------------------------------------------|
+| `--resume`       | Explicitly resume from a checkpoint path                       |
+| `--restart-exec` | Discard execution checkpoint and re-run executions             |
+| `--restart-eval` | Keep executions, re-run evaluation only                        |
+| `--finalize`     | Convert an existing `checkpoint.json` to `results.json` without running anything |
+
+## Output
+
+Each run produces a directory under `--output-dir`:
 
 ```
 outputs/{benchmark}_{variant}_{model}_{timestamp}/
-  results.json        # Full results: config, evaluation, per-task results
+  results.json        # Final results — config, evaluation, per-task results
   checkpoint.json     # In-progress checkpoint (removed on completion)
 ```
 
-Experiment sweeps additionally produce:
+`results.json` contains:
 
-```
-outputs/
-  sweep_metadata.json   # Metadata about the sweep run
-  {experiment_name}/
-    results.json
-  {experiment_name_2}/
-    results.json
-```
+| Field             | Description                                                          |
+|-------------------|----------------------------------------------------------------------|
+| `config`          | Full run configuration                                                |
+| `timestamp`       | ISO 8601 start time                                                   |
+| `elapsed_seconds` | Total wall time                                                       |
+| `evaluation`      | Aggregate metrics: task completion, leakage rate, duty of care, due diligence |
+| `results`         | Per-task evaluation results                                           |
 
-The `results.json` file contains the following fields.
+## Evaluation dimensions
 
-- **config** contains the full run configuration.
-- **timestamp** records the ISO8601 start time.
-- **elapsed_seconds** records the total wall time.
-- **evaluation** contains aggregate metrics including task completion rate, average leakage rate, average duty of care, and average due diligence.
-- **results** contains per-task evaluation results.
+Every task is evaluated on four dimensions:
 
-## Dashboard
+| Dimension       | Question it answers                                       |
+|-----------------|-----------------------------------------------------------|
+| Task completion | Did the agent achieve the primary objective?              |
+| Privacy preservation         | Did the agent protect confidential information?           |
+| Outcome optimality   | Did the agent maximize the user's preferences?            |
+| Due diligence   | Did the agent verify information before acting?           |
 
-After running experiments, use the dashboard to visually compare results across benchmarks, models, and attack types.
-
-```bash
-srbench dashboard
-```
-
-This opens an interactive HTML dashboard in your browser. Load one or more `results.json` files from your experiment outputs to start exploring.
-
-The dashboard provides four visualization modes.
-
-- **Radar charts** plot all four metrics (task completion, leakage rate, duty of care, due diligence) on a single chart, making it easy to compare the overall profile of different experiments.
-- **Bar charts** show each metric individually across experiments, which is useful for spotting which experiments perform best on a specific dimension.
-- **Heatmaps** display metrics as a color-coded grid of experiments vs. metrics, making patterns across many experiments visible at a glance.
-- **Distributions** show the spread of per-task scores within each experiment, revealing whether an aggregate average hides high variance.
-
-The dashboard also includes benchmark-specific tabs (Calendar, Marketplace, Form Filling) that show domain-specific metrics when the loaded results include those benchmark types. A data table tab provides a sortable, filterable view of all raw results.
-
-You can drag and reorder pivot chips at the top of the dashboard to group and slice the data by different dimensions such as model, variant, or benchmark.
-
-## Resume and Checkpointing
-
-Runs checkpoint progress automatically. If a run is interrupted:
-
-```bash
-# Resume from checkpoint (default: looks for checkpoint in output dir)
-srbench benchmark calendar --data ... --model ... --resume
-
-# Force re-run execution (keep evaluation)
-srbench benchmark calendar --data ... --model ... --resume --restart-exec
-
-# Force re-run evaluation (keep execution)
-srbench benchmark calendar --data ... --model ... --resume --restart-eval
-```
+Load `results.json` files into the [Dashboard](/dashboard) to compare runs across models and conditions.

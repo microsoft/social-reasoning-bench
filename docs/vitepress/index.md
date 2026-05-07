@@ -2,42 +2,40 @@
 layout: home
 
 hero:
-  name: SRBench Benchmark
-  text: Society of Agents Environments
-  tagline: Evaluating social reasoning capabilities of LLM agents in multi-agent settings
+  name: Social Reasoning Bench
+  tagline: Evaluate the social reasoning capabilities of LLM agents in multi-agent environments.
   actions:
     - theme: brand
-      text: Read the Report
-      link: /introduction
+      text: Get Started
+      link: /installation
     - theme: alt
-      text: Go under the hood
-      link: /architecture
+      text: Open the Dashboard
+      link: /dashboard
 
-features:
-  - title: Results
-    details: How frontier models perform across benchmarks under benign and adversarial conditions.
-    link: /results
-  - title: Dashboard
-    details: Interactive explorer for experiment results across models, benchmarks, and attack types.
-    link: /dashboard
-  - title: Reproduction
-    details: Reproduce the exact experiments from the paper with step-by-step instructions.
-    link: /reproduction
 ---
 
 ## Quick Start
 
 ```bash
-# Install
-git clone https://github.com/microsoft/srbench.git
+# 1. Clone and install
+git clone https://github.com/microsoft/social-reasoning-bench.git
 cd srbench
-uv sync --all-packages
+uv sync --all-packages --all-groups --all-extras
+source .venv/bin/activate
 
-# Run a benchmark
+# 2. Add an API key
+cp example.env .env
+# then edit .env to set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY,
+# or SRBENCH_AZURE_POOL_PATH
+
+# 3. Run a smoke benchmark
 srbench benchmark calendar \
-    --data ./data/calendar-scheduling/small.yaml \
+    --data data/calendar-scheduling/small.yaml \
     --model gpt-4.1 \
     --limit 2
+
+# 4. Open the dashboard
+srbench dashboard
 ```
 
-See the [Installation guide](/installation) for full setup instructions including model provider configuration.
+See [Installation](/installation) for full setup including model providers.

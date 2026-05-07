@@ -2,66 +2,43 @@
 
 ## Prerequisites
 
-- **Python** >= 3.11
-- **[uv](https://docs.astral.sh/uv/)** is a fast Python package manager
+- **Python** 3.11 or newer
+- **[uv](https://docs.astral.sh/uv/)**
+
+## Install
 
 ```bash
-# Install uv if you don't have it
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-## Clone and Install
-
-```bash
-git clone https://github.com/microsoft/srbench.git
+git clone https://github.com/microsoft/social-reasoning-bench.git srbench
 cd srbench
-uv sync --all-packages
+uv sync --all-packages --all-groups --all-extras
+source .venv/bin/activate
 ```
 
-This installs all five workspace packages (`srbench`, `srbench-data-gen`, `srbench-llm`, `whimsygen`, `privacy-judge`) and their dependencies.
+## Configure a model provider
 
-## Environment Variables
-
-Set the API key for your model provider in a `.env` file at the repo root:
-
-| Provider | Environment Variable | Example |
-|----------|---------------------|---------|
-| OpenAI | `OPENAI_API_KEY` | `export OPENAI_API_KEY="sk-..."` |
-| Anthropic | `ANTHROPIC_API_KEY` | `export ANTHROPIC_API_KEY="sk-ant-..."` |
-| Gemini | `GEMINI_API_KEY` | `export GEMINI_API_KEY="..."` |
-
-## Model Name Formats
-
-All CLI tools accept model names in these formats:
-
-| Provider | Format | Example |
-|----------|--------|---------|
-| OpenAI | `{model}` or `openai/{model}` | `gpt-4.1` |
-| Anthropic | `claude-*` or `anthropic/claude-*` | `claude-sonnet-4` |
-| Gemini | `gemini-*` or `gemini/gemini-*` | `gemini-2.5-flash` |
-
-See the [srbench-llm README](https://github.com/microsoft/srbench/tree/main/packages/srbench-llm) for full details on model routing.
-
-## Verify Installation
-
-Run a quick smoke test to confirm everything works:
+Copy the example environment file and fill in keys for whichever provider(s) you use:
 
 ```bash
-srbench experiment experiment_smoke.py -k calendar --collect
+cp example.env .env
 ```
 
-This should list the calendar smoke experiment without executing it. To actually run it:
+| Provider   | Environment variable        |
+|------------|-----------------------------|
+| OpenAI     | `OPENAI_API_KEY`            |
+| Anthropic  | `ANTHROPIC_API_KEY`         |
+| Gemini     | `GEMINI_API_KEY`            |
+| Azure pool | `SRBENCH_AZURE_POOL_PATH`   |
+
+You only need a key for the providers you actually plan to use. See [LLMs](/llm) for the full provider setup, model name formats, and the Azure pool.
+
+## Verify
+
+Run the smoke experiment to confirm everything works end-to-end:
 
 ```bash
-srbench experiment experiment_smoke.py -k calendar
+srbench experiment experiments/smoke
 ```
 
-## Development
+This runs two tasks each from the calendar and marketplace benchmarks. Results land in `outputs/`.
 
-```bash
-# Check formatting and linting
-uv run poe check-all
-
-# Auto-fix issues
-uv run poe fix-all
-```
+For long sweeps, see [LLMs › Concurrency](/llm#concurrency) for tuning per-provider rate limits.

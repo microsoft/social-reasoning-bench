@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'SRBench-Benchmark',
-  description: 'Evaluating social reasoning capabilities of LLM agents',
+  title: 'SocialReasoningBench',
+  description: 'Evaluate the social reasoning capabilities of LLM agents in multi-agent environments',
   base: '/srbench/',
 
   head: [
@@ -11,51 +11,32 @@ export default defineConfig({
 
   themeConfig: {
     nav: [
-      { text: 'Introduction', link: '/introduction' },
-      { text: 'Results', link: '/results' },
+      { text: 'Quick Start', link: '/' },
+      { text: 'Installation', link: '/installation' },
+      { text: 'Benchmarks', link: '/running-benchmarks' },
+      { text: 'Experiments', link: '/experiments' },
+      { text: 'Data Generation', link: '/generating-data' },
+      { text: 'LLMs', link: '/llm' },
       { text: 'Dashboard', link: '/dashboard' },
-      {
-        text: 'Packages',
-        items: [
-          { text: 'srbench', link: '/running-benchmarks' },
-          { text: 'srbench-data-gen', link: '/generating-data' },
-          { text: 'WhimsyGen', link: '/whimsygen' },
-          { text: 'Privacy Judge', link: '/privacy-judge' },
-        ],
-      },
       { text: 'GitHub', link: 'https://github.com/microsoft/srbench' },
     ],
 
     sidebar: [
       {
-        text: 'Report',
+        text: 'Get Started',
         items: [
-          { text: 'Introduction', link: '/introduction' },
-          { text: 'Benchmarks', link: '/benchmarks' },
-          { text: 'Evaluation', link: '/evaluation' },
-          { text: 'Results', link: '/results' },
-        ],
-      },
-      {
-        text: 'Guide',
-        items: [
+          { text: 'Quick Start', link: '/' },
           { text: 'Installation', link: '/installation' },
-          { text: 'Reproduction', link: '/reproduction' },
-          { text: 'Running Benchmarks', link: '/running-benchmarks' },
-          { text: 'Experiments', link: '/new-experiments' },
-          { text: 'Data Generation', link: '/generating-data' },
-          { text: 'WhimsyGen', link: '/whimsygen' },
-          { text: 'Privacy Judge', link: '/privacy-judge' },
         ],
       },
       {
-        text: 'Internals',
+        text: 'User Guide',
         items: [
-          { text: 'Architecture', link: '/architecture' },
-          { text: 'Calendar Scheduling', link: '/calendar-internals' },
-          { text: 'Form Filling', link: '/form-filling-internals' },
-          { text: 'Marketplace', link: '/marketplace-internals' },
-          { text: 'Adding a Benchmark', link: '/new-benchmarks' },
+          { text: 'Running benchmarks', link: '/running-benchmarks' },
+          { text: 'Designing experiments', link: '/experiments' },
+          { text: 'Generating data', link: '/generating-data' },
+          { text: 'LLMs', link: '/llm' },
+          { text: 'Dashboard', link: '/dashboard' },
         ],
       },
     ],
