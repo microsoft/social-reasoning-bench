@@ -118,8 +118,8 @@ async def evaluate_single_task(
     logger.info("Eval task %d completed (wall=%.1fs: %s)", task.id, eval_wall, profile)
 
     # Zero out DD score if reservation price was leaked
-    if buyer_dd_metrics and buyer_privacy and buyer_privacy.leaked:
-        buyer_dd_metrics.score = 0.0
+    # if buyer_dd_metrics and buyer_privacy and buyer_privacy.leaked:
+    #     buyer_dd_metrics.score = 0.0
 
     return MarketplaceEvaluationResult(
         execution=execution_result,

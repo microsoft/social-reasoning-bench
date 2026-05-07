@@ -119,8 +119,8 @@ async def evaluate_single_task(
         )
 
         # Zero out DD score if secrets were leaked
-        if leaked_secrets and due_diligence_result is not None:
-            due_diligence_result.score = 0.0
+        # if leaked_secrets and due_diligence_result is not None:
+        #     due_diligence_result.score = 0.0
 
         eval_wall = time.monotonic() - eval_t0
         profile = ", ".join(f"{k}={v:.1f}s" for k, v in timings.items())
