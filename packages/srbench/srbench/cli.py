@@ -360,17 +360,139 @@ def _run_experiment(argv: list[str]) -> None:
 def _run_dashboard(argv: list[str]) -> None:
     """Open the interactive results dashboard in the default browser.
 
+    With no positional arguments, opens the static dashboard via ``file://``
+    and the user loads results manually from the sidebar.
+
+    With one or more paths, every ``results.json`` reachable from those paths
+    is staged into a temporary directory and the dashboard is served over a
+    short-lived local HTTP server with auto-load enabled (``?load=/data/``).
+    Browsers refuse to ``fetch()`` from ``file://``, so the local server is
+    required whenever we want auto-load.
+
     Args:
-        argv: Command-line arguments after ``srbench dashboard`` (currently unused).
+        argv: Command-line arguments after ``srbench dashboard``. Each
+            positional argument is either a ``results.json`` path or a
+            directory to scan recursively for ``results.json`` files.
     """
+    import argparse
+    import http.server
+    import json as _json
+    import shutil
+    import socketserver
+    import tempfile
+    import threading
+    import time
     import webbrowser
+    from pathlib import Path
 
     from .dashboard import get_dashboard_path
 
-    path = get_dashboard_path()
-    url = path.as_uri() if hasattr(path, "as_uri") else f"file://{path}"
+    parser = argparse.ArgumentParser(
+        prog="srbench dashboard",
+        description="Open the results dashboard, optionally pre-loaded with results.",
+    )
+    parser.add_argument(
+        "paths",
+        nargs="*",
+        type=Path,
+        help="results.json files or directories to auto-load",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=0,
+        help="HTTP server port (0 = auto-pick, default)",
+    )
+    args = parser.parse_args(argv)
+
+    dashboard_path = get_dashboard_path()
+
+    # No paths: skip the HTTP server, just open the static file.
+    if not args.paths:
+        url = (
+            dashboard_path.as_uri()
+            if hasattr(dashboard_path, "as_uri")
+            else f"file://{dashboard_path}"
+        )
+        print(f"Opening dashboard: {url}")
+        webbrowser.open(url)
+        return
+
+    # Stage every results.json into a temp dir, generate a manifest,
+    # then serve everything over HTTP so the dashboard's ?load= can fetch it.
+    staging = Path(tempfile.mkdtemp(prefix="srbench-dashboard-"))
+    data_dir = staging / "data"
+    data_dir.mkdir()
+
+    used_names: set[str] = set()
+
+    def _stage(src: Path) -> str:
+        base = src.parent.name or "results"
+        name = base
+        i = 1
+        while name in used_names:
+            i += 1
+            name = f"{base}-{i}"
+        used_names.add(name)
+        dest = data_dir / name / src.name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(src, dest)
+        return f"{name}/{src.name}"
+
+    files: list[str] = []
+    for path in args.paths:
+        if not path.exists():
+            print(f"warning: {path} not found", file=sys.stderr)
+            continue
+        if path.is_file():
+            if path.suffix != ".json":
+                print(f"warning: skipping non-json {path}", file=sys.stderr)
+                continue
+            files.append(_stage(path))
+        else:
+            for results_file in sorted(path.rglob("results.json")):
+                files.append(_stage(results_file))
+
+    if not files:
+        print(
+            f"No results.json files found in: {[str(p) for p in args.paths]}",
+            file=sys.stderr,
+        )
+        shutil.rmtree(staging, ignore_errors=True)
+        sys.exit(1)
+
+    (data_dir / "manifest.json").write_text(_json.dumps({"files": sorted(files)}, indent=2))
+    shutil.copy(dashboard_path, staging / "index.html")
+
+    class _QuietHandler(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *_args, **_kwargs) -> None:
+            pass
+
+    def _make_handler(*a, **kw):
+        return _QuietHandler(*a, directory=str(staging), **kw)
+
+    server = socketserver.ThreadingTCPServer(("127.0.0.1", args.port), _make_handler)
+    server.daemon_threads = True
+    actual_port = server.server_address[1]
+
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    url = f"http://localhost:{actual_port}/index.html?load=/data/"
+    print(f"Loaded {len(files)} results from {len(args.paths)} input(s).")
+    print(f"Staged at: {staging}")
     print(f"Opening dashboard: {url}")
+    print("Press Ctrl-C to stop the server.")
     webbrowser.open(url)
+
+    try:
+        while True:
+            time.sleep(3600)
+    except KeyboardInterrupt:
+        print("\nShutting down…")
+    finally:
+        server.shutdown()
+        server.server_close()
+        shutil.rmtree(staging, ignore_errors=True)
 
 
 # ── datagen subcommand ───────────────────────────────────────────────

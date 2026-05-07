@@ -17,7 +17,7 @@ export default defineConfig({
       { text: 'Experiments', link: '/experiments' },
       { text: 'Data Generation', link: '/generating-data' },
       { text: 'LLMs', link: '/llm' },
-      { text: 'Dashboard', link: '/dashboard' },
+      { text: 'Results', link: '/results' },
       { text: 'GitHub', link: 'https://github.com/microsoft/social-reasoning-bench' },
     ],
 
@@ -36,7 +36,7 @@ export default defineConfig({
           { text: 'Designing experiments', link: '/experiments' },
           { text: 'Generating data', link: '/generating-data' },
           { text: 'LLMs', link: '/llm' },
-          { text: 'Dashboard', link: '/dashboard' },
+          { text: 'Results', link: '/results' },
         ],
       },
     ],

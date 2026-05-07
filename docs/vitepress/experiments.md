@@ -202,7 +202,13 @@ outputs/
   ...
 ```
 
-Load any combination of `results.json` files into the [Dashboard](/dashboard) to compare runs.
+Open the [Results](/results) page pre-loaded with the sweep you just ran:
+
+```bash
+srbench dashboard outputs/v0.1.0/
+```
+
+Pass any mix of `results.json` files or sweep directories — directories are scanned recursively. Always scope to a specific sweep folder rather than `outputs/` itself, since `outputs/` holds every run you've ever done.
 
 ## Reference: real sweep
 

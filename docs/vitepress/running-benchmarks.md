@@ -174,4 +174,11 @@ Every task is evaluated on four dimensions:
 | Outcome optimality   | Did the agent maximize the user's preferences?            |
 | Due diligence   | Did the agent verify information before acting?           |
 
-Load `results.json` files into the [Dashboard](/dashboard) to compare runs across models and conditions.
+Open the [Results](/results) page pre-loaded with your run by passing one or more paths:
+
+```bash
+srbench dashboard outputs/calendar_gpt-4.1_20260507T120000/
+srbench dashboard outputs/calendar_gpt-4.1_*/ outputs/calendar_claude-sonnet-4-5_*/
+```
+
+Each path can be a `results.json` file or a directory; directories are scanned recursively.
