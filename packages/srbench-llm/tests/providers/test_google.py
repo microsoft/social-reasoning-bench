@@ -91,7 +91,9 @@ class TestTranslateRequest:
         assert contents[0].parts[0].text == "hello"
 
     def test_assistant_message(self):
-        msgs: list[SRBenchMessage] = [SRBenchChatCompletionMessage(role="assistant", content="reply")]
+        msgs: list[SRBenchMessage] = [
+            SRBenchChatCompletionMessage(role="assistant", content="reply")
+        ]
         raw_contents, _ = _translate_request(msgs)
         assert isinstance(raw_contents, list)
         contents = cast(list[types.Content], raw_contents)

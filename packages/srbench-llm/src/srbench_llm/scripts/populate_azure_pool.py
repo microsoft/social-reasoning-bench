@@ -77,9 +77,7 @@ def list_accounts(subscription: str, pattern: str | None) -> list[dict]:
         List of matching account dicts with name, resource group, and endpoint.
     """
     projection = "{name:name, rg:resourceGroup, endpoint:properties.endpoint}"
-    query = (
-        f"[?starts_with(name, '{pattern}')].{projection}" if pattern else f"[].{projection}"
-    )
+    query = f"[?starts_with(name, '{pattern}')].{projection}" if pattern else f"[].{projection}"
     return run_az(
         [
             "cognitiveservices",

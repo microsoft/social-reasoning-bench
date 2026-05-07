@@ -71,7 +71,9 @@ class TestTranslateMessages:
         assert out[0] == {"role": "user", "content": "hello"}
 
     def test_assistant_message_with_content(self):
-        msgs: list[SRBenchMessage] = [SRBenchChatCompletionMessage(role="assistant", content="answer")]
+        msgs: list[SRBenchMessage] = [
+            SRBenchChatCompletionMessage(role="assistant", content="answer")
+        ]
         _, out = _translate_messages(msgs)
         m = out[0]
         assert isinstance(m, dict)
@@ -311,9 +313,7 @@ class TestAnthropicProviderComplete:
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
         mock_client.messages.stream = _mock_stream_returning(
-            _make_anthropic_response(
-                content=[anthropic.types.TextBlock(type="text", text="hi")]
-            )
+            _make_anthropic_response(content=[anthropic.types.TextBlock(type="text", text="hi")])
         )
 
         provider = AnthropicProvider(api_key="test-key")

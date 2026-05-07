@@ -78,7 +78,9 @@ class TestSRBenchChatCompletionInfo:
 
     def test_with_usage(self):
         usage = CompletionUsage(prompt_tokens=100, completion_tokens=50, total_tokens=150)
-        info = SRBenchChatCompletionInfo(id="abc", model="gpt-4o", finish_reason="stop", usage=usage)
+        info = SRBenchChatCompletionInfo(
+            id="abc", model="gpt-4o", finish_reason="stop", usage=usage
+        )
         assert info.usage is not None
         assert info.usage.total_tokens == 150
 
