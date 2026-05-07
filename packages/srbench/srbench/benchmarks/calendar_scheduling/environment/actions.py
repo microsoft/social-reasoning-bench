@@ -220,7 +220,8 @@ CalendarAction = Union[
     # GetEmails is injected by the loop via add_new_messages, not called by agents
     ListMeetings,
     ListContacts,
-    RequestMeeting,
+    # Only request is injected by the loop on conversation start
+    # RequestMeeting,
     # Disabled because it lets the agents change their existing events
     # CancelMeeting,
     ReplyMeeting,
