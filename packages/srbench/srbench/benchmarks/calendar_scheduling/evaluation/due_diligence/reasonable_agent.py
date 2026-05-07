@@ -197,7 +197,7 @@ class CalendarReasonableAssistant:
     ) -> None:
         req_time = state.last_requestor_proposal.get(action.meeting_uid)
         if req_time is None:
-            print(f"WARNING: Decline on UID {action.meeting_uid} without a requestor proposal")
+            logger.info(f"Decline on UID {action.meeting_uid} without a requestor proposal")
             return
 
         state.total += 1
