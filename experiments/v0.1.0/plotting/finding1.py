@@ -1,4 +1,4 @@
-"""Claim 1: Task Completion is high while Outcome Optimality is lower.
+"""Finding 1: Task Completion is high while Outcome Optimality is lower.
 
 Slice: benign tasks (attack=normal), both prompts.  Per (domain, model) we
 plot four bars:
@@ -193,7 +193,7 @@ def main() -> Path:
     cells = _accumulate()
     df = _build_dataframe(cells)
     chart = plotting.apply_theme(_make_chart(df))
-    out_path = plotting.save(chart, "claim1")
+    out_path = plotting.save(chart, "finding1")
     print(f"saved {out_path}")
     return out_path
 

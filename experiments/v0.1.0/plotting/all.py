@@ -1,15 +1,15 @@
 import logging
 
-from claim1 import main as claim1
-from claim3 import main as claim3
-from claim4 import main as claim4
-from claim5 import main as claim5
+from finding1 import main as finding1
+from finding3 import main as finding3
+from finding4 import main as finding4
+from finding5 import main as finding5
 
 logger = logging.getLogger()
 
 if __name__ == "__main__":
-    for i, claim in enumerate([claim1, claim3, claim4, claim5]):
+    for i, finding in enumerate([finding1, finding3, finding4, finding5]):
         try:
-            claim()
+            finding()
         except Exception:
-            logger.exception(f"Failed to plot claim {claim.__name__}")
+            logger.exception(f"Failed to plot finding {finding.__name__}")
