@@ -254,7 +254,7 @@ def _run_experiment(argv: list[str]) -> None:
         "-k",
         action="append",
         metavar="PATTERN",
-        help="Only run experiments matching this pattern (repeatable)",
+        help='Only run experiments matching this pattern (repeatable; prefix with "not " to exclude, e.g. -k "not gpt-4-1")',
     )
     parser.add_argument(
         "--output-base",
