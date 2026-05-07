@@ -117,14 +117,6 @@
     .col-remove-btn { transition: all 0.15s; }
     .col-remove-btn:hover { color: #ef4444; }
 
-    /* Annotator Tab */
-    .ann-verdict-btn { transition: all 0.15s; cursor: pointer; }
-    .ann-verdict-btn:hover { filter: brightness(1.1); }
-    .ann-verdict-btn.selected { ring: 2px; box-shadow: 0 0 0 2px currentColor; }
-    .ann-row:hover { background: rgba(107, 158, 120, 0.05); }
-    .dark .ann-row:hover { background: rgba(107, 158, 120, 0.08); }
-    .ann-confusion-cell { min-width: 3rem; text-align: center; padding: 0.5rem; font-weight: 600; font-size: 0.875rem; }
-
     /* Trace Viewer */
     .trace-task-row { cursor: pointer; transition: background 0.15s; }
     .trace-task-row:hover { background: rgba(107, 158, 120, 0.08); }
@@ -243,13 +235,6 @@
           <button class="tab-btn active px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="overview">Overview</button>
           <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="calendar" disabled>Calendar</button>
           <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="marketplace" disabled>Marketplace</button>
-          <div class="flex-1"></div>
-          <button class="tab-btn px-4 py-3 border-b-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-transparent" data-tab="annotator" disabled>
-            <span class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              Annotator
-            </span>
-          </button>
         </nav>
 
         <!-- Tab panels (fill remaining height) -->
@@ -326,40 +311,6 @@
             </div>
           </div>
 
-          <!-- Annotator Tab -->
-          <div id="tab-annotator" class="tab-content hidden flex-1 flex flex-col min-h-0">
-            <div class="h-full flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-              <!-- Header -->
-              <div class="flex-shrink-0 px-5 py-2.5 border-b border-gray-200 dark:border-gray-800 flex items-center gap-4 flex-wrap">
-                <div class="flex items-center gap-2">
-                  <label class="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold tracking-wider">Annotator</label>
-                  <input id="ann-name" type="text" placeholder="Your name" class="text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-srbench-500 w-36">
-                </div>
-                <span class="text-gray-300 dark:text-gray-600">|</span>
-                <select id="ann-filter-status" class="group-select text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-srbench-500">
-                  <option value="all">All</option>
-                  <option value="pending">Pending</option>
-                  <option value="annotated">Annotated</option>
-                  <option value="disagree">Human ≠ Judge</option>
-                </select>
-                <div class="flex-1"></div>
-                <span id="ann-progress" class="text-[10px] text-gray-400 dark:text-gray-500 font-medium"></span>
-                <button id="ann-export-btn" class="flex items-center gap-1.5 px-3 py-1.5 bg-srbench-600 hover:bg-srbench-700 text-white text-xs font-medium rounded-lg transition">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3"/></svg>
-                  Export
-                </button>
-                <button id="ann-clear-btn" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg transition">
-                  Clear
-                </button>
-              </div>
-              <!-- Dimension filter pills -->
-              <div id="ann-dim-filters" class="flex-shrink-0 px-5 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center gap-1 flex-wrap"></div>
-              <!-- Stats row -->
-              <div id="ann-stats" class="flex-shrink-0 px-5 py-2 border-b border-gray-100 dark:border-gray-800"></div>
-              <!-- Main content: full-page card view -->
-              <div id="ann-body" class="flex-1 min-h-0 flex flex-col"></div>
-            </div>
-          </div>
 
           <!-- Benchmark Trace Viewer Tabs (generated by JS) -->
           <div id="benchmark-tabs-container" class="contents"></div>
@@ -407,9 +358,6 @@ const CORE_METRICS = {
   leakage_rate:         { label: 'Leakage Rate',         aggKey: 'avg_leakage_rate',         taskKey: 'leakage_rate',        format: 'percent', higherIsBetter: false, scale: [0, 1] },
   duty_of_care:         { label: 'Duty of Care',         aggKey: 'avg_duty_of_care',         taskKey: 'duty_of_care',        format: 'percent', higherIsBetter: true,  scale: [0, 1] },
   due_diligence:        { label: 'Due Diligence',        aggKey: 'avg_due_diligence',        taskKey: 'due_diligence',       format: 'percent', higherIsBetter: true,  scale: [0, 1] },
-  dd_info_gathering:    { label: 'DD: Info Gathering',   aggKey: 'avg_dd_info_gathering',    taskKey: 'dd_info_gathering',   format: 'percent', higherIsBetter: true,  scale: [0, 1] },
-  dd_advocacy:          { label: 'DD: Advocacy',         aggKey: 'avg_dd_advocacy',          taskKey: 'dd_advocacy',         format: 'percent', higherIsBetter: true,  scale: [0, 1] },
-  dd_discretion:        { label: 'DD: Discretion',       aggKey: 'avg_dd_discretion',        taskKey: 'dd_discretion',       format: 'percent', higherIsBetter: true,  scale: [0, 1] },
 };
 
 const BENCHMARK_COLORS = {
@@ -454,7 +402,7 @@ const DIMENSION_DEFS = {
   model:          { label: 'Model',          colorMap: null },
   attackType:     { label: 'Attack Type',    colorMap: ATTACK_TYPE_COLORS, order: ['none', 'privacy', 'outcome_optimality', 'due_diligence'] },
   attackStyle:    { label: 'Attack Style',   colorMap: null },
-  privacyLevel:   { label: 'Privacy Prompt', colorMap: null, order: ['none', 'simple', 'strong', 'ci'] },
+  privacyLevel:   { label: 'System Prompt', colorMap: null, order: ['none', 'simple', 'strong', 'ci'] },
   reasoningConfig:{ label: 'Reasoning',      colorMap: null },
 };
 
@@ -488,41 +436,7 @@ const state = {
   scatterY: 'duty_of_care',
   seriesEnabled: true,
   filterClipboard: null,  // { dims: { dim: Set }, visibleMetrics: Set } or null
-  // Annotator state
-  annotations: {},        // key → { verdict: 'agree'|'disagree', timestamp: ISO }
-  annotatorName: '',
 };
-
-// ─────────────────────────────────────────────
-// Annotator Persistence (localStorage)
-// ─────────────────────────────────────────────
-
-const ANN_STORAGE_KEY = 'srbench-annotator-data';
-
-function annKey(item) {
-  return `${item.expVariant}::${item.expModel}::${item.taskId}::${item.secretIdx}::${item.source}::${item.msgIdx}`;
-}
-
-function loadAnnotations() {
-  try {
-    const raw = localStorage.getItem(ANN_STORAGE_KEY);
-    if (!raw) return;
-    const data = JSON.parse(raw);
-    if (data.annotations) state.annotations = data.annotations;
-    if (data.annotatorName) state.annotatorName = data.annotatorName;
-  } catch(e) { console.warn('Failed to load annotations:', e); }
-}
-
-function saveAnnotations() {
-  try {
-    localStorage.setItem(ANN_STORAGE_KEY, JSON.stringify({
-      annotations: state.annotations,
-      annotatorName: state.annotatorName,
-    }));
-  } catch(e) { console.warn('Failed to save annotations:', e); }
-}
-
-loadAnnotations();
 
 // ─────────────────────────────────────────────
 // URL State Persistence
@@ -655,7 +569,7 @@ function extractReasoningConfig(cfg) {
 }
 
 function extractPrivacyLevel(cfg) {
-  // Privacy prompt level from whichever config field the benchmark uses
+  // System prompt level from whichever config field the benchmark uses
   return cfg.system_prompt || cfg.assistant_system_prompt || cfg.prompt_type || 'none';
 }
 
@@ -712,9 +626,6 @@ function parseResultsFile(json, filename) {
       leakageRate: r.leakage_rate,
       dutyOfCare: r.duty_of_care,
       dueDiligence: r.due_diligence,
-      ddInfoGathering: r.due_diligence_eval?.information_gathering_score ?? r.due_diligence_information_gathering_score,
-      ddAdvocacy: r.due_diligence_eval?.advocacy_score ?? r.due_diligence_advocacy_score,
-      ddDiscretion: r.due_diligence_eval?.discretion_score ?? r.due_diligence_discretion_score,
       outcomeOptimality: r.outcome_optimality,
       privacyLeaks: r.privacy_leaks || [],
       _raw: r,
@@ -722,19 +633,6 @@ function parseResultsFile(json, filename) {
     _rawConfig: cfg,
     _rawEvaluation: json.evaluation || {},
   };
-
-  // Normalize DD dimension averages from various Python key names
-  const ev = exp.evaluation;
-  const n = exp.tasks.length;
-  // Normalize DD dimension averages from various Python key names.
-  // Only compute from task-level data if at least one task has the value.
-  function _taskAvg(tasks, key) {
-    const vals = tasks.map(t => t[key]).filter(v => v != null);
-    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-  }
-  if (ev.avg_dd_info_gathering == null) ev.avg_dd_info_gathering = ev.due_diligence_avg_information_gathering_score ?? _taskAvg(exp.tasks, 'ddInfoGathering');
-  if (ev.avg_dd_advocacy == null) ev.avg_dd_advocacy = ev.avg_dd_advocacy_score ?? ev.due_diligence_avg_advocacy_score ?? _taskAvg(exp.tasks, 'ddAdvocacy');
-  if (ev.avg_dd_discretion == null) ev.avg_dd_discretion = ev.avg_dd_discretion_score ?? ev.due_diligence_avg_discretion_score ?? _taskAvg(exp.tasks, 'ddDiscretion');
 
   return exp;
 }
@@ -1147,8 +1045,9 @@ function toggleSidebar(forceExpand) {
   document.getElementById('sidebar-collapse-icon').classList.toggle('hidden', expanded);
 }
 document.getElementById('sidebar-toggle').addEventListener('click', () => toggleSidebar());
-// Auto-expand sidebar on page load so load buttons are visible
-toggleSidebar(true);
+// Auto-expand sidebar so load buttons are visible — but stay collapsed
+// when ?load= is auto-populating, since the user isn't picking files.
+toggleSidebar(!new URLSearchParams(window.location.search).has('load'));
 
 // Scroll lock toggle
 document.getElementById('scroll-lock-btn').addEventListener('click', () => {
@@ -1290,9 +1189,6 @@ function updateTabs() {
     if (['calendar', 'marketplace'].includes(tab)) {
       btn.disabled = !loadedBenchmarks.has(tab);
     }
-    if (tab === 'annotator') {
-      btn.disabled = state.experiments.length === 0;
-    }
     btn.classList.toggle('active', tab === state.activeTab);
   });
 }
@@ -1309,7 +1205,6 @@ function renderActiveTab() {
     case 'overview': renderOverview(filtered); break;
     case 'calendar': renderBenchmarkTab('calendar', filtered.filter(e => e.benchmark === 'calendar')); break;
     case 'marketplace': renderBenchmarkTab('marketplace', filtered.filter(e => e.benchmark === 'marketplace')); break;
-    case 'annotator': renderAnnotatorTab(filtered); break;
   }
   pushViewState();
 }
@@ -1603,27 +1498,44 @@ function renderRadarColumn(container, experiments, colIdx) {
   const seriesDim = state.seriesEnabled !== false ? (state.groupBy[2] || null) : null;
 
   const isDark = themeDark();
-  const axisLabels = ['Task Completion', 'Outcome Optimality', 'Privacy Preservation', 'Duty of Care', 'Due Diligence'];
 
-  function makeRadarData(exps) {
+  // Radar needs at least 3 vertices. Take the visible metrics; if fewer than
+  // 3 are selected, pad in CORE_METRICS declaration order.
+  function radarAxesFor(visibleMetrics) {
+    const allKeys = Object.keys(CORE_METRICS);
+    const keys = allKeys.filter(k => visibleMetrics.has(k));
+    if (keys.length < 3) {
+      for (const k of allKeys) {
+        if (keys.length >= 3) break;
+        if (!keys.includes(k)) keys.push(k);
+      }
+    }
+    return keys.map(k => ({
+      key: k,
+      label: k === 'leakage_rate' ? 'Privacy Preservation' : CORE_METRICS[k].label,
+      invert: k === 'leakage_rate',
+    }));
+  }
+
+  function makeRadarData(exps, axes) {
     const agg = aggregateExperiments(exps);
-    return [
-      agg.task_completion ?? 0,
-      agg.outcome_optimality ?? 0,
-      1 - (agg.leakage_rate ?? 0),
-      agg.duty_of_care ?? 0,
-      agg.due_diligence ?? 0,
-    ];
+    return axes.map(({ key, invert }) => {
+      const v = agg[key] ?? 0;
+      return invert ? 1 - v : v;
+    });
   }
 
   const radarOpts = {
     responsive: true, maintainAspectRatio: false,
     scales: { r: { beginAtZero: true, max: 1, min: 0, ticks: { stepSize: 0.25, color: isDark ? '#9ca3af' : '#737373', backdropColor: 'transparent', font: { size: 9 } }, grid: { color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }, pointLabels: { color: isDark ? '#d4d4d4' : '#404040', font: { size: 10 } } } },
-    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, color: isDark ? '#d4d4d4' : '#404040', padding: 8 } }, tooltip: { mode: 'dataset', intersect: true, callbacks: { title: items => items[0]?.dataset.label || '', label: item => `${axisLabels[item.dataIndex] || ''}: ${(item.raw * 100).toFixed(1)}%` } } },
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, color: isDark ? '#d4d4d4' : '#404040', padding: 8 } } },
   };
 
   renderFacetedColumn(container, experiments, colIdx, {
     renderCardContent(card, filtered, _unfiltered, colIdx, fk, fi) {
+      const axes = radarAxesFor(getVisibleMetrics(colIdx, fk));
+      const axisLabels = axes.map(a => a.label);
+
       const xGroups = xDim ? groupExperiments(filtered, [xDim]) : { [fk]: filtered };
       const xKeys = dimSort(xDim, Object.keys(xGroups));
 
@@ -1653,12 +1565,12 @@ function renderRadarColumn(container, experiments, colIdx) {
           const secKeys = dimSort(seriesDim, Object.keys(secGroups));
           datasets = secKeys.map((sk, si) => {
             const color = SERIES_PALETTE[si % SERIES_PALETTE.length];
-            return { label: sk, data: makeRadarData(secGroups[sk]), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 };
+            return { label: sk, data: makeRadarData(secGroups[sk], axes), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 };
           });
         } else {
           const primColorMap = xDim ? DIMENSION_DEFS[xDim]?.colorMap : DIMENSION_DEFS[facetDim]?.colorMap;
           const color = primColorMap?.[xk] || PALETTE[xi % PALETTE.length];
-          datasets = [{ label: xk, data: makeRadarData(xExps), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 }];
+          datasets = [{ label: xk, data: makeRadarData(xExps, axes), backgroundColor: color.bg.replace('0.7', '0.15'), borderColor: color.border, borderWidth: 2, pointBackgroundColor: color.border, pointRadius: 3 }];
         }
 
         const title = xDim ? xk : '';
@@ -1671,7 +1583,14 @@ function renderRadarColumn(container, experiments, colIdx) {
         createChart(canvasId, {
           type: 'radar',
           data: { labels: axisLabels, datasets },
-          options: { ...radarOpts, plugins: { ...radarOpts.plugins, title: { display: !!title, text: title, color: isDark ? '#d4d4d4' : '#404040', font: { size: 11, weight: '500' } } } },
+          options: {
+            ...radarOpts,
+            plugins: {
+              ...radarOpts.plugins,
+              title: { display: !!title, text: title, color: isDark ? '#d4d4d4' : '#404040', font: { size: 11, weight: '500' } },
+              tooltip: { mode: 'dataset', intersect: true, callbacks: { title: items => items[0]?.dataset.label || '', label: item => `${axisLabels[item.dataIndex] || ''}: ${(item.raw * 100).toFixed(1)}%` } },
+            },
+          },
         });
       });
     },
@@ -2030,9 +1949,15 @@ function tvMetricCell(val, format, good) {
 }
 
 // TV filter helpers — per-benchmark dimension filters for experiment tables
+function tvDimGetter(dim) {
+  const col = tvExpCols.find(c => c.dim === dim);
+  return col ? col.getter : (e => e[dim]);
+}
+
 function tvToggleFilter(benchmark, dim, val, allExps) {
   const filters = tvState[benchmark].filters;
-  const allVals = [...new Set(allExps.map(e => e[dim]))].filter(v => v != null);
+  const get = tvDimGetter(dim);
+  const allVals = [...new Set(allExps.map(get))].filter(v => v != null);
   if (!filters[dim] || filters[dim].size === 0) {
     filters[dim] = new Set(allVals);
   }
@@ -2047,7 +1972,8 @@ function tvApplyFilters(benchmark, exps) {
     for (const dim of Object.keys(filters)) {
       const f = filters[dim];
       if (!f || f.size === 0) continue;
-      if (!f.has(e[dim])) return false;
+      const get = tvDimGetter(dim);
+      if (!f.has(get(e))) return false;
     }
     return true;
   });
@@ -2097,9 +2023,9 @@ function renderBenchmarkTab(benchmark, experiments) {
 }
 
 const tvExpCols = [
-  { key: 'assistant',  label: 'Assistant',  align: 'left',   getter: e => e.assistantModel || e.model },
-  { key: 'counterparty', label: 'Counterparty', align: 'left', getter: e => e.counterpartyModel || e.model },
-  { key: 'privacy',    label: 'Privacy',    align: 'left',   getter: e => e.privacyLevel || 'none', dim: 'privacyLevel' },
+  { key: 'assistant',  label: 'Assistant',  align: 'left',   getter: e => e.assistantModel || e.model, dim: 'assistantModel' },
+  { key: 'counterparty', label: 'Counterparty', align: 'left', getter: e => e.counterpartyModel || e.model, dim: 'counterpartyModel' },
+  { key: 'privacy',    label: 'System Prompt', align: 'left',   getter: e => e.privacyLevel || 'none', dim: 'privacyLevel' },
   { key: 'reasoning',  label: 'Reasoning',  align: 'left',   getter: e => e.reasoningConfig || 'none', dim: 'reasoningConfig' },
   { key: 'attack',     label: 'Attack',     align: 'left',   getter: e => e.attackType || 'none', dim: 'attackType' },
   { key: 'attackStyle',label: 'Style',      align: 'left',   getter: e => e.attackStyle || 'none', dim: 'attackStyle' },
@@ -2110,9 +2036,6 @@ const tvExpCols = [
   { key: 'leakage',    label: 'Leakage',    align: 'center', getter: e => e.evaluation?.avg_leakage_rate, format: 'percent', good: 'low' },
   { key: 'doc',        label: 'DoC',        align: 'center', getter: e => e.evaluation?.avg_duty_of_care, format: 'percent', good: 'high' },
   { key: 'dd',         label: 'DD',         align: 'center', getter: e => e.evaluation?.avg_due_diligence, format: 'percent', good: 'high' },
-  { key: 'dd_ig',      label: 'DD:IG',      align: 'center', getter: e => e.evaluation?.avg_dd_info_gathering, format: 'percent', good: 'high' },
-  { key: 'dd_adv',     label: 'DD:Adv',     align: 'center', getter: e => e.evaluation?.avg_dd_advocacy, format: 'percent', good: 'high' },
-  { key: 'dd_disc',    label: 'DD:Disc',    align: 'center', getter: e => e.evaluation?.avg_dd_discretion, format: 'percent', good: 'high' },
 ];
 
 function tvShowExpTable(benchmark, experiments) {
@@ -2357,9 +2280,6 @@ function tvRenderVerdictBanner(r) {
     tvVerdictStat('Leakage', r.leakage_rate, 'percent', 'low'),
     tvVerdictStat('DoC', r.duty_of_care, 'percent', 'high'),
     tvVerdictStat('DD', r.due_diligence, 'percent', 'high'),
-    tvVerdictStat('DD:IG', r.due_diligence_eval?.information_gathering_score ?? r.due_diligence_information_gathering_score, 'percent', 'high'),
-    tvVerdictStat('DD:Adv', r.due_diligence_eval?.advocacy_score ?? r.due_diligence_advocacy_score, 'percent', 'high'),
-    tvVerdictStat('DD:Disc', r.due_diligence_eval?.discretion_score ?? r.due_diligence_discretion_score, 'percent', 'high'),
   ].join('');
 
   return `<div class="flex items-center gap-4 px-4 py-2.5 border-b ${verdictCls}">
@@ -2478,6 +2398,13 @@ function tvParseTimeString(s) {
 }
 
 function tvMilToMinutes(mil) { return Math.floor(mil / 100) * 60 + (mil % 100); }
+
+function tvEventMatches(e, target) {
+  if (!target) return false;
+  if (target.uid && e.uid && target.uid === e.uid) return true;
+  if (target.title && e.title === target.title && target.start_time_24h != null && e.start_time_24h === target.start_time_24h) return true;
+  return false;
+}
 
 function tvFormatTime(mil) {
   if (mil == null) return '?';
@@ -2670,7 +2597,7 @@ function tvRenderTaskContext(r, benchmark, experiment) {
     unknown: 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
   };
   const pvCls = privacyColors[privacyLevel] || privacyColors.unknown;
-  const pvBadge = `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${pvCls}">Privacy: ${esc(privacyLevel)}</span>`;
+  const pvBadge = `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${pvCls}">System Prompt: ${esc(privacyLevel)}</span>`;
 
   // Collapsible prompt helper
   function promptDetail(label, content) {
@@ -2830,9 +2757,11 @@ function tvComputeEventLayout(events) {
   return layoutEvents;
 }
 
-function tvRenderCalendarTimeline(title, events, isInitial, scheduledEvent, owner, ghostEvent) {
-  if (!events || events.length === 0) return '';
-  let eventsWithGhost = [...events];
+function tvRenderCalendarTimeline(title, events, isInitial, scheduledEvent, owner, ghostEvent, prefs, r, requestedEvent) {
+  const hasEvents = Array.isArray(events) && events.length > 0;
+  const hasPrefs = Array.isArray(prefs) && prefs.length > 0;
+  if (!hasEvents && !hasPrefs) return '';
+  let eventsWithGhost = hasEvents ? [...events] : [];
   if (ghostEvent && ghostEvent.start_time_24h && ghostEvent.duration_minutes) {
     eventsWithGhost.push({ ...ghostEvent, _isGhost: true });
   }
@@ -2841,7 +2770,7 @@ function tvRenderCalendarTimeline(title, events, isInitial, scheduledEvent, owne
   let markers = '';
   for (let h = 0; h <= 24; h++) markers += `<div class="tv-hour-marker bg-gray-200 dark:bg-gray-700" style="left:${(h/24)*100}%"></div>`;
 
-  let hasPendingEvents = false;
+  let hasIllegalEvents = false;
   const eventsHtml = layout.map(e => {
     const raw = e.raw || {};
     const isGhost = e._isGhost || raw._isGhost;
@@ -2854,19 +2783,15 @@ function tvRenderCalendarTimeline(title, events, isInitial, scheduledEvent, owne
     const tPct = lane * hPct;
 
     const attendees = raw.attendees || [];
+    const isAmberMatch = !isInitial && !isGhost && (tvEventMatches(e, scheduledEvent) || tvEventMatches(e, requestedEvent));
     const isPending = !isGhost && attendees.some(a => typeof a === 'object' && a.status && !['ACCEPTED', 'DECLINED'].includes(a.status.toUpperCase()));
-    const ownerStatus = attendees.find(a => typeof a === 'object' && a.email === owner)?.status?.toUpperCase();
-    const ownerAccepted = ownerStatus === 'ACCEPTED';
-    if (isPending) hasPendingEvents = true;
+    const isIllegalPending = isPending && !isAmberMatch;
+    if (isIllegalPending) hasIllegalEvents = true;
 
     let cls;
     if (isGhost) cls = 'bg-amber-200/60 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-2 border-dashed border-amber-500';
-    else if (!isInitial && scheduledEvent && e.title === scheduledEvent.title && e.start_time_24h === scheduledEvent.start_time_24h)
-      cls = 'bg-amber-500 text-white border border-amber-700 ring-2 ring-amber-300';
-    else if (isPending && ownerAccepted)
-      cls = 'bg-amber-500 text-white border border-amber-700';
-    else if (isPending)
-      cls = 'bg-amber-200/60 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-2 border-dashed border-amber-500';
+    else if (isAmberMatch) cls = 'bg-amber-500 text-white border border-amber-700 ring-2 ring-amber-300';
+    else if (isIllegalPending) cls = 'bg-red-500 text-white border border-red-700';
     else if (e.organizer && owner && e.organizer !== owner) cls = 'bg-gray-400 text-white border border-gray-500';
     else cls = 'bg-srbench-500 text-white border border-srbench-700';
 
@@ -2906,81 +2831,82 @@ function tvRenderCalendarTimeline(title, events, isInitial, scheduledEvent, owne
     </div>`;
   }).join('');
 
-  let ticks = '';
-  for (let h = 0; h <= 24; h++) {
-    const label = h === 0 ? '12a' : h === 12 ? '12p' : h === 24 ? '12a' : h < 12 ? `${h}a` : `${h-12}p`;
-    ticks += `<span class="absolute text-[10px] text-gray-400 dark:text-gray-500" style="left:${(h/24)*100}%;transform:translateX(-50%)">${label}</span>`;
-  }
-
-  return `<div class="mb-4">
-    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">${title}</h3>
-    <div class="tv-timeline bg-gray-50 dark:bg-gray-800 relative" style="height:8rem">${markers}<div class="absolute inset-0">${eventsHtml}</div></div>
-    <div class="relative h-4 mt-0.5">${ticks}</div>
-    <div class="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 flex gap-3">
-      <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-srbench-500 border border-srbench-700 rounded"></span> Owned</span>
-      <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-gray-400 border border-gray-500 rounded"></span> External</span>
-      ${scheduledEvent ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-amber-500 border border-amber-700 rounded ring-1 ring-amber-300"></span> Scheduled</span>' : ''}
-      ${ghostEvent ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-amber-100 border-2 border-dashed border-amber-500 rounded"></span> Requested</span>' : ''}
-      ${hasPendingEvents ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-amber-500 border-2 border-dashed border-amber-700 rounded"></span> Pending</span>' : ''}
-    </div>
-  </div>`;
-}
-
-function tvRenderPreferenceGraph(title, prefs, scheduledEvent, r) {
-  let barsHtml = '';
-  prefs.forEach(p => {
-    const startMins = tvParseTimeMinutes(p.start_time);
-    const endMins = tvParseTimeMinutes(p.end_time);
-    const left = (startMins / 1440) * 100;
-    const width = ((endMins - startMins) / 1440) * 100;
-    const height = p.score * 100;
-    const color = p.score >= 0.8 ? 'rgba(107,158,120,0.8)' : p.score >= 0.5 ? 'rgba(134,239,172,0.8)' : p.score >= 0.3 ? 'rgba(234,179,8,0.7)' : 'rgba(239,68,68,0.5)';
-    const label = p.score >= 0.8 ? 'Strongly prefer' : p.score >= 0.5 ? 'Prefer' : p.score >= 0.3 ? 'Acceptable' : 'Avoid';
-    barsHtml += `<div class="tv-pref-bar" style="left:${left}%;width:${width}%;height:${height}%;background:${color};">
-      <div class="tv-pref-popup bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-        <div class="font-medium mb-0.5">${tvFormatPrefTime(p.start_time)} - ${tvFormatPrefTime(p.end_time)}</div>
-        <div>Score: <span class="font-semibold">${p.score.toFixed(2)}</span></div>
-        <div class="text-gray-500 dark:text-gray-400 mt-0.5">"${label}"</div>
-      </div>
-    </div>`;
-  });
-
-  // Scheduled marker
-  if (scheduledEvent && scheduledEvent.start_time_24h) {
-    const s = tvMilToMinutes(scheduledEvent.start_time_24h);
-    const e = tvMilToMinutes(scheduledEvent.end_time_24h || scheduledEvent.start_time_24h);
-    const left = (s / 1440) * 100;
-    const width = ((e - s) / 1440) * 100;
-    barsHtml += `<div style="position:absolute;left:${left}%;width:${width}%;top:0;bottom:0;border:2px dashed #6b9e78;box-sizing:border-box;z-index:5;pointer-events:none;"><span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#6b9e78;font-size:10px;font-weight:bold;white-space:nowrap;">Scheduled</span></div>`;
-  }
-
-  let ticks = '';
-  for (let h = 0; h <= 24; h++) {
-    const label = h === 0 ? '12a' : h === 12 ? '12p' : h === 24 ? '12a' : h < 12 ? `${h}a` : `${h-12}p`;
-    ticks += `<span class="absolute text-[10px] text-gray-400 dark:text-gray-500" style="left:${(h/24)*100}%;transform:translateX(-50%)">${label}</span>`;
+  let prefsHtml = '';
+  if (hasPrefs) {
+    prefs.forEach(p => {
+      const startMins = tvParseTimeMinutes(p.start_time);
+      const endMins = tvParseTimeMinutes(p.end_time);
+      const left = (startMins / 1440) * 100;
+      const width = ((endMins - startMins) / 1440) * 100;
+      const score = +p.score;
+      const heightPct = Math.max(0, Math.min(1, score)) * 100;
+      const color = score >= 0.8 ? 'rgba(107,158,120,0.8)' : score >= 0.5 ? 'rgba(134,239,172,0.8)' : score >= 0.3 ? 'rgba(234,179,8,0.7)' : 'rgba(239,68,68,0.5)';
+      const label = score >= 0.8 ? 'Strongly prefer' : score >= 0.5 ? 'Prefer' : score >= 0.3 ? 'Acceptable' : 'Avoid';
+      prefsHtml += `<div class="tv-pref-bar" style="left:${left}%;width:${width}%;height:${heightPct}%;background:${color};">
+        <div class="tv-pref-popup bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+          <div class="font-medium mb-0.5">${tvFormatPrefTime(p.start_time)} - ${tvFormatPrefTime(p.end_time)}</div>
+          <div>Score: <span class="font-semibold">${score.toFixed(2)}</span></div>
+          <div class="text-gray-500 dark:text-gray-400 mt-0.5">"${label}"</div>
+        </div>
+      </div>`;
+    });
+    if (scheduledEvent && scheduledEvent.start_time_24h) {
+      const s = tvMilToMinutes(scheduledEvent.start_time_24h);
+      const e = tvMilToMinutes(scheduledEvent.end_time_24h || scheduledEvent.start_time_24h);
+      const left = (s / 1440) * 100;
+      const width = ((e - s) / 1440) * 100;
+      prefsHtml += `<div style="position:absolute;left:${left}%;width:${width}%;top:0;bottom:0;border:2px dashed #6b9e78;box-sizing:border-box;z-index:5;pointer-events:none;"></div>`;
+    }
   }
 
   let summaryHtml = '';
-  if (r.assistant_duty_of_care_score != null) {
-    const s = r.assistant_duty_of_care_score;
-    const cls = s >= 0.9 ? 'text-srbench-600' : s >= 0.5 ? 'text-amber-600' : 'text-red-600';
-    summaryHtml += `<span class="text-sm"><span class="text-gray-500 dark:text-gray-400">DoC:</span> <span class="${cls} font-bold">${(s*100).toFixed(0)}%</span></span>`;
-  }
-  if (r.scheduled_duration_error != null) {
-    const d = r.scheduled_duration_error;
-    const cls = d === 0 ? 'text-srbench-600' : d <= 30 ? 'text-amber-600' : 'text-red-600';
-    summaryHtml += `<span class="text-sm ml-4"><span class="text-gray-500 dark:text-gray-400">Duration Error:</span> <span class="${cls} font-bold">${d} min</span></span>`;
+  if (r) {
+    if (r.assistant_duty_of_care_score != null) {
+      const s = r.assistant_duty_of_care_score;
+      const cls = s >= 0.9 ? 'text-srbench-600' : s >= 0.5 ? 'text-amber-600' : 'text-red-600';
+      summaryHtml += `<span class="text-sm"><span class="text-gray-500 dark:text-gray-400">DoC:</span> <span class="${cls} font-bold">${(s*100).toFixed(0)}%</span></span>`;
+    }
+    if (r.scheduled_duration_error != null) {
+      const d = r.scheduled_duration_error;
+      const cls = d === 0 ? 'text-srbench-600' : d <= 30 ? 'text-amber-600' : 'text-red-600';
+      summaryHtml += `<span class="text-sm ml-4"><span class="text-gray-500 dark:text-gray-400">Duration Error:</span> <span class="${cls} font-bold">${d} min</span></span>`;
+    }
   }
 
+  let ticks = '';
+  for (let h = 0; h <= 24; h++) {
+    const label = h === 0 ? '12a' : h === 12 ? '12p' : h === 24 ? '12a' : h < 12 ? `${h}a` : `${h-12}p`;
+    ticks += `<span class="absolute text-[10px] text-gray-400 dark:text-gray-500" style="left:${(h/24)*100}%;transform:translateX(-50%)">${label}</span>`;
+  }
+
+  const calTopRound = `border-top-left-radius:0.5rem;border-top-right-radius:0.5rem;`;
+  const calBotRound = hasPrefs ? `border-bottom-left-radius:0;border-bottom-right-radius:0;` : `border-bottom-left-radius:0.5rem;border-bottom-right-radius:0.5rem;`;
+  const prefTopRound = hasEvents ? `border-top-left-radius:0;border-top-right-radius:0;` : `border-top-left-radius:0.5rem;border-top-right-radius:0.5rem;`;
+  const prefBotRound = `border-bottom-left-radius:0.5rem;border-bottom-right-radius:0.5rem;`;
+  const calendarBand = hasEvents
+    ? `<div class="tv-timeline bg-gray-50 dark:bg-gray-800 relative" style="height:8rem;${calTopRound}${calBotRound}">${markers}<div class="absolute inset-0">${eventsHtml}</div></div>`
+    : '';
+  const prefStripLabel = `<div class="absolute bottom-0 left-0 z-20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-white/70 dark:bg-gray-900/60 rounded-tr pointer-events-none">Preferences</div>`;
+  const prefBand = hasPrefs
+    ? `<div class="bg-gray-50 dark:bg-gray-800 relative ${hasEvents ? 'border-t border-gray-200 dark:border-gray-700' : ''}" style="height:3rem;${prefTopRound}${prefBotRound}">${prefStripLabel}${prefsHtml}</div>`
+    : '';
+
   return `<div class="mb-4">
-    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">${esc(title)}</h3>
-    <div class="bg-gray-50 dark:bg-gray-800 rounded relative" style="height:5rem">${barsHtml}</div>
+    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">${title}</h3>
+    ${calendarBand}${prefBand}
     <div class="relative h-4 mt-0.5">${ticks}</div>
-    <div class="flex flex-wrap gap-3 mt-1 text-[10px] text-gray-400 dark:text-gray-500">
-      <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(107,158,120,0.8)"></span> Strongly prefer</span>
-      <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(134,239,172,0.8)"></span> Prefer</span>
-      <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(234,179,8,0.7)"></span> Acceptable</span>
-      <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(239,68,68,0.5)"></span> Avoid</span>
+    <div class="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-1">
+      ${hasEvents ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-srbench-500 border border-srbench-700 rounded"></span> Owned</span>' : ''}
+      ${hasEvents ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-gray-400 border border-gray-500 rounded"></span> External</span>' : ''}
+      ${hasEvents && scheduledEvent ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-amber-500 border border-amber-700 rounded ring-1 ring-amber-300"></span> Scheduled</span>' : ''}
+      ${hasEvents && requestedEvent && !scheduledEvent ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-amber-500 border border-amber-700 rounded ring-1 ring-amber-300"></span> Requested</span>' : ''}
+      ${hasEvents && ghostEvent ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-amber-100 border-2 border-dashed border-amber-500 rounded"></span> Requested (preview)</span>' : ''}
+      ${hasEvents && hasIllegalEvents ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 bg-red-500 border border-red-700 rounded"></span> Illegal</span>' : ''}
+      ${hasEvents && hasPrefs ? '<span class="text-gray-300 dark:text-gray-600">·</span>' : ''}
+      ${hasPrefs ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(107,158,120,0.8)"></span> Strongly prefer</span>' : ''}
+      ${hasPrefs ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(134,239,172,0.8)"></span> Prefer</span>' : ''}
+      ${hasPrefs ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(234,179,8,0.7)"></span> Acceptable</span>' : ''}
+      ${hasPrefs ? '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded" style="background:rgba(239,68,68,0.5)"></span> Avoid</span>' : ''}
     </div>
     ${summaryHtml ? `<div class="mt-2">${summaryHtml}</div>` : ''}
   </div>`;
@@ -3135,6 +3061,7 @@ function tvRenderOutcomes(r, benchmark) {
     const assistant = task.assistant || {};
     const requestor = task.requestor || {};
     let scheduledEvent = tvNormalizeEvent(r.scheduled_event || r.scheduled_meeting);
+    let requestedEvent = tvNormalizeEvent(requestor.requested_meeting);
 
     // Scheduled meeting card — color matches task completion verdict
     const completed = r.task_completed;
@@ -3161,19 +3088,11 @@ function tvRenderOutcomes(r, benchmark) {
     // Issues
     html += tvRenderIssues(r);
 
-    // Final calendar timelines
-    html += tvRenderCalendarTimeline('Assistant Final Calendar', r.execution?.final_assistant_calendar || [], false, scheduledEvent, assistant.email, null);
-    html += tvRenderCalendarTimeline('Requestor Final Calendar', r.execution?.final_requestor_calendar || [], false, scheduledEvent, requestor.email, null);
-
-    // Scheduling preferences
+    // Final calendars + preferences (preference strip touches calendar below)
     const assistantPrefs = assistant.preferences || [];
-    if (assistantPrefs.length > 0) {
-      html += tvRenderPreferenceGraph('Assistant Preferences', assistantPrefs, scheduledEvent, r);
-    }
     const requestorPrefs = requestor.preferences || [];
-    if (requestorPrefs.length > 0) {
-      html += tvRenderPreferenceGraph('Requestor Preferences', requestorPrefs, scheduledEvent, r);
-    }
+    html += tvRenderCalendarTimeline('Assistant Final Calendar', r.execution?.final_assistant_calendar || [], false, scheduledEvent, assistant.email, null, assistantPrefs, r, requestedEvent);
+    html += tvRenderCalendarTimeline('Requestor Final Calendar', r.execution?.final_requestor_calendar || [], false, scheduledEvent, requestor.email, null, requestorPrefs, r, requestedEvent);
 
     // Preference explanation
     const prefExpl = r.preference_explanation;
@@ -3596,772 +3515,6 @@ function fmtNum(val) {
 }
 
 // ─────────────────────────────────────────────
-// Annotator: Build Queue
-// ─────────────────────────────────────────────
-
-function buildAnnotationQueue(experiments) {
-  const queue = [];
-  for (const exp of experiments) {
-    for (const task of exp.tasks) {
-      const raw = task._raw || {};
-      const base = {
-        expVariant: exp.variant, expModel: exp.model, expBenchmark: exp.benchmark,
-        expFilename: exp.filename, taskId: task.taskId, _raw: raw, _exp: exp,
-      };
-
-      // Extract all text content from a message (for evidence matching)
-      function msgText(msg) {
-        let t = msg.content || msg.body || '';
-        if (msg.subject) t += ' ' + msg.subject;
-        if (msg.event) t += ' ' + (typeof msg.event === 'string' ? msg.event : JSON.stringify(msg.event));
-        (msg.tool_calls || []).forEach(tc => { t += ' ' + (tc.function?.arguments || ''); });
-        return t;
-      }
-
-      // Helper: for each visible message × each secret, push one (message, secret) pair
-      // Only include items where at least one evidence string appears in the message
-      function pushPairs(msgs, secrets, source, leakedSet, detailsFn) {
-        msgs.forEach((msg, mi) => {
-          const text = msgText(msg);
-          secrets.forEach((secret, si) => {
-            const secretStr = typeof secret === 'string' ? secret : JSON.stringify(secret);
-            const leaked = leakedSet.has(secretStr);
-            const detail = detailsFn(secretStr, si);
-            const evidence = detail.evidence || [];
-            // Skip if judge has evidence but none of it matches this message
-            if (evidence.length > 0 && !evidence.some(e => text.includes(e))) return;
-            queue.push({ ...base, source, secretIdx: si, msgIdx: mi, secretContent: secretStr,
-              llmVerdict: leaked ? 'leaked' : 'not_leaked',
-              llmReasoning: detail.reasoning || '', llmEvidence: evidence,
-              message: msg,
-            });
-          });
-        });
-      }
-
-      if (exp.benchmark === 'calendar') {
-        const execTask = raw.execution?.task || {};
-        const assistant = execTask.assistant || {};
-        const allSecrets = (assistant.calendar || []).filter(e => e.is_secret);
-        const privacy = raw.privacy || {};
-        const leakedSecrets = privacy.leaked_secrets || [];
-        const leakedUids = new Set(leakedSecrets.map(ls => ls.secret?.uid));
-        // Visible messages: emails/messages sent by the assistant
-        let calMessages = raw.execution?.messages || raw.execution?.emails || [];
-        const assistantEmail = assistant.email || 'assistant';
-        const calMsgs = calMessages.filter(m => m.from_ === assistantEmail || m.from_ === 'assistant');
-
-        calMsgs.forEach((msg, mi) => {
-          const text = msgText(msg);
-          allSecrets.forEach((secret, si) => {
-            const uid = secret.uid || `secret-${si}`;
-            const leaked = leakedUids.has(uid);
-            const leakDetail = leakedSecrets.find(ls => ls.secret?.uid === uid) || {};
-            const evidence = leakDetail.evidence || [];
-            // Skip if judge has evidence but none matches this message
-            if (evidence.length > 0 && !evidence.some(e => text.includes(e))) return;
-            // Show full calendar event details as the secret
-            const secretObj = { ...secret };
-            delete secretObj.is_secret; // don't reveal this to annotator
-            queue.push({ ...base, source: 'calendar', secretIdx: si, msgIdx: mi,
-              secretContent: JSON.stringify(secretObj, null, 2),
-              llmVerdict: leaked ? 'leaked' : 'not_leaked',
-              llmReasoning: leakDetail.reasoning || '', llmEvidence: evidence,
-              message: msg,
-            });
-          });
-        });
-
-      } else if (exp.benchmark === 'marketplace') {
-        const privacy = raw.privacy || {};
-        if (privacy.secret) {
-          // Visible messages: negotiation messages from the buyer (assistant)
-          const messages = raw.execution?.messages || [];
-          const mktMsgs = messages.filter(m => (m.speaker || '').toLowerCase().includes('buyer'));
-          const mktEvidence = privacy.evidence || [];
-          mktMsgs.forEach((msg, mi) => {
-            const text = msgText(msg);
-            // Skip if judge has evidence but none matches this message
-            if (mktEvidence.length > 0 && !mktEvidence.some(e => text.includes(e))) return;
-            queue.push({ ...base, source: 'marketplace', secretIdx: 0, msgIdx: mi,
-              secretContent: String(privacy.secret),
-              llmVerdict: privacy.leaked ? 'leaked' : 'not_leaked',
-              llmReasoning: privacy.reasoning || '', llmEvidence: mktEvidence,
-              message: msg,
-            });
-          });
-        }
-      }
-    }
-  }
-  // Round-robin interleave across 4 dimensions for diverse sampling:
-  // judge verdict, benchmark, attack type, privacy prompt
-  return roundRobinShuffle(queue);
-}
-
-function roundRobinShuffle(queue) {
-  if (queue.length === 0) return queue;
-
-  // Seeded PRNG (mulberry32) for deterministic shuffle across page loads
-  function mulberry32(seed) {
-    return function() {
-      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
-      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
-  }
-  const rng = mulberry32(42);
-
-  // Bucket items by composite key of all 4 round-robin dimensions
-  const buckets = new Map();
-  for (const item of queue) {
-    const key = [
-      item.llmVerdict,
-      item.expBenchmark,
-      item._exp.attackType || 'none',
-      item._exp.privacyLevel || 'none',
-    ].join('::');
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(item);
-  }
-
-  // Shuffle within each bucket with seeded RNG
-  for (const arr of buckets.values()) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-  }
-
-  // Round-robin: pull one item from each bucket in rotation
-  const keys = [...buckets.keys()];
-  // Shuffle bucket order with seeded RNG
-  for (let i = keys.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [keys[i], keys[j]] = [keys[j], keys[i]];
-  }
-
-  const result = [];
-  let remaining = queue.length;
-  const indices = new Map(keys.map(k => [k, 0]));
-  while (remaining > 0) {
-    for (const k of keys) {
-      const arr = buckets.get(k);
-      const idx = indices.get(k);
-      if (idx < arr.length) {
-        result.push(arr[idx]);
-        indices.set(k, idx + 1);
-        remaining--;
-      }
-    }
-  }
-  return result;
-}
-
-// ─────────────────────────────────────────────
-// Annotator: Agreement Statistics
-// ─────────────────────────────────────────────
-
-function computeAgreementStats(queue) {
-  // Aggregate human verdicts to the (task, secret) level to match the LLM judge's granularity.
-  // The LLM judges per-secret (across all messages). The human annotates per-message.
-  // Human secret-level verdict: "leaked" if ANY message for that secret is marked leaked.
-  const secretGroups = new Map(); // secretGroupKey → { llmLeaked, humanVerdicts[] }
-  for (const item of queue) {
-    const sgKey = `${item.expVariant}::${item.expModel}::${item.taskId}::${item.secretIdx}::${item.source}`;
-    if (!secretGroups.has(sgKey)) {
-      secretGroups.set(sgKey, { llmLeaked: item.llmVerdict === 'leaked', verdicts: [] });
-    }
-    const ann = state.annotations[annKey(item)];
-    if (ann && ann.verdict) {
-      secretGroups.get(sgKey).verdicts.push(ann.verdict);
-    }
-  }
-
-  let annotated = 0, agreed = 0, disagreed = 0;
-  let tt = 0, tf = 0, ft = 0, ff = 0;
-  let humanLeakedCount = 0, humanNotLeakedCount = 0;
-
-  for (const [, group] of secretGroups) {
-    if (group.verdicts.length === 0) continue; // no annotations for this secret
-    annotated++;
-
-    const llmLeaked = group.llmLeaked;
-    // Human says leaked if ANY message for this secret was marked leaked
-    const humanLeaked = group.verdicts.includes('leaked');
-
-    if (humanLeaked) humanLeakedCount++;
-    else humanNotLeakedCount++;
-
-    if (humanLeaked === llmLeaked) agreed++;
-    else disagreed++;
-
-    if (humanLeaked && llmLeaked) tt++;
-    else if (humanLeaked && !llmLeaked) tf++;
-    else if (!humanLeaked && llmLeaked) ft++;
-    else ff++;
-  }
-
-  const total = secretGroups.size;
-  const percentAgreement = annotated > 0 ? agreed / annotated : null;
-
-  // Cohen's kappa
-  let kappa = null;
-  if (annotated > 0) {
-    const n = annotated;
-    const po = (tt + ff) / n;
-    const humanYes = tt + tf, humanNo = ft + ff;
-    const llmYes = tt + ft, llmNo = tf + ff;
-    const pe = ((humanYes * llmYes) + (humanNo * llmNo)) / (n * n);
-    kappa = pe < 1 ? (po - pe) / (1 - pe) : 1;
-  }
-
-  return { total, annotated, agreed, disagreed, humanLeakedCount, humanNotLeakedCount, percentAgreement, kappa, confusion: { tt, tf, ft, ff } };
-}
-
-// ─────────────────────────────────────────────
-// Annotator: Modal helper
-// ─────────────────────────────────────────────
-
-function showAnnModal(title, contentHtml) {
-  // Remove any existing modal
-  document.querySelector('.ann-modal-overlay')?.remove();
-  const overlay = document.createElement('div');
-  overlay.className = 'ann-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60';
-  overlay.innerHTML = `<div class="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col" style="width:min(90vw,64rem);max-height:85vh">
-    <div class="flex items-center px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-      <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">${title}</span>
-      <span class="flex-1"></span>
-      <button class="ann-modal-close px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">Close</button>
-    </div>
-    <div class="flex-1 overflow-y-auto">${contentHtml}</div>
-  </div>`;
-  document.body.appendChild(overlay);
-  overlay.querySelector('.ann-modal-close').addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-}
-
-// ─────────────────────────────────────────────
-// Annotator: Render
-// ─────────────────────────────────────────────
-
-function annRenderSecret(item) {
-  if (item.source === 'calendar') {
-    // Render as a calendar event card
-    let obj;
-    try { obj = JSON.parse(item.secretContent); } catch(e) { obj = null; }
-    if (!obj) return `<div class="text-sm text-purple-900 dark:text-purple-100 whitespace-pre-wrap">${esc(item.secretContent)}</div>`;
-
-    const title = obj.title || obj.description || 'Untitled Event';
-    const date = obj.date || '';
-    const start = obj.start_time || '';
-    const end = obj.end_time || '';
-    const time = start && end ? `${start} – ${end}` : start || end || '';
-    const desc = obj.description && obj.description !== title ? obj.description : '';
-    const attendees = obj.attendees || obj.participants || [];
-    const location = obj.location || '';
-
-    // Extra fields not covered above
-    const skip = new Set(['title', 'description', 'date', 'start_time', 'end_time', 'attendees', 'participants', 'location', 'uid', 'id']);
-    const extra = Object.entries(obj).filter(([k]) => !skip.has(k) && obj[k] != null && obj[k] !== '');
-
-    return `<div class="space-y-2">
-      <div class="flex items-start gap-2">
-        <svg class="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        <div class="text-base font-bold text-purple-900 dark:text-purple-100">${esc(title)}</div>
-      </div>
-      ${date || time ? `<div class="flex items-center gap-2 text-sm text-purple-800 dark:text-purple-200">
-        <svg class="w-4 h-4 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span>${esc(date)}${date && time ? ' · ' : ''}${esc(time)}</span>
-      </div>` : ''}
-      ${location ? `<div class="flex items-center gap-2 text-sm text-purple-800 dark:text-purple-200">
-        <svg class="w-4 h-4 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        <span>${esc(location)}</span>
-      </div>` : ''}
-      ${attendees.length ? `<div class="flex items-start gap-2 text-sm text-purple-800 dark:text-purple-200">
-        <svg class="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        <span>${attendees.map(a => esc(typeof a === 'string' ? a : a.email || a.name || JSON.stringify(a))).join(', ')}</span>
-      </div>` : ''}
-      ${desc ? `<div class="text-sm text-purple-700 dark:text-purple-300 leading-relaxed">${esc(desc)}</div>` : ''}
-      ${extra.length ? `<div class="border-t border-purple-200 dark:border-purple-700 pt-2 mt-2 space-y-1">
-        ${extra.map(([k, v]) => `<div class="flex gap-2 text-xs">
-          <span class="font-medium text-purple-500 dark:text-purple-400 min-w-[5rem]">${esc(k)}</span>
-          <span class="text-purple-800 dark:text-purple-200">${esc(typeof v === 'string' ? v : JSON.stringify(v))}</span>
-        </div>`).join('')}
-      </div>` : ''}
-    </div>`;
-  }
-  // Default: plain text
-  return `<div class="text-sm font-medium text-purple-900 dark:text-purple-100 leading-relaxed whitespace-pre-wrap">${esc(item.secretContent)}</div>`;
-}
-
-function renderAnnotatorTab(experiments) {
-  const queue = buildAnnotationQueue(experiments);
-  // Start at the first unannotated item
-  let annIdx = queue.findIndex(item => { const a = state.annotations[annKey(item)]; return !a || !a.verdict; });
-  if (annIdx < 0) annIdx = 0;
-
-  // Dimension-based filtering (same dimensions as overview tab)
-  const annDimFilters = {}; // dim → Set of active values (empty Set = all)
-
-  function annGetUniqueValues(dim) {
-    const vals = [...new Set(queue.map(q => q._exp[dim]))].filter(v => v != null);
-    return dimSort(dim, vals);
-  }
-
-  function annToggleDimFilter(dim, val) {
-    const allVals = annGetUniqueValues(dim);
-    if (!annDimFilters[dim] || annDimFilters[dim].size === 0) {
-      annDimFilters[dim] = new Set(allVals);
-    }
-    const f = annDimFilters[dim];
-    if (f.has(val)) f.delete(val); else f.add(val);
-    if (f.size === allVals.length) annDimFilters[dim] = new Set(); // all = clear
-  }
-
-  function renderAnnDimPills() {
-    const container = document.getElementById('ann-dim-filters');
-    const dims = Object.keys(DIMENSION_DEFS);
-    const sep = '<span class="text-gray-300 dark:text-gray-600 mx-1">|</span>';
-    const sections = dims.map(dim => {
-      const values = annGetUniqueValues(dim);
-      if (values.length <= 1) return '';
-      const pills = values.map(val => {
-        const f = annDimFilters[dim];
-        const active = !f || f.size === 0 || f.has(val);
-        const cls = active
-          ? 'bg-srbench-100 text-srbench-800 dark:bg-srbench-900 dark:text-srbench-300'
-          : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 line-through';
-        return `<button class="ann-dim-pill px-1.5 py-0.5 rounded text-[10px] font-medium transition ${cls}" data-dim="${dim}" data-val="${esc(val)}">${esc(val)}</button>`;
-      }).join('');
-      return `<span class="inline-flex items-center gap-1"><span class="text-[9px] text-gray-400 dark:text-gray-500 uppercase">${DIMENSION_DEFS[dim]?.label || dim}:</span>${pills}</span>`;
-    }).filter(Boolean);
-    container.innerHTML = sections.join(sep);
-    container.querySelectorAll('.ann-dim-pill').forEach(btn => {
-      btn.addEventListener('click', () => {
-        annToggleDimFilter(btn.dataset.dim, btn.dataset.val);
-        annIdx = 0;
-        renderAnnDimPills();
-        render();
-      });
-    });
-  }
-  renderAnnDimPills();
-
-  // Restore annotator name
-  const nameInput = document.getElementById('ann-name');
-  nameInput.value = state.annotatorName;
-
-  function getFiltered() {
-    const statusFilter = document.getElementById('ann-filter-status').value;
-    return queue.filter(item => {
-      const ann = state.annotations[annKey(item)];
-      const hasAnn = ann && ann.verdict;
-      if (statusFilter === 'pending' && hasAnn) return false;
-      if (statusFilter === 'annotated' && !hasAnn) return false;
-      if (statusFilter === 'disagree' && (!hasAnn || ann.verdict === item.llmVerdict)) return false;
-      // Dimension filters
-      for (const dim of Object.keys(annDimFilters)) {
-        const f = annDimFilters[dim];
-        if (f && f.size > 0 && !f.has(item._exp[dim])) return false;
-      }
-      return true;
-    });
-  }
-
-  function render() {
-    const filtered = getFiltered();
-
-    // Stats
-    const stats = computeAgreementStats(queue);
-    renderAnnotatorStats(stats);
-    document.getElementById('ann-progress').textContent = `${stats.annotated} / ${stats.total} secrets annotated`;
-
-    const body = document.getElementById('ann-body');
-    destroyChartsIn(body);
-
-    if (filtered.length === 0) {
-      body.innerHTML = `<div class="flex items-center justify-center h-full text-sm text-gray-400 dark:text-gray-500">
-        ${queue.length === 0 ? 'No privacy leak judgments found in loaded experiments.' : 'No items match the current filters.'}
-      </div>`;
-      return;
-    }
-
-    if (annIdx >= filtered.length) annIdx = filtered.length - 1;
-    if (annIdx < 0) annIdx = 0;
-    const item = filtered[annIdx];
-    const key = annKey(item);
-    const ann = state.annotations[key];
-    const hasAnn = ann && ann.verdict;
-
-    const leakActive = hasAnn && ann.verdict === 'leaked';
-    const noLeakActive = hasAnn && ann.verdict === 'not_leaked';
-    const leakCls = leakActive ? 'bg-red-600 text-white ring-2 ring-red-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300 border border-red-300 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/30';
-    const noLeakCls = noLeakActive ? 'bg-srbench-600 text-white ring-2 ring-srbench-400' : 'bg-srbench-50 text-srbench-700 dark:bg-srbench-900/30 dark:text-srbench-300 border border-srbench-300 dark:border-srbench-700 hover:bg-srbench-100 dark:hover:bg-srbench-900/50';
-
-    // Render single visible message — same style as conversation view
-    const msg = item.message;
-    let msgHtml = '';
-    if (!msg) {
-      msgHtml = '<div class="text-xs text-gray-400 p-2">No message</div>';
-    } else if (item.expBenchmark === 'calendar') {
-      // Email bubble (matches tvRenderMessages)
-      const bgCls = 'bg-srbench-50 dark:bg-srbench-900/20 border-srbench-200 dark:border-srbench-800';
-      const labelCls = 'text-srbench-600 dark:text-srbench-400';
-      const textCls = 'text-srbench-800 dark:text-srbench-200';
-      msgHtml = `<div class="rounded-lg border ${bgCls} overflow-hidden">
-        <div class="px-3 py-2 border-b border-srbench-200 dark:border-srbench-800 ${bgCls}">
-          <div class="space-y-0.5 text-xs">
-            <div class="flex"><span class="font-medium ${labelCls} w-12">From:</span><span class="${textCls}">${esc(msg.from_ || '')}</span></div>
-            <div class="flex"><span class="font-medium ${labelCls} w-12">To:</span><span class="${textCls}">${esc(msg.to || '')}</span></div>
-            <div class="flex"><span class="font-medium ${labelCls} w-12">Subj:</span><span class="font-semibold ${textCls}">${esc(msg.subject || '(none)')}</span></div>
-          </div>
-        </div>
-        ${msg.body ? `<div class="px-3 py-2 text-xs ${textCls} whitespace-pre-wrap">${esc(msg.body)}</div>` : ''}
-        ${msg.event ? `<div class="border-t border-srbench-200 dark:border-srbench-800 px-3 py-2">
-          <div class="flex items-center gap-1.5 mb-1"><svg class="w-3 h-3 ${labelCls}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><span class="text-[10px] font-medium ${labelCls}">Calendar Attachment</span></div>
-          <pre class="text-[10px] font-mono ${textCls} whitespace-pre-wrap overflow-x-auto">${esc(typeof msg.event === 'string' ? msg.event : JSON.stringify(msg.event, null, 2))}</pre>
-        </div>` : ''}
-      </div>`;
-    } else if (item.expBenchmark === 'marketplace') {
-      // Chat bubble (matches tvRenderConversation marketplace)
-      const bgCls = 'bg-srbench-50 dark:bg-srbench-900/20 border-srbench-200 dark:border-srbench-800';
-      msgHtml = `<div class="rounded-lg border ${bgCls} p-3">
-        <div class="flex items-center gap-2 mb-1">
-          <span class="text-xs font-medium text-srbench-600 dark:text-srbench-400">${esc(msg.speaker || 'Assistant (Buyer)')}</span>
-          ${msg.round != null ? `<span class="text-[10px] text-gray-400">R${msg.round}</span>` : ''}
-        </div>
-        <div class="text-sm text-srbench-800 dark:text-srbench-200 whitespace-pre-wrap">${esc(msg.content || '')}</div>
-      </div>`;
-    } else {
-      msgHtml = '<div class="text-xs text-gray-400 p-2">Unsupported message source</div>';
-    }
-
-    // Inline layout: nav bar, then two columns (messages | secret + verdict)
-    body.innerHTML = `
-      <!-- Nav bar -->
-      <div class="flex-shrink-0 border-b border-gray-200 dark:border-gray-800 px-5 py-2 flex items-center gap-3">
-        <button class="ann-prev-btn px-3 py-1.5 rounded text-[10px] font-medium ${annIdx > 0 ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600' : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed'}" ${annIdx === 0 ? 'disabled' : ''}>← Prev</button>
-        <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium tabular-nums">${annIdx + 1} / ${filtered.length}</span>
-        <button class="ann-next-btn px-3 py-1.5 rounded text-[10px] font-medium ${annIdx < filtered.length - 1 ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600' : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed'}" ${annIdx >= filtered.length - 1 ? 'disabled' : ''}>Next →</button>
-        <span class="flex-1"></span>
-        <span class="text-[10px] text-gray-400 dark:text-gray-500">${esc(item.source)} · ${esc(item.expModel)} · Task ${item.taskId ?? '?'}</span>
-      </div>
-      <!-- Verdict row -->
-      <div class="flex-shrink-0 border-b border-gray-200 dark:border-gray-800 px-5 py-3 flex items-stretch gap-4">
-        <div class="flex-1 flex flex-col gap-2">
-          <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Was the secret leaked in the message?</span>
-          <div class="flex gap-2">
-            <button class="ann-leak-btn flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition ${leakCls}">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              Leak
-            </button>
-            <button class="ann-no-leak-btn flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition ${noLeakCls}">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              No Leak
-            </button>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <label class="text-[10px] font-semibold text-gray-800 dark:text-gray-200 uppercase w-16">Evidence</label>
-            <input class="ann-evidence-input flex-1 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-gray-700 dark:text-gray-300 placeholder-gray-400 focus:outline-none focus:border-gray-400" placeholder="Quote the leaked text..." value="${esc(hasAnn ? (ann.evidence || '') : '')}">
-          </div>
-          <div class="flex items-center gap-1.5">
-            <label class="text-[10px] font-semibold text-gray-800 dark:text-gray-200 uppercase w-16">Reasoning</label>
-            <input class="ann-reasoning-input flex-1 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-gray-700 dark:text-gray-300 placeholder-gray-400 focus:outline-none focus:border-gray-400" placeholder="Why you chose this verdict..." value="${esc(hasAnn ? (ann.reasoning || '') : '')}">
-          </div>
-        </div>
-        <span class="text-gray-300 dark:text-gray-600 self-stretch" style="width:1px;background:currentColor"></span>
-        <div class="flex-1 flex flex-col gap-2">
-          <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Need more context?</span>
-          <button class="ann-context-btn px-4 py-2 rounded-lg text-sm font-semibold bg-srbench-100 text-srbench-800 border border-srbench-300 dark:bg-srbench-900/40 dark:text-srbench-300 dark:border-srbench-700 hover:bg-srbench-200 dark:hover:bg-srbench-900/60 transition">Task Context</button>
-        </div>
-        <span class="text-gray-300 dark:text-gray-600 self-stretch" style="width:1px;background:currentColor"></span>
-        <div class="flex-1 flex flex-col gap-2">
-          <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Judge Verdict</span>
-          <button class="ann-judge-btn px-4 py-2 rounded-lg text-sm font-semibold bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700 hover:bg-purple-200 dark:hover:bg-purple-900/60 transition">Show Verdict</button>
-        </div>
-      </div>
-      <!-- Two equal columns: secret (left) | message (right) -->
-      <div class="flex-1 min-h-0 flex">
-        <div class="flex-1 min-w-0 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-          <div class="px-4 py-2 border-b border-gray-100 dark:border-gray-800 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Secret</div>
-          <div class="flex-1 overflow-y-auto p-4">
-            <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-              ${annRenderSecret(item)}
-            </div>
-          </div>
-        </div>
-        <div class="flex-1 min-w-0 flex flex-col">
-          <div class="px-4 py-2 border-b border-gray-100 dark:border-gray-800 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Message</div>
-          <div class="flex-1 overflow-y-auto p-4">${msgHtml}</div>
-        </div>
-      </div>`;
-
-    // Wire verdict buttons — read current input values at click time
-    body.querySelector('.ann-leak-btn').addEventListener('click', () => {
-      const ev = body.querySelector('.ann-evidence-input')?.value || '';
-      const re = body.querySelector('.ann-reasoning-input')?.value || '';
-      if (hasAnn && ann.verdict === 'leaked') delete state.annotations[key];
-      else state.annotations[key] = { verdict: 'leaked', evidence: ev, reasoning: re, timestamp: new Date().toISOString() };
-      saveAnnotations();
-      render();
-    });
-    body.querySelector('.ann-no-leak-btn').addEventListener('click', () => {
-      const ev = body.querySelector('.ann-evidence-input')?.value || '';
-      const re = body.querySelector('.ann-reasoning-input')?.value || '';
-      if (hasAnn && ann.verdict === 'not_leaked') delete state.annotations[key];
-      else state.annotations[key] = { verdict: 'not_leaked', evidence: ev, reasoning: re, timestamp: new Date().toISOString() };
-      saveAnnotations();
-      render();
-    });
-
-    // Wire evidence/reasoning inputs (always visible)
-    const evidenceInput = body.querySelector('.ann-evidence-input');
-    const reasoningInput = body.querySelector('.ann-reasoning-input');
-    if (evidenceInput) {
-      evidenceInput.addEventListener('input', () => {
-        if (!state.annotations[key]) state.annotations[key] = { timestamp: new Date().toISOString() };
-        state.annotations[key].evidence = evidenceInput.value;
-        saveAnnotations();
-      });
-    }
-    if (reasoningInput) {
-      reasoningInput.addEventListener('input', () => {
-        if (!state.annotations[key]) state.annotations[key] = { timestamp: new Date().toISOString() };
-        state.annotations[key].reasoning = reasoningInput.value;
-        saveAnnotations();
-      });
-    }
-
-    // Wire nav buttons
-    body.querySelector('.ann-prev-btn')?.addEventListener('click', () => {
-      if (annIdx > 0) { annIdx--; render(); }
-    });
-    body.querySelector('.ann-next-btn')?.addEventListener('click', () => {
-      if (annIdx < filtered.length - 1) { annIdx++; render(); }
-    });
-
-    // Wire Task Context modal
-    body.querySelector('.ann-context-btn')?.addEventListener('click', () => {
-      const benchmark = item.expBenchmark;
-      const result = item._raw;
-      const experiment = item._exp;
-      let contextHtml = tvRenderTaskContext(result, benchmark, experiment);
-      contextHtml += tvRenderOutcomes(result, benchmark);
-      contextHtml += tvRenderTraceTab(result, benchmark);
-      showAnnModal('Task Context', `<div class="p-4 space-y-4">${contextHtml}</div>`);
-    });
-
-    // Wire Judge Verdict modal
-    body.querySelector('.ann-judge-btn')?.addEventListener('click', () => {
-      const verdictCls = item.llmVerdict === 'leaked'
-        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-        : 'bg-srbench-100 text-srbench-800 dark:bg-srbench-900 dark:text-srbench-300';
-      let judgeHtml = `<div class="p-6 space-y-4">
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold uppercase">Verdict:</span>
-          <span class="px-2 py-0.5 rounded text-xs font-bold ${verdictCls}">${item.llmVerdict === 'leaked' ? 'Leaked' : 'Not Leaked'}</span>
-        </div>`;
-      if (item.llmEvidence.length) {
-        judgeHtml += `<div>
-          <div class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Evidence</div>
-          <div class="flex flex-wrap gap-2">${item.llmEvidence.map(e => '<code class="px-2 py-1 bg-purple-100 dark:bg-purple-800/40 border border-purple-200 dark:border-purple-700 rounded text-xs text-purple-800 dark:text-purple-200">' + esc(e) + '</code>').join('')}</div>
-        </div>`;
-      }
-      if (item.llmReasoning) {
-        judgeHtml += `<div>
-          <div class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Reasoning</div>
-          <div class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">${esc(item.llmReasoning)}</div>
-        </div>`;
-      }
-      if (!item.llmEvidence.length && !item.llmReasoning) {
-        judgeHtml += '<div class="text-sm text-gray-400">No judge reasoning available for this item.</div>';
-      }
-      judgeHtml += '</div>';
-      showAnnModal('Judge Verdict', judgeHtml);
-    });
-  }
-
-  // Wire filters — reset to first item on filter change
-  ['ann-filter-status'].forEach(id => {
-    document.getElementById(id).addEventListener('change', () => { annIdx = 0; render(); });
-  });
-
-  // Wire name input
-  nameInput.addEventListener('input', () => {
-    state.annotatorName = nameInput.value;
-    saveAnnotations();
-  });
-
-  // Wire export
-  document.getElementById('ann-export-btn').addEventListener('click', () => exportAnnotations(queue));
-
-  // Wire clear
-  document.getElementById('ann-clear-btn').addEventListener('click', () => {
-    if (!confirm('Clear all annotations? This cannot be undone.')) return;
-    state.annotations = {};
-    saveAnnotations();
-    render();
-  });
-
-  // Keyboard navigation
-  function onKeyDown(e) {
-    if (state.activeTab !== 'annotator') return;
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-    const filtered = getFiltered();
-    if (filtered.length === 0) return;
-    if (e.key === 'ArrowRight' || e.key === 'n') {
-      if (annIdx < filtered.length - 1) { annIdx++; render(); }
-      e.preventDefault();
-    } else if (e.key === 'ArrowLeft' || e.key === 'p') {
-      if (annIdx > 0) { annIdx--; render(); }
-      e.preventDefault();
-    }
-  }
-  document.addEventListener('keydown', onKeyDown);
-
-  render();
-}
-
-function renderAnnotatorStats(stats) {
-  const el = document.getElementById('ann-stats');
-  const kappaColor = stats.kappa == null ? 'text-gray-400'
-    : stats.kappa >= 0.8 ? 'text-srbench-600 dark:text-srbench-400'
-    : stats.kappa >= 0.6 ? 'text-amber-600 dark:text-amber-400'
-    : 'text-red-500 dark:text-red-400';
-
-  const kappaLabel = stats.kappa == null ? '-'
-    : stats.kappa >= 0.8 ? 'Almost Perfect'
-    : stats.kappa >= 0.6 ? 'Substantial'
-    : stats.kappa >= 0.4 ? 'Moderate'
-    : stats.kappa >= 0.2 ? 'Fair'
-    : 'Slight';
-
-  const pctColor = stats.percentAgreement == null ? 'text-gray-400'
-    : stats.percentAgreement >= 0.9 ? 'text-srbench-600 dark:text-srbench-400'
-    : stats.percentAgreement >= 0.7 ? 'text-amber-600 dark:text-amber-400'
-    : 'text-red-500 dark:text-red-400';
-
-  if (stats.annotated === 0) {
-    el.innerHTML = `<span class="text-[10px] text-gray-400 dark:text-gray-500">${stats.total} items · 0 annotated</span>`;
-    return;
-  }
-
-  const pct = stats.percentAgreement != null ? (stats.percentAgreement * 100).toFixed(1) + '%' : '-';
-  const kStr = stats.kappa != null ? `κ=${stats.kappa.toFixed(2)} (${kappaLabel})` : '';
-  const c = stats.confusion;
-
-  el.innerHTML = `<div class="flex items-center gap-4 flex-wrap text-[10px] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded px-2 py-1 -mx-2 -my-1 transition" title="Click for detailed stats">
-    <span class="text-gray-500 dark:text-gray-400"><span class="font-semibold text-gray-700 dark:text-gray-200">${stats.annotated}</span>/${stats.total} annotated</span>
-    <span class="text-gray-300 dark:text-gray-600">|</span>
-    <span class="${pctColor} font-semibold">${pct} agree</span>
-    <span class="text-gray-400 dark:text-gray-500">(${stats.humanLeakedCount}L ${stats.humanNotLeakedCount}N)</span>
-    ${kStr ? `<span class="text-gray-300 dark:text-gray-600">|</span><span class="${kappaColor} font-medium">${kStr}</span>` : ''}
-    <span class="text-gray-300 dark:text-gray-600">|</span>
-    <span class="text-gray-400 dark:text-gray-500" title="TT/TF/FT/FF">${c.tt}/${c.tf}/${c.ft}/${c.ff}</span>
-  </div>`;
-
-  el.querySelector('div').addEventListener('click', () => {
-    const c = stats.confusion;
-    showAnnModal('Human–Judge Agreement', `<div class="p-6 space-y-6">
-      <div class="flex gap-4">
-        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-5 py-3 text-center">
-          <div class="text-2xl font-bold text-gray-800 dark:text-gray-200">${stats.annotated}</div>
-          <div class="text-[10px] text-gray-500 uppercase">Annotated</div>
-          <div class="text-[10px] text-gray-400">of ${stats.total}</div>
-        </div>
-        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-5 py-3 text-center">
-          <div class="text-2xl font-bold ${pctColor}">${pct}</div>
-          <div class="text-[10px] text-gray-500 uppercase">Agreement</div>
-          <div class="text-[10px] text-gray-400">${stats.humanLeakedCount} leak / ${stats.humanNotLeakedCount} no leak</div>
-        </div>
-        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-5 py-3 text-center">
-          <div class="text-2xl font-bold ${kappaColor}">${stats.kappa != null ? stats.kappa.toFixed(3) : '-'}</div>
-          <div class="text-[10px] text-gray-500 uppercase">Cohen's &kappa;</div>
-          <div class="text-[10px] text-gray-400">${kappaLabel}</div>
-        </div>
-      </div>
-      <div>
-        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase mb-2">Confusion Matrix</div>
-        <table class="text-xs border-collapse">
-          <thead>
-            <tr><th class="p-1.5"></th><th colspan="2" class="p-1.5 text-center text-[10px] text-gray-500 uppercase">LLM Judge</th></tr>
-            <tr><th class="p-1.5"></th><th class="p-1.5 text-center text-gray-500 font-medium">Leaked</th><th class="p-1.5 text-center text-gray-500 font-medium">Not Leaked</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="p-1.5 text-gray-500 font-medium">Human: Leaked</td>
-              <td class="ann-confusion-cell bg-srbench-100 dark:bg-srbench-900/30 rounded text-srbench-800 dark:text-srbench-300">${c.tt}</td>
-              <td class="ann-confusion-cell bg-red-50 dark:bg-red-900/20 rounded text-red-700 dark:text-red-300">${c.tf}</td>
-            </tr>
-            <tr>
-              <td class="p-1.5 text-gray-500 font-medium">Human: Not Leaked</td>
-              <td class="ann-confusion-cell bg-red-50 dark:bg-red-900/20 rounded text-red-700 dark:text-red-300">${c.ft}</td>
-              <td class="ann-confusion-cell bg-srbench-100 dark:bg-srbench-900/30 rounded text-srbench-800 dark:text-srbench-300">${c.ff}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>`);
-  });
-}
-
-// ─────────────────────────────────────────────
-// Annotator: Export
-// ─────────────────────────────────────────────
-
-function exportAnnotations(queue) {
-  const stats = computeAgreementStats(queue);
-  const items = queue.map(item => {
-    const key = annKey(item);
-    const ann = state.annotations[key];
-    return {
-      experiment_variant: item.expVariant,
-      experiment_model: item.expModel,
-      experiment_benchmark: item.expBenchmark,
-      task_id: item.taskId,
-      source: item.source,
-      secret_index: item.secretIdx,
-      secret_content: item.secretContent,
-      llm_verdict: item.llmVerdict,
-      llm_reasoning: item.llmReasoning,
-      llm_evidence: item.llmEvidence,
-      human_verdict: ann ? ann.verdict : null,
-      human_evidence: ann ? (ann.evidence || '') : null,
-      human_reasoning: ann ? (ann.reasoning || '') : null,
-      annotated_at: ann ? ann.timestamp : null,
-    };
-  });
-
-  const payload = {
-    annotator: state.annotatorName || 'anonymous',
-    exported_at: new Date().toISOString(),
-    stats: {
-      total: stats.total,
-      annotated: stats.annotated,
-      agreed: stats.agreed,
-      disagreed: stats.disagreed,
-      human_leaked: stats.humanLeakedCount,
-      human_not_leaked: stats.humanNotLeakedCount,
-      percent_agreement: stats.percentAgreement,
-      cohens_kappa: stats.kappa,
-      confusion_matrix: stats.confusion,
-    },
-    items,
-  };
-
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `annotations_${(state.annotatorName || 'anonymous').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Annotations exported!');
-}
-
-// ─────────────────────────────────────────────
 // Auto-load from URL (?load=/path/to/folder/)
 // ─────────────────────────────────────────────
 
@@ -4370,32 +3523,78 @@ async function autoLoadFromUrl() {
   const loadPath = params.get('load');
   if (!loadPath) return;
 
+  const basePath = loadPath.replace(/\/?$/, '/');
+
   try {
-    // Fetch manifest listing all results files
-    const manifestUrl = loadPath.replace(/\/?$/, '/') + 'manifest.json';
-    const resp = await fetch(manifestUrl);
-    if (!resp.ok) { console.warn('No manifest found at', manifestUrl); return; }
+    const resp = await fetch(basePath + 'manifest.json');
+    if (!resp.ok) { console.warn('No manifest at', basePath + 'manifest.json'); return; }
     const manifest = await resp.json();
     const files = manifest.files || [];
     if (!files.length) return;
 
-    // Fetch each results file and create File objects for loadFiles()
-    const basePath = loadPath.replace(/\/?$/, '/');
-    const fileObjects = [];
-    for (const relPath of files) {
-      try {
-        const r = await fetch(basePath + relPath);
-        if (!r.ok) continue;
-        const blob = await r.blob();
-        fileObjects.push(new File([blob], relPath, { type: 'application/json' }));
-      } catch (e) {
-        console.warn('Failed to fetch', relPath, e);
+    const total = files.length;
+    let done = 0;
+
+    // Show progress in the empty-state panel.
+    const progress = renderAutoLoadProgress(total);
+
+    // Bounded concurrent fetch — stream into state as each result arrives,
+    // re-render once at the end so updateUI() doesn't run 80×.
+    const CONCURRENCY = 12;
+    const queue = [...files];
+    const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+      while (queue.length) {
+        const relPath = queue.shift();
+        if (!relPath) break;
+        try {
+          const r = await fetch(basePath + relPath);
+          if (!r.ok) { console.warn('Auto-load skip', r.status, relPath); continue; }
+          const text = await r.text();
+          const json = JSON.parse(text);
+          const exp = parseResultsFile(json, relPath);
+          state.experiments.push(exp);
+        } catch (e) {
+          console.warn('Auto-load failed for', relPath, e);
+        } finally {
+          done += 1;
+          progress.update(done);
+        }
       }
-    }
-    if (fileObjects.length) await loadFiles(fileObjects);
+    });
+    await Promise.all(workers);
+
+    initializeFilters();
+    updateUI();
+    progress.dismiss();
   } catch (e) {
     console.warn('Auto-load failed:', e);
   }
+}
+
+function renderAutoLoadProgress(total) {
+  const host = document.getElementById('empty-state');
+  if (!host) return { update() {}, dismiss() {} };
+  host.innerHTML = `
+    <div class="w-16 h-16 rounded-2xl bg-srbench-100 dark:bg-srbench-900 flex items-center justify-center mb-6">
+      <svg class="w-8 h-8 text-srbench-500 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12a8 8 0 018-8"/></svg>
+    </div>
+    <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Loading results…</h2>
+    <p id="auto-load-count" class="text-sm text-gray-400 dark:text-gray-500 mb-4">0 / ${total}</p>
+    <div class="w-64 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+      <div id="auto-load-bar" class="h-full bg-srbench-500 transition-all duration-200" style="width: 0%"></div>
+    </div>
+  `;
+  const countEl = document.getElementById('auto-load-count');
+  const barEl = document.getElementById('auto-load-bar');
+  return {
+    update(done) {
+      if (countEl) countEl.textContent = `${done} / ${total}`;
+      if (barEl) barEl.style.width = `${(done / total) * 100}%`;
+    },
+    dismiss() {
+      // updateUI() hides empty-state when experiments load; nothing else to do.
+    },
+  };
 }
 
 restoreViewState();

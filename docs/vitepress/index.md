@@ -9,8 +9,8 @@ hero:
       text: Get Started
       link: /installation
     - theme: alt
-      text: Open the Dashboard
-      link: /dashboard
+      text: See the Results
+      link: /results
 
 ---
 
@@ -34,8 +34,8 @@ srbench benchmark calendar \
     --model gpt-4.1 \
     --limit 2
 
-# 4. Open the dashboard
-srbench dashboard
+# 4. View the results, pre-loaded with your run
+srbench dashboard outputs/your-experiment
 ```
 
 See [Installation](/installation) for full setup including model providers.

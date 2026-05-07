@@ -146,6 +146,18 @@ def _apply_override_groups(
     return expanded
 
 
+def _match_pattern(pattern: str, name: str) -> bool:
+    """Match a single -k pattern against an experiment name.
+
+    Supports a leading ``not `` to invert: ``"not foo"`` matches names that
+    do *not* contain ``foo``. Otherwise this is a plain substring check.
+    """
+    stripped = pattern.lstrip()
+    if stripped.lower().startswith("not "):
+        return stripped[4:].strip() not in name
+    return pattern in name
+
+
 def collect_all(
     path: Path,
     patterns: list[str] | None = None,
@@ -176,7 +188,7 @@ def collect_all(
             module = load_module(file_path)
 
             for name, config in collect_experiments(module):
-                if patterns and not all(p in name for p in patterns):
+                if patterns and not all(_match_pattern(p, name) for p in patterns):
                     continue
 
                 if name in seen_names:
