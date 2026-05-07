@@ -6,7 +6,7 @@ footer: false
 ---
 
 <div class="dashboard-wrapper">
-  <iframe src="/social-reasoning-bench/dashboard-app.html?load=/social-reasoning-bench/dashboard-data/"></iframe>
+  <iframe src="/dashboard-app.html?load=/dashboard-data/"></iframe>
 </div>
 
 <style scoped>
