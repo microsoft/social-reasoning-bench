@@ -12,7 +12,7 @@ defense prompt, attack).
 
 Use :func:`iter_runs` to walk every results file matching the canonical
 TARGET_MODELS filter.  Multiple variant directories sharing the same dims
-all flow through; claim plots accumulate over tasks, not runs, so re-runs
+all flow through; finding plots accumulate over tasks, not runs, so re-runs
 just contribute additional samples.
 """
 
@@ -285,7 +285,7 @@ def iter_runs(
     """Yield every run from ``results_dir`` matching TARGET_MODELS.
 
     Variant directories sharing the same dims (e.g. repeated runs of the
-    same configuration) are all yielded.  Claim plots aggregate over
+    same configuration) are all yielded.  Finding plots aggregate over
     tasks, so additional variants simply contribute more samples.
 
     Args:

@@ -1,4 +1,4 @@
-"""Altair theming + save helpers shared by claim plots."""
+"""Altair theming + save helpers shared by finding plots."""
 
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ class Palette:
     """
 
     # Neutral baselines — same gray everywhere a "reference / non-adversarial"
-    # bar appears (task completion in claim1, benign requestor in claim5).
+    # bar appears (task completion in finding1, benign requestor in finding5).
     task_completion: str = SERIES.sand
     benign: str = SERIES.sand
 

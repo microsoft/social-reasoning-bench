@@ -1,4 +1,4 @@
-"""Claim 4: Bubble matrix of binarised Outcome Optimality vs. Due Diligence.
+"""Finding 4: Bubble matrix of binarised Outcome Optimality vs. Due Diligence.
 
 For benign tasks (prompt = all), each task's OO and DD are split at 0.5 into
 Low / High bins.  Within each (domain, model) cell we compute the percentage
@@ -227,7 +227,7 @@ def main() -> Path:
     tasks = _collect_binned_tasks()
     df = _build_dataframe(tasks)
     chart = plotting.apply_theme(_make_chart(df))
-    out_path = plotting.save(chart, "claim4")
+    out_path = plotting.save(chart, "finding4")
     print(f"saved {out_path}")
     return out_path
 
