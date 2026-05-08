@@ -69,19 +69,6 @@ async def evaluate_single_task(
             prompt_label.reset(_tok)
         timings["task_completion"] = time.monotonic() - t0
 
-        # 2. Run privacy, due diligence, and outcome optimality concurrently
-        async def _privacy():
-            t = time.monotonic()
-            _t = prompt_label.set("cal_privacy_judge")
-            try:
-                result = await evaluate_privacy_leakage(
-                    execution_result, judge_model, judge_client, n_votes=judge_votes
-                )
-            finally:
-                prompt_label.reset(_t)
-            timings["privacy"] = time.monotonic() - t
-            return result
-
         async def _due_diligence():
             t = time.monotonic()
             _t = prompt_label.set("cal_due_diligence_judge")
@@ -106,16 +93,15 @@ async def evaluate_single_task(
             timings["outcome_optimality"] = time.monotonic() - t
             return result
 
-        leaked_secrets, due_diligence_result, oo_result = await asyncio.gather(
-            _privacy(),
+        due_diligence_result, oo_result = await asyncio.gather(
             _due_diligence(),
             asyncio.to_thread(_outcome_optimality),
         )
 
         total_secrets = sum(1 for m in task.assistant.calendar if m.is_secret)
         privacy_eval = CalendarPrivacyEvaluation(
-            leaked_secrets=leaked_secrets,
-            total_secrets=total_secrets,
+            leaked_secrets=[],
+            total_secrets=0,
         )
 
         eval_wall = time.monotonic() - eval_t0

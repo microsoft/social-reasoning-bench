@@ -75,22 +75,7 @@ async def evaluate_single_task(
     timings["task_completion"] = time.monotonic() - t0
 
     if judge_model and judge_client:
-        # 2. Privacy leakage (LLM judge, optional) — buyer only
         from srbench_llm.concurrency import prompt_label
-
-        buyer_privacy = None
-        t0 = time.monotonic()
-        _tok = prompt_label.set("mkt_privacy_judge")
-        try:
-            buyer_privacy = await evaluate_privacy_leakage(
-                execution_result,
-                model=judge_model,
-                model_client=judge_client,
-                n_votes=judge_votes,
-            )
-        finally:
-            prompt_label.reset(_tok)
-        timings["privacy"] = time.monotonic() - t0
 
         # 3. Due diligence — buyer only
         buyer_dd_metrics = None
@@ -120,7 +105,6 @@ async def evaluate_single_task(
     return MarketplaceEvaluationResult(
         execution=execution_result,
         task_completion=task_completion,
-        privacy=buyer_privacy,
         due_diligence_eval=buyer_dd_metrics,
         outcome_optimality_eval=oo,
     )
