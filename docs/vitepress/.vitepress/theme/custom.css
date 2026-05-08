@@ -19,3 +19,75 @@
   max-width: none;
   width: max-content;
 }
+
+/* Larger, lower hero image. VitePress caps .image-src at ~320px
+   max-width/height and centers it absolutely inside .image-container —
+   override both so the image actually scales up, then nudge it down. */
+.VPHome .VPHero .image-container {
+  width: 480px !important;
+  height: 480px !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.VPHome .VPHero .image-src {
+  max-width: 480px !important;
+  max-height: 480px !important;
+  width: 480px;
+  height: 480px;
+}
+
+.VPHome .VPHero .image-bg {
+  width: 360px !important;
+  height: 360px !important;
+}
+
+@media (min-width: 960px) {
+  .VPHome .VPHero .image {
+    margin-top: 48px;
+  }
+}
+
+/* Inline <code> styled with the hero/brand color.
+   Light chip in light mode, dark chip in dark mode. */
+code.hero-code {
+  background-color: #d8d8d8;
+  color: var(--vp-c-brand-1);
+  padding: 0.15em 0.45em;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.dark code.hero-code {
+  background-color: #1a1a1a;
+}
+
+/* Higher-contrast neutral border on all feature cards.
+   Darker gray on light bg, lighter gray on dark bg.
+   Hover swaps to the brand color. */
+.VPHome .VPFeatures .VPFeature {
+  border-color: #888;
+}
+
+.dark .VPHome .VPFeatures .VPFeature {
+  border-color: #aaa;
+}
+
+.VPHome .VPFeatures .VPFeature:hover,
+.dark .VPHome .VPFeatures .VPFeature:hover {
+  border-color: var(--vp-c-brand-1);
+}
+
+/* Highlight the first feature card with a soft brand fill. */
+.VPHome .VPFeatures .items .item:first-child .VPFeature {
+  background-color: var(--vp-c-brand-soft);
+}
+
+.VPHome .VPFeatures .items .item:first-child .VPFeature .title {
+  color: var(--vp-c-brand-1);
+}
+
+/* Feature details default to muted secondary text — bump to primary. */
+.VPHome .VPFeatures .VPFeature .details {
+  color: var(--vp-c-text-1);
+}

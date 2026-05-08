@@ -3,7 +3,7 @@
 [![Docs](https://github.com/microsoft/social-reasoning-bench/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.io/microsoft/social-reasoning-bench)
 [![Blog](https://img.shields.io/badge/blog-coming_soon-blueviolet)](https://www.microsoft.com/en-us/research/blog/)
 
-![hero](docs/hero.png)
+![hero](docs/vitepress/public/hero-light.png)
 
 Evaluate the social reasoning capabilities of LLM agents in multi-agent environments.
 

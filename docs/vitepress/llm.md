@@ -31,6 +31,25 @@ srbench benchmark calendar --model claude-sonnet-4-5 ...
 srbench benchmark calendar --model azure_pool/gpt-4.1 ...
 ```
 
+## Bring your own model
+
+Any OpenAI-compatible server — vLLM, Ollama, LM Studio, a private gateway — works through the OpenAI provider. Two pieces:
+
+1. Use the `openai/<your-model-name>` prefix so `srbench` routes through the OpenAI client without trying to match it against known `gpt-*` aliases.
+2. Pass `--base-url` to point that client at your server.
+
+```bash
+srbench benchmark calendar \
+    --model openai/meta-llama/Llama-3.1-70B-Instruct \
+    --base-url http://localhost:8000/v1 \
+    --data data/calendar-scheduling/small.yaml \
+    --limit 2
+```
+
+`OPENAI_API_KEY` must still be set — most local servers ignore the value, so any non-empty string (e.g. `OPENAI_API_KEY=dummy`) is fine.
+
+If you want different roles to hit different endpoints (e.g. an assistant model on vLLM and a judge on hosted OpenAI), use the per-role variants instead of the global `--base-url`: `--assistant-base-url`, `--requestor-base-url`, `--judge-base-url` for calendar; `--buyer-base-url`, `--seller-base-url`, `--judge-base-url` for marketplace.
+
 ## Azure pool
 
 The Azure pool provider load-balances requests across multiple Azure OpenAI deployments — useful when one deployment's quota isn't enough for a long sweep.

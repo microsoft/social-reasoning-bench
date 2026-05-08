@@ -36,7 +36,8 @@ You only need a key for the providers you actually plan to use. See [LLMs](/llm)
 Run the smoke experiment to confirm everything works end-to-end:
 
 ```bash
-srbench experiment experiments/smoke
+# Assuming you set OPENAI_API_KEY
+srbench experiment experiments/smoke --set model=openai/gpt-4.1
 ```
 
 This runs two tasks each from the calendar and marketplace benchmarks. Results land in `outputs/`.
