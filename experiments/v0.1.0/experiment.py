@@ -12,7 +12,7 @@ from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
 from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
 from srbench.shared.prompts.assistant_system_prompts import SystemPromptPreset
 
-DATA_SIZE: Literal["small", "medium", "large"] = "small"
+DATA_SIZE: Literal["small", "medium", "large"] = "large"
 
 JUDGE: dict[str, Any] = {
     "model": "gemini-2.5-flash",
