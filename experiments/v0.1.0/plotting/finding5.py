@@ -28,7 +28,7 @@ from utils import loader, plotting
 
 
 CONDITION_BENIGN = "Benign Counterparty"
-CONDITION_ADVERSARIAL = "Adversarial Counterpart"
+CONDITION_ADVERSARIAL = "Adversarial Counterparty"
 
 CONDITION_ORDER: list[str] = [CONDITION_BENIGN, CONDITION_ADVERSARIAL]
 CONDITION_COLORS: dict[str, str] = {
