@@ -265,20 +265,20 @@ def _run_experiment(argv: list[str]) -> None:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=100,
-        help="Number of tasks to run concurrently (default: 100)",
+        default=None,
+        help="Number of tasks to run concurrently (default: max across configs, else 100)",
     )
     parser.add_argument(
         "--task-concurrency",
         type=int,
         default=None,
-        help="Max concurrent LLM calls per task per provider (default: unlimited)",
+        help="Max concurrent LLM calls per task per provider (default: max across configs)",
     )
     parser.add_argument(
         "--llm-concurrency",
         type=int,
         default=None,
-        help="Max total concurrent LLM calls per provider across all tasks (default: unlimited)",
+        help="Max total concurrent LLM calls per provider across all tasks (default: max across configs)",
     )
     parser.add_argument(
         "--restart-exec",

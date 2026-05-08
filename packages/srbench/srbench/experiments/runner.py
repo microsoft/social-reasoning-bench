@@ -17,7 +17,7 @@ import signal
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 from ..benchmarks.base.benchmark import Benchmark
 from ..benchmarks.base.types import BaseRunConfig, BenchmarkOutput
@@ -32,6 +32,20 @@ from ..shared.logging import (
 from .collect import collect_all
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_setting(
+    cli_value: int | None,
+    config_values: Iterable[int | None],
+    default: int | None = None,
+) -> int | None:
+    """CLI wins if explicitly set; else max of non-None config values; else default."""
+    if cli_value is not None:
+        return cli_value
+    non_none = [v for v in config_values if v is not None]
+    if non_none:
+        return max(non_none)
+    return default
 
 
 class RunCancelled(Exception):
@@ -270,7 +284,7 @@ async def run_multiple(
     output_base: Path | None = None,
     patterns: list[str] | None = None,
     override_groups: list[dict] | None = None,
-    batch_size: int = 100,
+    batch_size: int | None = None,
     task_concurrency: int | None = None,
     llm_concurrency: int | None = None,
     restart_exec: bool = False,
@@ -288,9 +302,12 @@ async def run_multiple(
         output_base: Base directory for experiment outputs.
         patterns: Optional list of patterns to filter experiment names (OR logic).
         override_groups: Optional list of override dicts.
-        batch_size: Maximum concurrent tasks across all experiments.
-        task_concurrency: Max concurrent LLM calls per task per provider.
-        llm_concurrency: Max total concurrent LLM calls per provider.
+        batch_size: Maximum concurrent tasks across all experiments. If None,
+            uses max across collected configs (fallback 100).
+        task_concurrency: Max concurrent LLM calls per task per provider. If
+            None, uses max across collected configs.
+        llm_concurrency: Max total concurrent LLM calls per provider. If None,
+            uses max across collected configs.
         restart_exec: Re-run execution (ignore checkpointed execution progress).
         restart_eval: Re-run evaluation (ignore checkpointed evaluation progress).
         finalize: Convert checkpoint.json to results.json without running tasks.
@@ -302,10 +319,6 @@ async def run_multiple(
     """
     from srbench_llm import concurrency
 
-    # Configure LLM concurrency limits if specified
-    if llm_concurrency is not None or task_concurrency is not None:
-        concurrency.configure(llm_size=llm_concurrency, task_size=task_concurrency)
-
     bl = create_benchmark_logger(logger_style, log_level=log_level)
 
     raw_configs = collect_all(path, patterns, override_groups)
@@ -313,6 +326,20 @@ async def run_multiple(
     print(f"Collected {len(raw_configs)} experiments")
     if not raw_configs:
         return (0, 0, 0)
+
+    # Resolve effective concurrency: CLI wins if set, else max across configs.
+    config_objs = [c for _, _, c in raw_configs]
+    resolved_batch = _resolve_setting(batch_size, [c.batch_size for c in config_objs], default=100)
+    batch_size = resolved_batch if resolved_batch is not None else 100
+    task_concurrency = _resolve_setting(task_concurrency, [c.task_concurrency for c in config_objs])
+    llm_concurrency = _resolve_setting(llm_concurrency, [c.llm_concurrency for c in config_objs])
+    print(
+        f"  batch_size={batch_size}  task_concurrency={task_concurrency}  "
+        f"llm_concurrency={llm_concurrency}"
+    )
+
+    if llm_concurrency is not None or task_concurrency is not None:
+        concurrency.configure(llm_size=llm_concurrency, task_size=task_concurrency)
 
     # Set output_dir on each config
     configs: list[BaseRunConfig] = []
