@@ -64,7 +64,7 @@ TARGET_MODELS: set[tuple[str, str]] = {
     ("azure_pool-gpt-4-1", "cot"),
     ("azure_pool-gpt-5-4", "high"),
     ("gemini-3-flash-preview", "high"),
-    ("claude-sonnet-4-6", "10000"),
+    # ("claude-sonnet-4-6", "10000"),
 }
 
 # ── Aliases ──────────────────────────────────────────────────────
