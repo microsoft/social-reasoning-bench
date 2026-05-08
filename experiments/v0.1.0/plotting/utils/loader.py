@@ -32,7 +32,7 @@ from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
 from srbench.benchmarks.marketplace.types import MarketplaceEvaluationResult
 
 REPO_ROOT: Path = Path(__file__).resolve().parents[4]
-RESULTS_DIR: Path = REPO_ROOT / "outputs" / "v0.1.0-05062026" / "v0.1.0"
+RESULTS_DIR: Path = REPO_ROOT / "outputs" / "v0.1.0-large" / "v0.1.0"
 
 
 # ── Display labels ───────────────────────────────────────────────
