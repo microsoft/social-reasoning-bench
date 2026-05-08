@@ -221,6 +221,9 @@ class AgentResources:
             ToolError: If the meeting is not found or the caller is not the
                 organizer.
         """
+        if self.calendar.is_initial_meeting(action.meeting_uid):
+            raise ToolError(f"Meeting '{action.meeting_uid}' cannot be modified.")
+
         meeting = self.calendar.get_meeting(action.meeting_uid)
         if not meeting:
             raise ToolError(f"Meeting '{action.meeting_uid}' not found on your calendar.")
@@ -267,6 +270,9 @@ class AgentResources:
             ToolError: If the meeting is not found, counter-proposal fields are
                 missing, or date/time parsing fails.
         """
+        if self.calendar.is_initial_meeting(action.meeting_uid):
+            raise ToolError(f"Meeting '{action.meeting_uid}' cannot be modified.")
+
         meeting = self.calendar.get_meeting(action.meeting_uid)
         if not meeting:
             raise ToolError(f"Meeting '{action.meeting_uid}' not found on your calendar.")

@@ -26,6 +26,10 @@ class AgentCalendar:
             for meeting in meetings:
                 self._meetings[meeting.uid] = meeting
 
+        self._initial_meetings: dict[str, Meeting] = {
+            uid: meeting.model_copy(deep=True) for uid, meeting in self._meetings.items()
+        }
+
     @property
     def owner(self) -> str:
         """Return the email address of the calendar owner.
@@ -148,11 +152,16 @@ class AgentCalendar:
                     start_b = time_to_minutes(meeting_b.start_time)
                     end_b = time_to_minutes(meeting_b.end_time)
 
-                    # Check for overlap
                     if start_a < end_b and start_b < end_a:
                         return True
 
         return False
+
+    def is_initial_meeting(self, uid: str) -> bool:
+        """
+        Determine if the meeting uid was on the initial calendar
+        """
+        return uid in self._initial_meetings
 
 
 class CalendarManager:
