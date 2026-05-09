@@ -32,7 +32,7 @@ from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
 from srbench.benchmarks.marketplace.types import MarketplaceEvaluationResult
 
 REPO_ROOT: Path = Path(__file__).resolve().parents[4]
-RESULTS_DIR: Path = REPO_ROOT / "outputs" / "v0.1.0-large" / "v0.1.0"
+RESULTS_DIR: Path = REPO_ROOT / "outputs" / "v0.1.0"
 
 
 # ── Display labels ───────────────────────────────────────────────
@@ -64,7 +64,7 @@ TARGET_MODELS: set[tuple[str, str]] = {
     ("azure_pool-gpt-4-1", "cot"),
     ("azure_pool-gpt-5-4", "high"),
     ("gemini-3-flash-preview", "high"),
-    # ("claude-sonnet-4-6", "10000"),
+    ("claude-sonnet-4-6", "10000"),
 }
 
 # ── Aliases ──────────────────────────────────────────────────────

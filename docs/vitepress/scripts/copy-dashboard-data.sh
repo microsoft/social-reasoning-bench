@@ -15,7 +15,7 @@ REPO_ROOT="$(cd "$DOCS_DIR/../.." && pwd)"
 PUBLIC="$DOCS_DIR/public"
 DATA_DIR="$PUBLIC/dashboard-data"
 
-SOURCE_DIR="${SRBENCH_DOCS_DATA_DIR:-$REPO_ROOT/outputs/v0.1.0-large/v0.1.0}"
+SOURCE_DIR="${SRBENCH_DOCS_DATA_DIR:-$REPO_ROOT/outputs/v0.1.0}"
 
 mkdir -p "$PUBLIC"
 
