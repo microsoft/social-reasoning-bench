@@ -355,7 +355,6 @@ function themeDark() { return document.documentElement.classList.contains('dark'
 const CORE_METRICS = {
   task_completion:      { label: 'Task Completion',      aggKey: 'avg_task_completion',      taskKey: 'task_completed',      format: 'percent', higherIsBetter: true, scale: [0, 1] },
   outcome_optimality:   { label: 'Outcome Optimality',   aggKey: 'avg_outcome_optimality',   taskKey: 'outcome_optimality',  format: 'percent', higherIsBetter: true, scale: [0, 1] },
-  leakage_rate:         { label: 'Leakage Rate',         aggKey: 'avg_leakage_rate',         taskKey: 'leakage_rate',        format: 'percent', higherIsBetter: false, scale: [0, 1] },
   duty_of_care:         { label: 'Duty of Care',         aggKey: 'avg_duty_of_care',         taskKey: 'duty_of_care',        format: 'percent', higherIsBetter: true,  scale: [0, 1] },
   due_diligence:        { label: 'Due Diligence',        aggKey: 'avg_due_diligence',        taskKey: 'due_diligence',       format: 'percent', higherIsBetter: true,  scale: [0, 1] },
 };
@@ -623,11 +622,9 @@ function parseResultsFile(json, filename) {
     tasks: (json.results || []).map(r => ({
       taskId: r.execution?.task?.id,
       taskCompleted: r.task_completed,
-      leakageRate: r.leakage_rate,
       dutyOfCare: r.duty_of_care,
       dueDiligence: r.due_diligence,
       outcomeOptimality: r.outcome_optimality,
-      privacyLeaks: r.privacy_leaks || [],
       _raw: r,
     })),
     _rawConfig: cfg,
@@ -1513,15 +1510,14 @@ function renderRadarColumn(container, experiments, colIdx) {
     return keys.map(k => ({
       key: k,
       label: CORE_METRICS[k].label,
-      invert: k === 'leakage_rate',
     }));
   }
 
   function makeRadarData(exps, axes) {
     const agg = aggregateExperiments(exps);
-    return axes.map(({ key, invert }) => {
+    return axes.map(({ key }) => {
       const v = agg[key] ?? 0;
-      return invert ? 1 - v : v;
+      return v;
     });
   }
 
@@ -1745,7 +1741,6 @@ Chart.register(scatter2DBoxPlugin);
 function getTaskValues(exps, key) {
   return exps.flatMap(e => e.tasks.filter(t => !t.executionError).map(t => {
     if (key === 'outcome_optimality') return t.outcomeOptimality;
-    if (key === 'leakage_rate') return t.leakageRate;
     if (key === 'duty_of_care') return t.dutyOfCare;
     if (key === 'due_diligence') return t.dueDiligence;
     return t.taskCompleted ? 1 : 0;
@@ -2033,7 +2028,6 @@ const tvExpCols = [
   { key: 'errors',     label: 'Errors',     align: 'center', getter: e => e.evaluation?.error_count || 0 },
   { key: 'completion', label: 'Completion',  align: 'center', getter: e => e.evaluation?.avg_task_completion, format: 'percent', good: 'high' },
   { key: 'oo',         label: 'OO',          align: 'center', getter: e => e.evaluation?.avg_outcome_optimality, format: 'percent', good: 'high' },
-  { key: 'leakage',    label: 'Leakage',    align: 'center', getter: e => e.evaluation?.avg_leakage_rate, format: 'percent', good: 'low' },
   { key: 'doc',        label: 'DoC',        align: 'center', getter: e => e.evaluation?.avg_duty_of_care, format: 'percent', good: 'high' },
   { key: 'dd',         label: 'DD',         align: 'center', getter: e => e.evaluation?.avg_due_diligence, format: 'percent', good: 'high' },
 ];
@@ -2216,7 +2210,6 @@ function tvRenderTaskList(benchmark, experiments) {
     <th class="px-2 py-1.5 text-left">${benchmark === 'calendar' ? 'Event' : benchmark === 'marketplace' ? 'Product' : 'Task'}</th>
     <th class="px-2 py-1.5 text-center">Comp</th>
     <th class="px-2 py-1.5 text-center">OO</th>
-    <th class="px-2 py-1.5 text-center">Leak</th>
     <th class="px-2 py-1.5 text-center">DoC</th>
     <th class="px-2 py-1.5 text-center">DD</th>
     ${extraHeaders}`;
@@ -2232,7 +2225,6 @@ function tvRenderTaskList(benchmark, experiments) {
         ? '<td class="px-2 py-1.5 text-center text-amber-500 dark:text-amber-400 font-medium" title="' + esc(r.execution.error) + '">ERR</td>'
         : tvTaskMetricCell(r.task_completed, 'bool')}
       ${tvTaskMetricCell(r.outcome_optimality, 'percent')}
-      ${tvTaskMetricCell(r.leakage_rate, 'percent')}
       ${tvTaskMetricCell(r.duty_of_care, 'percent')}
       ${tvTaskMetricCell(r.due_diligence, 'percent')}
       ${extraCellsFn(r)}
@@ -2277,7 +2269,6 @@ function tvRenderVerdictBanner(r) {
 
   const stats = [
     tvVerdictStat('OO', r.outcome_optimality, 'percent', 'high'),
-    tvVerdictStat('Leakage', r.leakage_rate, 'percent', 'low'),
     tvVerdictStat('DoC', r.duty_of_care, 'percent', 'high'),
     tvVerdictStat('DD', r.due_diligence, 'percent', 'high'),
   ].join('');
@@ -2504,7 +2495,6 @@ function tvRenderEvalMetrics(r, benchmark) {
         </div>`
       : mc('Task Completed', r.task_completed, { format: 'bool' }),
     mc('Outcome Optimality', r.outcome_optimality, { format: 'percent', good: 'high' }),
-    mc('Leakage Rate', r.leakage_rate, { format: 'percent', good: 'low' }),
     mc('Duty of Care', r.duty_of_care, { format: 'percent', good: 'high' }),
     mc('Due Diligence', r.due_diligence, { format: 'percent', good: 'high' }),
   ];
@@ -2553,9 +2543,6 @@ function tvRenderEvalMetrics(r, benchmark) {
       mc('V*', ooEval.best_value, { format: 'number' }),
       mc('Buyer Res', mktTask.buyer?.reservation_price, { format: 'number', subtitle: '$' }),
       mc('OO Score', ooEval.outcome_optimality_score, { format: 'percent', good: 'high' }),
-    ]);
-    groups += tvRenderMetricGroup('Deal', [
-      mc('Leakage', r.privacy?.leakage_score, { format: 'percent', good: 'low' }),
     ]);
     groups += tvRenderMetricGroup('Due Diligence', [
       mc('Advocacy', r.due_diligence_eval?.advocacy_score, { format: 'percent', good: 'high', subtitle: r.due_diligence_eval?.advocacy_rating }),
