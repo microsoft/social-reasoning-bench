@@ -12,7 +12,7 @@ Evaluate the social reasoning capabilities of LLM agents in multi-party environm
 Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/microsoft/social-reasoning-bench.git
+git clone https://github.com/microsoft/social-reasoning-bench.git srbench
 cd srbench
 uv sync --all-packages --all-groups --all-extras
 source .venv/bin/activate

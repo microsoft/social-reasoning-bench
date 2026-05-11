@@ -27,7 +27,7 @@ Evaluate the social reasoning ability of your own LLM. For example's sake, we'll
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/microsoft/social-reasoning-bench.git
+git clone https://github.com/microsoft/social-reasoning-bench.git srbench
 cd srbench
 uv sync --all-packages --all-groups --all-extras
 source .venv/bin/activate
