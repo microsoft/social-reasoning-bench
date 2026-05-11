@@ -1,11 +1,11 @@
 # SocialReasoningBench
 
-[![Docs](https://github.com/microsoft/social-reasoning-bench/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.io/microsoft/social-reasoning-bench)
-[![Blog](https://img.shields.io/badge/blog-coming_soon-blueviolet)](https://www.microsoft.com/en-us/research/blog/)
+[![Docs](https://github.com/microsoft/social-reasoning-bench/actions/workflows/docs.yml/badge.svg)](https://github.io/microsoft/social-reasoning-bench)
+[![Blog](https://img.shields.io/badge/Blog-coming_soon-blueviolet)](https://www.microsoft.com/en-us/research/blog/)
 
 ![hero](docs/vitepress/public/hero-light.png)
 
-Evaluate the social reasoning capabilities of LLM agents in multi-agent environments.
+Evaluate the social reasoning capabilities of LLM agents in multi-party environments.
 
 ## Install
 
@@ -18,22 +18,25 @@ uv sync --all-packages --all-groups --all-extras
 source .venv/bin/activate
 ```
 
-Copy `example.env` to `.env` and fill in API keys for whichever providers you'll use (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or `SRBENCH_AZURE_POOL_PATH`).
-
 ## Usage
 
-### Run a benchmark
+Evaluate the social reasoning ability of your own LLM. For example's sake, we'll assume your LLM is served as `my-model` via an OpenAI compatible endpoint at http://localhost:8000.
 
 ```bash
-srbench benchmark calendar \
-    --data data/calendar-scheduling/small.yaml \
-    --model azure_pool/gpt-4.1 \
-    --limit 2
+# To reproduce our results use Gemini as the counterparty.
+GEMINI_API_KEY=<your api key>
 
-srbench benchmark marketplace \
-    --data data/marketplace/small.yaml \
-    --model azure_pool/gpt-4.1 \
-    --limit 2
+# 3. Run the v0.1.0 experiment sweep with your model as the assistant
+srbench experiment experiments/v0.1.0 \
+    --output-base outputs/my-model
+    --assistant-model openai/my-model \
+    --assistant-base-url http://localhost:8000/v1 \
+    --assistant-api-key none
+    # To just test a few examples per experiment in the sweep
+    # --set limit=10
+
+# 4. View the results
+srbench dashboard outputs/my-model
 ```
 
-For full usage details, checkout the [docs](https://github.io/microsoft/social-reasoning-bench)
+See [Installation](/installation), [Experiments](/experiments.md), and [LLMs](/llm.md) for detailed instructions.
