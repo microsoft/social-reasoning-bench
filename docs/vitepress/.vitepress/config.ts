@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'SocialReasoningBench',
   description: 'Evaluate the social reasoning capabilities of LLM agents in multi-agent environments',
-  base: '/',
+  base: '/social-reasoning-bench/',
 
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }],
