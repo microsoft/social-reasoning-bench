@@ -208,13 +208,14 @@ def _make_chart(df: pd.DataFrame) -> alt.FacetChart:
             column=alt.Column(
                 "model_label:N",
                 title=None,
+                sort=plotting.sort_models(df["model_label"]),
                 header=alt.Header(labelFontWeight="bold"),
             ),
         )
         .properties(
             title=plotting.make_title(
                 "Outcome Optimality vs. Due Diligence (Benign Tasks)",
-                "Bubble size = % of tasks · DD = reasonable-agent counterfactual",
+                "Bubble size = % of tasks",
             )
         )
     )

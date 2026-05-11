@@ -70,7 +70,7 @@ def _points_to_df(points: list[TaskPoint]) -> pd.DataFrame:
 
 
 def _make_chart(df: pd.DataFrame, title: str, subtitle: str) -> alt.FacetChart:
-    model_order = sorted(df["model_label"].unique())
+    model_order = plotting.sort_models(df["model_label"])
     color_range = plotting.PALETTE.series[: len(model_order)]
 
     base = alt.Chart(df).transform_joinaggregate(

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -107,6 +109,23 @@ PALETTE = Palette()
 
 
 DOMAIN_ORDER: list[str] = ["Calendar", "Marketplace"]
+MODEL_ORDER: list[str] = ["gpt-4.1", "gpt-5.4", "gemini", "claude"]
+
+
+def model_sort_key(label: str) -> list[float]:
+    """Sort key that orders model labels by ``MODEL_ORDER`` family prefix."""
+    lowered = label.lower()
+    return [lowered.index(m) if m in lowered else math.inf for m in MODEL_ORDER]
+
+
+def sort_models(labels: Iterable[str]) -> list[str]:
+    """Return unique ``labels`` sorted by ``MODEL_ORDER`` family."""
+    return sorted(set(labels), key=model_sort_key)
+
+
+def model_x(labels: Iterable[str], **kwargs) -> alt.X:
+    """``alt.X("model_label:N")`` pre-sorted by ``MODEL_ORDER``."""
+    return alt.X("model_label:N", sort=sort_models(labels), **kwargs)
 
 
 # ── Title helper ─────────────────────────────────────────────────

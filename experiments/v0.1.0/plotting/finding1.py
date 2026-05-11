@@ -4,7 +4,6 @@ Slice: benign tasks (attack=normal), both prompts.  Per (domain, model) we
 plot four bars:
 
 * Task Completion (averaged across both prompts)
-* Outcome Optimality — overall (averaged across both prompts)
 * Outcome Optimality — basic prompt (system_prompt=none)
 * Outcome Optimality — defensive prompt (system_prompt=all)
 """
@@ -22,21 +21,18 @@ from utils import loader, plotting
 
 
 METRIC_TC = "Task Completion"
-METRIC_OO_OVERALL = "Outcome Optimality (Overall)"
 METRIC_OO_BASIC = "Outcome Optimality (Basic Prompt)"
 METRIC_OO_DEFENSIVE = "Outcome Optimality (Defensive Prompt)"
 
 
 METRIC_ORDER: list[str] = [
     METRIC_TC,
-    METRIC_OO_OVERALL,
     METRIC_OO_BASIC,
     METRIC_OO_DEFENSIVE,
 ]
 
 METRIC_COLORS: dict[str, str] = {
     METRIC_TC: plotting.PALETTE.task_completion,
-    METRIC_OO_OVERALL: plotting.PALETTE.oo_overall,
     METRIC_OO_BASIC: plotting.PALETTE.oo_basic,
     METRIC_OO_DEFENSIVE: plotting.PALETTE.oo_defensive,
 }
@@ -72,12 +68,10 @@ class Samples:
 @dataclass
 class CellAccumulator:
     task_completion: Samples = field(default_factory=Samples)
-    oo_overall: Samples = field(default_factory=Samples)
     oo_basic: Samples = field(default_factory=Samples)
     oo_defensive: Samples = field(default_factory=Samples)
 
     def add_outcome_optimality(self, value: float, prompt: str) -> None:
-        self.oo_overall.add(value)
         if prompt == "none":
             self.oo_basic.add(value)
         elif prompt == "all":
@@ -86,8 +80,6 @@ class CellAccumulator:
     def metric_score(self, metric: str) -> float | None:
         if metric == METRIC_TC:
             return self.task_completion.mean
-        if metric == METRIC_OO_OVERALL:
-            return self.oo_overall.mean
         if metric == METRIC_OO_BASIC:
             return self.oo_basic.mean
         if metric == METRIC_OO_DEFENSIVE:
@@ -136,7 +128,7 @@ def _make_chart(df: pd.DataFrame) -> alt.FacetChart:
     color_range = [METRIC_COLORS[name] for name in METRIC_ORDER]
 
     base = alt.Chart(df).encode(
-        x=alt.X("model_label:N", title=None),
+        x=plotting.model_x(df["model_label"], title=None),
         y=alt.Y(
             "score:Q",
             title=None,

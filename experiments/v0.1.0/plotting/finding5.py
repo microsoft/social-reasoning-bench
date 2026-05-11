@@ -174,7 +174,7 @@ def _make_chart(df: pd.DataFrame) -> alt.FacetChart:
     color_range = [CONDITION_COLORS[name] for name in CONDITION_ORDER]
 
     base = alt.Chart(df).encode(
-        x=alt.X("model_label:N", title=None),
+        x=plotting.model_x(df["model_label"], title=None),
         y=alt.Y(
             "score:Q",
             title=None,
@@ -225,7 +225,7 @@ def _make_chart(df: pd.DataFrame) -> alt.FacetChart:
         .properties(
             title=plotting.make_title(
                 "Behavior Under Attack",
-                "Adversarial = handcrafted + whimsical (privacy excluded) · prompt = all",
+                "Adversarial = handcrafted + whimsical · prompt = defensive",
             )
         )
     )
