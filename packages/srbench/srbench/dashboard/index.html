@@ -1512,7 +1512,7 @@ function renderRadarColumn(container, experiments, colIdx) {
     }
     return keys.map(k => ({
       key: k,
-      label: k === 'leakage_rate' ? 'Privacy Preservation' : CORE_METRICS[k].label,
+      label: CORE_METRICS[k].label,
       invert: k === 'leakage_rate',
     }));
   }
@@ -2529,9 +2529,6 @@ function tvRenderEvalMetrics(r, benchmark) {
     if (ooEval.explanation) {
       groups += `<div class="mb-4 text-[10px] text-gray-500 dark:text-gray-400 italic -mt-2">${esc(ooEval.explanation)}</div>`;
     }
-    groups += tvRenderMetricGroup('Privacy', [
-      mc('Total Secrets', r.privacy?.total_secrets, { format: 'int' }),
-    ]);
     const dde = r.due_diligence_eval || {};
     groups += tvRenderMetricGroup('Due Diligence', [
       mc('Info Gathering', dde.information_gathering_score ?? r.due_diligence_information_gathering_score, { format: 'percent', good: 'high', subtitle: dde.information_gathering_rating ?? r.due_diligence_information_gathering_rating }),
@@ -2930,8 +2927,7 @@ function tvFormatPrefTime(t) {
 function tvRenderIssues(r) {
   const hasConflicts = r.has_conflicts;
   const illegalMoves = r.illegal_moves || [];
-  const leaks = r.leaked_secrets || r.privacy_leaks || [];
-  if (!hasConflicts && !illegalMoves.length && !leaks.length) return '';
+  if (!hasConflicts && !illegalMoves.length) return '';
 
   let html = `<div class="space-y-2 mb-2">`;
   if (hasConflicts) {
@@ -2950,13 +2946,6 @@ function tvRenderIssues(r) {
     html += `<div class="bg-amber-500/10 border border-amber-500 rounded-lg p-3">
       <div class="text-[10px] font-semibold uppercase tracking-wide text-white/70 mb-1">Illegal Move</div>
       <div class="text-sm text-white">${esc(e.title || '?')}</div>
-    </div>`;
-  });
-  leaks.forEach(leak => {
-    html += `<div class="bg-purple-500/10 border border-purple-500 rounded-lg p-3">
-      <div class="text-[10px] font-semibold uppercase tracking-wide text-white/70 mb-1">Secret Leaked</div>
-      <div class="text-sm text-white">${esc(leak.secret_content || leak.secret?.title || '?')}</div>
-      ${leak.evidence?.length ? `<div class="text-sm text-white mt-0.5 italic">${leak.evidence.map(e => `<div>"${esc(e)}"</div>`).join('')}</div>` : ''}
     </div>`;
   });
   html += '</div>';
@@ -3112,19 +3101,6 @@ function tvRenderOutcomes(r, benchmark) {
   } else if (benchmark === 'marketplace') {
     const outcome = r.execution?.outcome || {};
     const offers = r.execution?.offers || [];
-    const leaks = r.privacy_leaks || [];
-
-    // Privacy leaks
-    if (leaks.length > 0) {
-      html += `<div class="mb-3">
-        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Privacy Leaks (${leaks.length})</div>
-        ${leaks.map(leak => `<div class="mb-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
-          <div class="font-medium text-purple-800 dark:text-purple-200 text-sm">${esc(leak.secret_content || 'Secret leaked')}</div>
-          ${leak.reasoning ? `<div class="text-xs text-purple-600 dark:text-purple-400 mt-1">${esc(leak.reasoning)}</div>` : ''}
-          ${leak.evidence?.length ? `<div class="text-xs text-purple-500 dark:text-purple-400 mt-1 italic">${leak.evidence.map(e => `"${esc(e)}"`).join(', ')}</div>` : ''}
-        </div>`).join('')}
-      </div>`;
-    }
 
     // Deal outcome card
     {
