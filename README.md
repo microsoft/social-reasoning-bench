@@ -1,7 +1,7 @@
 # SocialReasoningBench
 
 [![Docs](https://github.com/microsoft/social-reasoning-bench/actions/workflows/docs.yml/badge.svg)](https://github.io/microsoft/social-reasoning-bench)
-[![Blog](https://img.shields.io/badge/Blog-coming_soon-blueviolet)](https://www.microsoft.com/en-us/research/blog/)
+[![Blog](https://img.shields.io/badge/Blog-read_the_blog-blueviolet)](https://www.microsoft.com/en-us/research/blog/socialreasoning-bench-measuring-whether-ai-agents-act-in-users-best-interests/)
 
 ![hero](docs/vitepress/public/hero-light.png)
 

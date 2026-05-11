@@ -15,7 +15,7 @@ features:
     link: /installation
   - title: Read the blog
     details: Our motivation, methodology, and findings.
-    link: https://microsoft-my.sharepoint.com/:w:/p/acelikyilmaz/cQoKw9tWcmb9TJnB3-6kYgtvEgUCvMTv8DjvJJ-QVhtFEEe0Rw
+    link: https://www.microsoft.com/en-us/research/blog/socialreasoning-bench-measuring-whether-ai-agents-act-in-users-best-interests/
   - title: Browse the results
     details: Peruse the raw data from our experiments.
     link: /results
