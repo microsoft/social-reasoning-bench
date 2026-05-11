@@ -125,7 +125,7 @@ def _make_chart(df: pd.DataFrame, title: str, subtitle: str) -> alt.FacetChart:
     )
 
     layered = alt.layer(points_layer, mean_ticks, mean_labels).properties(
-        width=320,
+        width=460,
         height=240,
     )
 

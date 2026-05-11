@@ -206,7 +206,7 @@ def _make_chart(df: pd.DataFrame) -> alt.FacetChart:
 
     return (
         (bars + labels)
-        .properties(width=340, height=180)
+        .properties(width=460, height=180)
         .facet(
             row=alt.Row(
                 "domain:N",
