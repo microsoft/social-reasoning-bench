@@ -23,7 +23,7 @@ from srbench_llm.tracing import LLMTrace
 from srbench_llm.types import (
     SRBenchChatCompletionInfo,
     SRBenchChatCompletionMessage,
-    SRBenchMessage,
+    SRBenchInputMessage,
 )
 
 
@@ -92,7 +92,7 @@ class TestToOpenAIMessage:
 
 class TestToOpenAIMessages:
     def test_sage_message_conversion(self):
-        msgs: list[SRBenchMessage] = [
+        msgs: list[SRBenchInputMessage] = [
             {"role": "system", "content": "be helpful"},
             {"role": "user", "content": "hi"},
         ]
@@ -105,13 +105,39 @@ class TestToOpenAIMessages:
 
     def test_assistant_with_completion_info_excluded(self):
         info = SRBenchChatCompletionInfo(id="x", model="m", finish_reason="stop")
-        msgs: list[SRBenchMessage] = [
-            SRBenchChatCompletionMessage(role="assistant", content="response", completion_info=info)
+        msgs: list[SRBenchInputMessage] = [
+            SRBenchChatCompletionMessage(
+                role="assistant", content="response", completion_info=info
+            ).to_input_dict()
         ]
         result = _to_openai_messages(msgs)
 
         assert "completion_info" not in result[0]
         assert result[0]["content"] == "response"
+
+    def test_extension_keys_stripped_for_sdk(self):
+        """SRBench extension keys (thinking_blocks, thought_parts,
+        tool_call_signatures, completion_info) must be stripped — the OpenAI
+        SDK rejects unknown keys."""
+        msgs: list[SRBenchInputMessage] = [
+            {
+                "role": "assistant",
+                "content": "x",
+                "thinking_blocks": [{"type": "thinking", "thinking": "...", "signature": "s"}],
+                "thought_parts": [{"text": "t", "thought_signature": "c2ln"}],
+                "tool_call_signatures": ["c2ln"],
+                "completion_info": {"id": "x", "model": "m", "finish_reason": "stop"},
+            }
+        ]
+        result = _to_openai_messages(msgs)
+        for forbidden in (
+            "thinking_blocks",
+            "thought_parts",
+            "tool_call_signatures",
+            "completion_info",
+        ):
+            assert forbidden not in result[0], f"extension key {forbidden!r} leaked into SDK input"
+        assert result[0]["content"] == "x"
 
 
 class TestPydanticToJsonSchema:

@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from ..concurrency import record_usage, with_llm_retry
 from ..tracing import LLMTrace
-from ..types import SRBenchChatCompletionMessage, SRBenchMessage
+from ..types import SRBenchChatCompletionMessage, SRBenchInputMessage
 from .base import SRBenchModelProvider
 from .openai import (
     OpenAIMessage,
@@ -87,7 +87,7 @@ class AzureProvider(SRBenchModelProvider):
     async def acomplete(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         *,
         trace: LLMTrace,
         temperature: float | None = None,
@@ -131,7 +131,7 @@ class AzureProvider(SRBenchModelProvider):
     async def aparse(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         response_format: type[T],
         *,
         temperature: float | None = None,

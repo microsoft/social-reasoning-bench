@@ -24,10 +24,9 @@ from typing import Any
 from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
-    Function,
 )
 from pydantic import ValidationError
-from srbench_llm import SRBenchChatCompletionMessage, SRBenchMessage, SRBenchModelClient
+from srbench_llm import SRBenchInputMessage, SRBenchModelClient
 
 from .tool import Tool
 
@@ -108,7 +107,7 @@ class BaseAgent:
         self._model = model
         self._model_client = model_client
         self._prompt_label = prompt_label
-        self._messages: list[SRBenchMessage] = []
+        self._messages: list[SRBenchInputMessage] = []
         self._explicit_cot = explicit_cot
         self._temperature = temperature
         self._tool_choice = tool_choice
@@ -122,7 +121,7 @@ class BaseAgent:
         ]
 
     @property
-    def messages(self) -> list[SRBenchMessage]:
+    def messages(self) -> list[SRBenchInputMessage]:
         """Return the current message history (read-only view).
 
         Returns:
@@ -156,15 +155,13 @@ class BaseAgent:
             ValueError: If the last message is not an assistant tool-call message.
         """
         last = self._messages[-1] if self._messages else None
-        # Support both dicts (TypedDicts) and pydantic models (SRBenchChatCompletionMessage)
-        tc = last.get("tool_calls") if isinstance(last, dict) else getattr(last, "tool_calls", None)
+        tc = last.get("tool_calls") if last else None
         if not tc:
             raise ValueError("Expected previous message to be an assistant tool-call message")
         tool_calls = list(tc)
         if len(tool_calls) != 1:
             raise ValueError("Can only call add_tool_call_result after exactly one tool call")
-        tc0 = tool_calls[0]
-        tool_call_id = tc0["id"] if isinstance(tc0, dict) else tc0.id  # ty: ignore[unresolved-attribute]
+        tool_call_id = tool_calls[0]["id"]
         self._messages.append(
             {
                 "role": "tool",
@@ -185,19 +182,19 @@ class BaseAgent:
         """
         tool_call_id = str(len(self._messages))
         self._messages.append(
-            SRBenchChatCompletionMessage(
-                role="assistant",
-                tool_calls=[
-                    ChatCompletionMessageToolCall(
-                        id=tool_call_id,
-                        type="function",
-                        function=Function(
-                            name=action.get_name(),
-                            arguments=action.model_dump_json(),
-                        ),
-                    )
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {
+                        "id": tool_call_id,
+                        "type": "function",
+                        "function": {
+                            "name": action.get_name(),
+                            "arguments": action.model_dump_json(),
+                        },
+                    }
                 ],
-            )
+            }
         )
         self._messages.append(
             {
@@ -255,7 +252,7 @@ class BaseAgent:
     # Explicit chain-of-thought
     # ------------------------------------------------------------------ #
 
-    async def _generate_cot_reasoning(self, messages: list[SRBenchMessage]) -> str:
+    async def _generate_cot_reasoning(self, messages: list[SRBenchInputMessage]) -> str:
         """Generate chain-of-thought reasoning before a tool call.
 
         Makes a separate LLM call without tools to produce internal reasoning,
@@ -323,12 +320,7 @@ class BaseAgent:
             if self._explicit_cot:
                 cot_thinking = await self._generate_cot_reasoning(messages)
                 if cot_thinking:
-                    messages.append(
-                        SRBenchChatCompletionMessage(
-                            role="assistant",
-                            content=cot_thinking,
-                        )
-                    )
+                    messages.append({"role": "assistant", "content": cot_thinking})
 
             # Call the LLM
             from srbench_llm.concurrency import prompt_label
@@ -388,19 +380,12 @@ class BaseAgent:
 
                 # Successfully parsed -- commit to canonical history
                 if cot_thinking:
-                    self._messages.append(
-                        SRBenchChatCompletionMessage(role="assistant", content=cot_thinking)
-                    )
+                    self._messages.append({"role": "assistant", "content": cot_thinking})
 
                 # Keep the original message so provider-specific fields
                 # (e.g. thought_signature for Gemini 3+) are preserved.
                 self._messages.append(
-                    message.model_copy(
-                        update={
-                            "tool_calls": [tool_call],
-                            "completion_info": None,
-                        }
-                    )
+                    message.model_copy(update={"tool_calls": [tool_call]}).to_input_dict()
                 )
 
                 return parsed_tool_call
@@ -410,12 +395,7 @@ class BaseAgent:
 
                 if not tool_calls:
                     # No tool calls -- use plain assistant/user message for retry
-                    messages.append(
-                        SRBenchChatCompletionMessage(
-                            role="assistant",
-                            content=message.content,
-                        )
-                    )
+                    messages.append({"role": "assistant", "content": message.content})
                     messages.append(
                         {"role": "user", "content": self.on_retry_no_tool_calls()},
                     )
@@ -423,7 +403,7 @@ class BaseAgent:
                     # Invalid tool calls -- echo them back with error details.
                     # Preserve the original message to keep provider-specific
                     # fields (e.g. thought_signature).
-                    messages.append(message.model_copy(update={"completion_info": None}))
+                    messages.append(message.to_input_dict())
                     for tc in tool_calls:
                         messages.append(
                             {
@@ -453,7 +433,7 @@ class BaseAgent:
         """
         from srbench_llm.concurrency import prompt_label
 
-        messages: list[SRBenchMessage] = [*self._messages, {"role": "user", "content": prompt}]
+        messages: list[SRBenchInputMessage] = [*self._messages, {"role": "user", "content": prompt}]
         token = prompt_label.set(self._prompt_label)
         try:
             response = await self._model_client.acomplete(

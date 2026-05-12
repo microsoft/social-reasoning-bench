@@ -30,7 +30,7 @@ from srbench_llm.providers.google_genai import (
     _translate_tools,
 )
 from srbench_llm.tracing import LLMTrace
-from srbench_llm.types import SRBenchChatCompletionMessage, SRBenchMessage
+from srbench_llm.types import SRBenchChatCompletionMessage, SRBenchInputMessage
 
 
 def _make_google_response(
@@ -71,7 +71,7 @@ def _make_google_response(
 
 class TestTranslateRequest:
     def test_system_extracted(self):
-        msgs: list[SRBenchMessage] = [
+        msgs: list[SRBenchInputMessage] = [
             {"role": "system", "content": "be helpful"},
             {"role": "user", "content": "hi"},
         ]
@@ -81,7 +81,7 @@ class TestTranslateRequest:
         assert config.system_instruction == "be helpful"
 
     def test_user_message(self):
-        msgs: list[SRBenchMessage] = [{"role": "user", "content": "hello"}]
+        msgs: list[SRBenchInputMessage] = [{"role": "user", "content": "hello"}]
         raw_contents, _ = _translate_request(msgs)
         assert isinstance(raw_contents, list)
         contents = cast(list[types.Content], raw_contents)
@@ -91,8 +91,8 @@ class TestTranslateRequest:
         assert contents[0].parts[0].text == "hello"
 
     def test_assistant_message(self):
-        msgs: list[SRBenchMessage] = [
-            SRBenchChatCompletionMessage(role="assistant", content="reply")
+        msgs: list[SRBenchInputMessage] = [
+            SRBenchChatCompletionMessage(role="assistant", content="reply").to_input_dict()
         ]
         raw_contents, _ = _translate_request(msgs)
         assert isinstance(raw_contents, list)
@@ -100,12 +100,12 @@ class TestTranslateRequest:
         assert contents[0].role == "model"
 
     def test_thought_parts_injected(self):
-        msgs: list[SRBenchMessage] = [
+        msgs: list[SRBenchInputMessage] = [
             GoogleMessage(
                 role="assistant",
                 content="answer",
                 thought_parts=[{"text": "thinking...", "thought": True}],
-            )
+            ).to_input_dict()
         ]
         raw_contents, _ = _translate_request(msgs)
         assert isinstance(raw_contents, list)
@@ -224,9 +224,9 @@ class TestTranslateRequestToolNameResolution:
             tool_call_signatures=[b"sig"],
         )
         tool_msg = _tool_msg('{"temp": 55}', "call_abc")
-        msgs: list[SRBenchMessage] = [
+        msgs: list[SRBenchInputMessage] = [
             {"role": "user", "content": "What's the weather?"},
-            assistant_msg,
+            assistant_msg.to_input_dict(),
             tool_msg,
         ]
         raw_contents, _ = _translate_request(msgs)
@@ -254,9 +254,9 @@ class TestTranslateRequestToolNameResolution:
             ],
             tool_call_signatures=[b"sig1", b"sig2"],
         )
-        msgs: list[SRBenchMessage] = [
+        msgs: list[SRBenchInputMessage] = [
             {"role": "user", "content": "hi"},
-            assistant_msg,
+            assistant_msg.to_input_dict(),
             _tool_msg("sunny", "call_1"),
             _tool_msg("3pm", "call_2"),
         ]
@@ -279,9 +279,9 @@ class TestTranslateRequestToolNameResolution:
             ],
             # No tool_call_signatures → unsigned
         )
-        msgs: list[SRBenchMessage] = [
+        msgs: list[SRBenchInputMessage] = [
             {"role": "user", "content": "check email"},
-            assistant_msg,
+            assistant_msg.to_input_dict(),
             _tool_msg("you have 3 emails", "call_1"),
         ]
         raw_contents, _ = _translate_request(msgs)
@@ -620,7 +620,7 @@ class TestTranslateAssistantPartsSignatures:
             ],
             tool_call_signatures=[sig],
         )
-        parts, text_fallback = _translate_assistant_parts(msg)
+        parts, text_fallback = _translate_assistant_parts(msg.to_input_dict())
         assert text_fallback is None
         fc_parts = [p for p in parts if p.function_call]
         assert len(fc_parts) == 1
@@ -633,7 +633,7 @@ class TestTranslateAssistantPartsSignatures:
             content="answer",
             thought_parts=[{"text": "thinking...", "thought": True, "thought_signature": sig}],
         )
-        parts, _ = _translate_assistant_parts(msg)
+        parts, _ = _translate_assistant_parts(msg.to_input_dict())
         thought_parts = [p for p in parts if p.thought]
         assert len(thought_parts) == 1
         assert thought_parts[0].thought_signature == sig
@@ -651,7 +651,9 @@ class TestTranslateAssistantPartsSignatures:
                 )
             ],
         )
-        parts, text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids={"call_1"})
+        parts, text_fallback = _translate_assistant_parts(
+            msg.to_input_dict(), unsigned_tc_ids={"call_1"}
+        )
         fc_parts = [p for p in parts if p.function_call]
         assert len(fc_parts) == 0
         assert text_fallback is not None
@@ -670,14 +672,23 @@ class TestTranslateAssistantPartsSignatures:
                 )
             ],
         )
-        parts, text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids={"call_1"})
+        parts, text_fallback = _translate_assistant_parts(
+            msg.to_input_dict(), unsigned_tc_ids={"call_1"}
+        )
         fc_parts = [p for p in parts if p.function_call]
         assert len(fc_parts) == 0
         assert text_fallback is not None
 
-    def test_signatures_survive_downcast_to_base_type(self):
-        """Signatures survive when GoogleMessage is round-tripped through
-        SRBenchChatCompletionMessage (the real-world failure scenario)."""
+    def test_signatures_survive_to_input_dict_roundtrip(self):
+        """Signatures survive across turns via the to_input_dict boundary.
+
+        The agent appends ``response.to_input_dict()`` to history each turn
+        (raw BaseModels never enter history). The next turn's provider reads
+        the TypedDict back via ``_translate_assistant_parts``. Bytes are
+        base64-encoded at the TypedDict boundary so that the dict is JSON-
+        serializable for traces/results; the provider decodes them back to
+        bytes before handing them to the Gemini SDK.
+        """
         sig = b"fc-sig-roundtrip"
         original = GoogleMessage(
             role="assistant",
@@ -692,19 +703,24 @@ class TestTranslateAssistantPartsSignatures:
             tool_call_signatures=[sig],
             thought_parts=[{"text": "hmm", "thought": True, "thought_signature": b"tp-sig"}],
         )
-        # Simulate round-trip: dump to dict → validate as base type
-        data = original.model_dump(mode="json")
-        restored = SRBenchChatCompletionMessage.model_validate(data)
-        assert not isinstance(restored, GoogleMessage)
+        input_msg = original.to_input_dict()
+        # Signatures are base64-encoded strings in the dict (JSON-friendly).
+        sigs = input_msg.get("tool_call_signatures")
+        assert sigs is not None
+        assert isinstance(sigs[0], str)
+        tps = input_msg.get("thought_parts")
+        assert tps is not None
+        assert isinstance(tps[0]["thought_signature"], str)
 
-        parts, text_fallback = _translate_assistant_parts(restored)
+        parts, text_fallback = _translate_assistant_parts(input_msg)
         assert text_fallback is None  # signatures present → no fallback
         fc_parts = [p for p in parts if p.function_call]
         assert len(fc_parts) == 1
-        assert fc_parts[0].thought_signature is not None
+        # Decoded back to original bytes.
+        assert fc_parts[0].thought_signature == sig
         thought_parts = [p for p in parts if p.thought]
         assert len(thought_parts) == 1
-        assert thought_parts[0].thought_signature is not None
+        assert thought_parts[0].thought_signature == b"tp-sig"
 
 
 class TestGoogleProviderComplete:

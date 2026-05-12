@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionMessageParam
 from pydantic import BaseModel, Field, computed_field, field_validator
-from srbench_llm import SRBenchMessage
+from srbench_llm import SRBenchInputMessage
 
 from ...shared.tool import Tool, ToolError
 from ..base import (
@@ -176,8 +176,8 @@ class CalendarExecutionResult(TaskExecutionResult[CalendarTask]):
     emails: list[Email] = Field(default_factory=list)
     final_assistant_calendar: list[Meeting] = Field(default_factory=list)
     final_requestor_calendar: list[Meeting] = Field(default_factory=list)
-    assistant_context: list[SRBenchMessage] = Field(default_factory=list)
-    requestor_context: list[SRBenchMessage] = Field(default_factory=list)
+    assistant_context: list[SRBenchInputMessage] = Field(default_factory=list)
+    requestor_context: list[SRBenchInputMessage] = Field(default_factory=list)
     assistant_tools: list[ChatCompletionFunctionToolParam] = Field(default_factory=list)
     requestor_tools: list[ChatCompletionFunctionToolParam] = Field(default_factory=list)
     max_rounds_reached: bool = False

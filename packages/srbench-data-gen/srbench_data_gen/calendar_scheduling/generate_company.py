@@ -1,4 +1,4 @@
-from srbench_llm import SRBenchMessage, SRBenchModelClient
+from srbench_llm import SRBenchModelClient
 
 from .config import PipelineConfig
 from .models import Company
