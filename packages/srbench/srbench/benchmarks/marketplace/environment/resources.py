@@ -46,6 +46,11 @@ class MarketplaceEnvironment:
         self.end_reason = reason
         self.end_event.set()
 
+    def next_action_index(self) -> int:
+        """Return the next monotonic action index (1-based)."""
+        self.state.action_count += 1
+        return self.state.action_count
+
     def create_agent_resources(self, role: Literal["buyer", "seller"]) -> "AgentResources":
         new_content_event = self._new_content_event_for(role)
         return AgentResources(
@@ -75,6 +80,35 @@ class AgentResources:
         self._env: MarketplaceEnvironment | None = env
 
     async def execute(self, action: Tool) -> str:
+        """Execute a tool action, record ActionTrace + action_index, return result.
+
+        ``ToolError`` from invalid inputs is caught, recorded as
+        ``valid=False`` on the trace, and re-raised. ``ValueError`` from an
+        unknown action type bubbles up unrecorded.
+        """
+        action_index = self._env.next_action_index() if self._env is not None else 0
+        try:
+            result = await self._dispatch(action)
+        except ToolError as e:
+            self._record_trace(action, action_index, result=f"Error: {e}", valid=False)
+            raise
+        self._record_trace(action, action_index, result=result, valid=True)
+        return result
+
+    def _record_trace(self, action: Tool, action_index: int, *, result: str, valid: bool) -> None:
+        self.state.action_trace.append(
+            ActionTrace(
+                round=self.state.current_round,
+                action_index=action_index,
+                actor=self.role,
+                action_type=type(action).__name__,
+                payload=action.model_dump(),
+                result=result,
+                valid=valid,
+            )
+        )
+
+    async def _dispatch(self, action: Tool) -> str:
         if isinstance(action, SendMessage):
             self.state.messages.append(
                 MessageRecord(
@@ -92,18 +126,18 @@ class AgentResources:
 
         if isinstance(action, MakeOffer):
             self.state.expire_offers_from(self.role)
-            offer = {
-                "id": self.state.next_offer_id,
-                "round_created": self.state.current_round,
-                "proposer": self.role,
-                "price": float(action.price),
-                "message": action.message,
-                "status": "OPEN",
-            }
-            self.state.next_offer_id += 1
             from ..types import OfferRecord
 
-            self.state.offers.append(OfferRecord(**offer))
+            offer_record = OfferRecord(
+                id=self.state.next_offer_id,
+                round_created=self.state.current_round,
+                proposer=self.role,
+                price=float(action.price),
+                message=action.message,
+                status="OPEN",
+            )
+            self.state.next_offer_id += 1
+            self.state.offers.append(offer_record)
             if action.message:
                 self.state.messages.append(
                     MessageRecord(
@@ -114,7 +148,7 @@ class AgentResources:
                 )
             if self._env is not None:
                 self._env._notify_counterpart_of(self.role)
-            return f"Offer #{offer['id']} created at price {offer['price']:.2f}."
+            return f"Offer #{offer_record.id} created at price {offer_record.price:.2f}."
 
         if isinstance(action, AcceptOffer):
             offer = self.state.get_offer(action.offer_id)
@@ -247,30 +281,3 @@ class AgentResources:
                     f"(round {offer['round']}, status={offer['status']}){msg_suffix}"
                 )
         return "\n".join(lines)
-
-
-async def execute_with_trace(
-    resources: AgentResources,
-    action: Tool,
-) -> tuple[ActionTrace, bool]:
-    try:
-        result = await resources.execute(action)
-        trace = ActionTrace(
-            round=resources.state.current_round,
-            actor=resources.role,
-            action_type=type(action).__name__,
-            payload=action.model_dump(),
-            result=result,
-            valid=True,
-        )
-        return trace, True
-    except ToolError as e:
-        trace = ActionTrace(
-            round=resources.state.current_round,
-            actor=resources.role,
-            action_type=type(action).__name__,
-            payload=action.model_dump(),
-            result=f"Error: {e}",
-            valid=False,
-        )
-        return trace, False

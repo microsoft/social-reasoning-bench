@@ -33,6 +33,7 @@ class CalendarAssistantAgent(CalendarAgent):
         system_prompt: str | None = None,
         explicit_cot: bool = False,
         expose_preferences: bool = False,
+        max_actions: int = 50,
     ):
         super().__init__(
             model=model,
@@ -41,6 +42,7 @@ class CalendarAssistantAgent(CalendarAgent):
             tools=CALENDAR_TOOLS + [EndConversation],
             explicit_cot=explicit_cot,
             prompt_label="cal_assistant",
+            max_actions=max_actions,
         )
 
         # Build system prompt: resolved preset (default "none"), then identity

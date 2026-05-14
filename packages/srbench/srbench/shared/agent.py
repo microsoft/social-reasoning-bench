@@ -20,7 +20,7 @@ Benchmark-specific subclasses add:
 
 import traceback
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Protocol, TypeAlias
+from typing import Any, Awaitable, Callable, Protocol, TypeAlias, cast
 
 from openai.types.chat import (
     ChatCompletionFunctionToolParam,
@@ -237,13 +237,18 @@ class BaseAgent:
         """
 
     @property
-    def messages(self) -> list[SRBenchInputMessage]:
+    def messages(self) -> list[AgentMessage]:
         """Return the current message history (read-only view).
+
+        Widened to the plain OpenAI union to match the :class:`Agent`
+        protocol; provider-specific extension keys on assistant messages
+        (e.g. Anthropic ``thinking_blocks``, Gemini ``thought_parts``)
+        survive as extra dict keys.
 
         Returns:
             A shallow copy of the internal message list.
         """
-        return list(self._messages)
+        return cast(list[AgentMessage], list(self._messages))
 
     @property
     def tools(self) -> list[ChatCompletionFunctionToolParam]:
@@ -559,3 +564,7 @@ class BaseAgent:
         finally:
             prompt_label.reset(token)
         return response.content or ""
+
+    async def generate_text(self, prompt: str) -> str:
+        """:class:`CounterpartyAgent` protocol alias for :meth:`generate_text_response`."""
+        return await self.generate_text_response(prompt)

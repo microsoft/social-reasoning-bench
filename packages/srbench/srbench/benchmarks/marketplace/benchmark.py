@@ -111,11 +111,12 @@ class MarketplaceBenchmark(
             seller_model=config.resolved_seller_model,
             buyer_client=self.buyer_client,
             seller_client=self.seller_client,
-            max_rounds=config.max_rounds,
-            max_steps_per_turn=config.max_steps_per_turn,
             buyer_explicit_cot=config.resolved_buyer_explicit_cot,
             seller_explicit_cot=config.resolved_seller_explicit_cot,
             system_prompt=self.system_prompt,
+            max_actions_per_agent=config.max_actions_per_agent,
+            max_wall_time_seconds=config.max_wall_time_seconds,
+            cancel_event=cancel_event,
             benchmark_logger=self._benchmark_logger,
         )
 
