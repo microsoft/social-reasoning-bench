@@ -19,7 +19,12 @@ from pydantic import BaseModel
 
 from ..concurrency import record_usage, with_llm_retry
 from ..tracing import LLMTrace
-from ..types import SRBenchChatCompletionInfo, SRBenchChatCompletionMessage, SRBenchMessage
+from ..types import (
+    SRBenchAssistantMessageParam,
+    SRBenchChatCompletionInfo,
+    SRBenchChatCompletionMessage,
+    SRBenchInputMessage,
+)
 from .base import SRBenchModelProvider
 
 logger = logging.getLogger(__name__)
@@ -69,7 +74,7 @@ class GoogleProvider(SRBenchModelProvider):
     async def acomplete(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         *,
         trace: LLMTrace,
         temperature: float | None = None,
@@ -134,7 +139,7 @@ class GoogleProvider(SRBenchModelProvider):
     async def aparse(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         response_format: type[T],
         *,
         temperature: float | None = None,
@@ -181,12 +186,12 @@ class GoogleProvider(SRBenchModelProvider):
 
 
 # ---------------------------------------------------------------------------
-# Request translation (SRBenchMessage → Google format)
+# Request translation (SRBenchInputMessage → Google format)
 # ---------------------------------------------------------------------------
 
 
 def _translate_request(
-    messages: list[SRBenchMessage],
+    messages: list[SRBenchInputMessage],
     *,
     temperature: float | None = None,
     max_tokens: int | None = None,
@@ -209,14 +214,15 @@ def _translate_request(
     unsigned_tc_ids: set[str] = set()
 
     for msg in messages:
-        if isinstance(msg, SRBenchChatCompletionMessage) and msg.tool_calls:
-            sigs = msg.tool_call_signatures
-            for i, tc in enumerate(msg.tool_calls):
-                if isinstance(tc, ChatCompletionMessageToolCall):
-                    tc_id_to_name[tc.id] = tc.function.name
-                    has_sig = sigs is not None and i < len(sigs) and sigs[i] is not None
-                    if not has_sig:
-                        unsigned_tc_ids.add(tc.id)
+        if msg.get("role") != "assistant":
+            continue
+        sigs = msg.get("tool_call_signatures")
+        for i, tc in enumerate(msg.get("tool_calls") or []):
+            tc_id = tc["id"]
+            tc_id_to_name[tc_id] = tc["function"]["name"]  # ty: ignore[invalid-key]
+            has_sig = sigs is not None and i < len(sigs) and sigs[i] is not None
+            if not has_sig:
+                unsigned_tc_ids.add(tc_id)
 
     # Buffer unsigned tool call descriptions so we can merge them with
     # their results into user-role messages (instead of model-role text
@@ -224,40 +230,34 @@ def _translate_request(
     pending_unsigned: dict[str, str] = {}  # tc_id -> "name(args)"
 
     for msg in messages:
-        if isinstance(msg, SRBenchChatCompletionMessage):
+        # Type checkers only narrow TypedDict unions when the discriminator
+        # is accessed directly in the condition (not stored in a local).
+        if msg["role"] == "system":
+            system_instruction = _extract_text(msg.get("content", ""))
+        elif msg["role"] == "assistant":
             parts, _text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids)
             if parts:
                 contents.append(types.Content(role="model", parts=parts))
             # Buffer unsigned call descriptions — don't emit as model text.
-            if msg.tool_calls:
-                for tc in msg.tool_calls:
-                    if isinstance(tc, ChatCompletionMessageToolCall) and tc.id in unsigned_tc_ids:
-                        pending_unsigned[tc.id] = f"{tc.function.name}({tc.function.arguments})"
-        elif isinstance(msg, dict):
-            content = msg.get("content", "")
-            if msg.get("role") == "system":
-                system_instruction = _extract_text(content)
-            elif msg.get("role") == "assistant":
-                contents.append(
-                    types.Content(
-                        role="model",
-                        parts=[types.Part(text=_extract_text(content))],
-                    )
-                )
-            elif msg["role"] == "tool":
-                tc_id = str(msg.get("tool_call_id", ""))
+            for tc in msg.get("tool_calls") or []:
+                tc_id = tc["id"]
                 if tc_id in unsigned_tc_ids:
-                    # Merge call description + result into a single user message
-                    # so the model never sees model-role text resembling tool calls.
-                    call_desc = pending_unsigned.pop(tc_id, "unknown action")
-                    result_text = msg.get("content", "")
-                    contents.append(
-                        _translate_user(f"Action taken: {call_desc}\nResult: {result_text}")
-                    )
-                else:
-                    contents.append(_translate_tool_result(msg, tc_id_to_name))
+                    fn = tc["function"]  # ty: ignore[invalid-key]
+                    pending_unsigned[tc_id] = f"{fn['name']}({fn.get('arguments', '{}')})"
+        elif msg["role"] == "tool":
+            tc_id = str(msg.get("tool_call_id", ""))
+            if tc_id in unsigned_tc_ids:
+                # Merge call description + result into a single user message
+                # so the model never sees model-role text resembling tool calls.
+                call_desc = pending_unsigned.pop(tc_id, "unknown action")
+                result_text = msg.get("content", "")
+                contents.append(
+                    _translate_user(f"Action taken: {call_desc}\nResult: {result_text}")
+                )
             else:
-                contents.append(_translate_user(_extract_text(content)))
+                contents.append(_translate_tool_result(msg, tc_id_to_name))
+        else:
+            contents.append(_translate_user(_extract_text(msg.get("content", ""))))
 
     config = _build_config(
         system_instruction=system_instruction,
@@ -303,14 +303,17 @@ def _extract_text(content: Any) -> str:
 
 
 def _translate_assistant_parts(
-    msg: SRBenchChatCompletionMessage,
+    msg: SRBenchAssistantMessageParam,
     unsigned_tc_ids: set[str] | None = None,
 ) -> tuple[list[types.Part], str | None]:
-    """Translate an assistant SRBenchChatCompletionMessage to Google Part list.
+    """Translate an assistant input dict to a Google Part list.
+
+    Reads ``thought_parts`` and ``tool_call_signatures`` from extension keys
+    (set by :meth:`GoogleMessage.to_input_dict`) so Gemini 3+ signatures
+    survive across turns.
 
     Args:
-        msg: An assistant-role message (possibly a :class:`GoogleMessage`
-            with thought parts).
+        msg: Assistant-role TypedDict, possibly with SRBench extension keys.
         unsigned_tc_ids: Tool call IDs that lack a thought_signature.  These
             are collapsed to a text description instead of a ``function_call``
             Part so Gemini 3+ models don't reject the request.
@@ -322,36 +325,43 @@ def _translate_assistant_parts(
     parts: list[types.Part] = []
     unsigned_tc_ids = unsigned_tc_ids or set()
 
-    # Inject thought parts from previous turns
-    if msg.thought_parts:
-        for tp in msg.thought_parts:
-            sig = tp.get("thought_signature")
-            parts.append(types.Part(text=tp.get("text", ""), thought=True, thought_signature=sig))
+    thought_parts = msg.get("thought_parts")
+    if thought_parts:
+        for tp in thought_parts:
+            parts.append(
+                types.Part(
+                    text=tp.get("text", ""),
+                    thought=True,
+                    thought_signature=tp.get("thought_signature"),
+                )
+            )
 
-    if msg.content:
-        parts.append(types.Part(text=msg.content))
+    content = msg.get("content")
+    text = _extract_text(content) if content is not None else ""
+    if text:
+        parts.append(types.Part(text=text))
 
     text_fallback_lines: list[str] = []
+    signatures = msg.get("tool_call_signatures")
 
-    if msg.tool_calls:
-        signatures = msg.tool_call_signatures
+    for i, tc in enumerate(msg.get("tool_calls") or []):
+        fn = tc["function"]  # ty: ignore[invalid-key]
+        tc_id = tc["id"]
+        name = fn["name"]
+        args_json = fn.get("arguments", "{}")
+        args = json.loads(args_json) if args_json else {}
+        sig = signatures[i] if signatures and i < len(signatures) else None
 
-        for i, tc in enumerate(msg.tool_calls):
-            if isinstance(tc, ChatCompletionMessageToolCall):
-                name = tc.function.name
-                args = json.loads(tc.function.arguments)
-                sig = signatures[i] if signatures and i < len(signatures) else None
-
-                if tc.id in unsigned_tc_ids:
-                    # No thought_signature — emit as text instead.
-                    text_fallback_lines.append(f"[Called {name}({json.dumps(args)})]")
-                else:
-                    parts.append(
-                        types.Part(
-                            function_call=types.FunctionCall(name=name, args=args),
-                            thought_signature=sig,
-                        )
-                    )
+        if tc_id in unsigned_tc_ids:
+            # No thought_signature — emit as text instead.
+            text_fallback_lines.append(f"[Called {name}({json.dumps(args)})]")
+        else:
+            parts.append(
+                types.Part(
+                    function_call=types.FunctionCall(name=name, args=args),
+                    thought_signature=sig,
+                )
+            )
 
     text_fallback = "\n".join(text_fallback_lines) if text_fallback_lines else None
     return parts, text_fallback

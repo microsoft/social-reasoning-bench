@@ -44,7 +44,7 @@ from ..concurrency import (
     with_llm_retry,
 )
 from ..tracing import LLMTrace
-from ..types import SRBenchChatCompletionMessage, SRBenchMessage
+from ..types import SRBenchChatCompletionMessage, SRBenchInputMessage
 from .base import SRBenchModelProvider
 from .openai import (
     _extract_token_details,
@@ -294,7 +294,7 @@ class PooledAzureProvider(SRBenchModelProvider):
     async def acomplete(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         *,
         trace: LLMTrace,
         temperature: float | None = None,
@@ -340,7 +340,7 @@ class PooledAzureProvider(SRBenchModelProvider):
     async def aparse(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         response_format: type[T],
         *,
         temperature: float | None = None,

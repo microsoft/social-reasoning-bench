@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from srbench.benchmarks.calendar_scheduling.loader import load_tasks
 from srbench.benchmarks.calendar_scheduling.types import CalendarTask
-from srbench_llm import SRBenchMessage, SRBenchModelClient
+from srbench_llm import SRBenchInputMessage, SRBenchModelClient
 
 # These types were removed from srbench (no longer used at eval time)
 # but are still needed for data-gen artifact generation.
@@ -136,7 +136,7 @@ class ArtifactGenerator:
                 }
             )
 
-        messages: list[SRBenchMessage] = [
+        messages: list[SRBenchInputMessage] = [
             {
                 "role": "user",
                 "content": PROMPT_TEMPLATE.format(

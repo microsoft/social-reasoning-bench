@@ -9,7 +9,6 @@ from openai.types.completion_usage import CompletionUsage
 from srbench_llm.providers.azure_openai import AzureProvider
 from srbench_llm.providers.openai import OpenAIMessage
 from srbench_llm.tracing import LLMTrace
-from srbench_llm.types import SRBenchMessage
 
 
 def _make_chat_completion(content="Hello!") -> ChatCompletion:

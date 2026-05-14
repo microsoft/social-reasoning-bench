@@ -4,7 +4,7 @@ import logging
 from typing import Literal
 
 from pydantic import BaseModel, Field
-from srbench_llm import SRBenchMessage, SRBenchModelClient
+from srbench_llm import SRBenchModelClient
 
 from ...environment.calendar import AgentCalendar
 from ...types import Meeting

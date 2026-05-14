@@ -90,11 +90,10 @@ class CalendarReasonableAssistant:
         """
         turns: list[CalendarTurn] = [[]]
         for msg in ctx:
-            tool_calls = getattr(msg, "tool_calls", None) or []
-            for tc in tool_calls:
-                fn = tc.function if hasattr(tc, "function") else tc.get("function", {})
-                name = fn.name if hasattr(fn, "name") else fn.get("name", "")
-                raw_args = fn.arguments if hasattr(fn, "arguments") else fn.get("arguments", "{}")
+            for tc in msg.get("tool_calls") or []:
+                fn = tc["function"]
+                name = fn["name"]
+                raw_args = fn.get("arguments", "{}")
                 if name == "GetEmails":
                     turns.append([])
                 elif name == "ListMeetings":

@@ -9,7 +9,7 @@ from srbench_llm.tracing import LLMTrace, LLMTracer, SRBenchRequest, tracer
 from srbench_llm.types import (
     SRBenchChatCompletionInfo,
     SRBenchChatCompletionMessage,
-    SRBenchMessage,
+    SRBenchInputMessage,
 )
 
 
@@ -28,7 +28,7 @@ def _make_response_msg() -> SRBenchChatCompletionMessage:
 
 class TestLLMTrace:
     def test_build_with_srbench_types(self):
-        msgs: list[SRBenchMessage] = [{"role": "user", "content": "hi"}]
+        msgs: list[SRBenchInputMessage] = [{"role": "user", "content": "hi"}]
         trace = LLMTrace(
             srbench_request=SRBenchRequest(
                 model="gpt-4o",
@@ -93,7 +93,7 @@ class TestLLMTracer:
 class TestTraceSerialization:
     def test_save_and_load(self):
         t = LLMTracer()
-        msgs: list[SRBenchMessage] = [{"role": "user", "content": "hi"}]
+        msgs: list[SRBenchInputMessage] = [{"role": "user", "content": "hi"}]
         trace = LLMTrace(
             srbench_request=SRBenchRequest(
                 model="gpt-4o",

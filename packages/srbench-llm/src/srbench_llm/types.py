@@ -1,11 +1,35 @@
-"""Core types for srbench-llm."""
+"""Core types for srbench-llm.
 
-from typing import Annotated, Any, Union, cast
+The message type system has two strictly separated halves:
 
-from openai.types.chat import ChatCompletionMessage, ChatCompletionMessageParam
+* **Input messages** (TypedDicts): what callers pass to
+  :meth:`SRBenchModelClient.acomplete`. The :data:`SRBenchInputMessage` union
+  covers system / user / assistant / tool messages, plus an extended
+  :class:`SRBenchAssistantMessageParam` variant that carries provider-specific
+  metadata (Anthropic ``thinking_blocks``, Gemini ``thought_parts`` /
+  ``tool_call_signatures``) across turns.
+
+* **Output messages** (Pydantic BaseModel): what providers return from
+  :meth:`SRBenchModelClient.acomplete`. :class:`SRBenchChatCompletionMessage`
+  is the base; providers subclass it (e.g. ``AnthropicMessage``,
+  ``GoogleMessage``) to attach native fields. Calling ``to_input_dict()``
+  produces a :class:`SRBenchAssistantMessageParam`-shaped dict ready to be
+  appended into the next turn's input list.
+"""
+
+from collections.abc import Iterable, Mapping
+from typing import Any, TypeAlias, Union, cast
+
+from openai.types.chat import (
+    ChatCompletionAssistantMessageParam,
+    ChatCompletionMessage,
+    ChatCompletionSystemMessageParam,
+    ChatCompletionToolMessageParam,
+    ChatCompletionUserMessageParam,
+)
 from openai.types.completion_usage import CompletionUsage
-from pydantic import BaseModel, PlainSerializer, PlainValidator
-from pydantic_core import from_json, to_json
+from pydantic import BaseModel, Field, SkipValidation, field_serializer
+from typing_extensions import NotRequired
 
 
 class SRBenchChatCompletionInfo(BaseModel):
@@ -18,99 +42,128 @@ class SRBenchChatCompletionInfo(BaseModel):
     usage: CompletionUsage | None = None
 
 
-class SRBenchChatCompletionMessage(ChatCompletionMessage):
-    """Assistant message with response metadata.
+class SRBenchAssistantMessageParam(ChatCompletionAssistantMessageParam, total=False):
+    """Extended OpenAI assistant TypedDict carrying SRBench/provider metadata.
 
-    Role is always ``"assistant"`` (inherited from ChatCompletionMessage).
-    Provider subclasses (AnthropicMessage, GoogleMessage, etc.) extend this
-    with provider-specific fields like thinking_blocks.
+    Inherits every field of :class:`ChatCompletionAssistantMessageParam`
+    (``role``, ``content``, ``tool_calls``, ``refusal``, …) and adds four
+    optional extension keys used to round-trip provider-specific information
+    across turns:
+
+    * ``completion_info`` — :class:`SRBenchChatCompletionInfo` for this turn.
+    * ``thinking_blocks`` — Anthropic native thinking blocks (signatures
+      included), required to round-trip extended thinking.
+    * ``thought_parts`` — Gemini 3+ thought parts. Each part's
+      ``thought_signature`` value is raw ``bytes``.
+    * ``tool_call_signatures`` — per-tool-call signatures from Gemini 3+,
+      as raw ``bytes``.
+
+    The signature fields hold raw bytes because they only live in-memory —
+    parent result/checkpoint models strip them before JSON serialization
+    (see ``strip_signatures_from_messages``).
+
+    Providers must strip these extension keys before handing the dict to the
+    underlying SDK.
     """
 
-    completion_info: SRBenchChatCompletionInfo | None = None
+    completion_info: NotRequired[SRBenchChatCompletionInfo | dict[str, Any] | None]
+    thinking_blocks: NotRequired[list[dict[str, Any]] | None]
+    thought_parts: NotRequired[list[dict[str, Any]] | None]
+    tool_call_signatures: NotRequired[list[bytes | None] | None]
 
-    # Google-specific fields that must survive serialization round-trips so
-    # that thought_signature values are preserved across multi-turn tool-use
-    # conversations.  Gemini 3+ models reject requests that omit these.
+
+SRBenchInputMessage: TypeAlias = SkipValidation[
+    Union[
+        ChatCompletionSystemMessageParam,
+        ChatCompletionUserMessageParam,
+        SRBenchAssistantMessageParam,
+        ChatCompletionToolMessageParam,
+    ]
+]
+"""Strict TypedDict union of all messages that flow *into* the LLM stack.
+
+The assistant variant is :class:`SRBenchAssistantMessageParam`, which extends
+:class:`ChatCompletionAssistantMessageParam` with optional extension keys
+(``completion_info``, ``thinking_blocks``, ``thought_parts``,
+``tool_call_signatures``). A plain ``ChatCompletionAssistantMessageParam`` dict
+is structurally compatible — it just omits the extension keys.
+
+The :class:`SkipValidation` wrapper is essential: OpenAI's TypedDicts declare
+``tool_calls`` as ``Iterable[...]``, and pydantic eagerly validates that into a
+single-consume ``ValidatorIterator`` that gets exhausted by the first reader
+(provider translation, retry, eval). Skipping validation stores the dicts
+verbatim. This also avoids the pydantic smart-union serializer footgun where
+having both ``ChatCompletionAssistantMessageParam`` and
+:class:`SRBenchAssistantMessageParam` in a union confuses dispatch and drops
+``tool_calls`` from output.
+"""
+
+
+# Keys produced by :meth:`SRBenchChatCompletionMessage.to_input_dict` that are
+# NOT part of the standard OpenAI assistant message. Providers strip these
+# before handing the dict to the underlying SDK.
+SRBENCH_ASSISTANT_EXTENSION_KEYS: frozenset[str] = frozenset(
+    {"completion_info", "thinking_blocks", "thought_parts", "tool_call_signatures"}
+)
+
+
+# Extension keys whose values are raw bytes that can't be JSON-serialized.
+# Parent result/checkpoint models strip these before disk write — the
+# signatures only matter mid-conversation, not across restarts.
+SRBENCH_SIGNATURE_KEYS: frozenset[str] = frozenset({"thought_parts", "tool_call_signatures"})
+
+
+def strip_signatures_from_messages(
+    messages: Iterable[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return messages with bytes-bearing signature keys removed.
+
+    Use as a ``field_serializer(..., when_used="json")`` on any pydantic field
+    that holds a ``list[SRBenchInputMessage]`` and gets dumped to JSON
+    (results files, checkpoints, traces). The signatures are only useful
+    inside a single in-memory task lifecycle.
+    """
+    return [{k: v for k, v in msg.items() if k not in SRBENCH_SIGNATURE_KEYS} for msg in messages]
+
+
+class SRBenchChatCompletionMessage(ChatCompletionMessage):
+    """Assistant output message produced by an LLM provider.
+
+    Role is always ``"assistant"`` (inherited from
+    :class:`ChatCompletionMessage`). Provider subclasses
+    (``AnthropicMessage``, ``GoogleMessage``, ``OpenAIMessage``) extend this
+    with native fields like ``thinking_blocks``.
+
+    ``completion_info`` is excluded from ``model_dump`` (response metadata,
+    not part of the input conversation). The bytes-valued signature fields
+    (``thought_parts`` and ``tool_call_signatures``) are dropped on JSON
+    serialization — they only matter in-memory for the current task and
+    are not worth round-tripping through disk.
+
+    To feed a response into the next turn, call :meth:`to_input_dict`.
+    """
+
+    completion_info: SRBenchChatCompletionInfo | None = Field(default=None, exclude=True)
+
+    # Google-specific fields used in-memory to round-trip thought_signature
+    # values across multi-turn tool-use conversations.  Gemini 3+ models
+    # reject requests that omit these.  Dropped at JSON-serialization time.
     thought_parts: list[dict[str, Any]] | None = None
     tool_call_signatures: list[bytes | None] | None = None
 
+    @field_serializer("tool_call_signatures", when_used="json")
+    def _drop_tool_call_signatures(self, _v: list[bytes | None] | None) -> None:
+        return None
 
-def _validate_sage_message(msg: Any) -> Any:
-    """Validate and discriminate SRBenchMessage input.
+    @field_serializer("thought_parts", when_used="json")
+    def _drop_thought_parts(self, _v: list[dict[str, Any]] | None) -> None:
+        return None
 
-    - SRBenchChatCompletionMessage instances pass through unchanged.
-    - Dicts with ``role: "assistant"`` are promoted to SRBenchChatCompletionMessage
-      so round-tripping through JSON preserves the concrete type.
-    - Other dicts (system/user/tool messages) stay as plain dicts.
+    def to_input_dict(self) -> SRBenchAssistantMessageParam:
+        """Dump this message as a dict ready for the next turn's input list.
 
-    Args:
-        msg: Raw message value — a :class:`BaseModel`, dict, or other type.
-
-    Returns:
-        The validated message, possibly promoted to
-        :class:`SRBenchChatCompletionMessage`.
-
-    Raises:
-        ValueError: If *msg* is not a BaseModel or dict.
-    """
-    if isinstance(msg, SRBenchChatCompletionMessage):
-        return msg
-    if isinstance(msg, BaseModel):
-        # Some other pydantic model (e.g. ChatCompletionMessage from openai) — convert
-        return msg
-    if isinstance(msg, dict):
-        if msg.get("role") == "assistant":
-            return SRBenchChatCompletionMessage.model_validate(msg)
-        return msg
-    raise ValueError(
-        f"SRBenchMessage must be a BaseModel or dict, got {type(msg).__name__}: {msg!r:.200}"
-    )
-
-
-def _serialize_sage_message(
-    msg: SRBenchChatCompletionMessage | ChatCompletionMessageParam,
-) -> dict[str, Any]:
-    """Serialize any SRBenchMessage variant to a JSON-safe dict.
-
-    Handles:
-    - Pydantic models (SRBenchChatCompletionMessage) → model_dump
-    - TypedDicts / plain dicts (ChatCompletionMessageParam) → recursive serialization
-    - Unexpected types → string fallback
-
-    Args:
-        msg: A :class:`SRBenchChatCompletionMessage` or
-            :class:`ChatCompletionMessageParam` dict.
-
-    Returns:
-        JSON-safe dict representation of the message.
-
-    Raises:
-        ValueError: If *msg* is not a supported message type.
-    """
-    if isinstance(msg, SRBenchChatCompletionMessage):
-        data = msg.model_dump(mode="json", exclude={"tool_call_signatures"})
-        # Strip binary thought_signature from thought_parts dicts
-        if data.get("thought_parts"):
-            data["thought_parts"] = [
-                {k: v for k, v in tp.items() if k != "thought_signature"}
-                for tp in data["thought_parts"]
-            ]
-        return data
-    elif isinstance(msg, dict):
-        return cast(dict[str, Any], msg)
-    raise ValueError(f"Cannot serialize SRBenchMessage of type {type(msg).__name__}: {msg!r:.200}")
-
-
-SRBenchMessage = Annotated[
-    Union[SRBenchChatCompletionMessage, ChatCompletionMessageParam],
-    PlainValidator(_validate_sage_message),
-    PlainSerializer(_serialize_sage_message, return_type=dict),
-]
-"""Union of all message types that flow through the srbench-llm stack.
-
-- SRBenchChatCompletionMessage: assistant responses (rich, with completion_info)
-- ChatCompletionMessageParam: input messages (system, user, tool dicts)
-
-Annotated with a PlainSerializer so pydantic can round-trip the union
-through JSON without choking on TypedDict validation.
-"""
+        Uses ``mode="python"`` so raw bytes survive in ``thought_parts`` and
+        ``tool_call_signatures`` — providers consume them directly.
+        ``completion_info`` is excluded via the Field declaration.
+        """
+        return cast(SRBenchAssistantMessageParam, self.model_dump(mode="python", exclude_none=True))

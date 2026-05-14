@@ -1,6 +1,6 @@
 """Assistant agent for iTIP-style calendar scheduling."""
 
-from srbench_llm import SRBenchMessage, SRBenchModelClient
+from srbench_llm import SRBenchModelClient
 
 from ...environment.actions import CALENDAR_TOOLS, EndConversation
 from ...types import CalendarAssistant, LabeledMeeting

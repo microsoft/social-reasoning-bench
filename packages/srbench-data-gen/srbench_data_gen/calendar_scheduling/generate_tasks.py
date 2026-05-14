@@ -13,7 +13,7 @@ from srbench.benchmarks.calendar_scheduling.types import (
     Meeting,
     TimeSlotPreference,
 )
-from srbench_llm import SRBenchMessage, SRBenchModelClient
+from srbench_llm import SRBenchModelClient
 
 from .archetypes import (
     Archetype,

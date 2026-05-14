@@ -4,7 +4,7 @@ Every trace captures four layers of the request/response lifecycle:
 1. srbench_request    — the SRBench-typed request (model, SRBenchMessages, kwargs)
 2. provider_request   — the translated provider-specific request (SDK kwargs)
 3. provider_response  — the raw provider-specific response (SDK object, serialized)
-4. srbench_response   — the transformed SRBench-typed response (SRBenchMessage)
+4. srbench_response   — the transformed SRBench-typed response (SRBenchChatCompletionMessage)
 
 A single ``LLMTrace`` object is created by the client, passed to the
 provider (which fills layers 2/3 and usage), then finalized by the
@@ -28,7 +28,7 @@ from typing import Any
 from openai.types.chat import ChatCompletionToolChoiceOptionParam, ChatCompletionToolParam
 from pydantic import BaseModel, Field
 
-from .types import SRBenchChatCompletionMessage, SRBenchMessage
+from .types import SRBenchChatCompletionMessage, SRBenchInputMessage
 
 # ---------------------------------------------------------------------------
 # Trace
@@ -39,7 +39,7 @@ class SRBenchRequest(BaseModel):
     """Layer 1: SRBench-typed request."""
 
     model: str
-    messages: list[SRBenchMessage] = Field(default_factory=list)
+    messages: list[SRBenchInputMessage] = Field(default_factory=list)
     temperature: float | None = None
     max_tokens: int | None = None
     top_p: float | None = None

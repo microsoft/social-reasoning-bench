@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from srbench_llm.client import SRBenchModelClient
 from srbench_llm.providers.google_genai import GoogleMessage, GoogleProvider
 from srbench_llm.tracing import LLMTrace
-from srbench_llm.types import SRBenchMessage
+from srbench_llm.types import SRBenchInputMessage
 
 MODEL = "gemini-2.5-flash"
 PROVIDER_MODEL = "gemini-2.5-flash"
@@ -172,9 +172,9 @@ class TestGoogleToolCalling:
         tc = msg1.tool_calls[0]
 
         # Turn 2: provide tool result (dict content) and get final answer
-        messages: list[SRBenchMessage] = [
+        messages: list[SRBenchInputMessage] = [
             {"role": "user", "content": "What's the weather in Seattle?"},
-            msg1,
+            msg1.to_input_dict(),
             {
                 "role": "tool",
                 "tool_call_id": tc.id,
@@ -212,9 +212,9 @@ class TestGoogleToolCalling:
         assert msg1.tool_calls is not None
         tc = msg1.tool_calls[0]
 
-        messages: list[SRBenchMessage] = [
+        messages: list[SRBenchInputMessage] = [
             {"role": "user", "content": "What's the weather in Seattle?"},
-            msg1,
+            msg1.to_input_dict(),
             {
                 "role": "tool",
                 "tool_call_id": tc.id,
@@ -250,9 +250,9 @@ class TestGoogleToolCalling:
         assert msg1.tool_calls is not None
         tc = msg1.tool_calls[0]
 
-        messages: list[SRBenchMessage] = [
+        messages: list[SRBenchInputMessage] = [
             {"role": "user", "content": "What's the weather in Seattle?"},
-            msg1,
+            msg1.to_input_dict(),
             {
                 "role": "tool",
                 "tool_call_id": tc.id,
@@ -285,9 +285,9 @@ class TestGoogleToolCalling:
         assert msg1.tool_calls is not None
         tc = msg1.tool_calls[0]
 
-        messages: list[SRBenchMessage] = [
+        messages: list[SRBenchInputMessage] = [
             {"role": "user", "content": "What's the weather in Seattle?"},
-            msg1,
+            msg1.to_input_dict(),
             {
                 "role": "tool",
                 "tool_call_id": tc.id,
@@ -350,9 +350,9 @@ class TestGemini3FlashToolCalling:
         assert isinstance(msg1, GoogleMessage)
         # (signature may be None on some models, but the field should exist)
 
-        messages: list[SRBenchMessage] = [
+        messages: list[SRBenchInputMessage] = [
             {"role": "user", "content": "What's the weather in Seattle?"},
-            msg1,
+            msg1.to_input_dict(),
             {
                 "role": "tool",
                 "tool_call_id": tc.id,
@@ -386,9 +386,9 @@ class TestGemini3FlashToolCalling:
         assert msg1.tool_calls is not None
         tc = msg1.tool_calls[0]
 
-        messages: list[SRBenchMessage] = [
+        messages: list[SRBenchInputMessage] = [
             {"role": "user", "content": "What's the weather in Seattle?"},
-            msg1,
+            msg1.to_input_dict(),
             {
                 "role": "tool",
                 "tool_call_id": tc.id,
@@ -440,9 +440,9 @@ class TestGemini3FlashToolCalling:
         tc1 = msg1.tool_calls[0]
 
         # Step 2: return first tool result
-        messages: list[SRBenchMessage] = [
+        messages: list[SRBenchInputMessage] = [
             {"role": "user", "content": "What's the weather and current time in Seattle?"},
-            msg1,
+            msg1.to_input_dict(),
             {
                 "role": "tool",
                 "tool_call_id": tc1.id,

@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, computed_field
-from srbench_llm import SRBenchMessage
+from pydantic import BaseModel, Field, computed_field, field_serializer
+from srbench_llm import SRBenchInputMessage
+from srbench_llm.types import strip_signatures_from_messages
 
 from ...shared.tool import Tool, ToolError
 from ..base import (
@@ -113,8 +114,12 @@ class MarketplaceExecutionResult(TaskExecutionResult[MarketplaceTask]):
     offers: list[OfferRecord] = Field(default_factory=list)
     action_trace: list[ActionTrace] = Field(default_factory=list)
     invalid_actions: int = 0
-    buyer_context: list[SRBenchMessage] = Field(default_factory=list)
-    seller_context: list[SRBenchMessage] = Field(default_factory=list)
+    buyer_context: list[SRBenchInputMessage] = Field(default_factory=list)
+    seller_context: list[SRBenchInputMessage] = Field(default_factory=list)
+
+    @field_serializer("buyer_context", "seller_context", when_used="json")
+    def _strip_signatures(self, msgs: list[SRBenchInputMessage]) -> list[dict[str, Any]]:
+        return strip_signatures_from_messages(msgs)
 
     @property
     def seller_surplus(self) -> float:

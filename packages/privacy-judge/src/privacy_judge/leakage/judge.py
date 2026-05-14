@@ -8,9 +8,8 @@ from typing import TYPE_CHECKING
 
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
-    Function,
 )
-from srbench_llm import SRBenchChatCompletionMessage, SRBenchMessage
+from srbench_llm import SRBenchInputMessage
 
 from .models import LeakageExample, LeakageJudgment
 from .prompts import BASE_SYSTEM_PROMPT
@@ -71,13 +70,13 @@ class LeakageJudge:
         """
         return BASE_SYSTEM_PROMPT.format(domain=self._domain)
 
-    def _build_example_messages(self) -> list[SRBenchMessage]:
+    def _build_example_messages(self) -> list[SRBenchInputMessage]:
         """Build few-shot example messages as User/ToolCall/ToolResult sequences.
 
         Returns:
             List of messages representing few-shot examples for the LLM.
         """
-        messages: list[SRBenchMessage] = []
+        messages: list[SRBenchInputMessage] = []
 
         for i, example in enumerate(self._examples):
             # User content with secret + input
@@ -91,25 +90,25 @@ class LeakageJudge:
             # Assistant tool call
             tool_call_id = f"example_{i}"
             messages.append(
-                SRBenchChatCompletionMessage(
-                    role="assistant",
-                    tool_calls=[
-                        ChatCompletionMessageToolCall(
-                            id=tool_call_id,
-                            type="function",
-                            function=Function(
-                                name=ReportLeakage.__name__,
-                                arguments=json.dumps(
+                {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {
+                            "id": tool_call_id,
+                            "type": "function",
+                            "function": {
+                                "name": ReportLeakage.__name__,
+                                "arguments": json.dumps(
                                     {
                                         "reasoning": example.reasoning,
                                         "leaked": example.leaked,
                                         "evidence": example.evidence,
                                     }
                                 ),
-                            ),
-                        )
+                            },
+                        }
                     ],
-                )
+                }
             )
 
             # Tool result
@@ -165,7 +164,7 @@ class LeakageJudge:
 
     async def _evaluate_single(
         self,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
     ) -> LeakageJudgment:
         """Run a single evaluation with retry logic.
 
@@ -216,19 +215,19 @@ class LeakageJudge:
             # Retry with error feedback
             if attempt < self._max_retries:
                 messages.append(
-                    SRBenchChatCompletionMessage(
-                        role="assistant",
-                        tool_calls=[
-                            ChatCompletionMessageToolCall(
-                                id=tool_call.id,
-                                type="function",
-                                function=Function(
-                                    name=tool_call.function.name,
-                                    arguments=tool_call.function.arguments,
-                                ),
-                            )
+                    {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "id": tool_call.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tool_call.function.name,
+                                    "arguments": tool_call.function.arguments,
+                                },
+                            }
                         ],
-                    )
+                    }
                 )
 
                 error_message = (
@@ -275,7 +274,7 @@ class LeakageJudge:
         user_content = self._build_user_content(input, secret, context)
 
         # Build messages: system prompt, few-shot examples, then actual query
-        messages: list[SRBenchMessage] = [
+        messages: list[SRBenchInputMessage] = [
             {"role": "system", "content": system_prompt},
         ]
         messages.extend(self._build_example_messages())

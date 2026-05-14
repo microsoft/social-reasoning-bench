@@ -13,12 +13,18 @@ from .concurrency import (
 )
 from .providers.base import SRBenchModelProvider
 from .tracing import LLMTrace, LLMTracer, SRBenchRequest, tracer
-from .types import SRBenchChatCompletionInfo, SRBenchChatCompletionMessage, SRBenchMessage
+from .types import (
+    SRBenchAssistantMessageParam,
+    SRBenchChatCompletionInfo,
+    SRBenchChatCompletionMessage,
+    SRBenchInputMessage,
+)
 
 __all__ = [
     "SRBenchModelClient",
     "SRBenchModelProvider",
-    "SRBenchMessage",
+    "SRBenchInputMessage",
+    "SRBenchAssistantMessageParam",
     "SRBenchChatCompletionMessage",
     "SRBenchChatCompletionInfo",
     "LLMTrace",
