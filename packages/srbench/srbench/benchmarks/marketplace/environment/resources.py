@@ -1,66 +1,154 @@
+"""Marketplace AgentResources: async ``execute`` with blocking inbox semantics."""
+
+from __future__ import annotations
+
+import asyncio
 from typing import Literal
 
-from ..types import ActionTrace, MessageRecord, Tool, ToolError
+from ..types import ActionTrace, MessageRecord, OfferRecord, Tool, ToolError
 from .actions import AcceptOffer, EndConversation, GetMessages, MakeOffer, SendMessage, Wait
 from .state import MarketplaceState
 
 
 class MarketplaceEnvironment:
-    """Shared in-memory state for a bilateral marketplace negotiation."""
+    """Shared in-memory state for a bilateral marketplace negotiation.
+
+    Owns the conversation-level ``end_event`` (set by ``EndConversation`` and
+    watched by the executor) and a per-role ``new_content_event`` registry so
+    blocked ``GetMessages`` calls can be woken up when the counterpart acts.
+    """
 
     def __init__(self) -> None:
         self.state = MarketplaceState()
+        self.end_event: asyncio.Event = asyncio.Event()
+        self.end_reason: str | None = None
+        self._new_content_events: dict[Literal["buyer", "seller"], asyncio.Event] = {}
+
+    def _new_content_event_for(self, role: Literal["buyer", "seller"]) -> asyncio.Event:
+        event = self._new_content_events.get(role)
+        if event is None:
+            event = asyncio.Event()
+            self._new_content_events[role] = event
+        return event
+
+    def _notify_counterpart_of(self, actor: Literal["buyer", "seller"]) -> None:
+        """Wake the role that is NOT the actor (counterpart inbox notification)."""
+        counterpart: Literal["buyer", "seller"] = "seller" if actor == "buyer" else "buyer"
+        event = self._new_content_events.get(counterpart)
+        if event is not None:
+            event.set()
+
+    def mark_ended(self, *, reason: str) -> None:
+        """Record an end-of-conversation signal and wake up the executor.
+
+        Idempotent: only the first call takes effect.
+        """
+        if self.end_event.is_set():
+            return
+        self.end_reason = reason
+        self.end_event.set()
+
+    def next_action_index(self) -> int:
+        """Return the next monotonic action index (1-based)."""
+        self.state.action_count += 1
+        return self.state.action_count
 
     def create_agent_resources(self, role: Literal["buyer", "seller"]) -> "AgentResources":
-        return AgentResources(role=role, state=self.state)
+        new_content_event = self._new_content_event_for(role)
+        return AgentResources(
+            role=role,
+            state=self.state,
+            new_content_event=new_content_event,
+            env=self,
+        )
 
 
 class AgentResources:
     """Executes actions for one role against shared marketplace state."""
 
-    def __init__(self, role: Literal["buyer", "seller"], state: MarketplaceState):
+    def __init__(
+        self,
+        role: Literal["buyer", "seller"],
+        state: MarketplaceState,
+        new_content_event: asyncio.Event | None = None,
+        env: MarketplaceEnvironment | None = None,
+    ):
         self.role = role
         self.state = state
         self._seen_message_count = 0
         self._seen_offer_count = 0
+        self._new_content_event: asyncio.Event = new_content_event or asyncio.Event()
+        self._env: MarketplaceEnvironment | None = env
 
-    def execute(self, action: Tool) -> str:
+    async def execute(self, action: Tool) -> str:
+        """Execute a tool action against marketplace state.
+
+        Records an ``ActionTrace`` on the env (formerly the responsibility of
+        ``execute_with_trace``) and assigns a monotonic ``action_index``.
+        Wakes the counterpart's ``new_content_event`` for mutating actions and
+        blocks on inbox reads when the agent has nothing new.
+
+        Raises:
+            ToolError: For invalid input (e.g. accepting a non-existent
+                offer). The caller (``invoke_tool``) formats it into the
+                result string.
+        """
+        action_index = self._env.next_action_index() if self._env else 0
+        try:
+            result = await self._dispatch(action)
+            valid = True
+        except ToolError as e:
+            self._record_trace(action, action_index, result=f"Error: {e}", valid=False)
+            raise
+
+        self._record_trace(action, action_index, result=result, valid=valid)
+        return result
+
+    async def _dispatch(self, action: Tool) -> str:
         if isinstance(action, SendMessage):
             self.state.messages.append(
                 MessageRecord(
-                    round=self.state.current_round,
+                    round=0,
+                    action_index=self._env.state.action_count if self._env else 0,
                     speaker=self.role,
                     content=action.content,
                 )
             )
+            if self._env is not None:
+                self._env._notify_counterpart_of(self.role)
             return "Message sent."
 
         if isinstance(action, GetMessages):
             return self._handle_get_messages()
 
+        if isinstance(action, Wait):
+            return await self._handle_wait()
+
         if isinstance(action, MakeOffer):
             self.state.expire_offers_from(self.role)
-            offer = {
-                "id": self.state.next_offer_id,
-                "round_created": self.state.current_round,
-                "proposer": self.role,
-                "price": float(action.price),
-                "message": action.message,
-                "status": "OPEN",
-            }
+            offer = OfferRecord(
+                id=self.state.next_offer_id,
+                round_created=0,
+                action_index=self._env.state.action_count if self._env else 0,
+                proposer=self.role,
+                price=float(action.price),
+                message=action.message,
+                status="OPEN",
+            )
             self.state.next_offer_id += 1
-            from ..types import OfferRecord
-
-            self.state.offers.append(OfferRecord(**offer))
+            self.state.offers.append(offer)
             if action.message:
                 self.state.messages.append(
                     MessageRecord(
-                        round=self.state.current_round,
+                        round=0,
+                        action_index=self._env.state.action_count if self._env else 0,
                         speaker=self.role,
                         content=action.message,
                     )
                 )
-            return f"Offer #{offer['id']} created at price {offer['price']:.2f}."
+            if self._env is not None:
+                self._env._notify_counterpart_of(self.role)
+            return f"Offer #{offer.id} created at price {offer.price:.2f}."
 
         if isinstance(action, AcceptOffer):
             offer = self.state.get_offer(action.offer_id)
@@ -78,29 +166,84 @@ class AgentResources:
             if action.message:
                 self.state.messages.append(
                     MessageRecord(
-                        round=self.state.current_round,
+                        round=0,
+                        action_index=self._env.state.action_count if self._env else 0,
                         speaker=self.role,
                         content=action.message,
                     )
                 )
+            if self._env is not None:
+                self._env._notify_counterpart_of(self.role)
             return f"Accepted offer #{offer.id} at price {offer.price:.2f}."
-
-        if isinstance(action, Wait):
-            return "Waited."
 
         if isinstance(action, EndConversation):
             self.state.outcome.ended_by = self.role
             self.state.outcome.end_reason = action.reason
+            if self._env is not None:
+                self._env.mark_ended(reason=action.reason)
             return "Negotiation ended."
 
         raise ValueError(f"Unsupported action type: {type(action).__name__}")
+
+    async def _handle_wait(self) -> str:
+        """Yield until the counterpart acts (delivers updates) or the
+        conversation ends. Cancellation propagates out as ``CancelledError``.
+        """
+        if self._env is None or self._env.end_event.is_set():
+            return "Negotiation has ended."
+        end_wait = asyncio.create_task(self._env.end_event.wait())
+        content_wait = asyncio.create_task(self._new_content_event.wait())
+        try:
+            done, pending = await asyncio.wait(
+                {end_wait, content_wait}, return_when=asyncio.FIRST_COMPLETED
+            )
+            for t in pending:
+                t.cancel()
+            if end_wait in done:
+                return "Negotiation has ended."
+            return "Counterpart activity detected; call GetMessages to see updates."
+        finally:
+            for t in (end_wait, content_wait):
+                if not t.done():
+                    t.cancel()
+
+    def _handle_get_messages(self) -> str:
+        """Return new counterpart messages/offers immediately.
+
+        Empty results are returned as-is; agents that want to yield until
+        the counterpart acts should call :class:`Wait`.
+        """
+        self._new_content_event.clear()
+        updates = self.get_unread_updates()
+        if not updates:
+            return "No new messages or offers."
+
+        lines: list[str] = []
+        message_updates = [u for u in updates if u["kind"] == "message"]
+        offer_updates = [u for u in updates if u["kind"] == "offer"]
+        if message_updates:
+            lines.append("New messages:")
+            for msg in message_updates:
+                lines.append(f"- {msg['speaker']}: {msg['content']}")
+        if offer_updates:
+            if lines:
+                lines.append("")
+            lines.append("New offers:")
+            for offer in offer_updates:
+                msg_suffix = f" | message: {offer['message']}" if offer["message"] else ""
+                lines.append(
+                    f"- Offer #{offer['offer_id']} from {offer['proposer']}: "
+                    f"price={offer['price']:.2f} (status={offer['status']}){msg_suffix}"
+                )
+        return "\n".join(lines)
 
     def get_unread_updates(self) -> list[dict]:
         """Return unread counterpart messages/offers as structured updates and mark read.
 
         Returns:
-            List of update dicts with ``"kind"`` set to ``"message"`` or ``"offer"``
-            and associated metadata. Only counterpart updates are included.
+            List of update dicts with ``"kind"`` set to ``"message"`` or
+            ``"offer"`` and associated metadata. Only counterpart updates are
+            included.
         """
         new_messages = self.state.messages[self._seen_message_count :]
         new_offers = self.state.offers[self._seen_offer_count :]
@@ -115,7 +258,7 @@ class AgentResources:
             updates.append(
                 {
                     "kind": "message",
-                    "round": msg.round,
+                    "action_index": msg.action_index,
                     "speaker": msg.speaker,
                     "content": msg.content,
                 }
@@ -124,7 +267,7 @@ class AgentResources:
             updates.append(
                 {
                     "kind": "offer",
-                    "round": offer.round_created,
+                    "action_index": offer.action_index,
                     "offer_id": offer.id,
                     "proposer": offer.proposer,
                     "price": offer.price,
@@ -134,60 +277,22 @@ class AgentResources:
             )
         return updates
 
-    def _handle_get_messages(self) -> str:
-        """Return unread counterpart messages and newly created counterpart offers.
-
-        Returns:
-            A human-readable string summarising new messages and offers, or
-            ``"No new messages or offers."`` if there are none.
-        """
-        updates = self.get_unread_updates()
-
-        if not updates:
-            return "No new messages or offers."
-
-        lines: list[str] = []
-        message_updates = [u for u in updates if u["kind"] == "message"]
-        offer_updates = [u for u in updates if u["kind"] == "offer"]
-        if message_updates:
-            lines.append("New messages:")
-            for msg in message_updates:
-                lines.append(f"- Round {msg['round']} {msg['speaker']}: {msg['content']}")
-        if offer_updates:
-            if lines:
-                lines.append("")
-            lines.append("New offers:")
-            for offer in offer_updates:
-                msg_suffix = f" | message: {offer['message']}" if offer["message"] else ""
-                lines.append(
-                    f"- Offer #{offer['offer_id']} from {offer['proposer']}: price={offer['price']:.2f} "
-                    f"(round {offer['round']}, status={offer['status']}){msg_suffix}"
-                )
-        return "\n".join(lines)
-
-
-def execute_with_trace(
-    resources: AgentResources,
-    action: Tool,
-) -> tuple[ActionTrace, bool]:
-    try:
-        result = resources.execute(action)
-        trace = ActionTrace(
-            round=resources.state.current_round,
-            actor=resources.role,
-            action_type=type(action).__name__,
-            payload=action.model_dump(),
-            result=result,
-            valid=True,
+    def _record_trace(
+        self,
+        action: Tool,
+        action_index: int,
+        *,
+        result: str,
+        valid: bool,
+    ) -> None:
+        self.state.action_trace.append(
+            ActionTrace(
+                round=0,
+                action_index=action_index,
+                actor=self.role,
+                action_type=type(action).__name__,
+                payload=action.model_dump(),
+                result=result,
+                valid=valid,
+            )
         )
-        return trace, True
-    except ToolError as e:
-        trace = ActionTrace(
-            round=resources.state.current_round,
-            actor=resources.role,
-            action_type=type(action).__name__,
-            payload=action.model_dump(),
-            result=f"Error: {e}",
-            valid=False,
-        )
-        return trace, False

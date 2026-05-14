@@ -91,7 +91,7 @@ class EndConversation(Tool):
     - The counterpart's behavior is unreasonable or no agreement is possible
 
     Do NOT use this if you have made an offer, asked a question, or
-    otherwise expect a response - yield your turn instead.
+    otherwise expect a response.
 
     Returns:
         Terminates the agent loop.

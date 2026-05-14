@@ -1,79 +1,157 @@
-"""Shared BaseAgent class for all SRBench benchmarks.
+"""Shared agent protocols + ``BaseAgent`` default implementation.
 
-Captures the common pattern across the benchmark agent implementations:
-- calendar_scheduling/agents/calendar_base.py (CalendarAgent)
-- marketplace/agents/marketplace_base.py (MarketplaceAgent)
+The executors of every SRBench benchmark drive two agents to a conclusion
+without knowing how those agents are implemented. The contract surface they
+depend on is the :class:`Agent` protocol; the role that drives a forced
+opening action (calendar requestor, marketplace seller) additionally
+satisfies :class:`CounterpartyAgent`.
 
-Common patterns unified here:
-- Message history management (append-only list of ChatCompletionMessageParam)
-- Tool registry (name -> Tool class mapping)
-- Tool call generation via LLM with JSON parsing and retries
-- Optional explicit chain-of-thought reasoning
-- Injecting tool call results into history
+Lifecycle
+---------
+The executor:
 
-Benchmark-specific subclasses add:
-- Custom tool validation (e.g., SendEmail recipient checks in calendar)
-- Custom retry error messages (calendar vs marketplace style)
-- Domain-specific message injection (add_new_messages, add_turn_marker)
-- Non-tool-call generation (generate_text_response in marketplace)
+1. Constructs both agents via factories (passing an :class:`AgentContext`).
+2. For the counterparty: composes the opening message body via
+   :meth:`CounterpartyAgent.generate_text`, executes the deterministic
+   opening action against the env, and records it on the agent's transcript
+   via :meth:`CounterpartyAgent.add_forced_action`.
+3. Awaits ``asyncio.wait({assistant.run(invoke_tool), counterparty.run(invoke_tool),
+   env.end_event.wait()}, return_when=FIRST_COMPLETED)``. When one completes,
+   the others are cancelled.
+4. Calls :meth:`Agent.close` on both agents.
+
+Inside :meth:`BaseAgent.run` the loop is:
+
+    while remaining > 0:
+        tool_call = await self.generate_tool_call()
+        result = await invoke_tool(tool_call)
+        self.add_tool_call_result(result)
+
+The agent never inspects whether a particular tool ends the conversation;
+that's the env's job (via ``env.end_event``). Cancellation propagates out
+of any ``await`` to terminate the agent cleanly.
 """
 
-import traceback
-from typing import Any
+from __future__ import annotations
 
-from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToolChoiceOptionParam
+import traceback
+from dataclasses import dataclass, field
+from typing import Any, Awaitable, Callable, Protocol, TypeAlias, cast
+
+from openai.types.chat import (
+    ChatCompletionFunctionToolParam,
+    ChatCompletionMessageParam,
+    ChatCompletionToolChoiceOptionParam,
+)
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
 )
-from pydantic import ValidationError
+from pydantic import SkipValidation, ValidationError
 from srbench_llm import SRBenchInputMessage, SRBenchModelClient
 
 from .tool import Tool
+
+# ---------------------------------------------------------------------------
+# Public protocol surface
+# ---------------------------------------------------------------------------
+
+# Pydantic-friendly alias for stored transcripts: structurally identical to
+# ``ChatCompletionMessageParam`` for type-checking, but flagged with
+# ``SkipValidation`` so pydantic does not eagerly convert ``tool_calls``
+# (typed as ``Iterable``) into a single-consume ValidatorIterator.
+AgentMessage: TypeAlias = SkipValidation[ChatCompletionMessageParam]
+
+# The agent's only env touchpoint: hand a Tool, get back a result string.
+# The executor binds the env-specific resource execute method into this
+# callback before passing it to ``Agent.run``.
+InvokeTool: TypeAlias = Callable[[Tool], Awaitable[str]]
+
+
+class Agent(Protocol):
+    """Minimum surface for an agent under evaluation (assistant / buyer).
+
+    Concrete implementations are constructed by per-role factories from an
+    :class:`AgentContext`. The executor calls :meth:`run` (driving the
+    agent's loop), reads :attr:`messages` and :attr:`tools` after the
+    conversation ends (eval transcripts), and calls :meth:`close` for
+    cleanup.
+    """
+
+    @property
+    def messages(self) -> list[AgentMessage]: ...
+
+    @property
+    def tools(self) -> list[ChatCompletionFunctionToolParam]: ...
+
+    async def run(self, invoke_tool: InvokeTool) -> None: ...
+
+    async def close(self) -> None: ...
+
+
+class CounterpartyAgent(Agent, Protocol):
+    """Adds the capabilities needed to drive a deterministic opening action.
+
+    The counterparty role (calendar requestor, marketplace seller) must
+    satisfy this protocol so the harness can ask it to compose the
+    natural-language body of the opening message and then record the
+    resulting forced action on its transcript.
+    """
+
+    async def generate_text(self, prompt: str) -> str: ...
+
+    def add_forced_action(self, action: Tool, result: str) -> None: ...
+
+
+@dataclass(frozen=True)
+class AgentContext:
+    """Everything a factory needs to construct an :class:`Agent` for one role.
+
+    Fields below ``explicit_cot`` are conveniences for the default
+    :class:`BaseAgent`-derived implementations; BYO agents may ignore them or
+    pull what they need from ``extras``.
+    """
+
+    role: str
+    tools: list[type[Tool]]
+    system_prompt: str | None
+    instruction_message: str
+    explicit_cot: bool
+    model: str | None = None
+    model_client: SRBenchModelClient | None = None
+    max_actions: int = 50
+    extras: dict[str, Any] = field(default_factory=dict)
+
+
+AgentFactory: TypeAlias = Callable[[AgentContext], Agent]
+CounterpartyAgentFactory: TypeAlias = Callable[[AgentContext], CounterpartyAgent]
+
+
+# ---------------------------------------------------------------------------
+# BaseAgent default implementation
+# ---------------------------------------------------------------------------
 
 
 class RetryException(Exception):
     """Raised when a model response cannot be parsed as a valid single tool call.
 
-    Used internally by generate_tool_call to trigger retry logic. Subclasses
-    may raise this from validate_tool_call to reject a parsed tool call.
+    Used internally by ``BaseAgent.generate_tool_call`` to trigger retries.
     """
-
-    pass
 
 
 class ToolCallRetriesExhausted(ExceptionGroup):
-    """Raised when generate_tool_call exhausts all retries.
-
-    Callers can catch this to handle gracefully (e.g., end the current turn)
-    rather than treating it as a fatal error.
-    """
-
-    pass
+    """Raised when ``generate_tool_call`` exhausts all retries."""
 
 
 class BaseAgent:
-    """Base LLM agent with tool calling and retries.
+    """Default :class:`CounterpartyAgent` implementation backed by an LLM.
 
-    This class provides the common infrastructure shared by all benchmark agents:
+    Subclasses customize prompts (system message, instruction, role-specific
+    user content) by appending to ``self._messages`` after ``super().__init__``.
 
-    - **Tool registry**: Maps tool names to Tool subclasses for parsing.
-    - **Message history**: Maintains the conversation as a list of
-      ``ChatCompletionMessageParam`` dicts, supporting tool calls and results.
-    - **Tool call generation**: Calls the LLM with tools, parses the response
-      into a ``Tool`` instance, and handles retries on parse/validation errors.
-    - **Explicit CoT**: Optionally generates chain-of-thought reasoning before
-      each tool call to improve decision quality.
-
-    Subclasses should:
-
-    1. Call ``super().__init__(...)`` with their tool list and configuration.
-    2. Set up initial messages (system prompt, instructions) by appending to
-       ``self._messages``.
-    3. Optionally override ``validate_tool_call()`` for domain-specific checks.
-    4. Optionally override ``on_retry_no_tool_calls()`` and
-       ``on_retry_invalid_tool_call()`` for custom retry error messages.
-    5. Add domain-specific methods (e.g., ``add_new_messages``,
-       ``add_turn_marker``) that manipulate ``self._messages``.
+    The class satisfies both :class:`Agent` and :class:`CounterpartyAgent`
+    structurally — it exposes ``generate_text`` and ``add_forced_action`` even
+    though the minimal Agent protocol does not require them. This lets the
+    same concrete class be used in either role.
     """
 
     def __init__(
@@ -86,24 +164,8 @@ class BaseAgent:
         temperature: float | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam = "auto",
         prompt_label: str = "unknown",
+        max_actions: int = 50,
     ) -> None:
-        """Initialize the base agent.
-
-        Args:
-            model: Model identifier for LLM calls (e.g., "gpt-4.1").
-            model_client: ``SRBenchModelClient`` instance for API calls.
-            tools: List of ``Tool`` subclasses this agent can use.
-            explicit_cot: If ``True``, generate chain-of-thought reasoning
-                before each tool call via a separate LLM call.
-            temperature: Sampling temperature for LLM generation. If ``None``
-                (default), the model's default temperature is used.
-            tool_choice: Tool choice mode for the LLM (default ``"auto"``).
-                Use ``"required"`` to force the model to always produce a
-                tool call.
-            prompt_label: Label for token tracking (e.g., "interviewer",
-                "assistant"). Used by the concurrency module to report
-                per-prompt token breakdowns.
-        """
         self._model = model
         self._model_client = model_client
         self._prompt_label = prompt_label
@@ -111,6 +173,7 @@ class BaseAgent:
         self._explicit_cot = explicit_cot
         self._temperature = temperature
         self._tool_choice = tool_choice
+        self._max_actions = max_actions
 
         # Build tool registry: name -> Tool class
         self._tools: dict[str, type[Tool]] = {t.get_name(): t for t in tools}
@@ -120,65 +183,88 @@ class BaseAgent:
             t.get_openai_function_tool_param() for t in tools
         ]
 
-    @property
-    def messages(self) -> list[SRBenchInputMessage]:
-        """Return the current message history (read-only view).
+    # ------------------------------------------------------------------ #
+    # Agent protocol surface
+    # ------------------------------------------------------------------ #
 
-        Returns:
-            A shallow copy of the internal message list.
-        """
-        return list(self._messages)
+    @property
+    def messages(self) -> list[AgentMessage]:
+        """Return a shallow copy of the canonical transcript."""
+        return cast(list[AgentMessage], list(self._messages))
 
     @property
     def tools(self) -> list[ChatCompletionFunctionToolParam]:
-        """Return the tool definitions in OpenAI format.
-
-        Returns:
-            A list of OpenAI-compatible function tool parameter definitions.
-        """
+        """Return the agent's OpenAI-format tool definitions."""
         return list(self._openai_tools)
 
-    # ------------------------------------------------------------------ #
-    # Message history helpers
-    # ------------------------------------------------------------------ #
+    async def run(self, invoke_tool: InvokeTool) -> None:
+        """Drive the agent's tool-call loop until cancelled or exhausted.
 
-    def add_tool_call_result(self, result: str) -> None:
-        """Append a tool result message for the most recent tool call.
+        The loop:
+          1. ``generate_tool_call`` (LLM + retries) → parsed Tool.
+          2. ``await invoke_tool(tool)`` → result string (the executor's
+             env-bound callback; raises ToolError-derived strings as a regular
+             result, see env-side ``execute``).
+          3. ``add_tool_call_result(result)`` → append to transcript.
+          4. Decrement budget; repeat.
 
-        Expects the last message in history to be an assistant message with
-        exactly one tool call.
+        Termination paths:
+          - ``self._max_actions`` exhausted → return.
+          - ``ToolCallRetriesExhausted`` from generate_tool_call → return.
+          - Cancellation from outside (executor cancelling on end_event /
+            wall-clock) → propagates out as ``CancelledError``.
 
-        Args:
-            result: The string result of executing the tool.
-
-        Raises:
-            ValueError: If the last message is not an assistant tool-call message.
+        The loop does NOT inspect tool-call types to detect termination.
+        ``EndConversation`` (or any benchmark-specific terminator) is the
+        env's concern: its ``execute`` sets ``env.end_event`` and the
+        executor cancels this task as a consequence.
         """
-        last = self._messages[-1] if self._messages else None
-        tc = last.get("tool_calls") if last else None
-        if not tc:
-            raise ValueError("Expected previous message to be an assistant tool-call message")
-        tool_calls = list(tc)
-        if len(tool_calls) != 1:
-            raise ValueError("Can only call add_tool_call_result after exactly one tool call")
-        tool_call_id = tool_calls[0]["id"]
-        self._messages.append(
-            {
-                "role": "tool",
-                "tool_call_id": tool_call_id,
-                "content": result,
-            }
-        )
+        remaining = self._max_actions
+        while remaining > 0:
+            try:
+                tool_call = await self.generate_tool_call()
+            except ToolCallRetriesExhausted:
+                continue
+            result = await invoke_tool(tool_call)
+            self.add_tool_call_result(result)
+            remaining -= 1
+
+    async def close(self) -> None:
+        """No-op for pure in-process agents."""
+
+    # ------------------------------------------------------------------ #
+    # CounterpartyAgent protocol surface
+    # ------------------------------------------------------------------ #
+
+    async def generate_text(self, prompt: str) -> str:
+        """Call the model without tools and return a plain text response.
+
+        Used by ``_force_initial_*`` helpers to have the counterparty compose
+        the natural-language body of the opening message.
+        """
+        from srbench_llm.concurrency import prompt_label
+
+        messages: list[SRBenchInputMessage] = [
+            *self._messages,
+            {"role": "user", "content": prompt},
+        ]
+        token = prompt_label.set(self._prompt_label)
+        try:
+            response = await self._model_client.acomplete(
+                model=self._model,
+                messages=messages,
+            )
+        finally:
+            prompt_label.reset(token)
+        return response.content or ""
 
     def add_forced_action(self, action: Tool, result: str) -> None:
-        """Record a programmatic (non-LLM) tool call and its result.
+        """Record a deterministic harness-driven tool call + result on the transcript.
 
-        Used when the harness forces an initial action (e.g., the first meeting
-        request from the requestor in calendar scheduling).
-
-        Args:
-            action: The Tool instance representing the forced action.
-            result: The string result of executing the action.
+        Used at startup to seed the conversation with the predetermined
+        opening action (initial RequestMeeting / MakeOffer) so the
+        counterparty's transcript reflects the action as if it had called the
+        tool itself.
         """
         tool_call_id = str(len(self._messages))
         self._messages.append(
@@ -205,65 +291,36 @@ class BaseAgent:
         )
 
     # ------------------------------------------------------------------ #
-    # Validation hook (override in subclasses)
+    # Internal helpers used by ``run``
     # ------------------------------------------------------------------ #
 
-    def validate_tool_call(self, tool_call: Tool) -> None:
-        """Validate a parsed tool call before accepting it.
-
-        Override this in subclasses to add domain-specific validation
-        (e.g., checking that email recipients are in an allowed list).
-
-        Args:
-            tool_call: The parsed Tool instance.
-
-        Raises:
-            RetryException: If the tool call is invalid and should be retried.
-        """
-
-    # ------------------------------------------------------------------ #
-    # Retry message hooks (override in subclasses for custom wording)
-    # ------------------------------------------------------------------ #
+    def add_tool_call_result(self, result: str) -> None:
+        """Append a tool result message for the most recent tool call."""
+        last = self._messages[-1] if self._messages else None
+        tc = last.get("tool_calls") if last else None
+        if not tc:
+            raise ValueError("Expected previous message to be an assistant tool-call message")
+        tool_calls = list(tc)
+        if len(tool_calls) != 1:
+            raise ValueError("Can only call add_tool_call_result after exactly one tool call")
+        tool_call_id = tool_calls[0]["id"]
+        self._messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": result,
+            }
+        )
 
     def on_retry_no_tool_calls(self) -> str:
-        """Return the user message to send when the LLM produces no tool calls.
-
-        Override to customize the retry prompt for your benchmark.
-
-        Returns:
-            A user-role message string instructing the model to produce a tool call.
-        """
+        """Return the user message sent when the LLM produces no tool calls."""
         return "The user is unavailable. Work autonomously. You must call exactly one tool."
 
     def on_retry_invalid_tool_call(self, error: Exception) -> str:
-        """Return the user message to send when a tool call fails validation.
-
-        Override to customize the retry prompt for your benchmark.
-
-        Args:
-            error: The exception that caused the retry.
-
-        Returns:
-            A user-role message string describing the validation error and requesting a valid tool call.
-        """
+        """Return the user message sent when a tool call fails parsing/validation."""
         return f"Your previous response was invalid: {error}. Return exactly one valid tool call."
 
-    # ------------------------------------------------------------------ #
-    # Explicit chain-of-thought
-    # ------------------------------------------------------------------ #
-
     async def _generate_cot_reasoning(self, messages: list[SRBenchInputMessage]) -> str:
-        """Generate chain-of-thought reasoning before a tool call.
-
-        Makes a separate LLM call without tools to produce internal reasoning,
-        which is then included in the context for the actual tool-calling step.
-
-        Args:
-            messages: The current message history to reason about.
-
-        Returns:
-            The generated reasoning text.
-        """
         from srbench_llm.concurrency import prompt_label
 
         cot_messages = list(messages)
@@ -287,42 +344,18 @@ class BaseAgent:
             prompt_label.reset(token)
         return response.content or ""
 
-    # ------------------------------------------------------------------ #
-    # Core tool call generation
-    # ------------------------------------------------------------------ #
-
     async def generate_tool_call(self, max_retries: int = 3) -> Tool:
-        """Generate the next tool call from the LLM.
-
-        Calls the model with the current message history and tool definitions,
-        parses the response into a Tool instance, and appends the assistant
-        message to history. On failure (parse error, validation error, wrong
-        number of tool calls), retries up to ``max_retries`` times with error
-        feedback injected into the conversation.
-
-        Args:
-            max_retries: Maximum number of attempts before raising.
-
-        Returns:
-            A parsed ``Tool`` instance representing the chosen action.
-
-        Raises:
-            ExceptionGroup: If all retries are exhausted, containing all
-                collected exceptions.
-        """
-        # Work on a local copy so retries don't pollute the canonical history
+        """Generate the next tool call from the LLM, with retries on parse errors."""
         messages = list(self._messages)
         exceptions: list[Exception] = []
 
         for _ in range(max(1, max_retries)):
-            # Optionally generate CoT reasoning
             cot_thinking: str | None = None
             if self._explicit_cot:
                 cot_thinking = await self._generate_cot_reasoning(messages)
                 if cot_thinking:
                     messages.append({"role": "assistant", "content": cot_thinking})
 
-            # Call the LLM
             from srbench_llm.concurrency import prompt_label
 
             gen_kwargs: dict[str, Any] = {}
@@ -375,15 +408,10 @@ class BaseAgent:
 
                 parsed_tool_call = tool_type.model_validate_json(function.arguments)
 
-                # Domain-specific validation hook
-                self.validate_tool_call(parsed_tool_call)
-
-                # Successfully parsed -- commit to canonical history
+                # Commit successful parse to canonical history.
                 if cot_thinking:
                     self._messages.append({"role": "assistant", "content": cot_thinking})
 
-                # Keep the original message so provider-specific fields
-                # (e.g. thought_signature for Gemini 3+) are preserved.
                 self._messages.append(
                     message.model_copy(update={"tool_calls": [tool_call]}).to_input_dict()
                 )
@@ -394,15 +422,11 @@ class BaseAgent:
                 exceptions.append(e)
 
                 if not tool_calls:
-                    # No tool calls -- use plain assistant/user message for retry
                     messages.append({"role": "assistant", "content": message.content})
                     messages.append(
                         {"role": "user", "content": self.on_retry_no_tool_calls()},
                     )
                 else:
-                    # Invalid tool calls -- echo them back with error details.
-                    # Preserve the original message to keep provider-specific
-                    # fields (e.g. thought_signature).
                     messages.append(message.to_input_dict())
                     for tc in tool_calls:
                         messages.append(
@@ -416,30 +440,9 @@ class BaseAgent:
         raise ToolCallRetriesExhausted("Exceeded maximum retries generating tool call", exceptions)
 
     # ------------------------------------------------------------------ #
-    # Text-only generation (no tools)
+    # Back-compat aliases (existing callers reach for these names)
     # ------------------------------------------------------------------ #
 
     async def generate_text_response(self, prompt: str) -> str:
-        """Call the model without tools and return a plain text response.
-
-        Useful for post-hoc probing (e.g., privacy probes in marketplace)
-        without affecting the canonical message history.
-
-        Args:
-            prompt: A user message to append (on a copy) before calling.
-
-        Returns:
-            The model's text response.
-        """
-        from srbench_llm.concurrency import prompt_label
-
-        messages: list[SRBenchInputMessage] = [*self._messages, {"role": "user", "content": prompt}]
-        token = prompt_label.set(self._prompt_label)
-        try:
-            response = await self._model_client.acomplete(
-                model=self._model,
-                messages=messages,
-            )
-        finally:
-            prompt_label.reset(token)
-        return response.content or ""
+        """Alias retained for back-compat; prefer :meth:`generate_text`."""
+        return await self.generate_text(prompt)

@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, computed_field
-from srbench_llm import SRBenchInputMessage
 
+from ...shared.agent import AgentMessage
 from ...shared.tool import Tool, ToolError
 from ..base import (
     BenchmarkEvaluationResult,
@@ -37,14 +37,18 @@ class RoleConfig(BaseModel):
 
 
 class MessageRecord(BaseModel):
-    round: int
+    # ``round`` is retained as a legacy field (always 0 in agent-driven runs).
+    # New code keys ordering off ``action_index`` (1-based monotonic env counter).
+    round: int = 0
+    action_index: int = 0
     speaker: Literal["buyer", "seller"]
     content: str
 
 
 class OfferRecord(BaseModel):
     id: int
-    round_created: int
+    round_created: int = 0
+    action_index: int = 0
     proposer: Literal["buyer", "seller"]
     price: float
     message: str | None = None
@@ -52,7 +56,8 @@ class OfferRecord(BaseModel):
 
 
 class ActionTrace(BaseModel):
-    round: int
+    round: int = 0
+    action_index: int = 0
     actor: Literal["buyer", "seller"]
     action_type: str
     payload: dict[str, Any] = Field(default_factory=dict)
@@ -113,8 +118,8 @@ class MarketplaceExecutionResult(TaskExecutionResult[MarketplaceTask]):
     offers: list[OfferRecord] = Field(default_factory=list)
     action_trace: list[ActionTrace] = Field(default_factory=list)
     invalid_actions: int = 0
-    buyer_context: list[SRBenchInputMessage] = Field(default_factory=list)
-    seller_context: list[SRBenchInputMessage] = Field(default_factory=list)
+    buyer_context: list[AgentMessage] = Field(default_factory=list)
+    seller_context: list[AgentMessage] = Field(default_factory=list)
 
     @property
     def seller_surplus(self) -> float:

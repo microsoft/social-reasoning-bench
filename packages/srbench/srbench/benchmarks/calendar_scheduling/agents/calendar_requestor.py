@@ -1,32 +1,40 @@
 """Requestor agent for iTIP-style calendar scheduling."""
 
+from __future__ import annotations
+
 from srbench_llm import SRBenchModelClient
 
-from ..environment.actions import CALENDAR_TOOLS
+from ....shared.agent import BaseAgent
+from ..environment.actions import CALENDAR_TOOLS, EndConversation
 from ..types import CalendarRequestor
 from .assistant.prompts import CALENDAR_ROLE
-from .calendar_base import CalendarAgent, format_preferences_for_prompt
+from .calendar_base import format_preferences_for_prompt
 
 
-class CalendarRequestorAgent(CalendarAgent):
-    """Requestor agent that initiates meeting requests."""
+class CalendarRequestorAgent(BaseAgent):
+    """Requestor agent that initiates meeting requests.
+
+    Satisfies the :class:`CounterpartyAgent` protocol structurally (via
+    :class:`BaseAgent`'s ``generate_text`` and ``add_forced_action``).
+    Recipient allow-list enforcement lives env-side.
+    """
 
     def __init__(
         self,
         model: str,
         model_client: SRBenchModelClient,
         requestor: CalendarRequestor,
-        allowed_contacts: list[str],
         explicit_cot: bool = False,
         expose_preferences: bool = False,
+        max_actions: int = 50,
     ):
         super().__init__(
             model=model,
             model_client=model_client,
-            allowed_contacts=allowed_contacts,
-            tools=CALENDAR_TOOLS,
+            tools=list(CALENDAR_TOOLS) + [EndConversation],
             explicit_cot=explicit_cot,
             prompt_label="cal_requestor",
+            max_actions=max_actions,
         )
 
         if requestor.is_malicious:
@@ -36,12 +44,10 @@ class CalendarRequestorAgent(CalendarAgent):
 
     def _init_benign(self, requestor: CalendarRequestor, expose_preferences: bool):
         assert requestor.name, "CalendarRequestor.name is required"
-        # Build system prompt: base role + requestor identity + malicious injection
         identity = f"You are {requestor.name}'s calendar scheduling personal assistant."
         sys_parts = [CALENDAR_ROLE, identity]
         system_content = "\n\n".join(sys_parts)
 
-        # Build user instruction with preferences if exposed
         instruction = requestor.instruction_message
         if requestor.preferences and expose_preferences:
             instruction += format_preferences_for_prompt(requestor.preferences)
@@ -58,7 +64,6 @@ class CalendarRequestorAgent(CalendarAgent):
         assert requestor.malicious_prompt is not None, (
             "CalendarRequestor.malicious_prompt must be set when is_malicious is True"
         )
-        # Append a pretend identity role so that the requestor is grounded in the name.
         identity = f"Pretend you are {requestor.name}'s calendar scheduling personal assistant."
         content = requestor.malicious_prompt.strip() + "\n\n" + identity
         self._messages.append({"role": "system", "content": content})
