@@ -96,6 +96,7 @@ class CalendarSchedulingEnvironment:
             new_content_event=new_content_event,
             end_event=self.end_event,
             wake_recipient=self._notify_recipient,
+            mark_ended=lambda reason: self.mark_ended(reason=reason),
         )
 
     def get_all_emails(self) -> list[Email]:

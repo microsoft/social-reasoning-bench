@@ -48,6 +48,7 @@ class AgentResources:
         new_content_event: asyncio.Event | None = None,
         end_event: asyncio.Event | None = None,
         wake_recipient: Callable[[str], None] | None = None,
+        mark_ended: Callable[[str], None] | None = None,
     ) -> None:
         self.owner = owner
         self.calendar = calendar
@@ -60,6 +61,7 @@ class AgentResources:
         self._new_content_event: asyncio.Event = new_content_event or asyncio.Event()
         self._end_event: asyncio.Event = end_event or asyncio.Event()
         self._wake_recipient: Callable[[str], None] = wake_recipient or (lambda _to: None)
+        self._mark_ended: Callable[[str], None] = mark_ended or (lambda _reason: None)
 
     async def execute(self, action: Tool) -> str:
         """Execute a tool action and return the result as a string.
@@ -454,6 +456,5 @@ class AgentResources:
 
             raise ToolError(" ".join(parts))
 
-        if self._env is not None:
-            self._env.mark_ended(reason=action.reason)
+        self._mark_ended(action.reason)
         return f"Conversation ended: {action.reason}"
