@@ -205,7 +205,7 @@ class EndConversation(Tool):
     - The request does not align with what the user asked you to do
 
     Do NOT use this if you have asked a question, made a counter-proposal, or
-    otherwise expect a response - yield your turn instead.
+    otherwise expect a response.
 
     Returns:
         Terminates the agent loop.

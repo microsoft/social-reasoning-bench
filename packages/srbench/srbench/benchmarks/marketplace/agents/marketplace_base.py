@@ -1,125 +1,51 @@
-"""Base agent class for marketplace negotiation interactions."""
+"""Shared prompt-construction helper for marketplace agents.
 
-from typing import Any
+The former ``MarketplaceAgent`` intermediate base class has been removed.
+Both :class:`BuyerAgent` and :class:`SellerAgent` now inherit directly from
+:class:`BaseAgent`. The ``add_new_messages`` injection pattern is gone (the
+env's blocking ``GetMessages`` makes it unnecessary). ``add_turn_marker`` is
+also gone since there are no rounds.
 
-from pydantic_core import to_json
-from srbench_llm import SRBenchModelClient
+This module retains a single helper, :func:`build_initial_messages`, that
+both concrete agents call to seed their system + user message pair.
+"""
 
-from ....shared.agent import BaseAgent
-from ..environment.actions import GETMESSAGES_TOOL_NAME, MARKETPLACE_TOOLS
+from __future__ import annotations
+
+from srbench_llm import SRBenchInputMessage
+
 from ..prompts.system import (
     MKT_ROLE,
     PRESETS,
     get_system_prompt,
     list_available_presets,
 )
-from ..types import Tool
 
-# Re-export for backwards compatibility
 __all__ = [
-    "MarketplaceAgent",
     "MKT_ROLE",
     "PRESETS",
     "get_system_prompt",
     "list_available_presets",
+    "build_initial_messages",
 ]
 
 
-class MarketplaceAgent(BaseAgent):
-    """Base LLM agent for marketplace negotiation with function/tool calling.
+def build_initial_messages(
+    *,
+    system_prompt: str | None,
+    instruction_message: str,
+    malicious_prompt: str | None = None,
+) -> list[SRBenchInputMessage]:
+    """Construct the (system, user) message pair for a marketplace agent.
 
-    Extends :class:`BaseAgent` with:
-    - System prompt and instruction message setup
-    - ``add_turn_marker`` for round-based deadline awareness
-    - ``add_new_messages`` for injecting updates via simulated ``GetMessages``
+    If ``malicious_prompt`` is set, it replaces the system prompt entirely
+    and no user instruction is appended (matches the previous
+    ``_init_malicious`` behavior).
     """
-
-    def __init__(
-        self,
-        *,
-        role: str,
-        model: str,
-        model_client: SRBenchModelClient,
-        instruction_message: str,
-        additional_tools: list[type[Tool]] | None = None,
-        explicit_cot: bool = False,
-        system_prompt: str | None = None,
-        malicious_prompt: str | None = None,
-    ) -> None:
-        super().__init__(
-            model=model,
-            model_client=model_client,
-            tools=list(MARKETPLACE_TOOLS) + (additional_tools or []),
-            explicit_cot=explicit_cot,
-            prompt_label=f"mkt_{role}",
-        )
-
-        self._role = role
-        if malicious_prompt:
-            self._init_malicious(malicious_prompt)
-        else:
-            self._init_benign(system_prompt=system_prompt, instruction_message=instruction_message)
-
-    def _init_benign(self, system_prompt: str | None, instruction_message: str):
-        # Use provided system prompt or fall back to MKT_ROLE
-        effective_system_prompt = system_prompt.strip() if system_prompt else MKT_ROLE
-
-        self._messages.extend(
-            [
-                {"role": "system", "content": effective_system_prompt},
-                {"role": "user", "content": instruction_message.strip()},
-            ]
-        )
-
-    def _init_malicious(self, malicious_prompt: str):
-        self._messages.append({"role": "system", "content": malicious_prompt.strip()})
-
-    # ------------------------------------------------------------------ #
-    # Marketplace-specific message helpers
-    # ------------------------------------------------------------------ #
-
-    def add_turn_marker(self, *, current_round: int, max_rounds: int) -> None:
-        """Inject an explicit turn/round marker to improve deadline awareness.
-
-        Args:
-            current_round: The current round number in the negotiation.
-            max_rounds: The maximum number of rounds allowed.
-        """
-        self._messages.append(
-            {
-                "role": "user",
-                "content": (
-                    f"Round {current_round} of {max_rounds}. It is your turn as {self._role}. "
-                    "Use GetMessages to read unread updates/offers, then act. "
-                    "Use Wait to end your turn."
-                ),
-            }
-        )
-
-    def add_new_messages(self, updates: list[Any]) -> None:
-        """Inject unread updates by simulating a GetMessages tool call and response.
-
-        Args:
-            updates: List of unread update dicts (messages and offers) to inject
-                into the conversation as a simulated GetMessages result.
-        """
-        tool_call_id = str(len(self._messages))
-        self._messages.append(
-            {
-                "role": "assistant",
-                "tool_calls": [
-                    {
-                        "id": tool_call_id,
-                        "type": "function",
-                        "function": {"name": GETMESSAGES_TOOL_NAME, "arguments": "{}"},
-                    }
-                ],
-            }
-        )
-        self._messages.append(
-            {
-                "role": "tool",
-                "tool_call_id": tool_call_id,
-                "content": to_json(updates).decode(),
-            }
-        )
+    if malicious_prompt:
+        return [{"role": "system", "content": malicious_prompt.strip()}]
+    effective_system_prompt = system_prompt.strip() if system_prompt else MKT_ROLE
+    return [
+        {"role": "system", "content": effective_system_prompt},
+        {"role": "user", "content": instruction_message.strip()},
+    ]

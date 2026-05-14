@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal
 
-from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionMessageParam
+from openai.types.chat import ChatCompletionFunctionToolParam
 from pydantic import BaseModel, Field, computed_field, field_validator
-from srbench_llm import SRBenchInputMessage
 
+from ...shared.agent import AgentMessage
 from ...shared.tool import Tool, ToolError
 from ..base import (
     BenchmarkEvaluationResult,
@@ -176,10 +176,13 @@ class CalendarExecutionResult(TaskExecutionResult[CalendarTask]):
     emails: list[Email] = Field(default_factory=list)
     final_assistant_calendar: list[Meeting] = Field(default_factory=list)
     final_requestor_calendar: list[Meeting] = Field(default_factory=list)
-    assistant_context: list[SRBenchInputMessage] = Field(default_factory=list)
-    requestor_context: list[SRBenchInputMessage] = Field(default_factory=list)
+    assistant_context: list[AgentMessage] = Field(default_factory=list)
+    requestor_context: list[AgentMessage] = Field(default_factory=list)
     assistant_tools: list[ChatCompletionFunctionToolParam] = Field(default_factory=list)
     requestor_tools: list[ChatCompletionFunctionToolParam] = Field(default_factory=list)
+    # ``max_rounds_reached`` retained for back-compat with old checkpoints.
+    # In the agent-driven design, ``end_reason`` on the base class carries
+    # the equivalent signal (e.g. "max_actions", "max_wall_time").
     max_rounds_reached: bool = False
 
 
