@@ -8,8 +8,9 @@ from enum import Enum
 from typing import Any, Literal
 
 from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionMessageParam
-from pydantic import BaseModel, Field, computed_field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_serializer, field_validator
 from srbench_llm import SRBenchInputMessage
+from srbench_llm.types import strip_signatures_from_messages
 
 from ...shared.tool import Tool, ToolError
 from ..base import (
@@ -181,6 +182,10 @@ class CalendarExecutionResult(TaskExecutionResult[CalendarTask]):
     assistant_tools: list[ChatCompletionFunctionToolParam] = Field(default_factory=list)
     requestor_tools: list[ChatCompletionFunctionToolParam] = Field(default_factory=list)
     max_rounds_reached: bool = False
+
+    @field_serializer("assistant_context", "requestor_context", when_used="json")
+    def _strip_signatures(self, msgs: list[SRBenchInputMessage]) -> list[dict[str, Any]]:
+        return strip_signatures_from_messages(msgs)
 
 
 # ───────────────────────────────────────────────────────────────────

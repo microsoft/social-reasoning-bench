@@ -24,7 +24,6 @@ from ..types import (
     SRBenchChatCompletionInfo,
     SRBenchChatCompletionMessage,
     SRBenchInputMessage,
-    decode_signature,
 )
 from .base import SRBenchModelProvider
 
@@ -62,10 +61,6 @@ class GoogleMessage(SRBenchChatCompletionMessage):
     SRBenchChatCompletionMessage so they survive serialization round-trips
     even when the caller stores the message as the base type.
     """
-
-    # No fields beyond the base — relies on inherited thought_parts /
-    # tool_call_signatures and the base ``to_input_dict`` which already
-    # preserves them via SRBENCH_ASSISTANT_EXTENSION_KEYS.
 
 
 class GoogleProvider(SRBenchModelProvider):
@@ -221,10 +216,10 @@ def _translate_request(
     for msg in messages:
         if msg.get("role") != "assistant":
             continue
-        tcs = _iter_tool_calls(msg.get("tool_calls"))
         sigs = msg.get("tool_call_signatures")
-        for i, (tc_id, tc_name, _tc_args) in enumerate(tcs):
-            tc_id_to_name[tc_id] = tc_name
+        for i, tc in enumerate(msg.get("tool_calls") or []):
+            tc_id = tc["id"]
+            tc_id_to_name[tc_id] = tc["function"]["name"]  # ty: ignore[invalid-key]
             has_sig = sigs is not None and i < len(sigs) and sigs[i] is not None
             if not has_sig:
                 unsigned_tc_ids.add(tc_id)
@@ -235,20 +230,21 @@ def _translate_request(
     pending_unsigned: dict[str, str] = {}  # tc_id -> "name(args)"
 
     for msg in messages:
-        role = msg.get("role")
-        content = msg.get("content", "")
-        if role == "system":
-            system_instruction = _extract_text(content)
-        elif role == "assistant":
-            assistant = cast(SRBenchAssistantMessageParam, msg)
-            parts, _text_fallback = _translate_assistant_parts(assistant, unsigned_tc_ids)
+        # Type checkers only narrow TypedDict unions when the discriminator
+        # is accessed directly in the condition (not stored in a local).
+        if msg["role"] == "system":
+            system_instruction = _extract_text(msg.get("content", ""))
+        elif msg["role"] == "assistant":
+            parts, _text_fallback = _translate_assistant_parts(msg, unsigned_tc_ids)
             if parts:
                 contents.append(types.Content(role="model", parts=parts))
             # Buffer unsigned call descriptions — don't emit as model text.
-            for tc_id, tc_name, tc_args in _iter_tool_calls(msg.get("tool_calls")):
+            for tc in msg.get("tool_calls") or []:
+                tc_id = tc["id"]
                 if tc_id in unsigned_tc_ids:
-                    pending_unsigned[tc_id] = f"{tc_name}({tc_args})"
-        elif role == "tool":
+                    fn = tc["function"]  # ty: ignore[invalid-key]
+                    pending_unsigned[tc_id] = f"{fn['name']}({fn.get('arguments', '{}')})"
+        elif msg["role"] == "tool":
             tc_id = str(msg.get("tool_call_id", ""))
             if tc_id in unsigned_tc_ids:
                 # Merge call description + result into a single user message
@@ -259,11 +255,9 @@ def _translate_request(
                     _translate_user(f"Action taken: {call_desc}\nResult: {result_text}")
                 )
             else:
-                contents.append(
-                    _translate_tool_result(cast(ChatCompletionToolMessageParam, msg), tc_id_to_name)
-                )
+                contents.append(_translate_tool_result(msg, tc_id_to_name))
         else:
-            contents.append(_translate_user(_extract_text(content)))
+            contents.append(_translate_user(_extract_text(msg.get("content", ""))))
 
     config = _build_config(
         system_instruction=system_instruction,
@@ -308,19 +302,6 @@ def _extract_text(content: Any) -> str:
     return ""
 
 
-def _iter_tool_calls(tool_calls: Any) -> list[tuple[str, str, str]]:
-    """Normalize a ``tool_calls`` field into ``(id, name, arguments_json)`` tuples.
-
-    Tool calls in input message dicts follow the OpenAI shape
-    ``{"id", "function": {"name", "arguments"}, "type"}``.
-    """
-    out: list[tuple[str, str, str]] = []
-    for tc in tool_calls or []:
-        fn = tc["function"]
-        out.append((tc["id"], fn["name"], fn.get("arguments", "{}")))
-    return out
-
-
 def _translate_assistant_parts(
     msg: SRBenchAssistantMessageParam,
     unsigned_tc_ids: set[str] | None = None,
@@ -347,8 +328,13 @@ def _translate_assistant_parts(
     thought_parts = msg.get("thought_parts")
     if thought_parts:
         for tp in thought_parts:
-            sig = decode_signature(tp.get("thought_signature"))
-            parts.append(types.Part(text=tp.get("text", ""), thought=True, thought_signature=sig))
+            parts.append(
+                types.Part(
+                    text=tp.get("text", ""),
+                    thought=True,
+                    thought_signature=tp.get("thought_signature"),
+                )
+            )
 
     content = msg.get("content")
     text = _extract_text(content) if content is not None else ""
@@ -358,10 +344,13 @@ def _translate_assistant_parts(
     text_fallback_lines: list[str] = []
     signatures = msg.get("tool_call_signatures")
 
-    for i, (tc_id, name, args_json) in enumerate(_iter_tool_calls(msg.get("tool_calls"))):
+    for i, tc in enumerate(msg.get("tool_calls") or []):
+        fn = tc["function"]  # ty: ignore[invalid-key]
+        tc_id = tc["id"]
+        name = fn["name"]
+        args_json = fn.get("arguments", "{}")
         args = json.loads(args_json) if args_json else {}
-        raw_sig = signatures[i] if signatures and i < len(signatures) else None
-        sig = decode_signature(raw_sig)
+        sig = signatures[i] if signatures and i < len(signatures) else None
 
         if tc_id in unsigned_tc_ids:
             # No thought_signature — emit as text instead.

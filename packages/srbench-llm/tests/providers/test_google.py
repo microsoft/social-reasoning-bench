@@ -684,10 +684,10 @@ class TestTranslateAssistantPartsSignatures:
 
         The agent appends ``response.to_input_dict()`` to history each turn
         (raw BaseModels never enter history). The next turn's provider reads
-        the TypedDict back via ``_translate_assistant_parts``. Bytes are
-        base64-encoded at the TypedDict boundary so that the dict is JSON-
-        serializable for traces/results; the provider decodes them back to
-        bytes before handing them to the Gemini SDK.
+        the TypedDict back via ``_translate_assistant_parts``. Signatures
+        stay as raw bytes in the dict — parent result/checkpoint models
+        strip them at JSON-serialization time so the bytes never need to
+        survive disk.
         """
         sig = b"fc-sig-roundtrip"
         original = GoogleMessage(
@@ -704,19 +704,18 @@ class TestTranslateAssistantPartsSignatures:
             thought_parts=[{"text": "hmm", "thought": True, "thought_signature": b"tp-sig"}],
         )
         input_msg = original.to_input_dict()
-        # Signatures are base64-encoded strings in the dict (JSON-friendly).
+        # Signatures stay as raw bytes in the in-memory dict.
         sigs = input_msg.get("tool_call_signatures")
         assert sigs is not None
-        assert isinstance(sigs[0], str)
+        assert sigs[0] == sig
         tps = input_msg.get("thought_parts")
         assert tps is not None
-        assert isinstance(tps[0]["thought_signature"], str)
+        assert tps[0]["thought_signature"] == b"tp-sig"
 
         parts, text_fallback = _translate_assistant_parts(input_msg)
         assert text_fallback is None  # signatures present → no fallback
         fc_parts = [p for p in parts if p.function_call]
         assert len(fc_parts) == 1
-        # Decoded back to original bytes.
         assert fc_parts[0].thought_signature == sig
         thought_parts = [p for p in parts if p.thought]
         assert len(thought_parts) == 1

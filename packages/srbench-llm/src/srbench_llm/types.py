@@ -12,14 +12,12 @@ The message type system has two strictly separated halves:
 * **Output messages** (Pydantic BaseModel): what providers return from
   :meth:`SRBenchModelClient.acomplete`. :class:`SRBenchChatCompletionMessage`
   is the base; providers subclass it (e.g. ``AnthropicMessage``,
-  ``GoogleMessage``) to attach native fields. Calling ``model_dump(mode="json",
-  exclude_none=True)`` on the BaseModel produces a
-  :class:`SRBenchAssistantMessageParam`-shaped dict ready to be appended into
-  the next turn's input list — field serializers handle the bytes-encoding and
-  ``completion_info`` exclusion automatically.
+  ``GoogleMessage``) to attach native fields. Calling ``to_input_dict()``
+  produces a :class:`SRBenchAssistantMessageParam`-shaped dict ready to be
+  appended into the next turn's input list.
 """
 
-import base64
+from collections.abc import Iterable, Mapping
 from typing import Any, TypeAlias, Union, cast
 
 from openai.types.chat import (
@@ -55,9 +53,14 @@ class SRBenchAssistantMessageParam(ChatCompletionAssistantMessageParam, total=Fa
     * ``completion_info`` — :class:`SRBenchChatCompletionInfo` for this turn.
     * ``thinking_blocks`` — Anthropic native thinking blocks (signatures
       included), required to round-trip extended thinking.
-    * ``thought_parts`` — Gemini 3+ thought parts with ``thought_signature``
-      values that must be preserved across multi-turn tool-use conversations.
-    * ``tool_call_signatures`` — per-tool-call signatures from Gemini 3+.
+    * ``thought_parts`` — Gemini 3+ thought parts. Each part's
+      ``thought_signature`` value is raw ``bytes``.
+    * ``tool_call_signatures`` — per-tool-call signatures from Gemini 3+,
+      as raw ``bytes``.
+
+    The signature fields hold raw bytes because they only live in-memory —
+    parent result/checkpoint models strip them before JSON serialization
+    (see ``strip_signatures_from_messages``).
 
     Providers must strip these extension keys before handing the dict to the
     underlying SDK.
@@ -65,12 +68,8 @@ class SRBenchAssistantMessageParam(ChatCompletionAssistantMessageParam, total=Fa
 
     completion_info: NotRequired[SRBenchChatCompletionInfo | dict[str, Any] | None]
     thinking_blocks: NotRequired[list[dict[str, Any]] | None]
-    # ``thought_signature`` values inside ``thought_parts`` and entries of
-    # ``tool_call_signatures`` are base64-encoded strings of the raw Gemini
-    # signature bytes. Use :func:`decode_signature` to turn them back into
-    # bytes before passing to the Gemini SDK.
     thought_parts: NotRequired[list[dict[str, Any]] | None]
-    tool_call_signatures: NotRequired[list[str | None] | None]
+    tool_call_signatures: NotRequired[list[bytes | None] | None]
 
 
 SRBenchInputMessage: TypeAlias = SkipValidation[
@@ -108,29 +107,23 @@ SRBENCH_ASSISTANT_EXTENSION_KEYS: frozenset[str] = frozenset(
 )
 
 
-def encode_signature(sig: bytes | str | None) -> str | None:
-    """Base64-encode a Gemini signature for storage in a TypedDict.
+# Extension keys whose values are raw bytes that can't be JSON-serialized.
+# Parent result/checkpoint models strip these before disk write — the
+# signatures only matter mid-conversation, not across restarts.
+SRBENCH_SIGNATURE_KEYS: frozenset[str] = frozenset({"thought_parts", "tool_call_signatures"})
 
-    The TypedDict shape is JSON-friendly; raw bytes inside ``dict[str, Any]``
-    fields trip pydantic's serializer (UTF-8 decode error on binary). Strings
-    pass through unchanged (they are presumed already-encoded, e.g. when a
-    BaseModel was reconstructed from a JSON dump that stored the field inside
-    a ``dict[str, Any]`` typed parent).
+
+def strip_signatures_from_messages(
+    messages: Iterable[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return messages with bytes-bearing signature keys removed.
+
+    Use as a ``field_serializer(..., when_used="json")`` on any pydantic field
+    that holds a ``list[SRBenchInputMessage]`` and gets dumped to JSON
+    (results files, checkpoints, traces). The signatures are only useful
+    inside a single in-memory task lifecycle.
     """
-    if sig is None:
-        return None
-    if isinstance(sig, str):
-        return sig
-    return base64.b64encode(sig).decode("ascii")
-
-
-def decode_signature(sig: str | bytes | None) -> bytes | None:
-    """Inverse of :func:`encode_signature`. Tolerates raw bytes for back-compat."""
-    if sig is None:
-        return None
-    if isinstance(sig, bytes):
-        return sig
-    return base64.b64decode(sig)
+    return [{k: v for k, v in msg.items() if k not in SRBENCH_SIGNATURE_KEYS} for msg in messages]
 
 
 class SRBenchChatCompletionMessage(ChatCompletionMessage):
@@ -141,62 +134,36 @@ class SRBenchChatCompletionMessage(ChatCompletionMessage):
     (``AnthropicMessage``, ``GoogleMessage``, ``OpenAIMessage``) extend this
     with native fields like ``thinking_blocks``.
 
-    Field serializers shape ``model_dump`` output into a
-    :class:`SRBenchAssistantMessageParam` dict:
+    ``completion_info`` is excluded from ``model_dump`` (response metadata,
+    not part of the input conversation). The bytes-valued signature fields
+    (``thought_parts`` and ``tool_call_signatures``) are dropped on JSON
+    serialization — they only matter in-memory for the current task and
+    are not worth round-tripping through disk.
 
-    * ``completion_info`` is excluded (provider response metadata, not part of
-      the input conversation).
-    * ``tool_call_signatures`` is base64-encoded (raw bytes can't survive
-      JSON serialization).
-    * ``thought_parts`` has its inner ``thought_signature`` bytes
-      base64-encoded.
-
-    To feed a response into the next turn, call
-    ``msg.model_dump(mode="json", exclude_none=True)`` — the result is
-    structurally a :class:`SRBenchAssistantMessageParam`. The Gemini provider
-    uses :func:`decode_signature` to recover the raw bytes before handing
-    them to the SDK.
+    To feed a response into the next turn, call :meth:`to_input_dict`.
     """
 
     completion_info: SRBenchChatCompletionInfo | None = Field(default=None, exclude=True)
 
-    # Google-specific fields that must survive serialization round-trips so
-    # that thought_signature values are preserved across multi-turn tool-use
-    # conversations.  Gemini 3+ models reject requests that omit these.
+    # Google-specific fields used in-memory to round-trip thought_signature
+    # values across multi-turn tool-use conversations.  Gemini 3+ models
+    # reject requests that omit these.  Dropped at JSON-serialization time.
     thought_parts: list[dict[str, Any]] | None = None
     tool_call_signatures: list[bytes | None] | None = None
 
-    @field_serializer("tool_call_signatures")
-    def _ser_tool_call_signatures(self, v: list[bytes | None] | None) -> list[str | None] | None:
-        if v is None:
-            return None
-        return [encode_signature(s) for s in v]
+    @field_serializer("tool_call_signatures", when_used="json")
+    def _drop_tool_call_signatures(self, _v: list[bytes | None] | None) -> None:
+        return None
 
-    @field_serializer("thought_parts")
-    def _ser_thought_parts(self, v: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:
-        """Base64-encode the bytes-valued ``thought_signature`` inside each part.
-
-        Pydantic's default serializer doesn't know to encode bytes that sit
-        inside a ``dict[str, Any]`` typed field; we do it explicitly so the
-        resulting dict is JSON-safe.
-        """
-        if v is None:
-            return None
-        out: list[dict[str, Any]] = []
-        for tp in v:
-            encoded: dict[str, Any] = {k: val for k, val in tp.items() if k != "thought_signature"}
-            sig = tp.get("thought_signature")
-            if sig is not None:
-                encoded["thought_signature"] = encode_signature(sig)
-            out.append(encoded)
-        return out
+    @field_serializer("thought_parts", when_used="json")
+    def _drop_thought_parts(self, _v: list[dict[str, Any]] | None) -> None:
+        return None
 
     def to_input_dict(self) -> SRBenchAssistantMessageParam:
-        """Typed shim over :meth:`model_dump` for next-turn input lists.
+        """Dump this message as a dict ready for the next turn's input list.
 
-        Field serializers (above) do the actual transformation:
-        ``completion_info`` is excluded, byte-valued signatures are
-        base64-encoded. This helper just narrows the return type from
-        ``dict[str, Any]`` to :class:`SRBenchAssistantMessageParam`.
+        Uses ``mode="python"`` so raw bytes survive in ``thought_parts`` and
+        ``tool_call_signatures`` — providers consume them directly.
+        ``completion_info`` is excluded via the Field declaration.
         """
-        return cast(SRBenchAssistantMessageParam, self.model_dump(mode="json", exclude_none=True))
+        return cast(SRBenchAssistantMessageParam, self.model_dump(mode="python", exclude_none=True))

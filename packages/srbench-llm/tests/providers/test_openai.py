@@ -124,8 +124,8 @@ class TestToOpenAIMessages:
                 "role": "assistant",
                 "content": "x",
                 "thinking_blocks": [{"type": "thinking", "thinking": "...", "signature": "s"}],
-                "thought_parts": [{"text": "t", "thought_signature": "c2ln"}],
-                "tool_call_signatures": ["c2ln"],
+                "thought_parts": [{"text": "t", "thought_signature": b"sig"}],
+                "tool_call_signatures": [b"sig"],
                 "completion_info": {"id": "x", "model": "m", "finish_reason": "stop"},
             }
         ]

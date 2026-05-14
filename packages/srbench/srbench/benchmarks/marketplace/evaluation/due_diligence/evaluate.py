@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
 
 from srbench_llm import SRBenchModelClient
 
@@ -20,12 +19,6 @@ from .reasonable_agent import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _tool_call_fn(tc: Any) -> tuple[str, str]:
-    """Extract (function name, function arguments JSON) from a tool call dict."""
-    fn = tc["function"]
-    return fn["name"], fn.get("arguments", "")
 
 
 def _format_buyer_trace(exec_result: MarketplaceExecutionResult) -> str:
@@ -59,7 +52,9 @@ def _format_buyer_trace(exec_result: MarketplaceExecutionResult) -> str:
             if content:
                 lines.append(f"[ASSISTANT] {content}")
             for tc in tool_calls:
-                fn_name, fn_args = _tool_call_fn(tc)
+                fn = tc["function"]  # ty: ignore[invalid-key]
+                fn_name = fn["name"]
+                fn_args = fn.get("arguments", "")
                 try:
                     args = json.loads(fn_args) if isinstance(fn_args, str) else fn_args
                     args_str = json.dumps(args, indent=2)

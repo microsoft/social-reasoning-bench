@@ -195,16 +195,16 @@ def _translate_messages(
     out: list[dict[str, Any]] = []
 
     for msg in messages:
-        role = msg.get("role")
-        content = msg.get("content", "")
-        if role == "system":
-            system = _extract_text(content)
-        elif role == "assistant":
-            out.append(_translate_assistant(cast(SRBenchAssistantMessageParam, msg)))
-        elif role == "tool":
-            out.append(_translate_tool(cast(ChatCompletionToolMessageParam, msg)))
+        # Type checkers only narrow TypedDict unions when the discriminator
+        # is accessed directly in the condition (not stored in a local).
+        if msg["role"] == "system":
+            system = _extract_text(msg.get("content", ""))
+        elif msg["role"] == "assistant":
+            out.append(_translate_assistant(msg))
+        elif msg["role"] == "tool":
+            out.append(_translate_tool(msg))
         else:
-            out.append({"role": "user", "content": _extract_text(content)})
+            out.append({"role": "user", "content": _extract_text(msg.get("content", ""))})
 
     return system, cast(list[MessageParam], out)
 
@@ -261,7 +261,7 @@ def _translate_assistant(msg: SRBenchAssistantMessageParam) -> dict[str, Any]:
 
     for tc in msg.get("tool_calls") or []:
         if tc.get("type") != "function":
-            continue
+            raise ValueError(f"Unsupported tool_call type for Anthropic: {tc.get('type')!r}")
         fn = tc["function"]  # ty: ignore[invalid-key]
         tc_args = fn.get("arguments", "{}")
         blocks.append(
