@@ -108,7 +108,7 @@ async def execute_task(
         )
         try:
             async with timeout_ctx:
-                await _race_to_end(
+                await _wait_for_any(
                     env=env,
                     buyer_agent=buyer_agent,
                     buyer_resources=buyer_resources,
@@ -153,7 +153,7 @@ async def execute_task(
     )
 
 
-async def _race_to_end(
+async def _wait_for_any(
     *,
     env: MarketplaceEnvironment,
     buyer_agent: BuyerAgent,

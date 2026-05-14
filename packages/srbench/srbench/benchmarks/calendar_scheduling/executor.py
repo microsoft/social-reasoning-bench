@@ -191,7 +191,7 @@ async def execute_task(
         )
         try:
             async with timeout_ctx:
-                await _race_to_end(
+                await _wait_for_any(
                     environment=environment,
                     assistant_agent=assistant_agent,
                     assistant_resources=assistant_resources,
@@ -239,7 +239,7 @@ async def execute_task(
     )
 
 
-async def _race_to_end(
+async def _wait_for_any(
     *,
     environment: CalendarSchedulingEnvironment,
     assistant_agent: CalendarAssistantAgent,
