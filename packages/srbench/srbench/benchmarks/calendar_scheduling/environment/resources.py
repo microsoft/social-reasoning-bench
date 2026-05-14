@@ -1,5 +1,10 @@
 """AgentResources class that encapsulates all resources available to an agent."""
 
+from __future__ import annotations
+
+import asyncio
+from typing import Callable
+
 from ..types import Attendee, AttendeeStatus, Contact, Meeting, Tool, ToolError
 from .actions import (
     CancelMeeting,
@@ -24,7 +29,12 @@ from .utils import (
 
 
 class AgentResources:
-    """Encapsulates all resources available to an agent (calendar + email + contacts)."""
+    """Encapsulates all resources available to an agent (calendar + email + contacts).
+
+    ``execute(action)`` is async because ``Wait`` blocks until the counterpart
+    delivers mail (or until ``end_event`` fires). All other actions complete
+    synchronously and return immediately.
+    """
 
     def __init__(
         self,
@@ -33,14 +43,20 @@ class AgentResources:
         email: AgentEmail,
         allowed_date: str,
         contacts: list[Contact] | None = None,
+        new_content_event: asyncio.Event | None = None,
+        end_event: asyncio.Event | None = None,
+        wake_recipient: Callable[[str], None] | None = None,
     ) -> None:
         self.owner = owner
         self.calendar = calendar
         self.email = email
         self.allowed_date = allowed_date
         self.contacts = contacts or []
+        self._new_content_event: asyncio.Event = new_content_event or asyncio.Event()
+        self._end_event: asyncio.Event = end_event or asyncio.Event()
+        self._wake_recipient: Callable[[str], None] = wake_recipient or (lambda _to: None)
 
-    def execute(self, action: Tool) -> str:
+    async def execute(self, action: Tool) -> str:
         """Execute a tool action and return the result as a string.
 
         Args:
@@ -67,7 +83,7 @@ class AgentResources:
         elif isinstance(action, ReplyMeeting):
             return self._handle_reply_meeting(action)
         elif isinstance(action, Wait):
-            return self._handle_wait(action)
+            return await self._handle_wait(action)
         elif isinstance(action, EndConversation):
             return self._handle_end_conversation(action)
         else:
@@ -87,6 +103,7 @@ class AgentResources:
             subject="Message",
             body=action.message,
         )
+        self._wake_recipient(action.to)
         return "Email sent successfully."
 
     def _handle_get_emails(self, action: GetEmails) -> str:
@@ -445,16 +462,42 @@ class AgentResources:
 
         return f"Reply sent: {action.status} meeting {meeting.title} ({meeting.uid}) from {meeting.start_time}-{meeting.end_time} on {meeting.date}"
 
-    def _handle_wait(self, action: Wait) -> str:
-        """Yield turn to wait for other agent.
+    async def _handle_wait(self, action: Wait) -> str:
+        """Yield until the counterpart acts (delivers mail) or the conversation ends.
+
+        Races ``self._new_content_event.wait()`` against
+        ``self._end_event.wait()``; whichever fires first determines the
+        return value.
+
+        External cancellation (the executor's ``cancel_event``, wall-clock
+        timeout, etc.) is *not* watched here. The executor races
+        ``cancel_event`` at the outer level and cancels the agent's ``run()``
+        task; ``CancelledError`` propagates through ``asyncio.wait`` and out
+        via the ``finally`` block, which is the right behavior.
 
         Args:
             action: The Wait action.
 
         Returns:
-            A waiting status message.
+            A status string describing what unblocked the wait.
         """
-        return "Waiting for response."
+        if self._end_event.is_set():
+            return "Conversation has ended."
+        end_wait = asyncio.create_task(self._end_event.wait())
+        content_wait = asyncio.create_task(self._new_content_event.wait())
+        try:
+            done, pending = await asyncio.wait(
+                {end_wait, content_wait}, return_when=asyncio.FIRST_COMPLETED
+            )
+            for t in pending:
+                t.cancel()
+            if end_wait in done:
+                return "Conversation has ended."
+            return "Counterpart activity detected; check your inbox."
+        finally:
+            for t in (end_wait, content_wait):
+                if not t.done():
+                    t.cancel()
 
     def _handle_end_conversation(self, action: EndConversation) -> str:
         """End the conversation.

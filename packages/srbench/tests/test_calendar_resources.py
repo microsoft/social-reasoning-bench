@@ -60,7 +60,7 @@ def bob_resources(environment):
 class TestSendEmail:
     """Tests for SendEmail action."""
 
-    def test_send_email_success(self, alice_resources, bob_resources):
+    async def test_send_email_success(self, alice_resources, bob_resources):
         """Test sending an email to another agent.
 
         Args:
@@ -68,24 +68,24 @@ class TestSendEmail:
             bob_resources: The fixture providing AgentResources for bob.
         """
         action = SendEmail(to="bob@example.com", message="Hello Bob!")
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert result == "Email sent successfully."
 
         # Bob should have received the email
         get_emails = GetEmails()
-        emails_result = bob_resources.execute(get_emails)
+        emails_result = await bob_resources.execute(get_emails)
         assert "alice@example.com" in emails_result
         assert "Hello Bob!" in emails_result
 
-    def test_send_email_to_nonexistent_agent(self, alice_resources):
+    async def test_send_email_to_nonexistent_agent(self, alice_resources):
         """Test sending email to agent without resources still succeeds.
 
         Args:
             alice_resources: The fixture providing AgentResources for alice.
         """
         action = SendEmail(to="unknown@example.com", message="Hello!")
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert result == "Email sent successfully."
 
@@ -93,18 +93,18 @@ class TestSendEmail:
 class TestGetEmails:
     """Tests for GetEmails action."""
 
-    def test_get_emails_empty(self, alice_resources):
+    async def test_get_emails_empty(self, alice_resources):
         """Test getting emails when inbox is empty.
 
         Args:
             alice_resources: The fixture providing AgentResources for alice.
         """
         action = GetEmails()
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert result == "No unread emails."
 
-    def test_get_emails_with_messages(self, alice_resources, bob_resources):
+    async def test_get_emails_with_messages(self, alice_resources, bob_resources):
         """Test getting emails after receiving some.
 
         Args:
@@ -112,16 +112,16 @@ class TestGetEmails:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Bob sends an email to Alice
-        bob_resources.execute(SendEmail(to="alice@example.com", message="Hi Alice!"))
+        await bob_resources.execute(SendEmail(to="alice@example.com", message="Hi Alice!"))
 
         # Alice checks her email
         action = GetEmails()
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert "bob@example.com" in result
         assert "Hi Alice!" in result
 
-    def test_get_emails_marks_as_read(self, alice_resources, bob_resources):
+    async def test_get_emails_marks_as_read(self, alice_resources, bob_resources):
         """Test that getting emails marks them as read.
 
         Args:
@@ -129,20 +129,20 @@ class TestGetEmails:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Bob sends an email
-        bob_resources.execute(SendEmail(to="alice@example.com", message="First message"))
+        await bob_resources.execute(SendEmail(to="alice@example.com", message="First message"))
 
         # Alice reads emails
-        alice_resources.execute(GetEmails())
+        await alice_resources.execute(GetEmails())
 
         # Alice reads again - should be empty
-        result = alice_resources.execute(GetEmails())
+        result = await alice_resources.execute(GetEmails())
         assert result == "No unread emails."
 
         # Bob sends another email
-        bob_resources.execute(SendEmail(to="alice@example.com", message="Second message"))
+        await bob_resources.execute(SendEmail(to="alice@example.com", message="Second message"))
 
         # Alice should only see the new email
-        result = alice_resources.execute(GetEmails())
+        result = await alice_resources.execute(GetEmails())
         assert "Second message" in result
         assert "First message" not in result
 
@@ -150,20 +150,20 @@ class TestGetEmails:
 class TestListMeetings:
     """Tests for ListMeetings action."""
 
-    def test_list_meetings_empty(self, alice_resources):
+    async def test_list_meetings_empty(self, alice_resources):
         """Test listing meetings when calendar is empty.
 
         Args:
             alice_resources: The fixture providing AgentResources for alice.
         """
         action = ListMeetings()
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert result.startswith("No meetings on your calendar.")
         assert "=== FREE ===" in result
         assert "09:00 - 17:00" in result
 
-    def test_list_meetings_with_meetings(self, environment):
+    async def test_list_meetings_with_meetings(self, environment):
         """Test listing meetings after adding some.
 
         Args:
@@ -184,7 +184,7 @@ class TestListMeetings:
         )
 
         action = ListMeetings()
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert "Team Standup" in result
         assert "test-meeting-1" in result
@@ -194,7 +194,7 @@ class TestListMeetings:
 class TestRequestMeeting:
     """Tests for RequestMeeting action."""
 
-    def test_request_meeting_basic(self, alice_resources, bob_resources):
+    async def test_request_meeting_basic(self, alice_resources, bob_resources):
         """Test creating a basic meeting request.
 
         Args:
@@ -212,24 +212,24 @@ class TestRequestMeeting:
             end="15:00",
             attendees=["bob@example.com"],
         )
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert "Meeting request sent" in result
         assert "alice-project-meeting" in result
 
         # Meeting should be on Alice's calendar
-        alice_meetings = alice_resources.execute(ListMeetings())
+        alice_meetings = await alice_resources.execute(ListMeetings())
         assert "Project Discussion" in alice_meetings
 
         # Meeting should be on Bob's calendar
-        bob_meetings = bob_resources.execute(ListMeetings())
+        bob_meetings = await bob_resources.execute(ListMeetings())
         assert "Project Discussion" in bob_meetings
 
         # Bob should have received an email
-        bob_emails = bob_resources.execute(GetEmails())
+        bob_emails = await bob_resources.execute(GetEmails())
         assert "Meeting Request: Project Discussion" in bob_emails
 
-    def test_request_meeting_flexible_date_formats(self, alice_resources, bob_resources):
+    async def test_request_meeting_flexible_date_formats(self, alice_resources, bob_resources):
         """Test that various date/time formats are accepted.
 
         Args:
@@ -247,17 +247,17 @@ class TestRequestMeeting:
             end="3:30pm",  # 12-hour with minutes
             attendees=["bob@example.com"],
         )
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert "Meeting request sent" in result
 
         # Check the meeting was created with normalized formats
-        alice_meetings = alice_resources.execute(ListMeetings())
+        alice_meetings = await alice_resources.execute(ListMeetings())
         assert "2024-01-15" in alice_meetings
         assert "14:00" in alice_meetings
         assert "15:30" in alice_meetings
 
-    def test_request_meeting_invalid_date(self, alice_resources):
+    async def test_request_meeting_invalid_date(self, alice_resources):
         """Test that invalid date format raises ToolError.
 
         Args:
@@ -275,9 +275,9 @@ class TestRequestMeeting:
             attendees=[],
         )
         with pytest.raises(ToolError, match="Unable to parse date"):
-            alice_resources.execute(action)
+            await alice_resources.execute(action)
 
-    def test_request_meeting_invalid_time(self, alice_resources):
+    async def test_request_meeting_invalid_time(self, alice_resources):
         """Test that invalid time format raises ToolError.
 
         Args:
@@ -295,9 +295,9 @@ class TestRequestMeeting:
             attendees=[],
         )
         with pytest.raises(ToolError, match="Unable to parse time"):
-            alice_resources.execute(action)
+            await alice_resources.execute(action)
 
-    def test_request_meeting_organizer_auto_added(self, alice_resources):
+    async def test_request_meeting_organizer_auto_added(self, alice_resources):
         """Test that organizer is automatically added as ACCEPTED attendee.
 
         Args:
@@ -314,14 +314,14 @@ class TestRequestMeeting:
             end="15:00",
             attendees=[],  # No attendees specified
         )
-        alice_resources.execute(action)
+        await alice_resources.execute(action)
 
         # Check Alice's calendar shows her as ACCEPTED
-        alice_meetings = alice_resources.execute(ListMeetings())
+        alice_meetings = await alice_resources.execute(ListMeetings())
         assert "alice@example.com" in alice_meetings
         assert "ACCEPTED" in alice_meetings
 
-    def test_request_meeting_organizer_status_updated(self, alice_resources, bob_resources):
+    async def test_request_meeting_organizer_status_updated(self, alice_resources, bob_resources):
         """Test that if organizer is in attendees list, status is set to ACCEPTED.
 
         Args:
@@ -339,13 +339,13 @@ class TestRequestMeeting:
             end="15:00",
             attendees=["alice@example.com", "bob@example.com"],
         )
-        alice_resources.execute(action)
+        await alice_resources.execute(action)
 
         # Alice should be ACCEPTED even though she was added as AWAITING-RESPONSE
-        alice_meetings = alice_resources.execute(ListMeetings())
+        alice_meetings = await alice_resources.execute(ListMeetings())
         assert "alice@example.com (ACCEPTED)" in alice_meetings
 
-    def test_request_meeting_wrong_date_rejected(self, environment):
+    async def test_request_meeting_wrong_date_rejected(self, environment):
         """Test that scheduling on wrong date raises ToolError when allowed_date is set.
 
         Args:
@@ -367,9 +367,9 @@ class TestRequestMeeting:
             attendees=["bob@example.com"],
         )
         with pytest.raises(ToolError, match="2024-01-15"):
-            resources.execute(action)
+            await resources.execute(action)
 
-    def test_request_meeting_correct_date_allowed(self, environment):
+    async def test_request_meeting_correct_date_allowed(self, environment):
         """Test that scheduling on correct date works when allowed_date is set.
 
         Args:
@@ -390,14 +390,14 @@ class TestRequestMeeting:
             end="15:00",
             attendees=["bob@example.com"],
         )
-        result = resources.execute(action)
+        result = await resources.execute(action)
         assert "Meeting request sent" in result
 
 
 class TestCancelMeeting:
     """Tests for CancelMeeting action."""
 
-    def test_cancel_meeting_success(self, alice_resources, bob_resources):
+    async def test_cancel_meeting_success(self, alice_resources, bob_resources):
         """Test cancelling an existing meeting.
 
         Args:
@@ -405,7 +405,7 @@ class TestCancelMeeting:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # First create a meeting
-        alice_resources.execute(
+        await alice_resources.execute(
             RequestMeeting(
                 message="Let's meet",
                 uid="cancel-test-meeting",
@@ -420,30 +420,30 @@ class TestCancelMeeting:
         )
 
         # Clear Bob's emails from the invite
-        bob_resources.execute(GetEmails())
+        await bob_resources.execute(GetEmails())
 
         # Cancel the meeting
         action = CancelMeeting(
             message="Sorry, need to cancel",
             meeting_uid="cancel-test-meeting",
         )
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert "cancelled" in result.lower()
 
         # Meeting should be removed from Alice's calendar
-        alice_meetings = alice_resources.execute(ListMeetings())
+        alice_meetings = await alice_resources.execute(ListMeetings())
         assert "Meeting to Cancel" not in alice_meetings
 
         # Meeting should be removed from Bob's calendar
-        bob_meetings = bob_resources.execute(ListMeetings())
+        bob_meetings = await bob_resources.execute(ListMeetings())
         assert "Meeting to Cancel" not in bob_meetings
 
         # Bob should have received a cancellation email
-        bob_emails = bob_resources.execute(GetEmails())
+        bob_emails = await bob_resources.execute(GetEmails())
         assert "Cancelled" in bob_emails
 
-    def test_cancel_meeting_not_found(self, alice_resources):
+    async def test_cancel_meeting_not_found(self, alice_resources):
         """Test cancelling a non-existent meeting raises ToolError.
 
         Args:
@@ -454,9 +454,9 @@ class TestCancelMeeting:
             meeting_uid="nonexistent-meeting",
         )
         with pytest.raises(ToolError, match="not found"):
-            alice_resources.execute(action)
+            await alice_resources.execute(action)
 
-    def test_cancel_meeting_non_organizer_rejected(self, alice_resources, bob_resources):
+    async def test_cancel_meeting_non_organizer_rejected(self, alice_resources, bob_resources):
         """Test that non-organizer cannot cancel a meeting.
 
         Args:
@@ -464,7 +464,7 @@ class TestCancelMeeting:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Alice creates a meeting with Bob
-        alice_resources.execute(
+        await alice_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="organizer-cancel-test",
@@ -480,14 +480,16 @@ class TestCancelMeeting:
 
         # Bob (non-organizer) tries to cancel
         with pytest.raises(ToolError, match="organizer"):
-            bob_resources.execute(
+            await bob_resources.execute(
                 CancelMeeting(
                     message="Cancelling",
                     meeting_uid="organizer-cancel-test",
                 )
             )
 
-    def test_cancel_meeting_only_notifies_active_attendees(self, alice_resources, bob_resources):
+    async def test_cancel_meeting_only_notifies_active_attendees(
+        self, alice_resources, bob_resources
+    ):
         """Test that cancelled meetings only notify AWAITING-RESPONSE and ACCEPTED attendees.
 
         Args:
@@ -495,7 +497,7 @@ class TestCancelMeeting:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Create meeting
-        alice_resources.execute(
+        await alice_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="selective-cancel-test",
@@ -510,8 +512,8 @@ class TestCancelMeeting:
         )
 
         # Bob declines
-        bob_resources.execute(GetEmails())  # Clear invite email
-        bob_resources.execute(
+        await bob_resources.execute(GetEmails())  # Clear invite email
+        await bob_resources.execute(
             ReplyMeeting(
                 message="Can't make it",
                 meeting_uid="selective-cancel-test",
@@ -520,10 +522,10 @@ class TestCancelMeeting:
         )
 
         # Clear Alice's emails from decline notification
-        alice_resources.execute(GetEmails())
+        await alice_resources.execute(GetEmails())
 
         # Alice cancels
-        alice_resources.execute(
+        await alice_resources.execute(
             CancelMeeting(
                 message="Cancelling",
                 meeting_uid="selective-cancel-test",
@@ -531,14 +533,14 @@ class TestCancelMeeting:
         )
 
         # Bob shouldn't get a cancellation email since he already declined
-        bob_emails = bob_resources.execute(GetEmails())
+        bob_emails = await bob_resources.execute(GetEmails())
         assert bob_emails == "No unread emails."
 
 
 class TestReplyMeeting:
     """Tests for ReplyMeeting action."""
 
-    def test_reply_meeting_accept(self, alice_resources, bob_resources):
+    async def test_reply_meeting_accept(self, alice_resources, bob_resources):
         """Test accepting a meeting invitation.
 
         Args:
@@ -546,7 +548,7 @@ class TestReplyMeeting:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Alice creates meeting
-        alice_resources.execute(
+        await alice_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="accept-test-meeting",
@@ -561,8 +563,8 @@ class TestReplyMeeting:
         )
 
         # Clear emails
-        bob_resources.execute(GetEmails())
-        alice_resources.execute(GetEmails())
+        await bob_resources.execute(GetEmails())
+        await alice_resources.execute(GetEmails())
 
         # Bob accepts
         action = ReplyMeeting(
@@ -570,24 +572,24 @@ class TestReplyMeeting:
             meeting_uid="accept-test-meeting",
             status="ACCEPTED",
         )
-        result = bob_resources.execute(action)
+        result = await bob_resources.execute(action)
 
         assert "Reply sent" in result
         assert "ACCEPTED" in result
 
         # Meeting should still be on Bob's calendar
-        bob_meetings = bob_resources.execute(ListMeetings())
+        bob_meetings = await bob_resources.execute(ListMeetings())
         assert "Accept Test" in bob_meetings
 
         # Alice should receive notification
-        alice_emails = alice_resources.execute(GetEmails())
+        alice_emails = await alice_resources.execute(GetEmails())
         assert "ACCEPTED" in alice_emails
 
         # Status on Alice's calendar should be updated
-        alice_meetings = alice_resources.execute(ListMeetings())
+        alice_meetings = await alice_resources.execute(ListMeetings())
         assert "bob@example.com (ACCEPTED)" in alice_meetings
 
-    def test_reply_meeting_decline(self, alice_resources, bob_resources):
+    async def test_reply_meeting_decline(self, alice_resources, bob_resources):
         """Test declining a meeting invitation.
 
         Args:
@@ -595,7 +597,7 @@ class TestReplyMeeting:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Alice creates meeting
-        alice_resources.execute(
+        await alice_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="decline-test-meeting",
@@ -610,8 +612,8 @@ class TestReplyMeeting:
         )
 
         # Clear emails
-        bob_resources.execute(GetEmails())
-        alice_resources.execute(GetEmails())
+        await bob_resources.execute(GetEmails())
+        await alice_resources.execute(GetEmails())
 
         # Bob declines
         action = ReplyMeeting(
@@ -619,20 +621,20 @@ class TestReplyMeeting:
             meeting_uid="decline-test-meeting",
             status="DECLINED",
         )
-        result = bob_resources.execute(action)
+        result = await bob_resources.execute(action)
 
         assert "Reply sent" in result
         assert "DECLINED" in result
 
         # Meeting should be removed from Bob's calendar
-        bob_meetings = bob_resources.execute(ListMeetings())
+        bob_meetings = await bob_resources.execute(ListMeetings())
         assert "Decline Test" not in bob_meetings
 
         # Alice should receive notification
-        alice_emails = alice_resources.execute(GetEmails())
+        alice_emails = await alice_resources.execute(GetEmails())
         assert "DECLINED" in alice_emails
 
-    def test_reply_meeting_not_found(self, bob_resources):
+    async def test_reply_meeting_not_found(self, bob_resources):
         """Test replying to a non-existent meeting raises ToolError.
 
         Args:
@@ -644,40 +646,61 @@ class TestReplyMeeting:
             status="ACCEPTED",
         )
         with pytest.raises(ToolError, match="not found"):
-            bob_resources.execute(action)
+            await bob_resources.execute(action)
 
 
 class TestWait:
-    """Tests for Wait action."""
+    """Tests for Wait action (blocks until counterpart acts or end_event)."""
 
-    def test_wait(self, alice_resources):
-        """Test the Wait action.
+    async def test_wait_returns_when_counterpart_acts(self, alice_resources, bob_resources):
+        """Wait unblocks when the counterpart delivers mail."""
+        import asyncio
 
-        Args:
-            alice_resources: The fixture providing AgentResources for alice.
-        """
-        action = Wait()
-        result = alice_resources.execute(action)
+        async def send_later():
+            await asyncio.sleep(0.05)
+            await bob_resources.execute(SendEmail(to="alice@example.com", message="hi"))
 
-        assert "Waiting" in result
+        send_task = asyncio.create_task(send_later())
+        result = await alice_resources.execute(Wait())
+        await send_task
+        assert "Counterpart activity" in result or "inbox" in result.lower()
+
+    async def test_wait_returns_when_end_event_set(self, alice_resources, environment):
+        """Wait unblocks immediately when env.end_event is set."""
+        import asyncio
+
+        async def end_later():
+            await asyncio.sleep(0.05)
+            environment.mark_ended(reason="test")
+
+        end_task = asyncio.create_task(end_later())
+        result = await alice_resources.execute(Wait())
+        await end_task
+        assert "ended" in result.lower()
+
+    async def test_wait_returns_immediately_if_already_ended(self, alice_resources, environment):
+        """Wait returns immediately when end_event is already set."""
+        environment.mark_ended(reason="test")
+        result = await alice_resources.execute(Wait())
+        assert "ended" in result.lower()
 
 
 class TestEndConversation:
     """Tests for EndConversation action."""
 
-    def test_end_conversation_success(self, alice_resources):
+    async def test_end_conversation_success(self, alice_resources):
         """Test ending conversation when no pending requests.
 
         Args:
             alice_resources: The fixture providing AgentResources for alice.
         """
         action = EndConversation(reason="Task completed")
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert "Conversation ended" in result
         assert "Task completed" in result
 
-    def test_end_conversation_with_pending_requests(self, alice_resources, bob_resources):
+    async def test_end_conversation_with_pending_requests(self, alice_resources, bob_resources):
         """Test that ending conversation raises ToolError when there are pending meeting requests.
 
         Args:
@@ -685,7 +708,7 @@ class TestEndConversation:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Bob sends Alice a meeting request
-        bob_resources.execute(
+        await bob_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="pending-meeting",
@@ -702,9 +725,9 @@ class TestEndConversation:
         # Alice tries to end conversation without responding
         action = EndConversation(reason="Done")
         with pytest.raises(ToolError, match="pending"):
-            alice_resources.execute(action)
+            await alice_resources.execute(action)
 
-    def test_end_conversation_after_accepting(self, alice_resources, bob_resources):
+    async def test_end_conversation_after_accepting(self, alice_resources, bob_resources):
         """Test that ending conversation succeeds after responding to all requests.
 
         Args:
@@ -712,7 +735,7 @@ class TestEndConversation:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Bob sends Alice a meeting request
-        bob_resources.execute(
+        await bob_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="will-accept-meeting",
@@ -727,7 +750,7 @@ class TestEndConversation:
         )
 
         # Alice accepts
-        alice_resources.execute(
+        await alice_resources.execute(
             ReplyMeeting(
                 message="Accepted",
                 meeting_uid="will-accept-meeting",
@@ -737,11 +760,11 @@ class TestEndConversation:
 
         # Now Alice can end conversation
         action = EndConversation(reason="Done")
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert "Conversation ended" in result
 
-    def test_end_conversation_after_declining(self, alice_resources, bob_resources):
+    async def test_end_conversation_after_declining(self, alice_resources, bob_resources):
         """Test that ending conversation succeeds after declining all requests.
 
         Args:
@@ -749,7 +772,7 @@ class TestEndConversation:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Bob sends Alice a meeting request
-        bob_resources.execute(
+        await bob_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="will-decline-meeting",
@@ -764,7 +787,7 @@ class TestEndConversation:
         )
 
         # Alice declines
-        alice_resources.execute(
+        await alice_resources.execute(
             ReplyMeeting(
                 message="Declined",
                 meeting_uid="will-decline-meeting",
@@ -774,7 +797,7 @@ class TestEndConversation:
 
         # Now Alice can end conversation
         action = EndConversation(reason="Done")
-        result = alice_resources.execute(action)
+        result = await alice_resources.execute(action)
 
         assert "Conversation ended" in result
 
@@ -782,7 +805,7 @@ class TestEndConversation:
 class TestExecuteUnknownAction:
     """Tests for handling unknown actions."""
 
-    def test_unknown_action_raises_error(self, alice_resources):
+    async def test_unknown_action_raises_error(self, alice_resources):
         """Test that unknown action types raise ValueError.
 
         Args:
@@ -792,21 +815,21 @@ class TestExecuteUnknownAction:
             None. Asserts that ValueError is raised for unknown actions.
         """
 
-        class UnknownAction(SendEmail):
-            @classmethod
-            def get_name(cls):
-                return "UnknownAction"
+        from srbench.shared.tool import Tool
 
-        action = UnknownAction(to="test@example.com", message="test")
+        class UnknownAction(Tool):
+            pass
+
+        action = UnknownAction()
 
         with pytest.raises(ValueError, match="Unknown action"):
-            alice_resources.execute(action)
+            await alice_resources.execute(action)
 
 
 class TestReplyMeetingCounter:
     """Tests for ReplyMeeting with COUNTER status."""
 
-    def test_reply_meeting_counter_success(self, alice_resources, bob_resources):
+    async def test_reply_meeting_counter_success(self, alice_resources, bob_resources):
         """Test sending a counter-proposal via ReplyMeeting updates calendars.
 
         Args:
@@ -814,7 +837,7 @@ class TestReplyMeetingCounter:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Bob sends Alice a meeting request for 2pm
-        bob_resources.execute(
+        await bob_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="counter-test",
@@ -829,10 +852,10 @@ class TestReplyMeetingCounter:
         )
 
         # Clear Alice's emails from invite
-        alice_resources.execute(GetEmails())
+        await alice_resources.execute(GetEmails())
 
         # Alice sends counter-proposal for 10am using ReplyMeeting with COUNTER status
-        result = alice_resources.execute(
+        result = await alice_resources.execute(
             ReplyMeeting(
                 message="I'm not available at that time",
                 meeting_uid="counter-test",
@@ -848,27 +871,27 @@ class TestReplyMeetingCounter:
         assert "Meeting updated" in result
 
         # Bob should receive the counter-proposal email with calendar attachment
-        bob_emails = bob_resources.execute(GetEmails())
+        bob_emails = await bob_resources.execute(GetEmails())
         assert "Counter-Proposal" in bob_emails
         assert "COUNTER:" in bob_emails  # Calendar attachment marker
         assert "CALENDAR EVENT" in bob_emails  # Calendar attachment format
         assert "10:00" in bob_emails
 
         # Meeting should be updated to new time on Alice's calendar
-        alice_meetings = alice_resources.execute(ListMeetings())
+        alice_meetings = await alice_resources.execute(ListMeetings())
         assert "10:00" in alice_meetings  # New time
         assert "14:00" not in alice_meetings  # Old time should be gone
         assert "alice@example.com (ACCEPTED)" in alice_meetings  # Alice is now ACCEPTED
 
         # Meeting should be updated to new time on Bob's calendar
-        bob_meetings = bob_resources.execute(ListMeetings())
+        bob_meetings = await bob_resources.execute(ListMeetings())
         assert "10:00" in bob_meetings  # New time
         assert "14:00" not in bob_meetings  # Old time should be gone
         assert "bob@example.com (AWAITING-RESPONSE)" in bob_meetings  # Bob needs to respond
         # Verify no duplicate events on Bob's calendar (replacement worked, not addition)
         assert bob_meetings.count("counter-test") == 1
 
-    def test_reply_meeting_counter_then_accept(self, alice_resources, bob_resources):
+    async def test_reply_meeting_counter_then_accept(self, alice_resources, bob_resources):
         """Test full counter-proposal workflow: request -> counter -> accept.
 
         Args:
@@ -876,7 +899,7 @@ class TestReplyMeetingCounter:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Bob sends Alice a meeting request for 2pm
-        bob_resources.execute(
+        await bob_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="counter-accept-test",
@@ -891,10 +914,10 @@ class TestReplyMeetingCounter:
         )
 
         # Clear emails
-        alice_resources.execute(GetEmails())
+        await alice_resources.execute(GetEmails())
 
         # Alice counters with 10am
-        alice_resources.execute(
+        await alice_resources.execute(
             ReplyMeeting(
                 message="How about 10am?",
                 meeting_uid="counter-accept-test",
@@ -906,10 +929,10 @@ class TestReplyMeetingCounter:
         )
 
         # Clear Bob's emails
-        bob_resources.execute(GetEmails())
+        await bob_resources.execute(GetEmails())
 
         # Bob accepts the counter-proposal
-        result = bob_resources.execute(
+        result = await bob_resources.execute(
             ReplyMeeting(
                 message="10am works for me!",
                 meeting_uid="counter-accept-test",
@@ -920,22 +943,22 @@ class TestReplyMeetingCounter:
         assert "ACCEPTED" in result
 
         # Both should now have the meeting at 10am with both ACCEPTED
-        alice_meetings = alice_resources.execute(ListMeetings())
+        alice_meetings = await alice_resources.execute(ListMeetings())
         assert "10:00" in alice_meetings
         assert "alice@example.com (ACCEPTED)" in alice_meetings
 
-        bob_meetings = bob_resources.execute(ListMeetings())
+        bob_meetings = await bob_resources.execute(ListMeetings())
         assert "10:00" in bob_meetings
         assert "bob@example.com (ACCEPTED)" in bob_meetings
 
-    def test_reply_meeting_counter_not_found(self, alice_resources):
+    async def test_reply_meeting_counter_not_found(self, alice_resources):
         """Test counter-proposal for non-existent meeting raises ToolError.
 
         Args:
             alice_resources: The fixture providing AgentResources for alice.
         """
         with pytest.raises(ToolError, match="not found"):
-            alice_resources.execute(
+            await alice_resources.execute(
                 ReplyMeeting(
                     message="Counter",
                     meeting_uid="nonexistent",
@@ -946,7 +969,7 @@ class TestReplyMeetingCounter:
                 )
             )
 
-    def test_reply_meeting_counter_missing_fields(self, alice_resources, bob_resources):
+    async def test_reply_meeting_counter_missing_fields(self, alice_resources, bob_resources):
         """Test counter-proposal without required fields raises ToolError.
 
         Args:
@@ -954,7 +977,7 @@ class TestReplyMeetingCounter:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Bob sends Alice a meeting request
-        bob_resources.execute(
+        await bob_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="counter-missing-fields",
@@ -970,7 +993,7 @@ class TestReplyMeetingCounter:
 
         # Try counter without date/start/end
         with pytest.raises(ToolError, match="must provide date, start, and end"):
-            alice_resources.execute(
+            await alice_resources.execute(
                 ReplyMeeting(
                     message="Counter",
                     meeting_uid="counter-missing-fields",
@@ -978,7 +1001,7 @@ class TestReplyMeetingCounter:
                 )
             )
 
-    def test_reply_meeting_counter_invalid_time(self, alice_resources, bob_resources):
+    async def test_reply_meeting_counter_invalid_time(self, alice_resources, bob_resources):
         """Test counter-proposal with invalid time raises ToolError.
 
         Args:
@@ -986,7 +1009,7 @@ class TestReplyMeetingCounter:
             bob_resources: The fixture providing AgentResources for bob.
         """
         # Bob sends Alice a meeting request
-        bob_resources.execute(
+        await bob_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="counter-invalid-time",
@@ -1001,7 +1024,7 @@ class TestReplyMeetingCounter:
         )
 
         with pytest.raises(ToolError, match="Unable to parse time"):
-            alice_resources.execute(
+            await alice_resources.execute(
                 ReplyMeeting(
                     message="Counter",
                     meeting_uid="counter-invalid-time",
@@ -1012,7 +1035,7 @@ class TestReplyMeetingCounter:
                 )
             )
 
-    def test_reply_meeting_counter_wrong_date_rejected(self, environment):
+    async def test_reply_meeting_counter_wrong_date_rejected(self, environment):
         """Test that counter-proposal on wrong date raises ToolError when allowed_date is set.
 
         Args:
@@ -1030,7 +1053,7 @@ class TestReplyMeetingCounter:
         )
 
         # Bob sends Alice a meeting request
-        bob_resources.execute(
+        await bob_resources.execute(
             RequestMeeting(
                 message="Meeting",
                 uid="counter-wrong-date",
@@ -1046,7 +1069,7 @@ class TestReplyMeetingCounter:
 
         # Alice tries to counter with wrong date
         with pytest.raises(ToolError, match="2024-01-15"):
-            alice_resources.execute(
+            await alice_resources.execute(
                 ReplyMeeting(
                     message="How about a different day?",
                     meeting_uid="counter-wrong-date",

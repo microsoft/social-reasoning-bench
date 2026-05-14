@@ -57,7 +57,7 @@ async def _force_initial_seller_offer(
         logger.warning("SellerAgent failed to generate opening message.")
 
     offer_action = MakeOffer(price=listed_price, message=message or "")
-    result = seller_resources.execute(offer_action)
+    result = await seller_resources.execute(offer_action)
     seller_agent.add_forced_action(offer_action, result)
 
     trace = ActionTrace(
@@ -71,7 +71,7 @@ async def _force_initial_seller_offer(
     action_trace.append(trace)
 
     wait_action = Wait()
-    wait_result = seller_resources.execute(wait_action)
+    wait_result = await seller_resources.execute(wait_action)
     seller_agent.add_forced_action(wait_action, wait_result)
 
     trace = ActionTrace(
@@ -126,7 +126,7 @@ async def _run_agent_turn(
             # Bad generation, try again
             continue
 
-        trace, ok = execute_with_trace(resources, action)
+        trace, ok = await execute_with_trace(resources, action)
         action_trace.append(trace)
         if not ok:
             invalid_actions += 1
