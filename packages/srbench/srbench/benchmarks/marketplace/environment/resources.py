@@ -6,7 +6,7 @@ import asyncio
 from typing import Literal
 
 from ..types import ActionTrace, MessageRecord, OfferRecord, Tool, ToolError
-from .actions import AcceptOffer, EndConversation, GetMessages, MakeOffer, SendMessage
+from .actions import AcceptOffer, EndConversation, GetMessages, MakeOffer, SendMessage, Wait
 from .state import MarketplaceState
 
 
@@ -119,7 +119,10 @@ class AgentResources:
             return "Message sent."
 
         if isinstance(action, GetMessages):
-            return await self._handle_get_messages()
+            return self._handle_get_messages()
+
+        if isinstance(action, Wait):
+            return await self._handle_wait()
 
         if isinstance(action, MakeOffer):
             self.state.expire_offers_from(self.role)
@@ -182,17 +185,36 @@ class AgentResources:
 
         raise ValueError(f"Unsupported action type: {type(action).__name__}")
 
-    async def _handle_get_messages(self) -> str:
-        """Return new counterpart messages/offers, blocking if there are none.
+    async def _handle_wait(self) -> str:
+        """Yield until the counterpart acts (delivers updates) or the
+        conversation ends. Cancellation propagates out as ``CancelledError``.
+        """
+        if self._env is None or self._env.end_event.is_set():
+            return "Negotiation has ended."
+        end_wait = asyncio.create_task(self._env.end_event.wait())
+        content_wait = asyncio.create_task(self._new_content_event.wait())
+        try:
+            done, pending = await asyncio.wait(
+                {end_wait, content_wait}, return_when=asyncio.FIRST_COMPLETED
+            )
+            for t in pending:
+                t.cancel()
+            if end_wait in done:
+                return "Negotiation has ended."
+            return "Counterpart activity detected; call GetMessages to see updates."
+        finally:
+            for t in (end_wait, content_wait):
+                if not t.done():
+                    t.cancel()
 
-        Clear-then-check-then-await — same pattern as calendar's GetEmails.
+    def _handle_get_messages(self) -> str:
+        """Return new counterpart messages/offers immediately.
+
+        Empty results are returned as-is; agents that want to yield until
+        the counterpart acts should call :class:`Wait`.
         """
         self._new_content_event.clear()
         updates = self.get_unread_updates()
-        if not updates:
-            await self._new_content_event.wait()
-            self._new_content_event.clear()
-            updates = self.get_unread_updates()
         if not updates:
             return "No new messages or offers."
 

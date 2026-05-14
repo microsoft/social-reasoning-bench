@@ -15,6 +15,7 @@ from .actions import (
     ReplyMeeting,
     RequestMeeting,
     SendEmail,
+    Wait,
 )
 from .calendar import AgentCalendar
 from .email import AgentEmail
@@ -78,7 +79,7 @@ class AgentResources:
         if isinstance(action, SendEmail):
             return self._handle_send_email(action)
         if isinstance(action, GetEmails):
-            return await self._handle_get_emails(action)
+            return self._handle_get_emails(action)
         if isinstance(action, ListMeetings):
             return self._handle_list_meetings(action)
         if isinstance(action, ListContacts):
@@ -89,6 +90,8 @@ class AgentResources:
             return self._handle_cancel_meeting(action)
         if isinstance(action, ReplyMeeting):
             return self._handle_reply_meeting(action)
+        if isinstance(action, Wait):
+            return await self._handle_wait(action)
         if isinstance(action, EndConversation):
             return self._handle_end_conversation(action)
         raise ValueError(f"Unknown action: {type(action).__name__}")
@@ -110,21 +113,40 @@ class AgentResources:
         )
         return "Email sent successfully."
 
-    async def _handle_get_emails(self, action: GetEmails) -> str:
-        """Drain unread emails, blocking until new mail arrives if the inbox is empty.
-
-        Clear-then-check-then-await pattern is race-free: if a counterpart
-        delivers mail between the clear and the check, ``get_unread`` returns
-        it; if it arrives between the check and the await, the event is
-        already re-set so the await returns immediately.
+    def _handle_get_emails(self, action: GetEmails) -> str:
+        """Drain unread emails. Returns immediately, even when the inbox is
+        empty -- agents that want to yield until the counterpart acts should
+        call :class:`Wait`.
         """
         self._new_content_event.clear()
         emails = self.email.get_unread()
-        if not emails:
-            await self._new_content_event.wait()
-            self._new_content_event.clear()
-            emails = self.email.get_unread()
         return format_emails(emails)
+
+    async def _handle_wait(self, action: Wait) -> str:
+        """Yield until the counterpart acts (delivers mail) or the conversation ends.
+
+        Cancellation propagates out as ``CancelledError``; the executor's
+        TaskGroup logic handles it.
+        """
+        if self._env is None or self._env.end_event.is_set():
+            return "Conversation has ended."
+        # Set up a race against the env's end signal so a Wait can be
+        # interrupted by the counterpart calling EndConversation.
+        end_wait = asyncio.create_task(self._env.end_event.wait())
+        content_wait = asyncio.create_task(self._new_content_event.wait())
+        try:
+            done, pending = await asyncio.wait(
+                {end_wait, content_wait}, return_when=asyncio.FIRST_COMPLETED
+            )
+            for t in pending:
+                t.cancel()
+            if end_wait in done:
+                return "Conversation has ended."
+            return "Counterpart activity detected; check your inbox."
+        finally:
+            for t in (end_wait, content_wait):
+                if not t.done():
+                    t.cancel()
 
     def _handle_list_meetings(self, action: ListMeetings) -> str:
         meetings = self.calendar.list_meetings()
