@@ -224,7 +224,7 @@ class BaseAgent:
             try:
                 tool_call = await self.generate_tool_call()
             except ToolCallRetriesExhausted:
-                return
+                continue
             result = await invoke_tool(tool_call)
             self.add_tool_call_result(result)
             remaining -= 1
