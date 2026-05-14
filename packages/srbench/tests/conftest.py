@@ -236,7 +236,6 @@ def cal_agent_messages_all_conditions(request):
             model="test",
             model_client=_mock_client(),
             assistant=assistant,
-            allowed_contacts=["bob@external.com"],
             system_prompt=system_prompt,
             expose_preferences=expose_prefs,
         )
@@ -258,7 +257,6 @@ def cal_agent_messages_all_conditions(request):
             model="test",
             model_client=_mock_client(),
             requestor=requestor,
-            allowed_contacts=["alice@example.com"],
             expose_preferences=expose_prefs,
         )
 

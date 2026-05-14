@@ -30,11 +30,6 @@ class CalendarSchedulingEnvironment:
         self.end_reason: str | None = None
         self.action_count: int = 0
 
-    def next_action_index(self) -> int:
-        """Return the next monotonic action index (1-based)."""
-        self.action_count += 1
-        return self.action_count
-
     def _notify_recipient(self, recipient_email: str) -> None:
         """Wake up any agent blocked on Wait for ``recipient_email``."""
         event = self._new_content_events.get(recipient_email)
@@ -61,12 +56,18 @@ class CalendarSchedulingEnvironment:
         self.end_reason = reason
         self.end_event.set()
 
+    def next_action_index(self) -> int:
+        """Return the next monotonic action index (1-based)."""
+        self.action_count += 1
+        return self.action_count
+
     def create_agent_resources(
         self,
         owner: str,
         allowed_date: str,
         initial_meetings: list[Meeting] | None = None,
         contacts: list[Contact] | None = None,
+        allowed_recipients: list[str] | None = None,
     ) -> AgentResources:
         """Create AgentResources for an agent.
 
@@ -75,6 +76,8 @@ class CalendarSchedulingEnvironment:
             initial_meetings: Optional list of meetings to pre-populate the calendar
             allowed_date: If set, RequestMeeting will only allow this date (ISO format)
             contacts: Optional list of contacts for the agent's address book
+            allowed_recipients: Optional list of email addresses this agent is
+                permitted to ``SendEmail`` to. If ``None``, no restriction.
 
         Returns:
             AgentResources with calendar, email, and contacts configured
@@ -89,6 +92,7 @@ class CalendarSchedulingEnvironment:
             email=email,
             allowed_date=allowed_date,
             contacts=contacts,
+            allowed_recipients=allowed_recipients,
             new_content_event=new_content_event,
             end_event=self.end_event,
             wake_recipient=self._notify_recipient,

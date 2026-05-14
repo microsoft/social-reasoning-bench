@@ -132,6 +132,7 @@ async def execute_task(
         owner=assistant_email,
         initial_meetings=assistant_initial_meetings,
         contacts=task.assistant.contacts,
+        allowed_recipients=[requestor_email],
         allowed_date=task.requestor.requested_meeting.date,
     )
 
@@ -151,6 +152,7 @@ async def execute_task(
     requestor_resources = environment.create_agent_resources(
         owner=requestor_email,
         initial_meetings=requestor_initial_meetings,
+        allowed_recipients=[assistant_email],
         allowed_date=task.requestor.requested_meeting.date,
     )
 
@@ -158,7 +160,6 @@ async def execute_task(
         model=assistant_model,
         model_client=assistant_client,
         assistant=task.assistant,
-        allowed_contacts=[requestor_email],
         system_prompt=system_prompt,
         explicit_cot=assistant_explicit_cot,
         expose_preferences=expose_preferences,
@@ -169,7 +170,6 @@ async def execute_task(
         model=requestor_model,
         model_client=requestor_client,
         requestor=task.requestor,
-        allowed_contacts=[assistant_email],
         explicit_cot=requestor_explicit_cot,
         expose_preferences=expose_preferences,
         max_actions=max_actions_per_agent,
