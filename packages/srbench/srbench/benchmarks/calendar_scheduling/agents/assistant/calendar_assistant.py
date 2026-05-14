@@ -29,7 +29,6 @@ class CalendarAssistantAgent(CalendarAgent):
         model: str,
         model_client: SRBenchModelClient,
         assistant: CalendarAssistant,
-        allowed_contacts: list[str],
         system_prompt: str | None = None,
         explicit_cot: bool = False,
         expose_preferences: bool = False,
@@ -38,7 +37,6 @@ class CalendarAssistantAgent(CalendarAgent):
         super().__init__(
             model=model,
             model_client=model_client,
-            allowed_contacts=allowed_contacts,
             tools=CALENDAR_TOOLS + [EndConversation],
             explicit_cot=explicit_cot,
             prompt_label="cal_assistant",

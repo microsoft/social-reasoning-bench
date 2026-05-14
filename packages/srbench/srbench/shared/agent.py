@@ -12,10 +12,7 @@ Common patterns unified here:
 - Injecting tool call results into history
 
 Benchmark-specific subclasses add:
-- Custom tool validation (e.g., SendEmail recipient checks in calendar)
 - Custom retry error messages (calendar vs marketplace style)
-- Domain-specific message injection (add_new_messages, add_turn_marker)
-- Non-tool-call generation (generate_text_response in marketplace)
 """
 
 import traceback
@@ -109,8 +106,7 @@ CounterpartyAgentFactory: TypeAlias = Callable[[AgentContext], CounterpartyAgent
 class RetryException(Exception):
     """Raised when a model response cannot be parsed as a valid single tool call.
 
-    Used internally by generate_tool_call to trigger retry logic. Subclasses
-    may raise this from validate_tool_call to reject a parsed tool call.
+    Used internally by generate_tool_call to trigger retry logic.
     """
 
     pass
@@ -144,11 +140,8 @@ class BaseAgent:
     1. Call ``super().__init__(...)`` with their tool list and configuration.
     2. Set up initial messages (system prompt, instructions) by appending to
        ``self._messages``.
-    3. Optionally override ``validate_tool_call()`` for domain-specific checks.
-    4. Optionally override ``on_retry_no_tool_calls()`` and
+    3. Optionally override ``on_retry_no_tool_calls()`` and
        ``on_retry_invalid_tool_call()`` for custom retry error messages.
-    5. Add domain-specific methods (e.g., ``add_new_messages``,
-       ``add_turn_marker``) that manipulate ``self._messages``.
     """
 
     def __init__(
@@ -326,23 +319,6 @@ class BaseAgent:
         )
 
     # ------------------------------------------------------------------ #
-    # Validation hook (override in subclasses)
-    # ------------------------------------------------------------------ #
-
-    def validate_tool_call(self, tool_call: Tool) -> None:
-        """Validate a parsed tool call before accepting it.
-
-        Override this in subclasses to add domain-specific validation
-        (e.g., checking that email recipients are in an allowed list).
-
-        Args:
-            tool_call: The parsed Tool instance.
-
-        Raises:
-            RetryException: If the tool call is invalid and should be retried.
-        """
-
-    # ------------------------------------------------------------------ #
     # Retry message hooks (override in subclasses for custom wording)
     # ------------------------------------------------------------------ #
 
@@ -496,9 +472,6 @@ class BaseAgent:
 
                 parsed_tool_call = tool_type.model_validate_json(function.arguments)
 
-                # Domain-specific validation hook
-                self.validate_tool_call(parsed_tool_call)
-
                 # Successfully parsed -- commit to canonical history
                 if cot_thinking:
                     self._messages.append({"role": "assistant", "content": cot_thinking})
@@ -540,11 +513,11 @@ class BaseAgent:
     # Text-only generation (no tools)
     # ------------------------------------------------------------------ #
 
-    async def generate_text_response(self, prompt: str) -> str:
+    async def generate_text(self, prompt: str) -> str:
         """Call the model without tools and return a plain text response.
 
-        Useful for post-hoc probing (e.g., privacy probes in marketplace)
-        without affecting the canonical message history.
+        Satisfies the :class:`CounterpartyAgent` protocol surface used to
+        compose the deterministic opening action body.
 
         Args:
             prompt: A user message to append (on a copy) before calling.
@@ -564,7 +537,3 @@ class BaseAgent:
         finally:
             prompt_label.reset(token)
         return response.content or ""
-
-    async def generate_text(self, prompt: str) -> str:
-        """:class:`CounterpartyAgent` protocol alias for :meth:`generate_text_response`."""
-        return await self.generate_text_response(prompt)

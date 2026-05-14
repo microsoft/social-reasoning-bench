@@ -1,12 +1,9 @@
 """Base agent class for marketplace negotiation interactions."""
 
-from typing import Any
-
-from pydantic_core import to_json
 from srbench_llm import SRBenchModelClient
 
 from ....shared.agent import BaseAgent
-from ..environment.actions import GETMESSAGES_TOOL_NAME, MARKETPLACE_TOOLS
+from ..environment.actions import MARKETPLACE_TOOLS
 from ..prompts.system import (
     MKT_ROLE,
     PRESETS,
@@ -26,12 +23,12 @@ __all__ = [
 
 
 class MarketplaceAgent(BaseAgent):
-    """Base LLM agent for marketplace negotiation with function/tool calling.
+    """Base LLM agent for marketplace negotiation.
 
-    Extends :class:`BaseAgent` with:
-    - System prompt and instruction message setup
-    - ``add_turn_marker`` for round-based deadline awareness
-    - ``add_new_messages`` for injecting updates via simulated ``GetMessages``
+    Thin :class:`BaseAgent` subclass that defaults the tool registry to
+    :data:`MARKETPLACE_TOOLS` (plus any role-specific additions), labels the
+    prompt-tracking bucket, and seeds the conversation with the role's
+    system prompt and instruction.
     """
 
     def __init__(
@@ -75,53 +72,3 @@ class MarketplaceAgent(BaseAgent):
 
     def _init_malicious(self, malicious_prompt: str):
         self._messages.append({"role": "system", "content": malicious_prompt.strip()})
-
-    # ------------------------------------------------------------------ #
-    # Marketplace-specific message helpers
-    # ------------------------------------------------------------------ #
-
-    def add_turn_marker(self, *, current_round: int, max_rounds: int) -> None:
-        """Inject an explicit turn/round marker to improve deadline awareness.
-
-        Args:
-            current_round: The current round number in the negotiation.
-            max_rounds: The maximum number of rounds allowed.
-        """
-        self._messages.append(
-            {
-                "role": "user",
-                "content": (
-                    f"Round {current_round} of {max_rounds}. It is your turn as {self._role}. "
-                    "Use GetMessages to read unread updates/offers, then act. "
-                    "Use Wait to end your turn."
-                ),
-            }
-        )
-
-    def add_new_messages(self, updates: list[Any]) -> None:
-        """Inject unread updates by simulating a GetMessages tool call and response.
-
-        Args:
-            updates: List of unread update dicts (messages and offers) to inject
-                into the conversation as a simulated GetMessages result.
-        """
-        tool_call_id = str(len(self._messages))
-        self._messages.append(
-            {
-                "role": "assistant",
-                "tool_calls": [
-                    {
-                        "id": tool_call_id,
-                        "type": "function",
-                        "function": {"name": GETMESSAGES_TOOL_NAME, "arguments": "{}"},
-                    }
-                ],
-            }
-        )
-        self._messages.append(
-            {
-                "role": "tool",
-                "tool_call_id": tool_call_id,
-                "content": to_json(updates).decode(),
-            }
-        )
