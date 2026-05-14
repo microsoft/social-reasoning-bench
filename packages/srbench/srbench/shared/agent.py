@@ -19,16 +19,91 @@ Benchmark-specific subclasses add:
 """
 
 import traceback
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Awaitable, Callable, Protocol, TypeAlias
 
-from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToolChoiceOptionParam
+from openai.types.chat import (
+    ChatCompletionFunctionToolParam,
+    ChatCompletionMessageParam,
+    ChatCompletionToolChoiceOptionParam,
+)
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
 )
-from pydantic import ValidationError
+from pydantic import SkipValidation, ValidationError
 from srbench_llm import SRBenchInputMessage, SRBenchModelClient
 
 from .tool import Tool
+
+# Pydantic-friendly OpenAI message alias. Structurally identical to
+# ``ChatCompletionMessageParam`` for type-checking; ``SkipValidation`` tells
+# pydantic to store the dicts verbatim (avoids the ``ValidatorIterator``
+# footgun on ``Iterable``-typed ``tool_calls`` fields).
+AgentMessage: TypeAlias = SkipValidation[ChatCompletionMessageParam]
+
+# The agent's only env touchpoint: pass a Tool, get back a result string.
+# The executor binds env-specific resource ``execute`` into this callback
+# before passing it to :meth:`Agent.run`.
+InvokeTool: TypeAlias = Callable[[Tool], Awaitable[str]]
+
+
+class Agent(Protocol):
+    """Minimum surface for an agent under evaluation (assistant / buyer).
+
+    The benchmark executors only depend on this surface; everything else
+    (model client, prompting strategy, retry behavior, provider-specific
+    metadata handling) is an implementation detail of the concrete agent.
+    """
+
+    @property
+    def messages(self) -> list[AgentMessage]: ...
+
+    @property
+    def tools(self) -> list[ChatCompletionFunctionToolParam]: ...
+
+    async def run(self, invoke_tool: InvokeTool) -> None: ...
+
+    async def close(self) -> None: ...
+
+
+class CounterpartyAgent(Agent, Protocol):
+    """Extends :class:`Agent` with the capabilities the harness needs to
+    drive the deterministic opening action in the counterparty's voice.
+
+    The counterparty role (calendar requestor / marketplace seller) must
+    satisfy this protocol because the harness asks it to compose the
+    natural-language body of the opening action (initial ``RequestMeeting``
+    / ``MakeOffer``) and then records the resulting forced action on its
+    transcript.
+    """
+
+    async def generate_text(self, prompt: str) -> str: ...
+
+    def add_forced_action(self, action: Tool, result: str) -> None: ...
+
+
+@dataclass(frozen=True)
+class AgentContext:
+    """Everything a factory needs to construct an :class:`Agent` for one role.
+
+    Fields below ``explicit_cot`` are conveniences for the default
+    :class:`BaseAgent`-derived implementations; BYO agents may ignore them
+    or pull what they need from ``extras``.
+    """
+
+    role: str
+    tools: list[type[Tool]]
+    system_prompt: str | None
+    instruction_message: str
+    explicit_cot: bool
+    model: str | None = None
+    model_client: SRBenchModelClient | None = None
+    max_actions: int = 50
+    extras: dict[str, Any] = field(default_factory=dict)
+
+
+AgentFactory: TypeAlias = Callable[[AgentContext], Agent]
+CounterpartyAgentFactory: TypeAlias = Callable[[AgentContext], CounterpartyAgent]
 
 
 class RetryException(Exception):
@@ -86,6 +161,7 @@ class BaseAgent:
         temperature: float | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam = "auto",
         prompt_label: str = "unknown",
+        max_actions: int = 50,
     ) -> None:
         """Initialize the base agent.
 
@@ -103,6 +179,11 @@ class BaseAgent:
             prompt_label: Label for token tracking (e.g., "interviewer",
                 "assistant"). Used by the concurrency module to report
                 per-prompt token breakdowns.
+            max_actions: Self-imposed budget on the number of tool calls
+                :meth:`run` will issue before returning. The agent never
+                inspects which tools terminate -- ``env.end_event`` plus
+                executor cancellation handle that. ``max_actions`` is a
+                belt-and-braces cap that bounds cost in pathological cases.
         """
         self._model = model
         self._model_client = model_client
@@ -111,6 +192,7 @@ class BaseAgent:
         self._explicit_cot = explicit_cot
         self._temperature = temperature
         self._tool_choice = tool_choice
+        self._max_actions = max_actions
 
         # Build tool registry: name -> Tool class
         self._tools: dict[str, type[Tool]] = {t.get_name(): t for t in tools}
@@ -119,6 +201,40 @@ class BaseAgent:
         self._openai_tools: list[ChatCompletionFunctionToolParam] = [
             t.get_openai_function_tool_param() for t in tools
         ]
+
+    # ------------------------------------------------------------------ #
+    # :class:`Agent` protocol surface
+    # ------------------------------------------------------------------ #
+
+    async def run(self, invoke_tool: InvokeTool) -> None:
+        """Drive the tool-call loop until ``max_actions`` is exhausted or
+        retries are exhausted.
+
+        The loop:
+          1. :meth:`generate_tool_call` (LLM + retries) -> parsed Tool.
+          2. ``await invoke_tool(tool)`` -> result string (the executor's
+             env-bound callback; ToolError-derived errors come back as
+             result strings, not exceptions).
+          3. :meth:`add_tool_call_result` -> append to transcript.
+          4. Decrement budget; repeat.
+
+        The agent does NOT inspect which tools terminate -- ``env.end_event``
+        and executor-driven cancellation handle that uniformly.
+        """
+        remaining = self._max_actions
+        while remaining > 0:
+            try:
+                tool_call = await self.generate_tool_call()
+            except ToolCallRetriesExhausted:
+                return
+            result = await invoke_tool(tool_call)
+            self.add_tool_call_result(result)
+            remaining -= 1
+
+    async def close(self) -> None:
+        """No-op for pure in-process agents. Subclasses that own external
+        resources (subprocesses, sockets) override this for cleanup.
+        """
 
     @property
     def messages(self) -> list[SRBenchInputMessage]:

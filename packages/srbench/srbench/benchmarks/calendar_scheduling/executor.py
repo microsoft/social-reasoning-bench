@@ -85,7 +85,7 @@ async def _run_agent_turn(
             benchmark_logger.debug(
                 "[%s] %s: %s", resources.owner, type(tool_call).__qualname__, tool_call
             )
-            result = resources.execute(tool_call)
+            result = await resources.execute(tool_call)
             execution_succeeded = True
             benchmark_logger.debug("[%s] Result: %s", resources.owner, result)
         except ToolError as e:
@@ -152,12 +152,12 @@ async def _force_initial_request(
     )
 
     # Execute and record
-    result = requestor_resources.execute(request_action)
+    result = await requestor_resources.execute(request_action)
     requestor_agent.add_forced_action(request_action, result)
 
     # Then Wait
     wait_action = Wait()
-    wait_result = requestor_resources.execute(wait_action)
+    wait_result = await requestor_resources.execute(wait_action)
     requestor_agent.add_forced_action(wait_action, wait_result)
 
     return [request_action, wait_action]

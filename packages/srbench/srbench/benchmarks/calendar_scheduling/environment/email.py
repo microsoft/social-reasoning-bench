@@ -70,11 +70,18 @@ class AgentEmail:
 
 
 class EmailManager:
-    """Manages email delivery and creates AgentEmail instances with injected callbacks."""
+    """Manages email delivery and creates AgentEmail instances with injected callbacks.
 
-    def __init__(self) -> None:
+    Optionally accepts an ``on_delivery`` callback invoked with the recipient
+    email address every time a message is delivered. The environment uses this
+    to wake up any agent currently blocked on ``GetEmails`` for an empty
+    inbox.
+    """
+
+    def __init__(self, on_delivery: Callable[[str], None] | None = None) -> None:
         self._emails: list[Email] = []
         self._read_indices: dict[str, int] = {}
+        self._on_delivery = on_delivery
 
     def create_email(self, owner: str) -> AgentEmail:
         """Factory: creates AgentEmail with callbacks wired to this manager.
@@ -90,6 +97,8 @@ class EmailManager:
 
         def deliver(email: Email) -> None:
             self._emails.append(email)
+            if self._on_delivery is not None:
+                self._on_delivery(email.to)
 
         def get_unread() -> list[Email]:
             idx = self._read_indices[owner]
