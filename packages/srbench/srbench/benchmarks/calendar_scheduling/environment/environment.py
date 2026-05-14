@@ -28,6 +28,12 @@ class CalendarSchedulingEnvironment:
         self._calendar_manager = CalendarManager()
         self.end_event: asyncio.Event = asyncio.Event()
         self.end_reason: str | None = None
+        self.action_count: int = 0
+
+    def next_action_index(self) -> int:
+        """Return the next monotonic action index (1-based)."""
+        self.action_count += 1
+        return self.action_count
 
     def _notify_recipient(self, recipient_email: str) -> None:
         """Wake up any agent blocked on Wait for ``recipient_email``."""

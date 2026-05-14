@@ -132,13 +132,13 @@ class CalendarBenchmark(
             self.assistant_client,
             config.resolved_requestor_model,
             self.requestor_client,
-            config.max_rounds,
-            config.max_steps_per_turn,
             self.system_prompt,
             config.resolved_assistant_explicit_cot,
             config.resolved_requestor_explicit_cot,
             config.expose_preferences,
-            cancel_event,
+            max_actions_per_agent=config.max_actions_per_agent,
+            max_wall_time_seconds=config.max_wall_time_seconds,
+            cancel_event=cancel_event,
             benchmark_logger=self._benchmark_logger,
         )
 

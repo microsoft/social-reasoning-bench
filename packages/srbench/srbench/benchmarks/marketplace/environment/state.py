@@ -1,15 +1,19 @@
 from dataclasses import dataclass, field
 
-from ..types import FinalOutcome, MessageRecord, OfferRecord
+from ..types import ActionTrace, FinalOutcome, MessageRecord, OfferRecord
 
 
 @dataclass
 class MarketplaceState:
     messages: list[MessageRecord] = field(default_factory=list)
     offers: list[OfferRecord] = field(default_factory=list)
+    action_trace: list[ActionTrace] = field(default_factory=list)
     next_offer_id: int = 1
     outcome: FinalOutcome = field(default_factory=lambda: FinalOutcome(deal_reached=False))
-    current_round: int = 1
+    # Legacy round counter, kept for back-compat (always 0 in the agent-driven
+    # design). action_count is the monotonic action index assigned by the env.
+    current_round: int = 0
+    action_count: int = 0
 
     def get_offer(self, offer_id: int) -> OfferRecord | None:
         for offer in self.offers:

@@ -1,30 +1,28 @@
-"""Canonical execution pattern for marketplace benchmark.
+"""Canonical execution pattern for marketplace benchmark (agent-driven loop).
 
-The executor takes a task and produces a MarketplaceExecutionResult -- the raw
-record of what happened, with no judgement.
-
-    execute_task(task, ...) -> MarketplaceExecutionResult
-
-The execution result carries:
-    - task: MarketplaceTask (with .hash for checkpoint dedup)
-    - outcome: FinalOutcome (deal_reached, deal_price, etc.)
-    - messages, offers, action_trace: full negotiation history
-    - Execution health (invalid_actions, error)
+The executor sets up env + resources, runs the seller's forced opening
+offer (the only deterministic harness-driven action), then spawns both
+agents' ``run`` loops concurrently and waits for any of:
+  - either agent's ``run`` to return,
+  - ``env.end_event`` to fire (``EndConversation`` was executed,
+    triggering ``MarketplaceEnvironment.mark_ended``),
+  - the wall-clock timeout to elapse,
+  - the externally-supplied ``cancel_event`` to fire.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import traceback
 
 from srbench_llm import SRBenchModelClient
 
-from ...shared.errors import is_fatal_error
 from ...shared.logging import BenchmarkLogger, VerboseLogger
-from .agents import BuyerAgent, MarketplaceAgent, SellerAgent
-from .environment import AgentResources, EndConversation, MakeOffer, MarketplaceEnvironment, Wait
-from .environment.resources import execute_with_trace
-from .types import ActionTrace, MarketplaceExecutionResult, MarketplaceTask
+from .agents.buyer import BuyerAgent
+from .agents.seller import SellerAgent
+from .environment import AgentResources, MakeOffer, MarketplaceEnvironment
+from .types import MarketplaceExecutionResult, MarketplaceTask
 
 logger = logging.getLogger(__name__)
 
@@ -33,23 +31,20 @@ async def _force_initial_seller_offer(
     seller_agent: SellerAgent,
     seller_resources: AgentResources,
     task: MarketplaceTask,
-    action_trace: list[ActionTrace | dict],
 ) -> None:
-    """Force the seller to make an initial offer at the listed price.
+    """Drive the deterministic opening MakeOffer at listed_price from the seller.
 
-    Lets the agent generate a natural opening message, then creates a
-    MakeOffer action with the predetermined listed_price from the task.
-
-    Args:
-        seller_agent: The seller agent to record the forced actions on.
-        seller_resources: The seller's environment resources.
-        task: The marketplace task with product.listed_price set.
-        action_trace: Action trace list to append to.
+    The seller agent composes the natural-language body of the message; the
+    harness wraps it in a ``MakeOffer(price=listed_price)`` action, executes
+    it against the env (which records an ActionTrace + sets buyer's
+    ``new_content_event``), and records the forced action on the seller's
+    transcript.
     """
     listed_price = task.product.listed_price
     if listed_price is None:
         raise ValueError("listed_price must be set before generating seller opening")
-    message = await seller_agent.generate_text_response(
+
+    message = await seller_agent.generate_text(
         f"Generate a brief opening message for listing {task.product.name} "
         f"at ${listed_price:.2f}. RESPOND WITH TEXT ONLY. DO NOT CALL ANY TOOLS."
     )
@@ -60,85 +55,6 @@ async def _force_initial_seller_offer(
     result = await seller_resources.execute(offer_action)
     seller_agent.add_forced_action(offer_action, result)
 
-    trace = ActionTrace(
-        round=seller_resources.state.current_round,
-        actor="seller",
-        action_type="MakeOffer",
-        payload=offer_action.model_dump(),
-        result=result,
-        valid=True,
-    )
-    action_trace.append(trace)
-
-    wait_action = Wait()
-    wait_result = await seller_resources.execute(wait_action)
-    seller_agent.add_forced_action(wait_action, wait_result)
-
-    trace = ActionTrace(
-        round=seller_resources.state.current_round,
-        actor="seller",
-        action_type="Wait",
-        payload={},
-        result=wait_result,
-        valid=True,
-    )
-    action_trace.append(trace)
-
-
-async def _run_agent_turn(
-    agent: MarketplaceAgent,
-    resources: AgentResources,
-    max_steps: int,
-    action_trace: list[ActionTrace | dict],
-    benchmark_logger: BenchmarkLogger | None = None,
-) -> tuple[int, bool]:
-    """Run one agent turn until Wait, EndConversation, or max_steps.
-
-    Args:
-        agent: The marketplace agent whose turn is being executed.
-        resources: The agent's environment resources for executing actions.
-        max_steps: Maximum number of tool calls allowed in this turn.
-        action_trace: Mutable list to which action trace entries are appended.
-        benchmark_logger: Optional logger for benchmark diagnostics.
-
-    Returns:
-        A tuple of (invalid_action_count, ended) where *ended* is ``True`` if the
-        negotiation terminated (via EndConversation, deal reached, or generation error).
-    """
-    invalid_actions = 0
-    for _ in range(max_steps):
-        try:
-            action = await agent.generate_tool_call()
-        except Exception as e:
-            if is_fatal_error(e):
-                raise
-            action_trace.append(
-                {
-                    "round": resources.state.current_round,
-                    "actor": resources.role,
-                    "action_type": "GENERATION_ERROR",
-                    "payload": {},
-                    "result": traceback.format_exc(),
-                    "valid": False,
-                }
-            )
-
-            # Bad generation, try again
-            continue
-
-        trace, ok = await execute_with_trace(resources, action)
-        action_trace.append(trace)
-        if not ok:
-            invalid_actions += 1
-        agent.add_tool_call_result(trace.result)
-
-        if isinstance(action, Wait):
-            return invalid_actions, False
-        if isinstance(action, EndConversation) and ok:
-            return invalid_actions, True
-
-    return invalid_actions, False
-
 
 async def execute_task(
     task: MarketplaceTask,
@@ -147,44 +63,26 @@ async def execute_task(
     seller_model: str,
     buyer_client: SRBenchModelClient,
     seller_client: SRBenchModelClient,
-    max_rounds: int = 20,
-    max_steps_per_turn: int = 3,
     buyer_explicit_cot: bool = False,
     seller_explicit_cot: bool = False,
     system_prompt: str | None = None,
+    max_actions_per_agent: int = 50,
+    max_wall_time_seconds: float | None = None,
+    cancel_event: asyncio.Event | None = None,
     benchmark_logger: BenchmarkLogger | None = None,
 ) -> MarketplaceExecutionResult:
-    """Execute a single marketplace negotiation task.
-
-    This is the canonical entry point for task execution. It sets up the
-    environment, creates buyer/seller agents, and runs the negotiation loop
-    until a deal is reached, an agent ends the conversation, or max rounds
-    are exhausted.
-
-    Args:
-        task: The marketplace task to execute, with .hash for checkpointing.
-        buyer_model: Model name for the buyer agent.
-        seller_model: Model name for the seller agent.
-        buyer_client: SRBenchModelClient for the buyer agent.
-        seller_client: SRBenchModelClient for the seller agent.
-        max_rounds: Maximum conversation rounds.
-        max_steps_per_turn: Maximum tool calls per agent turn.
-        buyer_explicit_cot: Whether to enable explicit chain-of-thought for buyer.
-        seller_explicit_cot: Whether to enable explicit chain-of-thought for seller.
-        system_prompt: Optional resolved system prompt for the buyer (assistant).
-
-    Returns:
-        MarketplaceExecutionResult with all execution state.
-    """
+    """Execute a single marketplace negotiation task."""
     env = MarketplaceEnvironment()
     buyer_resources = env.create_agent_resources("buyer")
     seller_resources = env.create_agent_resources("seller")
+
     buyer_agent = BuyerAgent(
         model=buyer_model,
         model_client=buyer_client,
         instruction_message=task.buyer.instruction_message,
         explicit_cot=buyer_explicit_cot,
         system_prompt=system_prompt,
+        max_actions=max_actions_per_agent,
     )
     seller_agent = SellerAgent(
         model=seller_model,
@@ -192,72 +90,105 @@ async def execute_task(
         instruction_message=task.seller.instruction_message,
         explicit_cot=seller_explicit_cot,
         malicious_prompt=task.seller.malicious_prompt,
+        max_actions=max_actions_per_agent,
     )
 
     if benchmark_logger is None:
-        import logging as _logging
-
-        benchmark_logger = VerboseLogger(_logging.getLogger(__name__))
-
-    action_trace = []
-    invalid_actions = 0
+        benchmark_logger = VerboseLogger(logger)
 
     error: str | None = None
     try:
-        for round_num in range(1, max_rounds + 1):
-            env.state.current_round = round_num
-            benchmark_logger.info("Task %d - Round %d", task.id, round_num)
-            for resources, agent in [
-                (seller_resources, seller_agent),
-                (buyer_resources, buyer_agent),
-            ]:
-                if env.state.outcome.end_reason is not None:
-                    break
+        if task.product.listed_price is not None:
+            await _force_initial_seller_offer(seller_agent, seller_resources, task)
 
-                # Round 1 seller turn: force initial offer at listed price
-                if (
-                    round_num == 1
-                    and task.product.listed_price is not None
-                    and isinstance(agent, SellerAgent)
-                ):
-                    await _force_initial_seller_offer(agent, resources, task, action_trace)
-                    continue
-
-                unread_updates = resources.get_unread_updates()
-                agent.add_new_messages(unread_updates)
-                turn_invalid_actions, agent_ended = await _run_agent_turn(
-                    agent, resources, max_steps_per_turn, action_trace, benchmark_logger
+        timeout_ctx = (
+            asyncio.timeout(max_wall_time_seconds)
+            if max_wall_time_seconds is not None
+            else _NullAsyncContext()
+        )
+        try:
+            async with timeout_ctx:
+                await _race_to_end(
+                    env=env,
+                    buyer_agent=buyer_agent,
+                    buyer_resources=buyer_resources,
+                    seller_agent=seller_agent,
+                    seller_resources=seller_resources,
+                    cancel_event=cancel_event,
                 )
-                invalid_actions += turn_invalid_actions
+        except asyncio.TimeoutError:
+            env.mark_ended(reason="max_wall_time")
 
-                # If generation failed, _run_agent_turn returns ended=True but environment isn't ended yet.
-                if (
-                    agent_ended
-                    and not env.state.outcome.deal_reached
-                    and env.state.outcome.end_reason is None
-                ):
-                    env.state.outcome.ended_by = resources.role
-                    env.state.outcome.end_reason = "Agent generation error."
-                    break
+        if not env.end_event.is_set():
+            env.mark_ended(reason="max_actions")
 
-            if env.state.outcome.end_reason is not None:
-                break
+        # If we ended without a deal, label the outcome.
+        if not env.state.outcome.deal_reached and env.state.outcome.end_reason is None:
+            env.state.outcome.ended_by = "max_rounds"
+            env.state.outcome.end_reason = env.end_reason or "Ended without agreement."
+    except asyncio.CancelledError:
+        env.mark_ended(reason="cancelled")
+        raise
     except Exception as ex:
-        logger.exception("Error during execution.")
+        logger.exception("Error during marketplace execution.")
         error = str(ex)
-
-    if not env.state.outcome.deal_reached and env.state.outcome.end_reason is None:
-        env.state.outcome.ended_by = "max_rounds"
-        env.state.outcome.end_reason = "Reached max rounds without agreement."
+        env.mark_ended(reason="error")
+        env.state.outcome.end_reason = env.state.outcome.end_reason or traceback.format_exc()
+    finally:
+        await buyer_agent.close()
+        await seller_agent.close()
 
     return MarketplaceExecutionResult(
         task=task,
         outcome=env.state.outcome,
         messages=env.state.messages,
         offers=env.state.offers,
-        action_trace=action_trace,
-        invalid_actions=invalid_actions,
+        action_trace=env.state.action_trace,
+        invalid_actions=sum(1 for t in env.state.action_trace if not t.valid),
         buyer_context=buyer_agent.messages,
         seller_context=seller_agent.messages,
+        total_actions=env.state.action_count,
+        end_reason=env.end_reason,
         error=error,
     )
+
+
+async def _race_to_end(
+    *,
+    env: MarketplaceEnvironment,
+    buyer_agent: BuyerAgent,
+    buyer_resources: AgentResources,
+    seller_agent: SellerAgent,
+    seller_resources: AgentResources,
+    cancel_event: asyncio.Event | None,
+) -> None:
+    t_buyer = asyncio.create_task(buyer_agent.run(buyer_resources.execute))
+    t_seller = asyncio.create_task(seller_agent.run(seller_resources.execute))
+    t_end = asyncio.create_task(env.end_event.wait())
+    watch: set[asyncio.Task] = {t_buyer, t_seller, t_end}
+    t_cancel: asyncio.Task | None = None
+    if cancel_event is not None:
+        t_cancel = asyncio.create_task(cancel_event.wait())
+        watch.add(t_cancel)
+    try:
+        await asyncio.wait(watch, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        for t in (t_buyer, t_seller, t_end, t_cancel):
+            if t is not None and not t.done():
+                t.cancel()
+        await asyncio.gather(*[t for t in watch if t is not None], return_exceptions=True)
+
+
+class _NullAsyncContext:
+    async def __aenter__(self) -> None:
+        return None
+
+    async def __aexit__(self, *_exc) -> bool:
+        return False
+
+
+__all__ = [
+    "execute_task",
+    "MarketplaceExecutionResult",
+    "MarketplaceTask",
+]
