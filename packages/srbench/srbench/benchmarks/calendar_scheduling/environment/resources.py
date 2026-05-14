@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+from typing import Callable
 
 from ..types import Attendee, AttendeeStatus, Contact, Meeting, Tool, ToolError
 from .actions import (
@@ -27,16 +27,13 @@ from .utils import (
     parse_time,
 )
 
-if TYPE_CHECKING:
-    from .environment import CalendarSchedulingEnvironment
-
 
 class AgentResources:
     """Encapsulates all resources available to an agent (calendar + email + contacts).
 
     ``execute(action)`` is async because ``Wait`` blocks until the counterpart
-    delivers mail (or until the env's ``end_event`` fires). All other actions
-    complete synchronously and return immediately.
+    delivers mail (or until ``end_event`` fires). All other actions complete
+    synchronously and return immediately.
     """
 
     def __init__(
@@ -47,7 +44,8 @@ class AgentResources:
         allowed_date: str,
         contacts: list[Contact] | None = None,
         new_content_event: asyncio.Event | None = None,
-        env: "CalendarSchedulingEnvironment | None" = None,
+        end_event: asyncio.Event | None = None,
+        wake_recipient: Callable[[str], None] | None = None,
     ) -> None:
         self.owner = owner
         self.calendar = calendar
@@ -55,7 +53,8 @@ class AgentResources:
         self.allowed_date = allowed_date
         self.contacts = contacts or []
         self._new_content_event: asyncio.Event = new_content_event or asyncio.Event()
-        self._env: "CalendarSchedulingEnvironment | None" = env
+        self._end_event: asyncio.Event = end_event or asyncio.Event()
+        self._wake_recipient: Callable[[str], None] = wake_recipient or (lambda _to: None)
 
     async def execute(self, action: Tool) -> str:
         """Execute a tool action and return the result as a string.
@@ -104,6 +103,7 @@ class AgentResources:
             subject="Message",
             body=action.message,
         )
+        self._wake_recipient(action.to)
         return "Email sent successfully."
 
     def _handle_get_emails(self, action: GetEmails) -> str:
@@ -465,10 +465,15 @@ class AgentResources:
     async def _handle_wait(self, action: Wait) -> str:
         """Yield until the counterpart acts (delivers mail) or the conversation ends.
 
-        Races ``self._new_content_event.wait()`` against ``env.end_event.wait()``;
-        whichever fires first determines the return value. Cancellation
-        propagates out as ``CancelledError`` so the executor's TaskGroup
-        logic stays clean.
+        Races ``self._new_content_event.wait()`` against
+        ``self._end_event.wait()``; whichever fires first determines the
+        return value.
+
+        External cancellation (the executor's ``cancel_event``, wall-clock
+        timeout, etc.) is *not* watched here. The executor races
+        ``cancel_event`` at the outer level and cancels the agent's ``run()``
+        task; ``CancelledError`` propagates through ``asyncio.wait`` and out
+        via the ``finally`` block, which is the right behavior.
 
         Args:
             action: The Wait action.
@@ -476,9 +481,9 @@ class AgentResources:
         Returns:
             A status string describing what unblocked the wait.
         """
-        if self._env is None or self._env.end_event.is_set():
+        if self._end_event.is_set():
             return "Conversation has ended."
-        end_wait = asyncio.create_task(self._env.end_event.wait())
+        end_wait = asyncio.create_task(self._end_event.wait())
         content_wait = asyncio.create_task(self._new_content_event.wait())
         try:
             done, pending = await asyncio.wait(

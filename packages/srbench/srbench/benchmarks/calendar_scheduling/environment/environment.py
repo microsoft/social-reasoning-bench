@@ -24,13 +24,13 @@ class CalendarSchedulingEnvironment:
 
     def __init__(self) -> None:
         self._new_content_events: dict[str, asyncio.Event] = {}
-        self._email_manager = EmailManager(on_delivery=self._notify_recipient)
+        self._email_manager = EmailManager()
         self._calendar_manager = CalendarManager()
         self.end_event: asyncio.Event = asyncio.Event()
         self.end_reason: str | None = None
 
     def _notify_recipient(self, recipient_email: str) -> None:
-        """Wake up any agent blocked on GetEmails for ``recipient_email``."""
+        """Wake up any agent blocked on Wait for ``recipient_email``."""
         event = self._new_content_events.get(recipient_email)
         if event is not None:
             event.set()
@@ -84,7 +84,8 @@ class CalendarSchedulingEnvironment:
             allowed_date=allowed_date,
             contacts=contacts,
             new_content_event=new_content_event,
-            env=self,
+            end_event=self.end_event,
+            wake_recipient=self._notify_recipient,
         )
 
     def get_all_emails(self) -> list[Email]:
