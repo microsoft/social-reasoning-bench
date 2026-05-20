@@ -712,7 +712,7 @@ class Benchmark(ABC, Generic[TConfig, TTask, TExecResult, TEvalResult, TBenchmar
         g = parser.add_argument_group("system prompt")
         g.add_argument(
             "--system-prompt",
-            choices=["none", "privacy", "dd_info_gathering", "dd_advocacy", "oo"],
+            choices=["none", "privacy", "dd_info_gathering", "dd_advocacy", "oo", "all"],
             default=None,
         )
 
