@@ -109,7 +109,7 @@ PALETTE = Palette()
 
 
 DOMAIN_ORDER: list[str] = ["Calendar", "Marketplace"]
-MODEL_ORDER: list[str] = ["gpt-4.1", "gpt-5.4", "gemini", "claude"]
+MODEL_ORDER: list[str] = ["gpt-4.1", "gpt-5.4", "gemini", "claude", "qwen"]
 
 
 def model_sort_key(label: str) -> list[float]:

@@ -43,6 +43,7 @@ MODEL_PRETTY: dict[str, str] = {
     "azure_pool-gpt-5-4": "GPT-5.4",
     "gemini-3-flash-preview": "Gemini 3 Flash",
     "claude-sonnet-4-6": "Claude Sonnet 4.6",
+    "openai-qwen3-4b-instruct-2507": "Qwen3-4B-Instruct",
 }
 
 MODE_PRETTY: dict[str, str] = {
@@ -51,6 +52,7 @@ MODE_PRETTY: dict[str, str] = {
     "high": "think_high",
     "low": "think_low",
     "10000": "think_10k",
+    "": "default",
 }
 
 DOMAIN_PRETTY: dict[str, str] = {
@@ -65,7 +67,14 @@ TARGET_MODELS: set[tuple[str, str]] = {
     ("azure_pool-gpt-5-4", "high"),
     ("gemini-3-flash-preview", "high"),
     ("claude-sonnet-4-6", "10000"),
+    ("openai-qwen3-4b-instruct-2507", ""),
 }
+
+# Optional per-domain task-id allowlist.  When set (e.g. to restrict the
+# large baseline runs to the small/medium subsets a smaller model was
+# evaluated on), :meth:`Run.iter_results` will skip tasks whose id is not
+# in the allowlist for that domain.  ``None`` (default) means no filter.
+TASK_ID_ALLOWLIST: dict[str, set[int]] | None = None
 
 # ── Aliases ──────────────────────────────────────────────────────
 
@@ -147,8 +156,11 @@ class Run:
 
     def iter_results(self) -> Iterator[EvalResult]:
         """Yield successfully-evaluated task results, skipping errored tasks."""
+        allow = TASK_ID_ALLOWLIST.get(self.dims.domain) if TASK_ID_ALLOWLIST else None
         for task in self._results:
             if task.error:
+                continue
+            if allow is not None and task.execution.task.id not in allow:
                 continue
             yield task
 
