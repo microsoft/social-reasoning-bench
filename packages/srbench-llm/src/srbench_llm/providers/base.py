@@ -1,13 +1,13 @@
 """Provider ABC."""
 
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar
+from typing import TypeVar
 
 from openai.types.chat import ChatCompletionToolChoiceOptionParam, ChatCompletionToolParam
 from pydantic import BaseModel
 
 from ..tracing import LLMTrace
-from ..types import SRBenchChatCompletionMessage, SRBenchMessage
+from ..types import SRBenchChatCompletionMessage, SRBenchInputMessage
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -29,7 +29,7 @@ class SRBenchModelProvider(ABC):
     async def acomplete(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         *,
         trace: LLMTrace,
         temperature: float | None = None,
@@ -45,7 +45,7 @@ class SRBenchModelProvider(ABC):
     async def aparse(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         response_format: type[T],
         *,
         temperature: float | None = None,

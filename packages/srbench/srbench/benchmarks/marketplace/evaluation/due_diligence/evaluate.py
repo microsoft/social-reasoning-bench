@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 
-from srbench_llm import SRBenchChatCompletionMessage, SRBenchModelClient
+from srbench_llm import SRBenchModelClient
 
 from ...types import MarketplaceDueDiligenceEvaluation, MarketplaceExecutionResult
 from .judge import MarketplaceDueDiligenceJudge, MarketplaceDueDiligenceJudgement, RatingLevel
@@ -42,16 +42,9 @@ def _format_buyer_trace(exec_result: MarketplaceExecutionResult) -> str:
     # Assistant trace
     lines.append("=== ASSISTANT TRACE ===")
     for message in exec_result.buyer_context:
-        if isinstance(message, SRBenchChatCompletionMessage):
-            role = message.role
-            content = message.content
-            tool_calls = message.tool_calls or []
-        elif isinstance(message, dict):
-            role = message.get("role", "")
-            content = message.get("content", "")
-            tool_calls = message.get("tool_calls") or []
-        else:
-            continue
+        role = message.get("role", "")
+        content = message.get("content", "")
+        tool_calls = message.get("tool_calls") or []
 
         if role == "system":
             lines.append(f"[SYSTEM] {content}")
@@ -59,8 +52,9 @@ def _format_buyer_trace(exec_result: MarketplaceExecutionResult) -> str:
             if content:
                 lines.append(f"[ASSISTANT] {content}")
             for tc in tool_calls:
-                fn_name = tc.function.name  # ty: ignore[unresolved-attribute]
-                fn_args = tc.function.arguments  # ty: ignore[unresolved-attribute]
+                fn = tc["function"]  # ty: ignore[invalid-key]
+                fn_name = fn["name"]
+                fn_args = fn.get("arguments", "")
                 try:
                     args = json.loads(fn_args) if isinstance(fn_args, str) else fn_args
                     args_str = json.dumps(args, indent=2)

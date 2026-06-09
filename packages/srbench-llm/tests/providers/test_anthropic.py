@@ -28,7 +28,7 @@ from srbench_llm.providers.anthropic import (
     _translate_tools,
 )
 from srbench_llm.tracing import LLMTrace
-from srbench_llm.types import SRBenchChatCompletionMessage, SRBenchMessage
+from srbench_llm.types import SRBenchChatCompletionMessage, SRBenchInputMessage
 
 
 def _make_anthropic_response(
@@ -53,7 +53,7 @@ def _make_anthropic_response(
 
 class TestTranslateMessages:
     def test_extracts_system(self):
-        msgs: list[SRBenchMessage] = [
+        msgs: list[SRBenchInputMessage] = [
             {"role": "system", "content": "be helpful"},
             {"role": "user", "content": "hi"},
         ]
@@ -65,14 +65,14 @@ class TestTranslateMessages:
         assert m["role"] == "user"
 
     def test_user_message(self):
-        msgs: list[SRBenchMessage] = [{"role": "user", "content": "hello"}]
+        msgs: list[SRBenchInputMessage] = [{"role": "user", "content": "hello"}]
         system, out = _translate_messages(msgs)
         assert isinstance(system, anthropic.NotGiven)
         assert out[0] == {"role": "user", "content": "hello"}
 
     def test_assistant_message_with_content(self):
-        msgs: list[SRBenchMessage] = [
-            SRBenchChatCompletionMessage(role="assistant", content="answer")
+        msgs: list[SRBenchInputMessage] = [
+            SRBenchChatCompletionMessage(role="assistant", content="answer").to_input_dict()
         ]
         _, out = _translate_messages(msgs)
         m = out[0]
@@ -87,8 +87,10 @@ class TestTranslateMessages:
 
     def test_assistant_message_injects_thinking_blocks(self):
         thinking = [{"type": "thinking", "thinking": "hmm...", "signature": "sig123"}]
-        msgs: list[SRBenchMessage] = [
-            AnthropicMessage(role="assistant", content="answer", thinking_blocks=thinking)
+        msgs: list[SRBenchInputMessage] = [
+            AnthropicMessage(
+                role="assistant", content="answer", thinking_blocks=thinking
+            ).to_input_dict()
         ]
         _, out = _translate_messages(msgs)
 
@@ -105,8 +107,10 @@ class TestTranslateMessages:
             type="function",
             function=Function(name="search", arguments='{"q": "test"}'),
         )
-        msgs: list[SRBenchMessage] = [
-            SRBenchChatCompletionMessage(role="assistant", content=None, tool_calls=[tc])
+        msgs: list[SRBenchInputMessage] = [
+            SRBenchChatCompletionMessage(
+                role="assistant", content=None, tool_calls=[tc]
+            ).to_input_dict()
         ]
         _, out = _translate_messages(msgs)
 

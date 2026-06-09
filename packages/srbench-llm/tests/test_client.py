@@ -10,7 +10,6 @@ from srbench_llm.tracing import tracer as _tracer
 from srbench_llm.types import (
     SRBenchChatCompletionInfo,
     SRBenchChatCompletionMessage,
-    SRBenchMessage,
 )
 
 

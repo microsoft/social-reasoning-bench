@@ -18,7 +18,12 @@ from pydantic import BaseModel
 
 from ..concurrency import record_usage, with_llm_retry
 from ..tracing import LLMTrace
-from ..types import SRBenchChatCompletionInfo, SRBenchChatCompletionMessage, SRBenchMessage
+from ..types import (
+    SRBenchAssistantMessageParam,
+    SRBenchChatCompletionInfo,
+    SRBenchChatCompletionMessage,
+    SRBenchInputMessage,
+)
 from .base import SRBenchModelProvider
 
 logger = logging.getLogger(__name__)
@@ -53,7 +58,8 @@ class AnthropicMessage(SRBenchChatCompletionMessage):
     """Anthropic message with native thinking block support.
 
     thinking_blocks carries the raw blocks (including cryptographic signatures)
-    needed for multi-turn thinking preservation.
+    needed for multi-turn thinking preservation. The field is included
+    automatically by ``model_dump`` so no custom serializer is needed.
     """
 
     thinking_blocks: list[dict[str, Any]] | None = None
@@ -75,7 +81,7 @@ class AnthropicProvider(SRBenchModelProvider):
     async def acomplete(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         *,
         trace: LLMTrace,
         temperature: float | None = None,
@@ -118,7 +124,7 @@ class AnthropicProvider(SRBenchModelProvider):
     async def aparse(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         response_format: type[T],
         *,
         temperature: float | None = None,
@@ -163,20 +169,22 @@ class AnthropicProvider(SRBenchModelProvider):
 
 
 # ---------------------------------------------------------------------------
-# Message translation (SRBenchMessage → Anthropic format)
+# Message translation (SRBenchInputMessage → Anthropic format)
 # ---------------------------------------------------------------------------
 
 
 def _translate_messages(
-    messages: list[SRBenchMessage],
+    messages: list[SRBenchInputMessage],
 ) -> tuple[str | anthropic.NotGiven, list[MessageParam]]:
-    """Convert SRBenchMessages to Anthropic format.
+    """Convert SRBench input messages to Anthropic format.
 
-    Returns (system, messages). Thinking blocks from previous AnthropicMessage
-    turns are injected into the assistant message content.
+    Returns (system, messages). For assistant messages, ``thinking_blocks``
+    extension keys (left behind by :meth:`AnthropicMessage.to_input_dict`)
+    are injected into the assistant content so extended-thinking signatures
+    survive across turns.
 
     Args:
-        messages: List of SRBench-typed messages to translate.
+        messages: List of SRBench input messages to translate.
 
     Returns:
         Tuple of ``(system, anthropic_messages)`` where *system* is the
@@ -187,23 +195,16 @@ def _translate_messages(
     out: list[dict[str, Any]] = []
 
     for msg in messages:
-        if isinstance(msg, SRBenchChatCompletionMessage):
+        # Type checkers only narrow TypedDict unions when the discriminator
+        # is accessed directly in the condition (not stored in a local).
+        if msg["role"] == "system":
+            system = _extract_text(msg.get("content", ""))
+        elif msg["role"] == "assistant":
             out.append(_translate_assistant(msg))
-        elif isinstance(msg, dict):
-            content = msg.get("content", "")
-            if msg.get("role") == "system":
-                system = _extract_text(content)
-            elif msg.get("role") == "assistant":
-                out.append(
-                    {
-                        "role": "assistant",
-                        "content": [{"type": "text", "text": _extract_text(content)}],
-                    }
-                )
-            elif msg["role"] == "tool":
-                out.append(_translate_tool(msg))
-            else:
-                out.append({"role": "user", "content": _extract_text(content)})
+        elif msg["role"] == "tool":
+            out.append(_translate_tool(msg))
+        else:
+            out.append({"role": "user", "content": _extract_text(msg.get("content", ""))})
 
     return system, cast(list[MessageParam], out)
 
@@ -233,36 +234,44 @@ def _extract_text(content: Any) -> str:
     return ""
 
 
-def _translate_assistant(msg: SRBenchChatCompletionMessage) -> dict[str, Any]:
-    """Translate an assistant message, injecting thinking blocks and tool_use.
+def _translate_assistant(msg: SRBenchAssistantMessageParam) -> dict[str, Any]:
+    """Translate an assistant input dict, injecting thinking blocks and tool_use.
+
+    Reads ``thinking_blocks`` from the extension key (set by
+    :meth:`AnthropicMessage.to_input_dict`) so extended-thinking signatures
+    survive across turns.
 
     Args:
-        msg: An assistant-role :class:`SRBenchChatCompletionMessage` (possibly
-            an :class:`AnthropicMessage` with thinking blocks).
+        msg: Assistant-role TypedDict, possibly carrying SRBench extension
+            keys (``thinking_blocks``, ``completion_info``, …).
 
     Returns:
         Anthropic-format message dict with role ``"assistant"``.
     """
     blocks: list[dict[str, Any]] = []
 
-    # Inject thinking blocks if this is an AnthropicMessage with them
-    if isinstance(msg, AnthropicMessage) and msg.thinking_blocks:
-        blocks.extend(msg.thinking_blocks)
+    thinking_blocks = msg.get("thinking_blocks")
+    if thinking_blocks:
+        blocks.extend(thinking_blocks)
 
-    if msg.content:
-        blocks.append({"type": "text", "text": msg.content})
+    content = msg.get("content")
+    text = _extract_text(content) if content is not None else ""
+    if text:
+        blocks.append({"type": "text", "text": text})
 
-    if msg.tool_calls:
-        for tc in msg.tool_calls:
-            if isinstance(tc, ChatCompletionMessageToolCall):
-                blocks.append(
-                    {
-                        "type": "tool_use",
-                        "id": tc.id,
-                        "name": tc.function.name,
-                        "input": json.loads(tc.function.arguments),
-                    }
-                )
+    for tc in msg.get("tool_calls") or []:
+        if tc.get("type") != "function":
+            raise ValueError(f"Unsupported tool_call type for Anthropic: {tc.get('type')!r}")
+        fn = tc["function"]  # ty: ignore[invalid-key]
+        tc_args = fn.get("arguments", "{}")
+        blocks.append(
+            {
+                "type": "tool_use",
+                "id": tc["id"],
+                "name": fn["name"],
+                "input": json.loads(tc_args) if tc_args else {},
+            }
+        )
 
     return {"role": "assistant", "content": blocks}
 

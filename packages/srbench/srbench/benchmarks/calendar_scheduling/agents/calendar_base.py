@@ -5,12 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from openai.types.chat import ChatCompletionToolMessageParam
-from openai.types.chat.chat_completion_message_tool_call import (
-    ChatCompletionMessageToolCall,
-    Function,
-)
 from pydantic_core import to_json
-from srbench_llm import SRBenchChatCompletionMessage, SRBenchMessage, SRBenchModelClient
+from srbench_llm import SRBenchModelClient
 
 from ....shared.agent import BaseAgent, RetryException
 from ..environment.actions import (
@@ -122,22 +118,21 @@ class CalendarAgent(BaseAgent):
                 synthetic ``GetEmails`` call.
         """
         tool_call_id = str(len(self._messages))
-        tool_call_message = SRBenchChatCompletionMessage(
-            role="assistant",
-            tool_calls=[
-                ChatCompletionMessageToolCall(
-                    id=tool_call_id,
-                    type="function",
-                    function=Function(name=GetEmails.get_name(), arguments="{}"),
-                )
-            ],
+        self._messages.append(
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {
+                        "id": tool_call_id,
+                        "type": "function",
+                        "function": {"name": GetEmails.get_name(), "arguments": "{}"},
+                    }
+                ],
+            }
         )
-
         tool_message: ChatCompletionToolMessageParam = {
             "role": "tool",
             "tool_call_id": tool_call_id,
             "content": to_json(new_messages).decode(),
         }
-
-        self._messages.append(tool_call_message)
         self._messages.append(tool_message)

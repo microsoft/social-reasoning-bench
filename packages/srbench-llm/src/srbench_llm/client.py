@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from .providers import resolve_provider
 from .tracing import LLMTrace, SRBenchRequest, tracer
-from .types import SRBenchChatCompletionMessage, SRBenchMessage
+from .types import SRBenchChatCompletionMessage, SRBenchInputMessage
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
@@ -29,7 +29,7 @@ class SRBenchModelClient:
         async def main():
             msg = await client.acomplete(
                 model="anthropic/claude-sonnet-4-5",
-                messages=[SRBenchMessage(role="user", content="Hello")],
+                messages=[{"role": "user", "content": "Hello"}],
             )
             print(msg.content)
 
@@ -51,7 +51,7 @@ class SRBenchModelClient:
     async def acomplete(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
@@ -115,7 +115,7 @@ class SRBenchModelClient:
     async def aparse(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         response_format: type[T],
         *,
         temperature: float | None = None,

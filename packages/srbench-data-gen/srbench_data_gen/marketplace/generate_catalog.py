@@ -3,7 +3,7 @@
 import re
 
 from pydantic import BaseModel, Field
-from srbench_llm import SRBenchMessage, SRBenchModelClient
+from srbench_llm import SRBenchModelClient
 
 from .models import CatalogEntry
 

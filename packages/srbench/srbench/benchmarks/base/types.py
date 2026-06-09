@@ -56,12 +56,17 @@ def safe_serializer(cls: _T) -> _T:
     def _safe_model_dump_json(self: BaseModel, **kwargs: Any) -> str:
         try:
             return original(self, **kwargs)
-        except Exception:
+        except Exception as exc:
             _logger.debug(
-                "%s.model_dump_json failed; falling back to ftfy sanitization",
+                "%s.model_dump_json failed; falling back to ftfy sanitization: %s",
                 type(self).__name__,
+                exc,
             )
-            raw = self.model_dump()
+            # Use mode='json' so pydantic eagerly resolves iterators
+            # (TypedDict Iterable[...] fields become SerializationIterator
+            # objects under mode='python', which json.dumps(default=str)
+            # would then encode as their repr).
+            raw = self.model_dump(mode="json")
             _fix_strings(raw)
             return json.dumps(
                 raw,

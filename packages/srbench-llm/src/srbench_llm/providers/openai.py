@@ -14,7 +14,12 @@ from pydantic import BaseModel
 
 from ..concurrency import record_usage, with_llm_retry
 from ..tracing import LLMTrace
-from ..types import SRBenchChatCompletionInfo, SRBenchChatCompletionMessage, SRBenchMessage
+from ..types import (
+    SRBENCH_ASSISTANT_EXTENSION_KEYS,
+    SRBenchChatCompletionInfo,
+    SRBenchChatCompletionMessage,
+    SRBenchInputMessage,
+)
 from .base import SRBenchModelProvider
 
 logger = logging.getLogger(__name__)
@@ -66,7 +71,7 @@ class OpenAIProvider(SRBenchModelProvider):
     async def acomplete(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         *,
         trace: LLMTrace,
         temperature: float | None = None,
@@ -110,7 +115,7 @@ class OpenAIProvider(SRBenchModelProvider):
     async def aparse(
         self,
         model: str,
-        messages: list[SRBenchMessage],
+        messages: list[SRBenchInputMessage],
         response_format: type[T],
         *,
         temperature: float | None = None,
@@ -172,19 +177,24 @@ class OpenAIProvider(SRBenchModelProvider):
 # ---------------------------------------------------------------------------
 
 
-def _to_openai_messages(messages: list[SRBenchMessage]) -> list[ChatCompletionMessageParam]:
-    """Convert SRBenchMessages to OpenAI-format message params.
+def _to_openai_messages(messages: list[SRBenchInputMessage]) -> list[ChatCompletionMessageParam]:
+    """Convert SRBench input messages to OpenAI-format message params.
+
+    Assistant dicts may carry SRBench extension keys (see
+    :data:`SRBENCH_ASSISTANT_EXTENSION_KEYS`); these are stripped because the
+    OpenAI SDK rejects unknown keys.
 
     Args:
-        messages: List of SRBench-typed messages to translate.
+        messages: List of SRBench input messages to translate.
 
     Returns:
         List of OpenAI :class:`ChatCompletionMessageParam` dicts.
     """
     out: list[ChatCompletionMessageParam] = []
     for msg in messages:
-        if isinstance(msg, SRBenchChatCompletionMessage):
-            out.append(msg.model_dump(exclude_none=True, exclude={"completion_info"}))
+        if msg.get("role") == "assistant":
+            cleaned = {k: v for k, v in msg.items() if k not in SRBENCH_ASSISTANT_EXTENSION_KEYS}
+            out.append(cast(ChatCompletionMessageParam, cleaned))
         else:
             out.append(msg)
     return out

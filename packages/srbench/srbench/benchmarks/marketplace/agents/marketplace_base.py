@@ -2,12 +2,8 @@
 
 from typing import Any
 
-from openai.types.chat.chat_completion_message_tool_call import (
-    ChatCompletionMessageToolCall,
-    Function,
-)
 from pydantic_core import to_json
-from srbench_llm import SRBenchChatCompletionMessage, SRBenchMessage, SRBenchModelClient
+from srbench_llm import SRBenchModelClient
 
 from ....shared.agent import BaseAgent
 from ..environment.actions import GETMESSAGES_TOOL_NAME, MARKETPLACE_TOOLS
@@ -109,16 +105,16 @@ class MarketplaceAgent(BaseAgent):
         """
         tool_call_id = str(len(self._messages))
         self._messages.append(
-            SRBenchChatCompletionMessage(
-                role="assistant",
-                tool_calls=[
-                    ChatCompletionMessageToolCall(
-                        id=tool_call_id,
-                        type="function",
-                        function=Function(name=GETMESSAGES_TOOL_NAME, arguments="{}"),
-                    )
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {
+                        "id": tool_call_id,
+                        "type": "function",
+                        "function": {"name": GETMESSAGES_TOOL_NAME, "arguments": "{}"},
+                    }
                 ],
-            )
+            }
         )
         self._messages.append(
             {

@@ -5,7 +5,7 @@ from srbench.benchmarks.calendar_scheduling.types import (
     AttendeeStatus,
     LabeledMeeting,
 )
-from srbench_llm import SRBenchMessage, SRBenchModelClient
+from srbench_llm import SRBenchModelClient
 
 from .config import PipelineConfig
 from .models import CalendarEvent, Company, Employee, EmployeeCalendar
