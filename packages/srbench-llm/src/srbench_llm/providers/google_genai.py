@@ -349,6 +349,7 @@ def _translate_assistant_parts(
         tc_id = tc["id"]
         name = fn["name"]
         args_json = fn.get("arguments", "{}")
+        # Empty/missing arguments are deliberately treated as no arguments.
         args = json.loads(args_json) if args_json else {}
         sig = signatures[i] if signatures and i < len(signatures) else None
 
