@@ -2,7 +2,6 @@ import logging
 from pathlib import Path
 
 import yaml
-
 from finding1 import main as finding1
 from finding3 import main as finding3
 from finding4 import main as finding4
