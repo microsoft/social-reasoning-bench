@@ -5,7 +5,7 @@ offer (the only deterministic harness-driven action), then spawns both
 agents' ``run`` loops concurrently and waits for any of:
   - either agent's ``run`` to return,
   - ``env.end_event`` to fire (``EndConversation`` was executed,
-    triggering ``MarketplaceEnvironment.mark_ended``),
+    triggering ``MarketplaceEnvironment.set_end_event``),
   - the wall-clock timeout to elapse,
   - the externally-supplied ``cancel_event`` to fire.
 """
@@ -117,22 +117,22 @@ async def execute_task(
                     cancel_event=cancel_event,
                 )
         except asyncio.TimeoutError:
-            env.mark_ended(reason="max_wall_time")
+            env.set_end_event(reason="max_wall_time")
 
         if not env.end_event.is_set():
-            env.mark_ended(reason="max_actions")
+            env.set_end_event(reason="max_actions")
 
         # If we ended without a deal, label the outcome.
         if not env.state.outcome.deal_reached and env.state.outcome.end_reason is None:
             env.state.outcome.ended_by = "max_rounds"
             env.state.outcome.end_reason = env.end_reason or "Ended without agreement."
     except asyncio.CancelledError:
-        env.mark_ended(reason="cancelled")
+        env.set_end_event(reason="cancelled")
         raise
     except Exception as ex:
         logger.exception("Error during marketplace execution.")
         error = str(ex)
-        env.mark_ended(reason="error")
+        env.set_end_event(reason="error")
         env.state.outcome.end_reason = env.state.outcome.end_reason or traceback.format_exc()
     finally:
         await buyer_agent.close()

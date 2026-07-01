@@ -76,11 +76,18 @@ class EmailManager:
         self._emails: list[Email] = []
         self._read_indices: dict[str, int] = {}
 
-    def create_email(self, owner: str) -> AgentEmail:
+    def create_email(self, owner: str, on_deliver: Callable[[Email], None]) -> AgentEmail:
         """Factory: creates AgentEmail with callbacks wired to this manager.
+
+        ``deliver`` is the single enforced funnel every send passes through, so
+        ``on_deliver`` is invoked there for every delivered email. The caller
+        (the environment) uses it to wake a recipient blocked on ``Wait``. The
+        manager stays a pure store: it fires the injected hook but owns no
+        coordination state.
 
         Args:
             owner: Email address of the agent.
+            on_deliver: Called with each delivered ``Email`` after it is stored.
 
         Returns:
             A new AgentEmail instance with delivery and retrieval callbacks
@@ -90,6 +97,7 @@ class EmailManager:
 
         def deliver(email: Email) -> None:
             self._emails.append(email)
+            on_deliver(email)
 
         def get_unread() -> list[Email]:
             idx = self._read_indices[owner]

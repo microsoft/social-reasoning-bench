@@ -35,20 +35,20 @@ class CalendarSchedulingEnvironment:
         self.action_count += 1
         return self.action_count
 
-    def _notify_recipient(self, recipient_email: str) -> None:
+    def _notify(self, recipient_email: str) -> None:
         """Wake up any agent blocked on Wait for ``recipient_email``."""
         event = self._new_content_events.get(recipient_email)
         if event is not None:
             event.set()
 
-    def _new_content_event_for(self, owner: str) -> asyncio.Event:
+    def _get_new_content_event(self, owner: str) -> asyncio.Event:
         event = self._new_content_events.get(owner)
         if event is None:
             event = asyncio.Event()
             self._new_content_events[owner] = event
         return event
 
-    def mark_ended(self, *, reason: str) -> None:
+    def set_end_event(self, *, reason: str) -> None:
         """Record an end-of-conversation signal and wake up the executor.
 
         Idempotent: only the first call takes effect (subsequent calls are
@@ -80,8 +80,10 @@ class CalendarSchedulingEnvironment:
             AgentResources with calendar, email, and contacts configured
         """
         calendar = self._calendar_manager.create_calendar(owner, initial_meetings)
-        email = self._email_manager.create_email(owner)
-        new_content_event = self._new_content_event_for(owner)
+        email = self._email_manager.create_email(
+            owner, on_deliver=lambda mail: self._notify(mail.to)
+        )
+        new_content_event = self._get_new_content_event(owner)
 
         return AgentResources(
             owner=owner,
@@ -89,9 +91,10 @@ class CalendarSchedulingEnvironment:
             email=email,
             allowed_date=allowed_date,
             contacts=contacts,
-            new_content_event=new_content_event,
-            end_event=self.end_event,
-            wake_recipient=self._notify_recipient,
+            wait_for_content=new_content_event.wait,
+            wait_for_end=self.end_event.wait,
+            set_end_event=lambda reason: self.set_end_event(reason=reason),
+            count_action=self.next_action_index,
         )
 
     def get_all_emails(self) -> list[Email]:

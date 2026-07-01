@@ -22,21 +22,21 @@ class MarketplaceEnvironment:
         self.end_reason: str | None = None
         self._new_content_events: dict[Literal["buyer", "seller"], asyncio.Event] = {}
 
-    def _new_content_event_for(self, role: Literal["buyer", "seller"]) -> asyncio.Event:
+    def _get_new_content_event(self, role: Literal["buyer", "seller"]) -> asyncio.Event:
         event = self._new_content_events.get(role)
         if event is None:
             event = asyncio.Event()
             self._new_content_events[role] = event
         return event
 
-    def _notify_counterpart_of(self, actor: Literal["buyer", "seller"]) -> None:
+    def _notify_counterpart(self, actor: Literal["buyer", "seller"]) -> None:
         """Wake the role that is NOT the actor (counterpart inbox notification)."""
         counterpart: Literal["buyer", "seller"] = "seller" if actor == "buyer" else "buyer"
         event = self._new_content_events.get(counterpart)
         if event is not None:
             event.set()
 
-    def mark_ended(self, *, reason: str) -> None:
+    def set_end_event(self, *, reason: str) -> None:
         """Record an end-of-conversation signal and wake up the executor.
 
         Idempotent: only the first call takes effect.
@@ -52,7 +52,7 @@ class MarketplaceEnvironment:
         return self.state.action_count
 
     def create_agent_resources(self, role: Literal["buyer", "seller"]) -> "AgentResources":
-        new_content_event = self._new_content_event_for(role)
+        new_content_event = self._get_new_content_event(role)
         return AgentResources(
             role=role, state=self.state, new_content_event=new_content_event, env=self
         )
@@ -69,15 +69,16 @@ class AgentResources:
         self,
         role: Literal["buyer", "seller"],
         state: MarketplaceState,
-        new_content_event: asyncio.Event | None = None,
-        env: MarketplaceEnvironment | None = None,
+        *,
+        new_content_event: asyncio.Event,
+        env: MarketplaceEnvironment,
     ):
         self.role = role
         self.state = state
         self._seen_message_count = 0
         self._seen_offer_count = 0
-        self._new_content_event: asyncio.Event = new_content_event or asyncio.Event()
-        self._env: MarketplaceEnvironment | None = env
+        self._new_content_event = new_content_event
+        self._env = env
 
     async def execute(self, action: Tool) -> str:
         """Execute a tool action, record ActionTrace + action_index, return result.
@@ -86,7 +87,7 @@ class AgentResources:
         ``valid=False`` on the trace, and re-raised. ``ValueError`` from an
         unknown action type bubbles up unrecorded.
         """
-        action_index = self._env.next_action_index() if self._env is not None else 0
+        action_index = self._env.next_action_index()
         try:
             result = await self._dispatch(action)
         except ToolError as e:
@@ -117,8 +118,7 @@ class AgentResources:
                     content=action.content,
                 )
             )
-            if self._env is not None:
-                self._env._notify_counterpart_of(self.role)
+            self._env._notify_counterpart(self.role)
             return "Message sent."
 
         if isinstance(action, GetMessages):
@@ -146,8 +146,7 @@ class AgentResources:
                         content=action.message,
                     )
                 )
-            if self._env is not None:
-                self._env._notify_counterpart_of(self.role)
+            self._env._notify_counterpart(self.role)
             return f"Offer #{offer_record.id} created at price {offer_record.price:.2f}."
 
         if isinstance(action, AcceptOffer):
@@ -171,8 +170,7 @@ class AgentResources:
                         content=action.message,
                     )
                 )
-            if self._env is not None:
-                self._env._notify_counterpart_of(self.role)
+            self._env._notify_counterpart(self.role)
             return f"Accepted offer #{offer.id} at price {offer.price:.2f}."
 
         if isinstance(action, Wait):
@@ -181,8 +179,7 @@ class AgentResources:
         if isinstance(action, EndConversation):
             self.state.outcome.ended_by = self.role
             self.state.outcome.end_reason = action.reason
-            if self._env is not None:
-                self._env.mark_ended(reason=action.reason)
+            self._env.set_end_event(reason=action.reason)
             return "Negotiation ended."
 
         raise ValueError(f"Unsupported action type: {type(action).__name__}")
@@ -194,7 +191,7 @@ class AgentResources:
         Cancellation propagates out as ``CancelledError`` so the executor's
         TaskGroup logic stays clean.
         """
-        if self._env is None or self._env.end_event.is_set():
+        if self._env.end_event.is_set():
             return "Negotiation has ended."
         end_wait = asyncio.create_task(self._env.end_event.wait())
         content_wait = asyncio.create_task(self._new_content_event.wait())

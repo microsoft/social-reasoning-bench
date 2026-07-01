@@ -200,19 +200,19 @@ async def execute_task(
                     cancel_event=cancel_event,
                 )
         except asyncio.TimeoutError:
-            environment.mark_ended(reason="max_wall_time")
+            environment.set_end_event(reason="max_wall_time")
 
         if not environment.end_event.is_set():
-            environment.mark_ended(reason="max_actions")
+            environment.set_end_event(reason="max_actions")
     except asyncio.CancelledError:
-        environment.mark_ended(reason="cancelled")
+        environment.set_end_event(reason="cancelled")
         raise
     except Exception as e:
         exec_error = f"Calendar execution error: {e}"
         benchmark_logger.error(
             "Task %d - Fatal error: %s\n%s", task.id, exec_error, traceback.format_exc()
         )
-        environment.mark_ended(reason="error")
+        environment.set_end_event(reason="error")
     finally:
         await assistant_agent.close()
         await requestor_agent.close()

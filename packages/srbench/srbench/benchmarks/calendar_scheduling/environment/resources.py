@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Callable
+from typing import Any, Callable, Coroutine
 
 from ..types import Attendee, AttendeeStatus, Contact, Meeting, Tool, ToolError
 from .actions import (
@@ -43,18 +43,21 @@ class AgentResources:
         email: AgentEmail,
         allowed_date: str,
         contacts: list[Contact] | None = None,
-        new_content_event: asyncio.Event | None = None,
-        end_event: asyncio.Event | None = None,
-        wake_recipient: Callable[[str], None] | None = None,
+        *,
+        wait_for_content: Callable[[], Coroutine[Any, Any, object]],
+        wait_for_end: Callable[[], Coroutine[Any, Any, object]],
+        set_end_event: Callable[[str], None],
+        count_action: Callable[[], object],
     ) -> None:
         self.owner = owner
         self.calendar = calendar
         self.email = email
         self.allowed_date = allowed_date
         self.contacts = contacts or []
-        self._new_content_event: asyncio.Event = new_content_event or asyncio.Event()
-        self._end_event: asyncio.Event = end_event or asyncio.Event()
-        self._wake_recipient: Callable[[str], None] = wake_recipient or (lambda _to: None)
+        self._wait_for_content = wait_for_content
+        self._wait_for_end = wait_for_end
+        self._set_end_event = set_end_event
+        self._count_action = count_action
 
     async def execute(self, action: Tool) -> str:
         """Execute a tool action and return the result as a string.
@@ -68,6 +71,10 @@ class AgentResources:
         Raises:
             ValueError: If the action type is unknown.
         """
+        # Count every executed action so the env-level action_count (harvested
+        # as total_actions) reflects real activity. Mirrors marketplace, which
+        # increments once per execute() call.
+        self._count_action()
         if isinstance(action, SendEmail):
             return self._handle_send_email(action)
         elif isinstance(action, GetEmails):
@@ -103,7 +110,6 @@ class AgentResources:
             subject="Message",
             body=action.message,
         )
-        self._wake_recipient(action.to)
         return "Email sent successfully."
 
     def _handle_get_emails(self, action: GetEmails) -> str:
@@ -465,9 +471,10 @@ class AgentResources:
     async def _handle_wait(self, action: Wait) -> str:
         """Yield until the counterpart acts (delivers mail) or the conversation ends.
 
-        Races ``self._new_content_event.wait()`` against
-        ``self._end_event.wait()``; whichever fires first determines the
-        return value.
+        Races ``self._wait_for_content()`` against ``self._wait_for_end()``;
+        whichever fires first determines the return value. If the conversation
+        has already ended, the end waiter completes immediately and wins the
+        race, so no explicit already-ended short-circuit is needed.
 
         External cancellation (the executor's ``cancel_event``, wall-clock
         timeout, etc.) is *not* watched here. The executor races
@@ -481,10 +488,8 @@ class AgentResources:
         Returns:
             A status string describing what unblocked the wait.
         """
-        if self._end_event.is_set():
-            return "Conversation has ended."
-        end_wait = asyncio.create_task(self._end_event.wait())
-        content_wait = asyncio.create_task(self._new_content_event.wait())
+        end_wait = asyncio.create_task(self._wait_for_end())
+        content_wait = asyncio.create_task(self._wait_for_content())
         try:
             done, pending = await asyncio.wait(
                 {end_wait, content_wait}, return_when=asyncio.FIRST_COMPLETED
@@ -558,4 +563,13 @@ class AgentResources:
 
             raise ToolError(" ".join(parts))
 
+        # Flip the conversation-level end_event so blocked Wait calls and the
+        # executor's termination race both unblock. The agent-driven run() loop
+        # does not stop on EndConversation, so this signal is the only prompt
+        # terminator for a clean end.
+        # Flip the conversation-level end_event so blocked Wait calls and the
+        # executor's termination race both unblock. The agent-driven run() loop
+        # does not stop on EndConversation, so this signal is the only prompt
+        # terminator for a clean end.
+        self._set_end_event(action.reason)
         return f"Conversation ended: {action.reason}"

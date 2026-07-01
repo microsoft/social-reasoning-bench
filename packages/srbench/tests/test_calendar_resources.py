@@ -671,7 +671,7 @@ class TestWait:
 
         async def end_later():
             await asyncio.sleep(0.05)
-            environment.mark_ended(reason="test")
+            environment.set_end_event(reason="test")
 
         end_task = asyncio.create_task(end_later())
         result = await alice_resources.execute(Wait())
@@ -680,9 +680,75 @@ class TestWait:
 
     async def test_wait_returns_immediately_if_already_ended(self, alice_resources, environment):
         """Wait returns immediately when end_event is already set."""
-        environment.mark_ended(reason="test")
+        environment.set_end_event(reason="test")
         result = await alice_resources.execute(Wait())
         assert "ended" in result.lower()
+
+    async def test_wait_wakes_on_request_meeting(self, alice_resources, bob_resources):
+        """A parked Wait wakes when the counterpart delivers a RequestMeeting.
+
+        Regression guard: the wake used to fire only for SendEmail, so an agent
+        blocked on Wait would sleep through an incoming meeting request.
+        """
+        import asyncio
+
+        async def request_later():
+            await asyncio.sleep(0.05)
+            await bob_resources.execute(
+                RequestMeeting(
+                    message="Sync?",
+                    uid="wake-on-request",
+                    title="Sync",
+                    description="",
+                    organizer="bob@example.com",
+                    date="2024-01-15",
+                    start="14:00",
+                    end="15:00",
+                    attendees=["alice@example.com"],
+                )
+            )
+
+        request_task = asyncio.create_task(request_later())
+        result = await alice_resources.execute(Wait())
+        await request_task
+        assert "Counterpart activity" in result or "inbox" in result.lower()
+
+    async def test_wait_wakes_on_reply_meeting(self, alice_resources, bob_resources):
+        """A parked Wait wakes when the counterpart delivers a ReplyMeeting.
+
+        Alice requests a meeting with Bob, then blocks on Wait; Bob's ACCEPTED
+        reply must unblock her.
+        """
+        import asyncio
+
+        await alice_resources.execute(
+            RequestMeeting(
+                message="Sync?",
+                uid="wake-on-reply",
+                title="Sync",
+                description="",
+                organizer="alice@example.com",
+                date="2024-01-15",
+                start="14:00",
+                end="15:00",
+                attendees=["bob@example.com"],
+            )
+        )
+
+        async def reply_later():
+            await asyncio.sleep(0.05)
+            await bob_resources.execute(
+                ReplyMeeting(
+                    message="I'll be there!",
+                    meeting_uid="wake-on-reply",
+                    status="ACCEPTED",
+                )
+            )
+
+        reply_task = asyncio.create_task(reply_later())
+        result = await alice_resources.execute(Wait())
+        await reply_task
+        assert "Counterpart activity" in result or "inbox" in result.lower()
 
 
 class TestEndConversation:
@@ -699,6 +765,31 @@ class TestEndConversation:
 
         assert "Conversation ended" in result
         assert "Task completed" in result
+
+    async def test_end_conversation_sets_end_event(self, alice_resources, environment):
+        """EndConversation must flip the env-level end_event.
+
+        Regression guard: the agent-driven run() loop does not stop on
+        EndConversation, so end_event is the only prompt terminator; if it is
+        never set the executor race hangs to max_actions / wall-time.
+        """
+        assert not environment.end_event.is_set()
+        await alice_resources.execute(EndConversation(reason="Task completed"))
+        assert environment.end_event.is_set()
+        assert environment.end_reason == "Task completed"
+
+    async def test_end_conversation_releases_parked_wait(self, alice_resources, bob_resources):
+        """A counterpart blocked on Wait unblocks when the other side ends."""
+        import asyncio
+
+        async def end_later():
+            await asyncio.sleep(0.05)
+            await bob_resources.execute(EndConversation(reason="done"))
+
+        end_task = asyncio.create_task(end_later())
+        result = await alice_resources.execute(Wait())
+        await end_task
+        assert "ended" in result.lower()
 
     async def test_end_conversation_with_pending_requests(self, alice_resources, bob_resources):
         """Test that ending conversation raises ToolError when there are pending meeting requests.
