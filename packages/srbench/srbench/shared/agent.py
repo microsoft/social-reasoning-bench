@@ -19,7 +19,7 @@ Benchmark-specific subclasses add:
 """
 
 import traceback
-from typing import Any
+from typing import Any, Awaitable, Callable, TypeAlias
 
 from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_tool_call import (
@@ -29,6 +29,11 @@ from pydantic import ValidationError
 from srbench_llm import SRBenchInputMessage, SRBenchModelClient
 
 from .tool import Tool
+
+# The agent's only touchpoint with the environment: pass a Tool, get back a
+# result string. The executor binds the environment into this callback before
+# passing it to :meth:`BaseAgent.run`.
+InvokeTool: TypeAlias = Callable[[Tool], Awaitable[str]]
 
 
 class RetryException(Exception):
@@ -86,6 +91,7 @@ class BaseAgent:
         temperature: float | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam = "auto",
         prompt_label: str = "unknown",
+        max_actions: int = 50,
     ) -> None:
         """Initialize the base agent.
 
@@ -103,6 +109,9 @@ class BaseAgent:
             prompt_label: Label for token tracking (e.g., "interviewer",
                 "assistant"). Used by the concurrency module to report
                 per-prompt token breakdowns.
+            max_actions: Budget on the number of tool calls :meth:`run` will
+                issue before returning. Bounds cost when the conversation
+                never terminates naturally.
         """
         self._model = model
         self._model_client = model_client
@@ -111,6 +120,7 @@ class BaseAgent:
         self._explicit_cot = explicit_cot
         self._temperature = temperature
         self._tool_choice = tool_choice
+        self._max_actions = max_actions
 
         # Build tool registry: name -> Tool class
         self._tools: dict[str, type[Tool]] = {t.get_name(): t for t in tools}
@@ -119,6 +129,35 @@ class BaseAgent:
         self._openai_tools: list[ChatCompletionFunctionToolParam] = [
             t.get_openai_function_tool_param() for t in tools
         ]
+
+    # ------------------------------------------------------------------ #
+    # Agent-owned run loop
+    # ------------------------------------------------------------------ #
+
+    async def run(self, invoke_tool: InvokeTool) -> None:
+        """Drive this agent's action loop until its budget is exhausted.
+
+        Each iteration generates one tool call, executes it through
+        ``invoke_tool`` (the executor's environment-bound callback, which
+        returns tool errors as result strings rather than raising), and
+        appends the result to the transcript.
+
+        The agent never decides when the conversation is over: the harness
+        watches the environment's end signal and cancels this coroutine. The
+        loop returns early only when tool-call generation exhausts its
+        retries, i.e. the agent can no longer produce valid actions.
+
+        Args:
+            invoke_tool: Async callback that executes a ``Tool`` against the
+                environment and returns the result string.
+        """
+        for _ in range(self._max_actions):
+            try:
+                tool_call = await self.generate_tool_call()
+            except ToolCallRetriesExhausted:
+                return
+            result = await invoke_tool(tool_call)
+            self.add_tool_call_result(result)
 
     @property
     def messages(self) -> list[SRBenchInputMessage]:
