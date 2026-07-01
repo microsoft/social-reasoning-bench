@@ -1,17 +1,24 @@
 from typing import Literal
 
+from ....shared.conversation import ConversationSignals
 from ..types import ActionTrace, MessageRecord, Tool, ToolError
 from .actions import AcceptOffer, EndConversation, GetMessages, MakeOffer, SendMessage, Wait
 from .state import MarketplaceState
 
 
 class MarketplaceEnvironment:
-    """Shared in-memory state for a bilateral marketplace negotiation."""
+    """Shared in-memory state for a bilateral marketplace negotiation.
+
+    Owns the conversation's :class:`ConversationSignals`, keyed by role, so an
+    agent blocked on ``Wait`` wakes when its counterpart acts.
+    """
 
     def __init__(self) -> None:
         self.state = MarketplaceState()
+        self.signals = ConversationSignals()
 
     def create_agent_resources(self, role: Literal["buyer", "seller"]) -> "AgentResources":
+        self.signals.register(role)
         return AgentResources(role=role, state=self.state)
 
 

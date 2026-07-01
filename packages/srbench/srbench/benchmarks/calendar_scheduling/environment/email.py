@@ -76,11 +76,17 @@ class EmailManager:
         self._emails: list[Email] = []
         self._read_indices: dict[str, int] = {}
 
-    def create_email(self, owner: str) -> AgentEmail:
+    def create_email(
+        self, owner: str, on_deliver: Callable[[Email], None] | None = None
+    ) -> AgentEmail:
         """Factory: creates AgentEmail with callbacks wired to this manager.
 
         Args:
             owner: Email address of the agent.
+            on_deliver: Optional hook invoked with each ``Email`` after it is
+                stored. Every send passes through ``deliver``, so the caller
+                (the environment) can use this to wake a recipient blocked on
+                ``Wait``. The manager stays a pure store.
 
         Returns:
             A new AgentEmail instance with delivery and retrieval callbacks
@@ -90,6 +96,8 @@ class EmailManager:
 
         def deliver(email: Email) -> None:
             self._emails.append(email)
+            if on_deliver is not None:
+                on_deliver(email)
 
         def get_unread() -> list[Email]:
             idx = self._read_indices[owner]
