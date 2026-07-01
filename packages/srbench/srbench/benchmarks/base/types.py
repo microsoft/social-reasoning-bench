@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from datetime import datetime
@@ -119,11 +120,16 @@ class BaseRunConfig(BaseModel):
     judge_votes: int = Field(default=1, description="Number of judge votes for majority voting")
 
     # --- Run parameters ---
-    # Legacy round-based caps; retained for old-config compat but ignored in
-    # the agent-driven executors.
-    max_rounds: int = Field(default=20, description="(legacy) Maximum conversation rounds per task")
+    # Deprecated round-based caps. Ignored by the agent-driven executors; use
+    # ``max_actions_per_agent`` / ``max_wall_time_seconds`` instead. Retained so
+    # pre-agent-driven serialized configs still deserialize and read (e.g. the
+    # v0.1.0 plotting scripts read ``config.max_rounds``). Setting either emits a
+    # DeprecationWarning via ``_warn_deprecated_round_caps``.
+    max_rounds: int = Field(
+        default=20, description="Deprecated and ignored; use max_actions_per_agent."
+    )
     max_steps_per_turn: int = Field(
-        default=20, description="(legacy) Maximum tool calls per agent turn"
+        default=20, description="Deprecated and ignored; use max_actions_per_agent."
     )
     # Agent-driven runtime caps.
     max_actions_per_agent: int = Field(
@@ -161,6 +167,27 @@ class BaseRunConfig(BaseModel):
 
     # --- Experiment sweep ---
     variant: str | None = Field(default=None, description="Variant name for experiment sweeps")
+
+    @model_validator(mode="after")
+    def _warn_deprecated_round_caps(self) -> "BaseRunConfig":
+        """Warn when the deprecated round-based caps are explicitly provided.
+
+        ``max_rounds`` / ``max_steps_per_turn`` are ignored by the agent-driven
+        executors. The fields survive only so old serialized configs still load
+        and read; setting them on a new run does nothing.
+        """
+        deprecated = [
+            name for name in ("max_rounds", "max_steps_per_turn") if name in self.model_fields_set
+        ]
+        if deprecated:
+            warnings.warn(
+                f"{' and '.join(deprecated)} {'are' if len(deprecated) > 1 else 'is'} "
+                "deprecated and ignored by the agent-driven executors. Use "
+                "max_actions_per_agent and max_wall_time_seconds instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return self
 
     @property
     def resolved_judge_model(self) -> str | None:
