@@ -34,7 +34,6 @@ from .environment import (
     AcceptOffer,
     AgentResources,
     EndConversation,
-    GetMessages,
     MakeOffer,
     MarketplaceEnvironment,
     SendMessage,
@@ -72,23 +71,12 @@ def _bind_tools(
     counterpart = "seller" if resources.role == "buyer" else "buyer"
 
     async def invoke(action: Tool) -> str:
-        if isinstance(action, Wait):
-            if await signals.wait_for_activity(resources.role):
-                result = resources.execute(GetMessages())
-            else:
-                result = "Negotiation has ended."
-            action_trace.append(
-                ActionTrace(
-                    round=resources.state.current_round,
-                    actor=resources.role,
-                    action_type="Wait",
-                    payload={},
-                    result=result,
-                    valid=True,
-                )
-            )
-            return result
-
+        # Coordination happens here; execution happens in resources.execute,
+        # the single path for every action. Wait blocks until the counterpart
+        # acts, then executes normally (its handler returns the unread
+        # messages and offers).
+        if isinstance(action, Wait) and not await signals.wait_for_activity(resources.role):
+            return "Negotiation has ended."
         trace, ok = execute_with_trace(resources, action)
         action_trace.append(trace)
         if ok:
@@ -204,7 +192,7 @@ async def execute_task(
             # the wake signal the offer produced.
             await _force_initial_seller_offer(seller_agent, invoke_seller, task)
             buyer_agent.add_new_messages(buyer_resources.get_unread_updates())
-            signals.clear("buyer")
+            signals.consume("buyer")
 
         await run_agents_until_end(
             [

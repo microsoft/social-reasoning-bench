@@ -35,7 +35,7 @@ from .environment import (
     AgentResources,
     CalendarSchedulingEnvironment,
 )
-from .environment.actions import EndConversation, GetEmails, RequestMeeting, Wait
+from .environment.actions import EndConversation, RequestMeeting, Wait
 from .types import (
     CalendarExecutionResult,
     CalendarTask,
@@ -78,20 +78,21 @@ def _bind_tools(
 
     async def invoke(action: Tool) -> str:
         benchmark_logger.debug("[%s] %s: %s", resources.owner, type(action).__qualname__, action)
-        if isinstance(action, Wait):
-            if not await signals.wait_for_activity(resources.owner):
-                return "Conversation has ended."
-            result = resources.execute(GetEmails())
-        else:
-            try:
-                result = resources.execute(action)
-            except ToolError as e:
-                result = f"Error: {e}"
-            except Exception:
-                result = f"Error: {traceback.format_exc()}"
-            else:
-                if isinstance(action, EndConversation):
-                    signals.end(reason=action.reason)
+        # Coordination happens here; execution happens in resources.execute,
+        # the single path for every action. Wait blocks until the counterpart
+        # acts, then executes normally (its handler returns the unread mail).
+        if isinstance(action, Wait) and not await signals.wait_for_activity(resources.owner):
+            return "Conversation has ended."
+        try:
+            result = resources.execute(action)
+            if isinstance(action, EndConversation):
+                # Reached only when execute succeeded (a rejected
+                # EndConversation raises ToolError above).
+                signals.end(reason=action.reason)
+        except ToolError as e:
+            result = f"Error: {e}"
+        except Exception:
+            result = f"Error: {traceback.format_exc()}"
         benchmark_logger.debug("[%s] Result: %s", resources.owner, result)
         return result
 
@@ -281,7 +282,7 @@ async def execute_task(
         # loop starts (exactly what the turn-based executor did at the start
         # of each turn), and consume the wake signal that delivery produced.
         assistant_agent.add_new_messages(assistant_resources.email.get_unread())
-        signals.clear(assistant_email)
+        signals.consume(assistant_email)
 
         await run_agents_until_end(
             [

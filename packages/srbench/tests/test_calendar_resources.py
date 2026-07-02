@@ -650,16 +650,29 @@ class TestReplyMeeting:
 class TestWait:
     """Tests for Wait action."""
 
-    def test_wait(self, alice_resources):
-        """Test the Wait action.
+    def test_wait_returns_unread_emails(self, alice_resources, bob_resources):
+        """Wait surfaces the mail that arrived while waiting.
+
+        Args:
+            alice_resources: The fixture providing AgentResources for alice.
+            bob_resources: The fixture providing AgentResources for bob.
+        """
+        bob_resources.execute(SendEmail(to="alice@example.com", message="Here you go!"))
+
+        result = alice_resources.execute(Wait())
+
+        assert "bob@example.com" in result
+        assert "Here you go!" in result
+
+    def test_wait_with_empty_inbox(self, alice_resources):
+        """Wait with nothing delivered reports no unread emails.
 
         Args:
             alice_resources: The fixture providing AgentResources for alice.
         """
-        action = Wait()
-        result = alice_resources.execute(action)
+        result = alice_resources.execute(Wait())
 
-        assert "Waiting" in result
+        assert result == "No unread emails."
 
 
 class TestEndConversation:

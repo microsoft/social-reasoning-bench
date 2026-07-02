@@ -446,15 +446,19 @@ class AgentResources:
         return f"Reply sent: {action.status} meeting {meeting.title} ({meeting.uid}) from {meeting.start_time}-{meeting.end_time} on {meeting.date}"
 
     def _handle_wait(self, action: Wait) -> str:
-        """Yield turn to wait for other agent.
+        """Surface whatever arrived while waiting for the other agent.
+
+        The executor blocks the caller until the counterpart acts before
+        executing this action, so by the time it runs there is normally
+        fresh mail to return.
 
         Args:
             action: The Wait action.
 
         Returns:
-            A waiting status message.
+            The unread emails, or a no-unread-emails message.
         """
-        return "Waiting for response."
+        return format_emails(self.email.get_unread())
 
     def _handle_end_conversation(self, action: EndConversation) -> str:
         """End the conversation.

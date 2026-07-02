@@ -93,7 +93,9 @@ class AgentResources:
             return f"Accepted offer #{offer.id} at price {offer.price:.2f}."
 
         if isinstance(action, Wait):
-            return "Waited."
+            # The executor blocks the caller until the counterpart acts before
+            # executing this action; the result surfaces what arrived.
+            return self._handle_get_messages()
 
         if isinstance(action, EndConversation):
             self.state.outcome.ended_by = self.role

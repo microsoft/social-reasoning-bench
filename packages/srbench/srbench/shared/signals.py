@@ -60,15 +60,16 @@ class ConversationSignals:
         if event is not None:
             event.set()
 
-    def clear(self, owner: str) -> None:
-        """Consume a pending notification for ``owner`` without waiting.
+    def consume(self, owner: str) -> None:
+        """Consume a pending :meth:`notify` for ``owner`` without waiting.
 
-        Used by the executor after it injects already-read content into an
-        agent's context at startup, so the agent's first ``Wait`` does not
-        wake spuriously for content it has already seen.
+        The inverse of :meth:`notify`. Used by the executor when it delivers
+        content to an agent out of band (injecting the counterpart's forced
+        opening into the agent's context at startup), so the agent's first
+        ``Wait`` does not wake spuriously for content it has already seen.
 
         Args:
-            owner: Participant key whose pending notification to clear.
+            owner: Participant key whose pending notification to consume.
         """
         event = self._events.get(owner)
         if event is not None:
@@ -147,8 +148,8 @@ async def run_agents_until_end(
     - ``cancel_event`` fired: ``"cancelled"``.
     - an agent's run raised: the exception is re-raised for the executor to
       record.
-    - an agent's run returned (its action budget or its tool-call retries
-      were exhausted): ``"agent_stopped"``.
+    - an agent's run returned (its action budget was exhausted):
+      ``"agent_stopped"``.
 
     Args:
         agent_runs: One coroutine per agent, typically ``agent.run(invoke_tool)``.

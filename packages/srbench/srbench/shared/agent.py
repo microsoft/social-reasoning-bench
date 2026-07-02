@@ -147,9 +147,9 @@ class BaseAgent:
         An agent ends a conversation by calling its EndConversation tool,
         whose effect is to set the environment's end event. This loop never
         inspects which tools terminate. The harness watches the end event and
-        cancels this coroutine. The loop returns early only when tool-call
-        generation exhausts its retries, i.e. the agent can no longer produce
-        valid actions.
+        cancels this coroutine. If tool-call generation exhausts its retries,
+        the iteration is skipped and the agent tries again, still bounded by
+        ``max_actions``.
 
         Args:
             invoke_tool: Async callback that executes a ``Tool`` against the
@@ -159,7 +159,7 @@ class BaseAgent:
             try:
                 tool_call = await self.generate_tool_call()
             except ToolCallRetriesExhausted:
-                return
+                continue
             try:
                 result = await invoke_tool(tool_call)
             except asyncio.CancelledError:

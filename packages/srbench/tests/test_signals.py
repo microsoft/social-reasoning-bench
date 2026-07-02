@@ -57,7 +57,7 @@ class TestNotifyAndWait:
 
     async def test_clear_consumes_pending_notification(self, signals):
         signals.notify("alice")
-        signals.clear("alice")
+        signals.consume("alice")
         waiting = asyncio.create_task(signals.wait_for_activity("alice"))
         await asyncio.sleep(0)
         assert not waiting.done(), "Cleared notification must not wake the wait"
@@ -181,4 +181,4 @@ class TestEnvironmentWiring:
         env.create_agent_resources("buyer")
         env.create_agent_resources("seller")
         env.signals.notify("buyer")
-        env.signals.clear("buyer")
+        env.signals.consume("buyer")
