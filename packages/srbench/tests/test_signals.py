@@ -11,7 +11,7 @@ from srbench.benchmarks.calendar_scheduling.environment import (
     CalendarSchedulingEnvironment,
 )
 from srbench.benchmarks.marketplace.environment import MarketplaceEnvironment
-from srbench.shared.conversation import ConversationSignals, run_agents_until_end
+from srbench.shared.signals import ConversationSignals, run_agents_until_end
 
 _GUARD_SECONDS = 5.0
 
@@ -106,13 +106,6 @@ class TestStalemate:
         signals.end(reason="test cleanup")
         async with asyncio.timeout(_GUARD_SECONDS):
             await alice_task
-
-
-class TestActionCounter:
-    def test_count_action_is_monotonic(self, signals):
-        assert signals.count_action() == 1
-        assert signals.count_action() == 2
-        assert signals.action_count == 2
 
 
 class TestRunAgentsUntilEnd:

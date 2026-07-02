@@ -23,12 +23,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import traceback
+from typing import Callable
 
 from srbench_llm import SRBenchModelClient
 
 from ...shared.agent import InvokeTool
-from ...shared.conversation import ConversationSignals, run_agents_until_end
 from ...shared.logging import BenchmarkLogger, VerboseLogger
+from ...shared.signals import ConversationSignals, run_agents_until_end
 from .agents.assistant import CalendarAssistantAgent
 from .agents.calendar_requestor import CalendarRequestorAgent
 from .environment import (
@@ -58,6 +59,7 @@ def _bind_tools(
     signals: ConversationSignals,
     resources: AgentResources,
     benchmark_logger: BenchmarkLogger,
+    count_action: Callable[[], None],
 ) -> InvokeTool:
     """Bind an agent's environment resources into its async tool callback.
 
@@ -71,13 +73,15 @@ def _bind_tools(
         signals: The environment's conversation signals.
         resources: The agent's resources (calendar, email, contacts).
         benchmark_logger: Logger for per-action diagnostics.
+        count_action: Executor-owned counter, called once per executed action
+            so the result's ``total_actions`` reflects the whole conversation.
 
     Returns:
         The async callback to pass to ``agent.run``.
     """
 
     async def invoke(action: Tool) -> str:
-        signals.count_action()
+        count_action()
         benchmark_logger.debug("[%s] %s: %s", resources.owner, type(action).__qualname__, action)
         if isinstance(action, Wait):
             if not await signals.wait_for_activity(resources.owner):
@@ -267,8 +271,16 @@ async def execute_task(
         max_actions=max_actions_per_agent,
     )
 
-    invoke_assistant = _bind_tools(signals, assistant_resources, benchmark_logger)
-    invoke_requestor = _bind_tools(signals, requestor_resources, benchmark_logger)
+    # Conversation-wide action count, shared by both agents' callbacks and
+    # including the forced opening request.
+    action_count = 0
+
+    def _count_action() -> None:
+        nonlocal action_count
+        action_count += 1
+
+    invoke_assistant = _bind_tools(signals, assistant_resources, benchmark_logger, _count_action)
+    invoke_requestor = _bind_tools(signals, requestor_resources, benchmark_logger, _count_action)
 
     exec_error = None
     try:
@@ -309,7 +321,7 @@ async def execute_task(
     benchmark_logger.debug(
         "Task %d execution completed - total_actions: %d, end_reason: %s, exec_error: %s",
         task.id,
-        signals.action_count,
+        action_count,
         signals.end_reason,
         exec_error is not None,
     )
@@ -323,7 +335,7 @@ async def execute_task(
         requestor_context=list(requestor_agent._messages),
         assistant_tools=assistant_agent.tools,
         requestor_tools=requestor_agent.tools,
-        total_actions=signals.action_count,
+        total_actions=action_count,
         end_reason=signals.end_reason,
         max_rounds_reached=signals.end_reason in _HARNESS_STOP_REASONS,
         error=exec_error,

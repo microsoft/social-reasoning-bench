@@ -1,6 +1,6 @@
 """CalendarSchedulingEnvironment factory for creating agent resources."""
 
-from ....shared.conversation import ConversationSignals
+from ....shared.signals import ConversationSignals
 from ..types import Contact, Email, Meeting
 from .calendar import CalendarManager
 from .email import EmailManager

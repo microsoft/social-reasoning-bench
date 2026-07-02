@@ -39,7 +39,6 @@ class ConversationSignals:
         self._waiting: set[str] = set()
         self.end_event: asyncio.Event = asyncio.Event()
         self.end_reason: str | None = None
-        self.action_count: int = 0
 
     def register(self, owner: str) -> None:
         """Create the content event for ``owner`` if not already registered.
@@ -90,15 +89,6 @@ class ConversationSignals:
             return
         self.end_reason = reason
         self.end_event.set()
-
-    def count_action(self) -> int:
-        """Increment and return the monotonic action counter (1-based).
-
-        Returns:
-            The new total number of actions executed in this conversation.
-        """
-        self.action_count += 1
-        return self.action_count
 
     async def wait_for_activity(self, owner: str) -> bool:
         """Block until ``owner`` is notified or the conversation ends.

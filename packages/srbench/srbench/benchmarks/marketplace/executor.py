@@ -28,8 +28,8 @@ import traceback
 from srbench_llm import SRBenchModelClient
 
 from ...shared.agent import InvokeTool
-from ...shared.conversation import run_agents_until_end
 from ...shared.logging import BenchmarkLogger, VerboseLogger
+from ...shared.signals import run_agents_until_end
 from .agents import BuyerAgent, SellerAgent
 from .environment import (
     AcceptOffer,
@@ -73,7 +73,6 @@ def _bind_tools(
     counterpart = "seller" if resources.role == "buyer" else "buyer"
 
     async def invoke(action: Tool) -> str:
-        signals.count_action()
         if isinstance(action, Wait):
             if await signals.wait_for_activity(resources.role):
                 result = resources.execute(GetMessages())
@@ -244,7 +243,9 @@ async def execute_task(
         invalid_actions=invalid_actions,
         buyer_context=buyer_agent.messages,
         seller_context=seller_agent.messages,
-        total_actions=signals.action_count,
+        # Every invoke appends exactly one trace entry, so the trace length is
+        # the conversation-wide action count (including the forced opening).
+        total_actions=len(action_trace),
         end_reason=signals.end_reason,
         error=error,
     )

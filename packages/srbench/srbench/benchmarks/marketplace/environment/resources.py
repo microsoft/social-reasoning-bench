@@ -1,6 +1,6 @@
 from typing import Literal
 
-from ....shared.conversation import ConversationSignals
+from ....shared.signals import ConversationSignals
 from ..types import ActionTrace, MessageRecord, Tool, ToolError
 from .actions import AcceptOffer, EndConversation, GetMessages, MakeOffer, SendMessage, Wait
 from .state import MarketplaceState
