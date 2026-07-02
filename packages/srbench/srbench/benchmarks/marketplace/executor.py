@@ -6,11 +6,11 @@ record of what happened, with no judgement.
     execute_task(task, ...) -> MarketplaceExecutionResult
 
 Each agent owns its run loop and touches the environment only through tools:
-the executor binds every agent's resources into an async ``invoke_tool``
-callback, forces the seller's opening offer, then races both ``agent.run``
-loops against the environment's end signal. ``Wait`` blocks until the
-counterpart acts and returns the new messages and offers, so no scheduler
-injects turns.
+``AgentResources.execute`` is the single execution path for every action, and
+the executor hands it directly to ``agent.run``, forces the seller's opening
+offer, then races both loops against the environment's end signal. ``Wait``
+blocks until the counterpart acts and returns the new messages and offers, so
+no scheduler injects turns.
 
 The execution result carries:
     - task: MarketplaceTask (with .hash for checkpoint dedup)
@@ -26,84 +26,30 @@ import traceback
 
 from srbench_llm import SRBenchModelClient
 
-from ...shared.agent import InvokeTool
 from ...shared.logging import BenchmarkLogger, VerboseLogger
 from ...shared.signals import run_agents_until_end
 from .agents import BuyerAgent, SellerAgent
-from .environment import (
-    AcceptOffer,
-    AgentResources,
-    EndConversation,
-    MakeOffer,
-    MarketplaceEnvironment,
-    SendMessage,
-    Wait,
-)
-from .environment.resources import execute_with_trace
-from .types import ActionTrace, MarketplaceExecutionResult, MarketplaceTask, Tool
+from .environment import AgentResources, MakeOffer, MarketplaceEnvironment
+from .types import MarketplaceExecutionResult, MarketplaceTask
 
 logger = logging.getLogger(__name__)
 
 
-def _bind_tools(
-    env: MarketplaceEnvironment,
-    resources: AgentResources,
-    action_trace: list[ActionTrace],
-) -> InvokeTool:
-    """Bind an agent's environment resources into its async tool callback.
-
-    The returned callback is the agent's only touchpoint with the environment.
-    ``Wait`` blocks until the counterpart acts (or the conversation ends) and
-    then returns the new messages/offers, mirroring the unread-updates
-    injection the turn-based executor performed at the start of each turn.
-    Actions that produce counterpart-visible content wake the counterpart.
-    Invalid actions come back as error strings so the agent can recover.
-
-    Args:
-        env: The marketplace environment.
-        resources: The agent's role-bound resources.
-        action_trace: Mutable list to which trace entries are appended.
-
-    Returns:
-        The async callback to pass to ``agent.run``.
-    """
-    signals = env.signals
-    counterpart = "seller" if resources.role == "buyer" else "buyer"
-
-    async def invoke(action: Tool) -> str:
-        # Coordination happens here; execution happens in resources.execute,
-        # the single path for every action. Wait blocks until the counterpart
-        # acts, then executes normally (its handler returns the unread
-        # messages and offers).
-        if isinstance(action, Wait) and not await signals.wait_for_activity(resources.role):
-            return "Negotiation has ended."
-        trace, ok = execute_with_trace(resources, action)
-        action_trace.append(trace)
-        if ok:
-            if isinstance(action, (SendMessage, MakeOffer, AcceptOffer)):
-                signals.notify(counterpart)
-            if isinstance(action, EndConversation):
-                signals.end(reason=action.reason)
-        return trace.result
-
-    return invoke
-
-
 async def _force_initial_seller_offer(
     seller_agent: SellerAgent,
-    invoke_tool: InvokeTool,
+    seller_resources: AgentResources,
     task: MarketplaceTask,
 ) -> None:
     """Force the seller to make an initial offer at the listed price.
 
     Lets the agent generate a natural opening message, then creates a
     MakeOffer action with the predetermined listed_price from the task,
-    executes it through the agent's tool callback, and records the forced
-    action on its transcript.
+    executes it against the environment, and records the forced action on
+    the seller's transcript.
 
     Args:
         seller_agent: The seller agent to record the forced action on.
-        invoke_tool: The seller's environment-bound tool callback.
+        seller_resources: The seller's environment resources.
         task: The marketplace task with product.listed_price set.
     """
     listed_price = task.product.listed_price
@@ -117,7 +63,7 @@ async def _force_initial_seller_offer(
         logger.warning("SellerAgent failed to generate opening message.")
 
     offer_action = MakeOffer(price=listed_price, message=message or "")
-    result = await invoke_tool(offer_action)
+    result = await seller_resources.execute(offer_action)
     seller_agent.add_forced_action(offer_action, result)
 
 
@@ -179,25 +125,21 @@ async def execute_task(
     if benchmark_logger is None:
         benchmark_logger = VerboseLogger(logger)
 
-    action_trace: list[ActionTrace] = []
-    invoke_buyer = _bind_tools(env, buyer_resources, action_trace)
-    invoke_seller = _bind_tools(env, seller_resources, action_trace)
-
     error: str | None = None
     try:
         if task.product.listed_price is not None:
             # Force the seller's opening offer at the listed price, surface it
             # in the buyer's context before its loop starts (exactly what the
-            # turn-based executor did at the start of each turn), and consume
+            # turn-based executor did at the start of each turn), and clear
             # the wake signal the offer produced.
-            await _force_initial_seller_offer(seller_agent, invoke_seller, task)
+            await _force_initial_seller_offer(seller_agent, seller_resources, task)
             buyer_agent.add_new_messages(buyer_resources.get_unread_updates())
             signals.clear("buyer")
 
         await run_agents_until_end(
             [
-                buyer_agent.run(invoke_buyer),
-                seller_agent.run(invoke_seller),
+                buyer_agent.run(buyer_resources.execute),
+                seller_agent.run(seller_resources.execute),
             ],
             signals=signals,
         )
@@ -215,16 +157,14 @@ async def execute_task(
             f"Conversation ended without agreement ({signals.end_reason})."
         )
 
-    invalid_actions = sum(
-        1 for trace in action_trace if isinstance(trace, ActionTrace) and not trace.valid
-    )
+    invalid_actions = sum(1 for trace in env.state.action_trace if not trace.valid)
 
     return MarketplaceExecutionResult(
         task=task,
         outcome=env.state.outcome,
         messages=env.state.messages,
         offers=env.state.offers,
-        action_trace=action_trace,
+        action_trace=env.state.action_trace,
         invalid_actions=invalid_actions,
         buyer_context=buyer_agent.messages,
         seller_context=seller_agent.messages,

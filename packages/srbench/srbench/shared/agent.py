@@ -29,11 +29,11 @@ from openai.types.chat.chat_completion_message_tool_call import (
 from pydantic import ValidationError
 from srbench_llm import SRBenchInputMessage, SRBenchModelClient
 
-from .tool import Tool
+from .tool import Tool, ToolError
 
 # The agent's only touchpoint with the environment: pass a Tool, get back a
-# result string. The executor binds the environment into this callback before
-# passing it to :meth:`BaseAgent.run`.
+# result string. In practice this is ``AgentResources.execute``, the single
+# execution path for every action.
 InvokeTool: TypeAlias = Callable[[Tool], Awaitable[str]]
 
 
@@ -139,9 +139,10 @@ class BaseAgent:
         """Drive this agent's action loop until its budget is exhausted.
 
         Each iteration generates one tool call, executes it through
-        ``invoke_tool`` (the executor's environment-bound callback, which
-        returns tool errors as result strings rather than raising), and
-        appends the result to the transcript.
+        ``invoke_tool`` (the environment's ``AgentResources.execute``, the
+        single execution path for every action), and appends the result to
+        the transcript. Tool errors are surfaced to the agent as result
+        strings so it can recover.
 
         Ending the conversation is expressed through the tools, not the loop.
         An agent ends a conversation by calling its EndConversation tool,
@@ -152,8 +153,9 @@ class BaseAgent:
         ``max_actions``.
 
         Args:
-            invoke_tool: Async callback that executes a ``Tool`` against the
-                environment and returns the result string.
+            invoke_tool: Async callable that executes a ``Tool`` against the
+                environment and returns the result string, typically
+                ``resources.execute``.
         """
         for _ in range(self._max_actions):
             try:
@@ -168,6 +170,10 @@ class BaseAgent:
                 # tool call so the transcript stays a well-formed history.
                 self.add_tool_call_result("Conversation ended before this action completed.")
                 raise
+            except ToolError as e:
+                result = f"Error: {e}"
+            except Exception:
+                result = f"Error: {traceback.format_exc()}"
             self.add_tool_call_result(result)
 
     @property

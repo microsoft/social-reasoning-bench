@@ -53,6 +53,7 @@ class CalendarSchedulingEnvironment:
             email=email,
             allowed_date=allowed_date,
             contacts=contacts,
+            signals=self.signals,
         )
 
     def get_all_emails(self) -> list[Email]:

@@ -6,11 +6,11 @@ record of what happened, with no judgement.
     execute_task(task: HashedCalendarTask, ...) -> CalendarExecutionResult
 
 Each agent owns its run loop and touches the environment only through tools:
-the executor binds every agent's resources into an async ``invoke_tool``
-callback, forces the requestor's opening meeting request, then races both
-``agent.run`` loops against the environment's end signal and external
-cancellation. ``Wait`` blocks until the counterpart acts and returns any new
-emails, so no scheduler injects turns.
+``AgentResources.execute`` is the single execution path for every action, and
+the executor hands it directly to ``agent.run``, forces the requestor's
+opening meeting request, then races both loops against the environment's end
+signal and external cancellation. ``Wait`` blocks until the counterpart acts
+and returns any new emails, so no scheduler injects turns.
 
 The execution result carries:
     - task: HashedCalendarTask (with .hash for checkpoint dedup)
@@ -26,22 +26,20 @@ import traceback
 
 from srbench_llm import SRBenchModelClient
 
-from ...shared.agent import InvokeTool
 from ...shared.logging import BenchmarkLogger, VerboseLogger
-from ...shared.signals import ConversationSignals, run_agents_until_end
+from ...shared.signals import run_agents_until_end
 from .agents.assistant import CalendarAssistantAgent
 from .agents.calendar_requestor import CalendarRequestorAgent
 from .environment import (
     AgentResources,
     CalendarSchedulingEnvironment,
 )
-from .environment.actions import EndConversation, RequestMeeting, Wait
+from .environment.actions import RequestMeeting
 from .types import (
     CalendarExecutionResult,
     CalendarTask,
     Meeting,
     Tool,
-    ToolError,
 )
 
 # v2: CalendarTask has hash built in, no separate HashedCalendarTask
@@ -54,54 +52,9 @@ logger = logging.getLogger(__name__)
 _HARNESS_STOP_REASONS = {"agent_stopped", "stalemate"}
 
 
-def _bind_tools(
-    signals: ConversationSignals,
-    resources: AgentResources,
-    benchmark_logger: BenchmarkLogger,
-) -> InvokeTool:
-    """Bind an agent's environment resources into its async tool callback.
-
-    The returned callback is the agent's only touchpoint with the environment.
-    ``Wait`` blocks until the counterpart acts (or the conversation ends) and
-    then returns the new emails, mirroring the unread-mail injection the
-    turn-based executor performed at the start of each turn. Tool errors come
-    back as result strings so the agent can recover.
-
-    Args:
-        signals: The environment's conversation signals.
-        resources: The agent's resources (calendar, email, contacts).
-        benchmark_logger: Logger for per-action diagnostics.
-
-    Returns:
-        The async callback to pass to ``agent.run``.
-    """
-
-    async def invoke(action: Tool) -> str:
-        benchmark_logger.debug("[%s] %s: %s", resources.owner, type(action).__qualname__, action)
-        # Coordination happens here; execution happens in resources.execute,
-        # the single path for every action. Wait blocks until the counterpart
-        # acts, then executes normally (its handler returns the unread mail).
-        if isinstance(action, Wait) and not await signals.wait_for_activity(resources.owner):
-            return "Conversation has ended."
-        try:
-            result = resources.execute(action)
-            if isinstance(action, EndConversation):
-                # Reached only when execute succeeded (a rejected
-                # EndConversation raises ToolError above).
-                signals.end(reason=action.reason)
-        except ToolError as e:
-            result = f"Error: {e}"
-        except Exception:
-            result = f"Error: {traceback.format_exc()}"
-        benchmark_logger.debug("[%s] Result: %s", resources.owner, result)
-        return result
-
-    return invoke
-
-
 async def _force_initial_request(
     requestor_agent: CalendarRequestorAgent,
-    invoke_tool: InvokeTool,
+    requestor_resources: AgentResources,
     task: CalendarTask,
     assistant_email: str,
 ) -> Tool:
@@ -109,12 +62,12 @@ async def _force_initial_request(
 
     Lets the agent generate a natural email message, then replaces the meeting
     parameters with the predetermined values from the task to ensure
-    deterministic scheduling details, executes the request through the agent's
-    tool callback, and records the forced action on its transcript.
+    deterministic scheduling details, executes the request against the
+    environment, and records the forced action on the requestor's transcript.
 
     Args:
         requestor_agent: The requestor agent to record the forced action on.
-        invoke_tool: The requestor's environment-bound tool callback.
+        requestor_resources: The requestor's environment resources.
         task: The calendar task containing the requested meeting details.
         assistant_email: Email address of the assistant to include as attendee.
 
@@ -143,7 +96,7 @@ async def _force_initial_request(
         attendees=[assistant_email],
     )
 
-    result = await invoke_tool(request_action)
+    result = await requestor_resources.execute(request_action)
     requestor_agent.add_forced_action(request_action, result)
 
     return request_action
@@ -265,29 +218,26 @@ async def execute_task(
         max_actions=max_actions_per_agent,
     )
 
-    invoke_assistant = _bind_tools(signals, assistant_resources, benchmark_logger)
-    invoke_requestor = _bind_tools(signals, requestor_resources, benchmark_logger)
-
     exec_error = None
     try:
         # Force initial request from requestor (LLM generates the email body)
         await _force_initial_request(
             requestor_agent=requestor_agent,
-            invoke_tool=invoke_requestor,
+            requestor_resources=requestor_resources,
             task=task,
             assistant_email=assistant_email,
         )
 
         # Surface the opening request in the assistant's context before its
         # loop starts (exactly what the turn-based executor did at the start
-        # of each turn), and consume the wake signal that delivery produced.
+        # of each turn), and clear the wake signal that delivery produced.
         assistant_agent.add_new_messages(assistant_resources.email.get_unread())
         signals.clear(assistant_email)
 
         await run_agents_until_end(
             [
-                assistant_agent.run(invoke_assistant),
-                requestor_agent.run(invoke_requestor),
+                assistant_agent.run(assistant_resources.execute),
+                requestor_agent.run(requestor_resources.execute),
             ],
             signals=signals,
             cancel_event=cancel_event,
