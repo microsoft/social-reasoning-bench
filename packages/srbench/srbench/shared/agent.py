@@ -143,10 +143,13 @@ class BaseAgent:
         returns tool errors as result strings rather than raising), and
         appends the result to the transcript.
 
-        The agent never decides when the conversation is over: the harness
-        watches the environment's end signal and cancels this coroutine. The
-        loop returns early only when tool-call generation exhausts its
-        retries, i.e. the agent can no longer produce valid actions.
+        Ending the conversation is expressed through the tools, not the loop.
+        An agent ends a conversation by calling its EndConversation tool,
+        whose effect is to set the environment's end event. This loop never
+        inspects which tools terminate. The harness watches the end event and
+        cancels this coroutine. The loop returns early only when tool-call
+        generation exhausts its retries, i.e. the agent can no longer produce
+        valid actions.
 
         Args:
             invoke_tool: Async callback that executes a ``Tool`` against the
