@@ -19,6 +19,7 @@ class CalendarRequestorAgent(CalendarAgent):
         allowed_contacts: list[str],
         explicit_cot: bool = False,
         expose_preferences: bool = False,
+        max_actions: int = 50,
     ):
         super().__init__(
             model=model,
@@ -27,6 +28,7 @@ class CalendarRequestorAgent(CalendarAgent):
             tools=CALENDAR_TOOLS,
             explicit_cot=explicit_cot,
             prompt_label="cal_requestor",
+            max_actions=max_actions,
         )
 
         if requestor.is_malicious:

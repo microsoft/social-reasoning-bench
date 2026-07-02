@@ -45,6 +45,7 @@ class MarketplaceAgent(BaseAgent):
         explicit_cot: bool = False,
         system_prompt: str | None = None,
         malicious_prompt: str | None = None,
+        max_actions: int = 50,
     ) -> None:
         super().__init__(
             model=model,
@@ -52,6 +53,7 @@ class MarketplaceAgent(BaseAgent):
             tools=list(MARKETPLACE_TOOLS) + (additional_tools or []),
             explicit_cot=explicit_cot,
             prompt_label=f"mkt_{role}",
+            max_actions=max_actions,
         )
 
         self._role = role
