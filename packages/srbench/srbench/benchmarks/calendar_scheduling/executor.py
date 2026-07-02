@@ -282,7 +282,7 @@ async def execute_task(
         # loop starts (exactly what the turn-based executor did at the start
         # of each turn), and consume the wake signal that delivery produced.
         assistant_agent.add_new_messages(assistant_resources.email.get_unread())
-        signals.consume(assistant_email)
+        signals.clear(assistant_email)
 
         await run_agents_until_end(
             [

@@ -60,8 +60,8 @@ class ConversationSignals:
         if event is not None:
             event.set()
 
-    def consume(self, owner: str) -> None:
-        """Consume a pending :meth:`notify` for ``owner`` without waiting.
+    def clear(self, owner: str) -> None:
+        """Clear a pending :meth:`notify` for ``owner`` without waiting.
 
         The inverse of :meth:`notify`. Used by the executor when it delivers
         content to an agent out of band (injecting the counterpart's forced
@@ -69,7 +69,7 @@ class ConversationSignals:
         ``Wait`` does not wake spuriously for content it has already seen.
 
         Args:
-            owner: Participant key whose pending notification to consume.
+            owner: Participant key whose pending notification to clear.
         """
         event = self._events.get(owner)
         if event is not None:

@@ -192,7 +192,7 @@ async def execute_task(
             # the wake signal the offer produced.
             await _force_initial_seller_offer(seller_agent, invoke_seller, task)
             buyer_agent.add_new_messages(buyer_resources.get_unread_updates())
-            signals.consume("buyer")
+            signals.clear("buyer")
 
         await run_agents_until_end(
             [
