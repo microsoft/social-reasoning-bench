@@ -119,8 +119,17 @@ class BaseRunConfig(BaseModel):
     judge_votes: int = Field(default=1, description="Number of judge votes for majority voting")
 
     # --- Run parameters ---
-    max_rounds: int = Field(default=20, description="Maximum conversation rounds per task")
-    max_steps_per_turn: int = Field(default=20, description="Maximum tool calls per agent turn")
+    # Deprecated round-based caps, ignored by the agent-driven executors.
+    # Retained so previously serialized configs still deserialize and read.
+    max_rounds: int = Field(
+        default=20, description="Deprecated and ignored; use max_actions_per_agent"
+    )
+    max_steps_per_turn: int = Field(
+        default=20, description="Deprecated and ignored; use max_actions_per_agent"
+    )
+    max_actions_per_agent: int = Field(
+        default=50, description="Maximum tool calls per agent over the whole conversation"
+    )
     batch_size: int = Field(default=32, description="Number of tasks to run in parallel")
     task_concurrency: int | None = Field(
         default=None,
