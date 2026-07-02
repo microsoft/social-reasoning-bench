@@ -18,6 +18,7 @@ Benchmark-specific subclasses add:
 - Non-tool-call generation (generate_text_response in marketplace)
 """
 
+import asyncio
 import traceback
 from typing import Any, Awaitable, Callable, TypeAlias
 
@@ -156,7 +157,14 @@ class BaseAgent:
                 tool_call = await self.generate_tool_call()
             except ToolCallRetriesExhausted:
                 return
-            result = await invoke_tool(tool_call)
+            try:
+                result = await invoke_tool(tool_call)
+            except asyncio.CancelledError:
+                # The harness ended the conversation while this action (most
+                # likely a blocking Wait) was in flight. Close the dangling
+                # tool call so the transcript stays a well-formed history.
+                self.add_tool_call_result("Conversation ended before this action completed.")
+                raise
             self.add_tool_call_result(result)
 
     @property

@@ -16,6 +16,7 @@ one instance and expose it to their executor.
 from __future__ import annotations
 
 import asyncio
+from typing import Any, Coroutine, Sequence
 
 
 class ConversationSignals:
@@ -136,3 +137,62 @@ class ConversationSignals:
         return len(self._waiting) == len(self._events) and not any(
             event.is_set() for event in self._events.values()
         )
+
+
+async def run_agents_until_end(
+    agent_runs: Sequence[Coroutine[Any, Any, Any]],
+    *,
+    signals: ConversationSignals,
+    max_wall_time_seconds: float | None = None,
+    cancel_event: asyncio.Event | None = None,
+) -> None:
+    """Run agent loops concurrently until the conversation ends.
+
+    Spawns every coroutine in ``agent_runs`` as a task and races them against
+    the conversation's end signal (and the optional external ``cancel_event``)
+    with ``FIRST_COMPLETED``, then cancels and drains the losers. Whatever
+    resolves the race first determines the recorded end reason:
+
+    - ``signals.end_event`` fired: the reason is already recorded (e.g. an
+      agent executed ``EndConversation``, or a stalemate was detected).
+    - the wall clock elapsed: ``"max_wall_time"``.
+    - ``cancel_event`` fired: ``"cancelled"``.
+    - an agent's run raised: the exception is re-raised for the executor to
+      record.
+    - an agent's run returned (its action budget or its tool-call retries
+      were exhausted): ``"agent_stopped"``.
+
+    Args:
+        agent_runs: One coroutine per agent, typically ``agent.run(invoke_tool)``.
+        signals: The environment's conversation signals.
+        max_wall_time_seconds: Wall-clock budget, or ``None`` for no limit.
+        cancel_event: Optional external cancellation signal to include in the race.
+    """
+    agent_tasks = [asyncio.create_task(run) for run in agent_runs]
+    watchers = [asyncio.create_task(signals.end_event.wait())]
+    if cancel_event is not None:
+        watchers.append(asyncio.create_task(cancel_event.wait()))
+    all_tasks = [*agent_tasks, *watchers]
+    try:
+        if max_wall_time_seconds is not None:
+            async with asyncio.timeout(max_wall_time_seconds):
+                await asyncio.wait(all_tasks, return_when=asyncio.FIRST_COMPLETED)
+        else:
+            await asyncio.wait(all_tasks, return_when=asyncio.FIRST_COMPLETED)
+    except TimeoutError:
+        signals.end(reason="max_wall_time")
+    finally:
+        for task in all_tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*all_tasks, return_exceptions=True)
+
+    if cancel_event is not None and cancel_event.is_set():
+        signals.end(reason="cancelled")
+    for task in agent_tasks:
+        if not task.cancelled():
+            error = task.exception()
+            if error is not None:
+                raise error
+    if not signals.end_event.is_set():
+        signals.end(reason="agent_stopped")

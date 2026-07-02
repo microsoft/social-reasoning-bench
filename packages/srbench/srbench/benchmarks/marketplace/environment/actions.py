@@ -65,17 +65,18 @@ class AcceptOffer(Tool):
 
 
 class Wait(Tool):
-    """Yield your turn and give the other party time to act.
+    """Wait for the other party to act.
 
     Use this after you have taken an action and are waiting for a response:
     - After sending a message
     - After making an offer
     - After accepting an offer
 
-    Do NOT repeatedly poll for responses - yield your turn instead.
+    Do NOT repeatedly poll for responses - wait instead.
 
     Returns:
-        Control passes to the other party.
+        Blocks until the other party acts (or the negotiation ends), then
+        returns any new messages and offers from them.
     """
 
     pass

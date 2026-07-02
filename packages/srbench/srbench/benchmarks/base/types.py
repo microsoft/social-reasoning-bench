@@ -119,8 +119,20 @@ class BaseRunConfig(BaseModel):
     judge_votes: int = Field(default=1, description="Number of judge votes for majority voting")
 
     # --- Run parameters ---
-    max_rounds: int = Field(default=20, description="Maximum conversation rounds per task")
-    max_steps_per_turn: int = Field(default=20, description="Maximum tool calls per agent turn")
+    # Deprecated round-based caps, ignored by the agent-driven executors.
+    # Retained so previously serialized configs still deserialize and read.
+    max_rounds: int = Field(
+        default=20, description="Deprecated and ignored; use max_actions_per_agent"
+    )
+    max_steps_per_turn: int = Field(
+        default=20, description="Deprecated and ignored; use max_actions_per_agent"
+    )
+    max_actions_per_agent: int = Field(
+        default=50, description="Maximum tool calls per agent over the whole conversation"
+    )
+    max_wall_time_seconds: float | None = Field(
+        default=None, description="Optional wall-clock timeout per task; None disables"
+    )
     batch_size: int = Field(default=32, description="Number of tasks to run in parallel")
     task_concurrency: int | None = Field(
         default=None,
@@ -228,7 +240,12 @@ class TaskExecutionResult(ABC, BaseModel, Generic[TTask]):
     """Raw output of running a task — no judgement, just facts."""
 
     task: TTask
+    # ``rounds_completed`` retained for back-compat with old checkpoints.
+    # Always 0 in the agent-driven design; the meaningful counters are
+    # ``total_actions`` and ``end_reason``.
     rounds_completed: int = 0
+    total_actions: int = 0
+    end_reason: str | None = None
     error: str | None = None
 
     @property

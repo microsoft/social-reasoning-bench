@@ -5,10 +5,17 @@ record of what happened, with no judgement.
 
     execute_task(task: HashedCalendarTask, ...) -> CalendarExecutionResult
 
+Each agent owns its run loop and touches the environment only through tools:
+the executor binds every agent's resources into an async ``invoke_tool``
+callback, forces the requestor's opening meeting request, then races both
+``agent.run`` loops against the environment's end signal, the wall clock, and
+external cancellation. ``Wait`` blocks until the counterpart acts and returns
+any new emails, so no scheduler injects turns.
+
 The execution result carries:
     - task: HashedCalendarTask (with .hash for checkpoint dedup)
     - emails exchanged, final calendars, agent contexts/tools
-    - Execution health (rounds_completed, exec_error)
+    - Execution health (total_actions, end_reason, exec_error)
 """
 
 from __future__ import annotations
@@ -19,17 +26,16 @@ import traceback
 
 from srbench_llm import SRBenchModelClient
 
-from ...shared.agent import ToolCallRetriesExhausted
-from ...shared.errors import is_fatal_error
+from ...shared.agent import InvokeTool
+from ...shared.conversation import ConversationSignals, run_agents_until_end
 from ...shared.logging import BenchmarkLogger, VerboseLogger
 from .agents.assistant import CalendarAssistantAgent
-from .agents.calendar_base import CalendarAgent
 from .agents.calendar_requestor import CalendarRequestorAgent
 from .environment import (
     AgentResources,
     CalendarSchedulingEnvironment,
 )
-from .environment.actions import EndConversation, RequestMeeting, Wait
+from .environment.actions import EndConversation, GetEmails, RequestMeeting, Wait
 from .types import (
     CalendarExecutionResult,
     CalendarTask,
@@ -43,91 +49,77 @@ HashedCalendarTask = CalendarTask
 
 logger = logging.getLogger(__name__)
 
+# End reasons recorded by the harness (rather than by an agent's
+# EndConversation) when a budget or coordination limit stops the run.
+_HARNESS_STOP_REASONS = {"agent_stopped", "max_wall_time", "stalemate"}
 
-async def _run_agent_turn(
-    agent: CalendarAgent,
+
+def _bind_tools(
+    signals: ConversationSignals,
     resources: AgentResources,
-    max_steps: int,
     benchmark_logger: BenchmarkLogger,
-) -> tuple[list[Tool], bool]:
-    """Run an agent until Wait, EndConversation, or max_steps.
+) -> InvokeTool:
+    """Bind an agent's environment resources into its async tool callback.
+
+    The returned callback is the agent's only touchpoint with the environment.
+    ``Wait`` blocks until the counterpart acts (or the conversation ends) and
+    then returns the new emails, mirroring the unread-mail injection the
+    turn-based executor performed at the start of each turn. Tool errors come
+    back as result strings so the agent can recover.
 
     Args:
-        agent: The agent to run
-        resources: The agent's resources (calendar, email)
-        max_steps: Maximum number of tool calls per turn
+        signals: The environment's conversation signals.
+        resources: The agent's resources (calendar, email, contacts).
+        benchmark_logger: Logger for per-action diagnostics.
 
     Returns:
-        Tuple of (list of tool calls made, whether conversation ended)
+        The async callback to pass to ``agent.run``.
     """
-    all_tool_calls: list[Tool] = []
 
-    for _ in range(max_steps):
-        try:
-            tool_call = await agent.generate_tool_call()
-        except ToolCallRetriesExhausted:
-            benchmark_logger.warning(
-                "[%s] Tool call retries exhausted, forcing Wait", resources.owner
-            )
-            tool_call = Wait()
-        except Exception as e:
-            # Log the error and re-raise to let caller decide if it's fatal
-            benchmark_logger.error(
-                "[%s] Error generating tool call: %s", resources.owner, traceback.format_exc()
-            )
-            raise
+    async def invoke(action: Tool) -> str:
+        signals.count_action()
+        benchmark_logger.debug("[%s] %s: %s", resources.owner, type(action).__qualname__, action)
+        if isinstance(action, Wait):
+            if not await signals.wait_for_activity(resources.owner):
+                return "Conversation has ended."
+            result = resources.execute(GetEmails())
+        else:
+            try:
+                result = resources.execute(action)
+            except ToolError as e:
+                result = f"Error: {e}"
+            except Exception:
+                result = f"Error: {traceback.format_exc()}"
+            else:
+                if isinstance(action, EndConversation):
+                    signals.end(reason=action.reason)
+        benchmark_logger.debug("[%s] Result: %s", resources.owner, result)
+        return result
 
-        all_tool_calls.append(tool_call)
-
-        # Execute the action
-        execution_succeeded = False
-        try:
-            benchmark_logger.debug(
-                "[%s] %s: %s", resources.owner, type(tool_call).__qualname__, tool_call
-            )
-            result = resources.execute(tool_call)
-            execution_succeeded = True
-            benchmark_logger.debug("[%s] Result: %s", resources.owner, result)
-        except ToolError as e:
-            result = f"Error: {e}"
-        except Exception:
-            result = f"Error: {traceback.format_exc()}"
-
-        agent.add_tool_call_result(result)
-
-        # if not succeeded, let the agent try and recover up to max_steps
-        if execution_succeeded:
-            # Check for turn-ending actions
-            if isinstance(tool_call, Wait):
-                return all_tool_calls, False
-            if isinstance(tool_call, EndConversation):
-                return all_tool_calls, True
-
-    # Max steps exceeded - treat as end of turn
-    return all_tool_calls, False
+    return invoke
 
 
 async def _force_initial_request(
     requestor_agent: CalendarRequestorAgent,
-    requestor_resources: AgentResources,
+    invoke_tool: InvokeTool,
     task: CalendarTask,
     assistant_email: str,
-) -> list[Tool]:
+) -> Tool:
     """Force the requestor to send the initial meeting request.
 
-    Lets the agent make a normal tool call (so it generates a natural email
-    message), then replaces the meeting parameters with the predetermined
-    values from the task to ensure deterministic scheduling details.
+    Lets the agent generate a natural email message, then replaces the meeting
+    parameters with the predetermined values from the task to ensure
+    deterministic scheduling details, executes the request through the agent's
+    tool callback, and records the forced action on its transcript.
 
     Args:
-        requestor_agent: The requestor agent to record the forced actions on.
-        requestor_resources: The agent's environment resources used to execute
-            the request and wait actions.
+        requestor_agent: The requestor agent to record the forced action on.
+        invoke_tool: The requestor's environment-bound tool callback.
         task: The calendar task containing the requested meeting details.
         assistant_email: Email address of the assistant to include as attendee.
 
     Returns:
-        List of tool calls made (RequestMeeting + Wait).
+        The RequestMeeting action that was executed.
     """
     requested_meeting = task.requestor.requested_meeting
 
@@ -151,16 +143,10 @@ async def _force_initial_request(
         attendees=[assistant_email],
     )
 
-    # Execute and record
-    result = requestor_resources.execute(request_action)
+    result = await invoke_tool(request_action)
     requestor_agent.add_forced_action(request_action, result)
 
-    # Then Wait
-    wait_action = Wait()
-    wait_result = requestor_resources.execute(wait_action)
-    requestor_agent.add_forced_action(wait_action, wait_result)
-
-    return [request_action, wait_action]
+    return request_action
 
 
 async def execute_task(
@@ -169,8 +155,8 @@ async def execute_task(
     assistant_client: SRBenchModelClient,
     requestor_model: str,
     requestor_client: SRBenchModelClient,
-    max_rounds: int,
-    max_steps_per_turn: int,
+    max_actions_per_agent: int,
+    max_wall_time_seconds: float | None,
     system_prompt: str | None,
     assistant_explicit_cot: bool,
     requestor_explicit_cot: bool,
@@ -180,8 +166,10 @@ async def execute_task(
 ) -> CalendarExecutionResult:
     """Execute a single calendar scheduling task.
 
-    This is the canonical execution entry point. It runs the multi-turn
-    requestor <-> assistant conversation and produces a CalendarExecutionResult.
+    This is the canonical execution entry point. It runs the requestor and
+    assistant agent loops concurrently until an agent ends the conversation,
+    a budget runs out, or the conversation stalls, and produces a
+    CalendarExecutionResult.
 
     Args:
         task: The HashedCalendarTask to run (includes content hash for checkpointing)
@@ -189,8 +177,8 @@ async def execute_task(
         assistant_client: SRBenchModelClient for the assistant
         requestor_model: Model to use for the requestor agent
         requestor_client: SRBenchModelClient for the requestor
-        max_rounds: Maximum number of conversation rounds
-        max_steps_per_turn: Maximum tool calls per turn
+        max_actions_per_agent: Maximum tool calls per agent for the whole conversation
+        max_wall_time_seconds: Optional wall-clock budget for the whole task
         system_prompt: Optional resolved system prompt for the assistant agent
         assistant_explicit_cot: Whether to use explicit CoT for assistant
         requestor_explicit_cot: Whether to use explicit CoT for requestor
@@ -210,6 +198,7 @@ async def execute_task(
 
     # Create environment and agent resources
     environment = CalendarSchedulingEnvironment()
+    signals = environment.signals
 
     # Convert LabeledMeetings to Meetings for assistant's calendar
     # (strip the is_movable and is_secret fields that are hidden from the LLM)
@@ -265,6 +254,7 @@ async def execute_task(
         system_prompt=system_prompt,
         explicit_cot=assistant_explicit_cot,
         expose_preferences=expose_preferences,
+        max_actions=max_actions_per_agent,
     )
 
     requestor_agent = CalendarRequestorAgent(
@@ -274,103 +264,53 @@ async def execute_task(
         allowed_contacts=[assistant_email],
         explicit_cot=requestor_explicit_cot,
         expose_preferences=expose_preferences,
+        max_actions=max_actions_per_agent,
     )
 
-    # Force initial request from requestor (LLM generates the email body)
-    await _force_initial_request(
-        requestor_agent=requestor_agent,
-        requestor_resources=requestor_resources,
-        task=task,
-        assistant_email=assistant_email,
-    )
+    invoke_assistant = _bind_tools(signals, assistant_resources, benchmark_logger)
+    invoke_requestor = _bind_tools(signals, requestor_resources, benchmark_logger)
 
-    if benchmark_logger is None:
-        benchmark_logger = VerboseLogger(logger)
-
-    # Track execution state
-    rounds_completed = 0
     exec_error = None
-    conversation_ended_naturally = False
+    try:
+        # Force initial request from requestor (LLM generates the email body)
+        await _force_initial_request(
+            requestor_agent=requestor_agent,
+            invoke_tool=invoke_requestor,
+            task=task,
+            assistant_email=assistant_email,
+        )
 
-    # Main simulation loop - assistant goes first since requestor already sent request
-    for round_idx in range(max_rounds):
-        # Check for cancellation at the start of each round
-        if cancel_event and cancel_event.is_set():
-            benchmark_logger.info("Task %d cancelled via event", task.id)
-            break
+        # Surface the opening request in the assistant's context before its
+        # loop starts (exactly what the turn-based executor did at the start
+        # of each turn), and consume the wake signal that delivery produced.
+        assistant_agent.add_new_messages(assistant_resources.email.get_unread())
+        signals.clear(assistant_email)
 
-        benchmark_logger.info("Task %d - Round %d", task.id, round_idx + 1)
-        rounds_completed = round_idx + 1
-
-        # Inject emails into assistant's context at start of their turn
-        assistant_emails = assistant_resources.email.get_unread()
-        assistant_agent.add_new_messages(assistant_emails)
-
-        # Assistant turn
-        assistant_ended = False
-        try:
-            _, assistant_ended = await _run_agent_turn(
-                assistant_agent, assistant_resources, max_steps_per_turn, benchmark_logger
-            )
-        except asyncio.CancelledError:
-            # Re-raise cancellation to propagate up
-            raise
-        except Exception as e:
-            if is_fatal_error(e):
-                exec_error = f"Assistant fatal error in round {round_idx + 1}: {str(e)}"
-                benchmark_logger.error("Task %d - Fatal error: %s", task.id, exec_error)
-                break
-            # Recoverable error - already logged in _run_agent_turn
-            # End this turn and continue to next round
-            benchmark_logger.warning(
-                "Task %d - Recoverable error in assistant turn, ending turn", task.id
-            )
-
-        if assistant_ended:
-            conversation_ended_naturally = True
-            break
-
-        # Check for cancellation between turns
-        if cancel_event and cancel_event.is_set():
-            benchmark_logger.info("Task %d cancelled via event", task.id)
-            break
-
-        # Inject emails into requestor's context at start of their turn
-        requestor_emails = requestor_resources.email.get_unread()
-        requestor_agent.add_new_messages(requestor_emails)
-
-        # Requestor turn
-        requestor_ended = False
-        try:
-            _, requestor_ended = await _run_agent_turn(
-                requestor_agent, requestor_resources, max_steps_per_turn, benchmark_logger
-            )
-        except asyncio.CancelledError:
-            # Re-raise cancellation to propagate up
-            raise
-        except Exception as e:
-            if is_fatal_error(e):
-                exec_error = f"Requestor fatal error in round {round_idx + 1}: {str(e)}"
-                benchmark_logger.error("Task %d - Fatal error: %s", task.id, exec_error)
-                break
-            # Recoverable error - already logged in _run_agent_turn
-            # End this turn and continue to next round
-            benchmark_logger.warning(
-                "Task %d - Recoverable error in requestor turn, ending turn", task.id
-            )
-
-        if requestor_ended:
-            conversation_ended_naturally = True
-            break
-
-    max_rounds_reached = rounds_completed >= max_rounds and not conversation_ended_naturally
+        await run_agents_until_end(
+            [
+                assistant_agent.run(invoke_assistant),
+                requestor_agent.run(invoke_requestor),
+            ],
+            signals=signals,
+            max_wall_time_seconds=max_wall_time_seconds,
+            cancel_event=cancel_event,
+        )
+    except asyncio.CancelledError:
+        signals.end(reason="cancelled")
+        raise
+    except Exception as e:
+        exec_error = f"Calendar execution error: {e}"
+        benchmark_logger.error(
+            "Task %d - Fatal error: %s\n%s", task.id, exec_error, traceback.format_exc()
+        )
+        signals.end(reason="error")
 
     # Log completion (don't call on_task_complete here - that's done after eval)
     benchmark_logger.debug(
-        "Task %d execution completed - rounds: %d, max_rounds_reached: %s, exec_error: %s",
+        "Task %d execution completed - total_actions: %d, end_reason: %s, exec_error: %s",
         task.id,
-        rounds_completed,
-        max_rounds_reached,
+        signals.action_count,
+        signals.end_reason,
         exec_error is not None,
     )
 
@@ -383,8 +323,9 @@ async def execute_task(
         requestor_context=list(requestor_agent._messages),
         assistant_tools=assistant_agent.tools,
         requestor_tools=requestor_agent.tools,
-        rounds_completed=rounds_completed,
-        max_rounds_reached=max_rounds_reached,
+        total_actions=signals.action_count,
+        end_reason=signals.end_reason,
+        max_rounds_reached=signals.end_reason in _HARNESS_STOP_REASONS,
         error=exec_error,
     )
 

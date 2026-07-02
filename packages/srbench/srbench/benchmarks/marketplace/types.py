@@ -65,7 +65,9 @@ class FinalOutcome(BaseModel):
     deal_reached: bool = False
     deal_price: float | None = None
     accepted_offer_id: int | None = None
-    ended_by: Literal["buyer", "seller", "max_rounds", "none"] = "none"
+    # "max_rounds" is retained for old serialized results; agent-driven runs
+    # use "harness" when no agent ended the negotiation.
+    ended_by: Literal["buyer", "seller", "max_rounds", "harness", "none"] = "none"
     end_reason: str | None = None
 
 

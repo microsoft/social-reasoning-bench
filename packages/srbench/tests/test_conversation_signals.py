@@ -11,7 +11,7 @@ from srbench.benchmarks.calendar_scheduling.environment import (
     CalendarSchedulingEnvironment,
 )
 from srbench.benchmarks.marketplace.environment import MarketplaceEnvironment
-from srbench.shared.conversation import ConversationSignals
+from srbench.shared.conversation import ConversationSignals, run_agents_until_end
 
 _GUARD_SECONDS = 5.0
 
@@ -113,6 +113,74 @@ class TestActionCounter:
         assert signals.count_action() == 1
         assert signals.count_action() == 2
         assert signals.action_count == 2
+
+
+class TestRunAgentsUntilEnd:
+    async def test_agent_returning_ends_run_as_agent_stopped(self, signals):
+        async def brief_agent():
+            await asyncio.sleep(0)
+
+        async with asyncio.timeout(_GUARD_SECONDS):
+            await run_agents_until_end([brief_agent()], signals=signals)
+        assert signals.end_reason == "agent_stopped"
+
+    async def test_end_event_cancels_running_agents(self, signals):
+        cancelled = asyncio.Event()
+
+        async def parked_agent():
+            try:
+                await asyncio.sleep(60)
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+
+        async def ending_agent():
+            await asyncio.sleep(0)
+            signals.end(reason="done")
+            await asyncio.sleep(60)
+
+        async with asyncio.timeout(_GUARD_SECONDS):
+            await run_agents_until_end([parked_agent(), ending_agent()], signals=signals)
+        assert signals.end_reason == "done"
+        assert cancelled.is_set()
+
+    async def test_agent_exception_is_reraised(self, signals):
+        async def failing_agent():
+            await asyncio.sleep(0)
+            raise RuntimeError("boom")
+
+        async def parked_agent():
+            await asyncio.sleep(60)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            async with asyncio.timeout(_GUARD_SECONDS):
+                await run_agents_until_end([failing_agent(), parked_agent()], signals=signals)
+
+    async def test_wall_time_ends_run(self, signals):
+        async def parked_agent():
+            await asyncio.sleep(60)
+
+        async with asyncio.timeout(_GUARD_SECONDS):
+            await run_agents_until_end(
+                [parked_agent()], signals=signals, max_wall_time_seconds=0.01
+            )
+        assert signals.end_reason == "max_wall_time"
+
+    async def test_cancel_event_ends_run(self, signals):
+        cancel_event = asyncio.Event()
+
+        async def parked_agent():
+            await asyncio.sleep(60)
+
+        async def fire_cancel():
+            await asyncio.sleep(0)
+            cancel_event.set()
+
+        async with asyncio.timeout(_GUARD_SECONDS):
+            fire = asyncio.create_task(fire_cancel())
+            await run_agents_until_end([parked_agent()], signals=signals, cancel_event=cancel_event)
+            await fire
+        assert signals.end_reason == "cancelled"
 
 
 class TestEnvironmentWiring:

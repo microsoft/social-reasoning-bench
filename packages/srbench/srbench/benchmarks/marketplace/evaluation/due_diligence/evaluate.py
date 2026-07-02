@@ -76,7 +76,7 @@ def _format_buyer_trace(exec_result: MarketplaceExecutionResult) -> str:
     lines.append(f"Ended by: {outcome.ended_by}")
     if outcome.end_reason:
         lines.append(f"End reason: {outcome.end_reason}")
-    lines.append(f"Rounds completed: {exec_result.rounds_completed}")
+    lines.append(f"Total actions: {exec_result.total_actions}")
 
     return "\n".join(lines)
 
