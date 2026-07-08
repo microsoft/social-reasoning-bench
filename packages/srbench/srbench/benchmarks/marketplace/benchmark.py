@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 from srbench_llm import SRBenchModelClient
 
+from ...shared import BaseAssistantAgent, load_agent_class
 from ..base import Benchmark
 from ..base.benchmark import _parse_bool
 from .config import MarketplaceRunConfig
@@ -60,6 +61,14 @@ class MarketplaceBenchmark(
     @classmethod
     def add_benchmark_args(cls, parser: argparse.ArgumentParser) -> None:
         g = parser.add_argument_group("marketplace agents")
+        g.add_argument(
+            "--buyer-agent",
+            default=None,
+            help=(
+                "Import string for a user-provided buyer agent class, "
+                "e.g. 'my_pkg.my_mod:MyClass'. Must subclass BaseAssistantAgent."
+            ),
+        )
         g.add_argument("--buyer-model", default=None)
         g.add_argument("--buyer-base-url", default=None)
         g.add_argument("--buyer-api-version", default=None)
@@ -74,6 +83,11 @@ class MarketplaceBenchmark(
         return MarketplaceRunConfig.from_args(args)
 
     def setup(self, config: MarketplaceRunConfig) -> None:
+        self.buyer_agent_factory = (
+            load_agent_class(config.buyer_agent, expected=BaseAssistantAgent)
+            if config.buyer_agent
+            else None
+        )
         self.buyer_client = _create_client(
             config.resolved_buyer_base_url,
             config.resolved_buyer_reasoning_effort,
@@ -102,8 +116,10 @@ class MarketplaceBenchmark(
         cancel_event: asyncio.Event | None = None,
     ) -> MarketplaceExecutionResult:
         config = self.config
-        if not config.resolved_buyer_model or not config.resolved_seller_model:
-            raise RuntimeError("Buyer and seller models must be configured")
+        if not config.resolved_seller_model:
+            raise RuntimeError("Seller model must be configured")
+        if self.buyer_agent_factory is None and not config.resolved_buyer_model:
+            raise RuntimeError("Buyer model must be configured (or provide --buyer-agent)")
 
         return await _execute_task(
             task,
@@ -116,6 +132,7 @@ class MarketplaceBenchmark(
             seller_explicit_cot=config.resolved_seller_explicit_cot,
             system_prompt=self.system_prompt,
             benchmark_logger=self._benchmark_logger,
+            buyer_agent_factory=self.buyer_agent_factory,
         )
 
     def make_execution_error_result(
@@ -233,8 +250,9 @@ class MarketplaceBenchmark(
     # ==================================================================
 
     def get_run_path_models(self) -> list[str]:
+        buyer = self.config.buyer_agent or self.config.resolved_buyer_model or "unknown"
         return [
-            self.config.resolved_buyer_model or "unknown",
+            buyer,
             self.config.resolved_seller_model or "unknown",
         ]
 

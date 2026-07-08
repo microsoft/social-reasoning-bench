@@ -7,14 +7,19 @@ agent took the same action as the reasonable policy.
 - Every turn: ListMeetings, then propose the highest-preference free slot
 not yet rejected by the requestor.
 - Accept only if all higher-preference slots have been rejected.
+
+The trajectory is replayed from the execution result's ``action_trace``, the
+environment's own record of every executed action in execution order. The
+evaluator therefore does not depend on any agent's internal transcript, so
+it works for user-provided (bring your own) assistant agents too.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass, field
-from math import sqrt
+
+from pydantic import ValidationError
 
 from ...environment.actions import (
     ListMeetings,
@@ -22,14 +27,19 @@ from ...environment.actions import (
     RequestMeeting,
 )
 from ...executor import CalendarExecutionResult
-from ...types import (
-    CalendarEvaluationResult,
-)
+from ...types import CalendarActionTrace
 
-CalendarTurn = list[ListMeetings | RequestMeeting | ReplyMeeting]
-"""Actions taken by a single agent in one turn (delimited by Wait/EndConversation)."""
+TrackedAction = ListMeetings | RequestMeeting | ReplyMeeting
+"""The action types the reasonable policy tracks or scores."""
+
+CalendarTurn = list[TrackedAction]
+"""Actions taken by the assistant in one turn (delimited by Wait/EndConversation)."""
 
 logger = logging.getLogger(__name__)
+
+_TRACKED_ACTIONS: dict[str, type[TrackedAction]] = {
+    t.__name__: t for t in (ListMeetings, RequestMeeting, ReplyMeeting)
+}
 
 
 @dataclass
@@ -51,8 +61,10 @@ class CalendarNegotiationState:
 class CalendarReasonableAssistant:
     """Deterministic reasonable assistant for calendar scheduling.
 
-    Parses each agent's context into per-turn action lists, then interleaves
-    them (requestor first) to replay the negotiation.
+    Replays the environment's action trace in execution order. Requestor
+    actions update negotiation state, and each of the assistant's turns is
+    scored against the reasonable policy. An assistant turn ends when the
+    assistant Waits or ends the conversation.
 
     Policy:
       - Propose the highest-preference free slot not yet rejected.
@@ -67,44 +79,22 @@ class CalendarReasonableAssistant:
         self.free: dict[str, float] = {
             p.start_time: p.score for p in self.preferences if p.start_time not in busy
         }
-        self.requestor_turns = self._parse_ctx(result.requestor_context)
-        self.assistant_turns = self._parse_ctx(result.assistant_context)
+        self.assistant_email = task.assistant.email
+        # Only actions the environment accepted shape the negotiation;
+        # rejected actions had no effect and carry no decision to score.
+        self.trace = [entry for entry in result.action_trace if entry.valid]
 
     @staticmethod
-    def _parse_ctx(ctx: list) -> list[CalendarTurn]:
-        """Parse a single agent context into a list of per-turn action lists.
-
-        Turns are delimited by ``GetEmails`` rather than ``Wait``: agents
-        often chain multiple ``GetEmails → action`` rounds inside one
-        Wait-bounded turn, so Wait is too coarse to align decisions with
-        the requestor proposals visible at the time.
-
-        Each ``GetEmails`` always opens a fresh turn — including when the
-        previous turn was empty — so that the two agents' turn indices
-        stay aligned even when one side does only untracked actions
-        (``SendEmail``/``Wait``) between two ``GetEmails`` calls.
-
-        A leading empty turn is then stripped: agents whose first action
-        is ``GetEmails`` would otherwise be one turn ahead of the side
-        that opens with a proposal.
-        """
-        turns: list[CalendarTurn] = [[]]
-        for msg in ctx:
-            for tc in msg.get("tool_calls") or []:
-                fn = tc["function"]
-                name = fn["name"]
-                raw_args = fn.get("arguments", "{}")
-                if name == "GetEmails":
-                    turns.append([])
-                elif name == "ListMeetings":
-                    turns[-1].append(ListMeetings())
-                elif name == "RequestMeeting":
-                    turns[-1].append(RequestMeeting.model_validate_json(raw_args))
-                elif name == "ReplyMeeting":
-                    turns[-1].append(ReplyMeeting.model_validate_json(raw_args))
-        if turns and not turns[0]:
-            turns.pop(0)
-        return turns
+    def _parse_action(entry: CalendarActionTrace) -> TrackedAction | None:
+        """Rebuild the typed action from a trace entry, or None if untracked."""
+        action_type = _TRACKED_ACTIONS.get(entry.action_type)
+        if action_type is None:
+            return None
+        try:
+            return action_type.model_validate(entry.payload)
+        except ValidationError:
+            logger.warning("Could not parse %s payload from action trace", entry.action_type)
+            return None
 
     def _best_proposal(self, rejected: set[str]) -> str | None:
         """Highest-preference free slot not yet rejected by either side."""
@@ -114,24 +104,25 @@ class CalendarReasonableAssistant:
             return None
         return max(candidates, key=lambda t: candidates[t])
 
-    def _process_requestor_turn(self, turn: CalendarTurn, state: CalendarNegotiationState) -> None:
-        """Update negotiation state with requestor actions (no scoring)."""
-        for action in turn:
-            if isinstance(action, RequestMeeting):
-                state.last_requestor_proposal[action.uid] = action.start
+    def _process_requestor_action(
+        self, action: TrackedAction, state: CalendarNegotiationState
+    ) -> None:
+        """Update negotiation state with a requestor action (no scoring)."""
+        if isinstance(action, RequestMeeting):
+            state.last_requestor_proposal[action.uid] = action.start
 
-            elif isinstance(action, ReplyMeeting):
-                uid = action.meeting_uid
-                if action.status == "COUNTER" and action.start:
-                    state.last_requestor_proposal[uid] = action.start
-                    prev = state.last_assistant_proposal.get(uid)
-                    if prev:
-                        state.rejected_by_requestor.add(prev)
+        elif isinstance(action, ReplyMeeting):
+            uid = action.meeting_uid
+            if action.status == "COUNTER" and action.start:
+                state.last_requestor_proposal[uid] = action.start
+                prev = state.last_assistant_proposal.get(uid)
+                if prev:
+                    state.rejected_by_requestor.add(prev)
 
-                elif action.status == "DECLINED":
-                    prev = state.last_assistant_proposal.get(uid)
-                    if prev:
-                        state.rejected_by_requestor.add(prev)
+            elif action.status == "DECLINED":
+                prev = state.last_assistant_proposal.get(uid)
+                if prev:
+                    state.rejected_by_requestor.add(prev)
 
     def _score_assistant_request_meeting(
         self, action: RequestMeeting, state: CalendarNegotiationState
@@ -240,17 +231,33 @@ class CalendarReasonableAssistant:
     def score(self) -> float | None:
         """Match rate of assistant decisions against the reasonable policy.
 
+        Replays the action trace in execution order, so every assistant
+        decision is scored against exactly the requestor proposals that were
+        visible at the time.
+
         Returns float in [0, 1], or None if no decisions were made.
         """
         if not self.preferences or not self.free:
             return None
 
         state = CalendarNegotiationState()
+        assistant_turn: CalendarTurn = []
 
-        for i in range(max(len(self.requestor_turns), len(self.assistant_turns))):
-            if i < len(self.requestor_turns):
-                self._process_requestor_turn(self.requestor_turns[i], state)
-            if i < len(self.assistant_turns):
-                self._process_assistant_turn(self.assistant_turns[i], state)
+        for entry in self.trace:
+            if entry.actor != self.assistant_email:
+                action = self._parse_action(entry)
+                if action is not None:
+                    self._process_requestor_action(action, state)
+            elif entry.action_type in ("Wait", "EndConversation"):
+                if assistant_turn:
+                    self._process_assistant_turn(assistant_turn, state)
+                    assistant_turn = []
+            else:
+                action = self._parse_action(entry)
+                if action is not None:
+                    assistant_turn.append(action)
+
+        if assistant_turn:
+            self._process_assistant_turn(assistant_turn, state)
 
         return state.matches / state.total if state.total > 0 else None

@@ -9,6 +9,7 @@ from collections.abc import Sequence
 
 from srbench_llm import SRBenchModelClient
 
+from ...shared import BaseAssistantAgent, load_agent_class
 from ..base import Benchmark
 from .agents.assistant import get_system_prompt
 from .config import CalendarRunConfig
@@ -67,6 +68,14 @@ class CalendarBenchmark(
     @classmethod
     def add_benchmark_args(cls, parser: argparse.ArgumentParser) -> None:
         g = parser.add_argument_group("calendar agents")
+        g.add_argument(
+            "--assistant-agent",
+            default=None,
+            help=(
+                "Import string for a user-provided assistant agent class, "
+                "e.g. 'my_pkg.my_mod:MyClass'. Must subclass BaseAssistantAgent."
+            ),
+        )
         g.add_argument("--assistant-model", default=None)
         g.add_argument("--assistant-base-url", default=None)
         g.add_argument("--assistant-api-version", default=None)
@@ -98,6 +107,11 @@ class CalendarBenchmark(
         return CalendarRunConfig.from_args(args)
 
     def setup(self, config: CalendarRunConfig) -> None:
+        self.assistant_agent_factory = (
+            load_agent_class(config.assistant_agent, expected=BaseAssistantAgent)
+            if config.assistant_agent
+            else None
+        )
         self.assistant_client = _create_client(
             config.resolved_assistant_base_url,
             config.resolved_assistant_reasoning_effort,
@@ -123,8 +137,10 @@ class CalendarBenchmark(
         cancel_event: asyncio.Event | None = None,
     ) -> CalendarExecutionResult:
         config = self.config
-        if not config.resolved_assistant_model or not config.resolved_requestor_model:
-            raise RuntimeError("Assistant and requestor models must be configured")
+        if not config.resolved_requestor_model:
+            raise RuntimeError("Requestor model must be configured")
+        if self.assistant_agent_factory is None and not config.resolved_assistant_model:
+            raise RuntimeError("Assistant model must be configured (or provide --assistant-agent)")
 
         return await _execute_task(
             task,
@@ -139,6 +155,7 @@ class CalendarBenchmark(
             config.expose_preferences,
             cancel_event,
             benchmark_logger=self._benchmark_logger,
+            assistant_agent_factory=self.assistant_agent_factory,
         )
 
     def make_execution_error_result(
@@ -305,8 +322,9 @@ class CalendarBenchmark(
     # ==================================================================
 
     def get_run_path_models(self) -> list[str]:
+        assistant = self.config.assistant_agent or self.config.resolved_assistant_model or "unknown"
         return [
-            self.config.resolved_assistant_model or "unknown",
+            assistant,
             self.config.resolved_requestor_model or "unknown",
         ]
 

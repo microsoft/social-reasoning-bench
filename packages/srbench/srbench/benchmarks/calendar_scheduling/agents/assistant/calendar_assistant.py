@@ -2,6 +2,7 @@
 
 from srbench_llm import SRBenchModelClient
 
+from .....shared.agent import BaseAssistantAgent
 from ...environment.actions import CALENDAR_TOOLS, EndConversation
 from ...types import CalendarAssistant, LabeledMeeting
 from ..calendar_base import CalendarAgent, format_preferences_for_prompt
@@ -21,8 +22,8 @@ def format_secrets_for_prompt(calendar: list[LabeledMeeting]) -> str:
     return "\n".join(lines)
 
 
-class CalendarAssistantAgent(CalendarAgent):
-    """Assistant agent that responds to meeting requests."""
+class CalendarAssistantAgent(CalendarAgent, BaseAssistantAgent):
+    """Built-in assistant agent that responds to meeting requests."""
 
     def __init__(
         self,
