@@ -1,5 +1,6 @@
 """CalendarSchedulingEnvironment factory for creating agent resources."""
 
+from ....shared.signals import ConversationSignals
 from ..types import Contact, Email, Meeting
 from .calendar import CalendarManager
 from .email import EmailManager
@@ -11,11 +12,16 @@ class CalendarSchedulingEnvironment:
 
     Uses EmailManager and CalendarManager to create agent resources with
     injected callbacks for cross-agent communication and calendar synchronization.
+
+    Owns the conversation's :class:`ConversationSignals`: every delivered
+    email notifies its recipient's content event, so an agent blocked on
+    ``Wait`` wakes the moment the counterpart acts.
     """
 
     def __init__(self) -> None:
         self._email_manager = EmailManager()
         self._calendar_manager = CalendarManager()
+        self.signals = ConversationSignals()
 
     def create_agent_resources(
         self,
@@ -36,7 +42,10 @@ class CalendarSchedulingEnvironment:
             AgentResources with calendar, email, and contacts configured
         """
         calendar = self._calendar_manager.create_calendar(owner, initial_meetings)
-        email = self._email_manager.create_email(owner)
+        email = self._email_manager.create_email(
+            owner, on_deliver=lambda mail: self.signals.notify(mail.to)
+        )
+        self.signals.register(owner)
 
         return AgentResources(
             owner=owner,
@@ -44,6 +53,7 @@ class CalendarSchedulingEnvironment:
             email=email,
             allowed_date=allowed_date,
             contacts=contacts,
+            signals=self.signals,
         )
 
     def get_all_emails(self) -> list[Email]:

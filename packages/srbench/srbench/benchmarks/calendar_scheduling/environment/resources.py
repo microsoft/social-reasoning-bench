@@ -1,5 +1,6 @@
 """AgentResources class that encapsulates all resources available to an agent."""
 
+from ....shared.signals import ConversationSignals
 from ..types import Attendee, AttendeeStatus, Contact, Meeting, Tool, ToolError
 from .actions import (
     CancelMeeting,
@@ -24,7 +25,13 @@ from .utils import (
 
 
 class AgentResources:
-    """Encapsulates all resources available to an agent (calendar + email + contacts)."""
+    """Encapsulates all resources available to an agent (calendar + email + contacts).
+
+    ``execute`` is the single execution path for every action, including the
+    conversation-level coordination: ``Wait`` blocks until the counterpart
+    acts, and a successful ``EndConversation`` fires the environment's end
+    signal.
+    """
 
     def __init__(
         self,
@@ -33,15 +40,21 @@ class AgentResources:
         email: AgentEmail,
         allowed_date: str,
         contacts: list[Contact] | None = None,
+        *,
+        signals: ConversationSignals,
     ) -> None:
         self.owner = owner
         self.calendar = calendar
         self.email = email
         self.allowed_date = allowed_date
         self.contacts = contacts or []
+        self._signals = signals
 
-    def execute(self, action: Tool) -> str:
+    async def execute(self, action: Tool) -> str:
         """Execute a tool action and return the result as a string.
+
+        Async because ``Wait`` blocks until the counterpart acts (or the
+        conversation ends); every other action completes immediately.
 
         Args:
             action: The tool action to execute.
@@ -50,8 +63,20 @@ class AgentResources:
             A string describing the result of the action.
 
         Raises:
+            ToolError: If the action was rejected; the agent's run loop
+                surfaces it as an error-string result.
             ValueError: If the action type is unknown.
         """
+        if isinstance(action, Wait) and not await self._signals.wait_for_activity(self.owner):
+            return "Conversation has ended."
+        result = self._dispatch(action)
+        if isinstance(action, EndConversation):
+            # Reached only on success (a rejected EndConversation raises
+            # ToolError out of _dispatch).
+            self._signals.end(reason=action.reason)
+        return result
+
+    def _dispatch(self, action: Tool) -> str:
         if isinstance(action, SendEmail):
             return self._handle_send_email(action)
         elif isinstance(action, GetEmails):
@@ -446,15 +471,19 @@ class AgentResources:
         return f"Reply sent: {action.status} meeting {meeting.title} ({meeting.uid}) from {meeting.start_time}-{meeting.end_time} on {meeting.date}"
 
     def _handle_wait(self, action: Wait) -> str:
-        """Yield turn to wait for other agent.
+        """Surface whatever arrived while waiting for the other agent.
+
+        The executor blocks the caller until the counterpart acts before
+        executing this action, so by the time it runs there is normally
+        fresh mail to return.
 
         Args:
             action: The Wait action.
 
         Returns:
-            A waiting status message.
+            The unread emails, or a no-unread-emails message.
         """
-        return "Waiting for response."
+        return format_emails(self.email.get_unread())
 
     def _handle_end_conversation(self, action: EndConversation) -> str:
         """End the conversation.

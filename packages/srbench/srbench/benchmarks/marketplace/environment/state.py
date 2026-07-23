@@ -1,12 +1,13 @@
 from dataclasses import dataclass, field
 
-from ..types import FinalOutcome, MessageRecord, OfferRecord
+from ..types import ActionTrace, FinalOutcome, MessageRecord, OfferRecord
 
 
 @dataclass
 class MarketplaceState:
     messages: list[MessageRecord] = field(default_factory=list)
     offers: list[OfferRecord] = field(default_factory=list)
+    action_trace: list[ActionTrace] = field(default_factory=list)
     next_offer_id: int = 1
     outcome: FinalOutcome = field(default_factory=lambda: FinalOutcome(deal_reached=False))
     current_round: int = 1

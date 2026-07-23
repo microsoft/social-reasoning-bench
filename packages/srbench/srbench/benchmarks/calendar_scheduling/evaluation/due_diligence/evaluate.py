@@ -80,7 +80,6 @@ def _format_agent_trace(execution_result: CalendarExecutionResult) -> str:
 
     # Include outcome context
     lines.append("=== OUTCOME ===")
-    lines.append(f"Rounds completed: {execution_result.rounds_completed}")
     lines.append(f"Max rounds reached: {execution_result.max_rounds_reached}")
     if execution_result.error:
         lines.append(f"Error: {execution_result.error}")

@@ -71,6 +71,7 @@ class CalendarAgent(BaseAgent):
         tools: list[type[Tool]] | None = None,
         explicit_cot: bool = False,
         prompt_label: str = "cal_agent",
+        max_actions: int = 50,
     ):
         # Default to all calendar tools if none specified
         tool_list: list[type[Tool]] = list(tools) if tools is not None else list(CALENDAR_TOOLS)
@@ -81,6 +82,7 @@ class CalendarAgent(BaseAgent):
             tools=tool_list,
             explicit_cot=explicit_cot,
             prompt_label=prompt_label,
+            max_actions=max_actions,
         )
 
         self._allowed_contacts = list(allowed_contacts)

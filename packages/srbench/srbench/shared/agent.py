@@ -18,8 +18,9 @@ Benchmark-specific subclasses add:
 - Non-tool-call generation (generate_text_response in marketplace)
 """
 
+import asyncio
 import traceback
-from typing import Any
+from typing import Any, Awaitable, Callable, TypeAlias
 
 from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_tool_call import (
@@ -28,7 +29,12 @@ from openai.types.chat.chat_completion_message_tool_call import (
 from pydantic import ValidationError
 from srbench_llm import SRBenchInputMessage, SRBenchModelClient
 
-from .tool import Tool
+from .tool import Tool, ToolError
+
+# The agent's only touchpoint with the environment: pass a Tool, get back a
+# result string. In practice this is ``AgentResources.execute``, the single
+# execution path for every action.
+InvokeTool: TypeAlias = Callable[[Tool], Awaitable[str]]
 
 
 class RetryException(Exception):
@@ -86,6 +92,7 @@ class BaseAgent:
         temperature: float | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam = "auto",
         prompt_label: str = "unknown",
+        max_actions: int = 50,
     ) -> None:
         """Initialize the base agent.
 
@@ -103,6 +110,9 @@ class BaseAgent:
             prompt_label: Label for token tracking (e.g., "interviewer",
                 "assistant"). Used by the concurrency module to report
                 per-prompt token breakdowns.
+            max_actions: Budget on the number of tool calls :meth:`run` will
+                issue before returning. Bounds cost when the conversation
+                never terminates naturally.
         """
         self._model = model
         self._model_client = model_client
@@ -111,6 +121,7 @@ class BaseAgent:
         self._explicit_cot = explicit_cot
         self._temperature = temperature
         self._tool_choice = tool_choice
+        self._max_actions = max_actions
 
         # Build tool registry: name -> Tool class
         self._tools: dict[str, type[Tool]] = {t.get_name(): t for t in tools}
@@ -119,6 +130,53 @@ class BaseAgent:
         self._openai_tools: list[ChatCompletionFunctionToolParam] = [
             t.get_openai_function_tool_param() for t in tools
         ]
+
+    # ------------------------------------------------------------------ #
+    # Agent-owned run loop
+    # ------------------------------------------------------------------ #
+
+    async def run(self, invoke_tool: InvokeTool) -> None:
+        """Drive this agent's action loop until its budget is exhausted.
+
+        Each iteration generates one tool call, executes it through
+        ``invoke_tool`` (the environment's ``AgentResources.execute``, the
+        single execution path for every action), and appends the result to
+        the transcript. Tool errors are surfaced to the agent as result
+        strings so it can recover.
+
+        Ending the conversation is expressed through the tools, not the loop.
+        An agent ends a conversation by calling its EndConversation tool,
+        whose effect is to set the environment's end event. This loop never
+        inspects which tools terminate. The harness watches the end event and
+        cancels this coroutine. If tool-call generation exhausts its retries,
+        the iteration is skipped and the agent tries again, still bounded by
+        ``max_actions``.
+
+        Args:
+            invoke_tool: Async callable that executes a ``Tool`` against the
+                environment and returns the result string, typically
+                ``resources.execute``.
+        """
+        for _ in range(self._max_actions):
+            try:
+                tool_call = await self.generate_tool_call()
+            except ToolCallRetriesExhausted:
+                continue
+            try:
+                result = await invoke_tool(tool_call)
+            except asyncio.CancelledError:
+                # The harness ended the conversation while this action (most
+                # likely a blocking Wait) was in flight. Close the dangling
+                # tool call so the transcript stays a well-formed history.
+                self.add_tool_call_result("Conversation ended before this action completed.")
+                raise
+            except ToolError as e:
+                result = f"Error: {e}"
+            except Exception:
+                result = f"Error: {traceback.format_exc()}"
+                self.add_tool_call_result(result)
+                raise
+            self.add_tool_call_result(result)
 
     @property
     def messages(self) -> list[SRBenchInputMessage]:

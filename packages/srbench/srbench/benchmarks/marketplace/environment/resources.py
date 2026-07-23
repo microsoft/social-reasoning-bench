@@ -1,30 +1,98 @@
 from typing import Literal
 
+from ....shared.signals import ConversationSignals
 from ..types import ActionTrace, MessageRecord, Tool, ToolError
 from .actions import AcceptOffer, EndConversation, GetMessages, MakeOffer, SendMessage, Wait
 from .state import MarketplaceState
 
 
 class MarketplaceEnvironment:
-    """Shared in-memory state for a bilateral marketplace negotiation."""
+    """Shared in-memory state for a bilateral marketplace negotiation.
+
+    Owns the conversation's :class:`ConversationSignals`, keyed by role, so an
+    agent blocked on ``Wait`` wakes when its counterpart acts.
+    """
 
     def __init__(self) -> None:
         self.state = MarketplaceState()
+        self.signals = ConversationSignals()
 
     def create_agent_resources(self, role: Literal["buyer", "seller"]) -> "AgentResources":
-        return AgentResources(role=role, state=self.state)
+        self.signals.register(role)
+        return AgentResources(role=role, state=self.state, signals=self.signals)
 
 
 class AgentResources:
-    """Executes actions for one role against shared marketplace state."""
+    """Executes actions for one role against shared marketplace state.
 
-    def __init__(self, role: Literal["buyer", "seller"], state: MarketplaceState):
+    ``execute`` is the single execution path for every action. It records an
+    ``ActionTrace`` on the shared state for each executed action, wakes the
+    counterpart when an action produces content visible to them, blocks on
+    ``Wait`` until the counterpart acts, and fires the environment's end
+    signal on a successful ``EndConversation``.
+    """
+
+    def __init__(
+        self,
+        role: Literal["buyer", "seller"],
+        state: MarketplaceState,
+        *,
+        signals: ConversationSignals,
+    ):
         self.role = role
         self.state = state
         self._seen_message_count = 0
         self._seen_offer_count = 0
+        self._signals = signals
+        self._counterpart: Literal["buyer", "seller"] = "seller" if role == "buyer" else "buyer"
 
-    def execute(self, action: Tool) -> str:
+    async def execute(self, action: Tool) -> str:
+        """Execute a tool action, record its trace, and return the result.
+
+        Async because ``Wait`` blocks until the counterpart acts (or the
+        negotiation ends); every other action completes immediately.
+
+        Args:
+            action: The tool action to execute.
+
+        Returns:
+            A string describing the result of the action.
+
+        Raises:
+            ToolError: If the action was rejected; recorded as an invalid
+                trace entry, then re-raised for the agent's run loop to
+                surface as an error-string result.
+            ValueError: If the action type is unknown.
+        """
+        if isinstance(action, Wait) and not await self._signals.wait_for_activity(self.role):
+            result = "Negotiation has ended."
+            self._record_trace(action, result=result, valid=True)
+            return result
+        try:
+            result = self._dispatch(action)
+        except ToolError as e:
+            self._record_trace(action, result=f"Error: {e}", valid=False)
+            raise
+        self._record_trace(action, result=result, valid=True)
+        if isinstance(action, (SendMessage, MakeOffer, AcceptOffer)):
+            self._signals.notify(self._counterpart)
+        if isinstance(action, EndConversation):
+            self._signals.end(reason=action.reason)
+        return result
+
+    def _record_trace(self, action: Tool, *, result: str, valid: bool) -> None:
+        self.state.action_trace.append(
+            ActionTrace(
+                round=self.state.current_round,
+                actor=self.role,
+                action_type=type(action).__name__,
+                payload=action.model_dump(),
+                result=result,
+                valid=valid,
+            )
+        )
+
+    def _dispatch(self, action: Tool) -> str:
         if isinstance(action, SendMessage):
             self.state.messages.append(
                 MessageRecord(
@@ -86,7 +154,9 @@ class AgentResources:
             return f"Accepted offer #{offer.id} at price {offer.price:.2f}."
 
         if isinstance(action, Wait):
-            return "Waited."
+            # The executor blocks the caller until the counterpart acts before
+            # executing this action; the result surfaces what arrived.
+            return self._handle_get_messages()
 
         if isinstance(action, EndConversation):
             self.state.outcome.ended_by = self.role
@@ -164,30 +234,3 @@ class AgentResources:
                     f"(round {offer['round']}, status={offer['status']}){msg_suffix}"
                 )
         return "\n".join(lines)
-
-
-def execute_with_trace(
-    resources: AgentResources,
-    action: Tool,
-) -> tuple[ActionTrace, bool]:
-    try:
-        result = resources.execute(action)
-        trace = ActionTrace(
-            round=resources.state.current_round,
-            actor=resources.role,
-            action_type=type(action).__name__,
-            payload=action.model_dump(),
-            result=result,
-            valid=True,
-        )
-        return trace, True
-    except ToolError as e:
-        trace = ActionTrace(
-            round=resources.state.current_round,
-            actor=resources.role,
-            action_type=type(action).__name__,
-            payload=action.model_dump(),
-            result=f"Error: {e}",
-            valid=False,
-        )
-        return trace, False

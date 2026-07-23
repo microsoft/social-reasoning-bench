@@ -177,17 +177,18 @@ class ReplyMeeting(Tool):
 
 
 class Wait(Tool):
-    """Yield your turn and give the other party time to act.
+    """Wait for the other party to act.
 
     Use this after you have taken an action and are waiting for a response:
     - After sending an email
     - After sending a meeting request
     - After responding to a meeting invitation
 
-    Do NOT repeatedly poll for responses - yield your turn instead.
+    Do NOT repeatedly poll for responses - wait instead.
 
     Returns:
-        Control passes to the other party.
+        Blocks until the other party acts (or the conversation ends), then
+        returns any new emails you received while waiting.
     """
 
     pass
