@@ -12,6 +12,16 @@ from ..base import BaseRunConfig
 class CalendarRunConfig(BaseRunConfig):
     """Run configuration for calendar scheduling benchmark."""
 
+    # Bring your own assistant agent
+    assistant_agent: str | None = Field(
+        default=None,
+        description=(
+            "Import string for a user-provided assistant agent class "
+            "(e.g. 'my_pkg.my_mod:MyClass'). Must subclass BaseAssistantAgent. "
+            "When set, the built-in assistant and its model settings are not used."
+        ),
+    )
+
     # Per-agent model overrides
     assistant_model: str | None = Field(default=None, description="Model for assistant agent")
     requestor_model: str | None = Field(default=None, description="Model for requestor agent")

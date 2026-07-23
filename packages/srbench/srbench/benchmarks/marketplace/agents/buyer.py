@@ -2,11 +2,14 @@
 
 from srbench_llm import SRBenchModelClient
 
+from ....shared.agent import BaseAssistantAgent
 from ..environment.actions import EndConversation
 from .marketplace_base import MarketplaceAgent
 
 
-class BuyerAgent(MarketplaceAgent):
+class BuyerAgent(MarketplaceAgent, BaseAssistantAgent):
+    """Built-in buyer agent, the assistant side of the negotiation."""
+
     def __init__(
         self,
         *,

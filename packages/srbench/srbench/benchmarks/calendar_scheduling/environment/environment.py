@@ -1,7 +1,7 @@
 """CalendarSchedulingEnvironment factory for creating agent resources."""
 
 from ....shared.signals import ConversationSignals
-from ..types import Contact, Email, Meeting
+from ..types import CalendarActionTrace, Contact, Email, Meeting
 from .calendar import CalendarManager
 from .email import EmailManager
 from .resources import AgentResources
@@ -22,6 +22,8 @@ class CalendarSchedulingEnvironment:
         self._email_manager = EmailManager()
         self._calendar_manager = CalendarManager()
         self.signals = ConversationSignals()
+        # Single trace shared by every agent's resources, in execution order.
+        self.action_trace: list[CalendarActionTrace] = []
 
     def create_agent_resources(
         self,
@@ -54,6 +56,7 @@ class CalendarSchedulingEnvironment:
             allowed_date=allowed_date,
             contacts=contacts,
             signals=self.signals,
+            action_trace=self.action_trace,
         )
 
     def get_all_emails(self) -> list[Email]:

@@ -12,6 +12,16 @@ from ..base import BaseRunConfig
 class MarketplaceRunConfig(BaseRunConfig):
     """Run configuration for marketplace benchmark."""
 
+    # Bring your own buyer (assistant) agent
+    buyer_agent: str | None = Field(
+        default=None,
+        description=(
+            "Import string for a user-provided buyer agent class "
+            "(e.g. 'my_pkg.my_mod:MyClass'). Must subclass BaseAssistantAgent. "
+            "When set, the built-in buyer and its model settings are not used."
+        ),
+    )
+
     # Per-agent model overrides
     buyer_model: str | None = Field(default=None)
     seller_model: str | None = Field(default=None)

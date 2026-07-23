@@ -171,12 +171,37 @@ class CalendarTask(Task):
 # ───────────────────────────────────────────────────────────────────
 
 
+class CalendarActionTrace(BaseModel):
+    """One executed action, recorded by the environment's execution path.
+
+    ``AgentResources.execute`` is the single execution path for every
+    action, so this trace is a complete, agent-independent record of what
+    each agent did. Evaluation reads it instead of agent internals, which
+    keeps judging possible for user-provided agents.
+    """
+
+    actor: str
+    """Email address of the agent that executed the action."""
+    action_type: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    result: str = ""
+    valid: bool = True
+
+
 class CalendarExecutionResult(TaskExecutionResult[CalendarTask]):
-    """Raw output of running a calendar scheduling task."""
+    """Raw output of running a calendar scheduling task.
+
+    ``action_trace`` is the environment's own record of every executed
+    action and is what evaluation consumes. The ``*_context`` transcripts
+    are optional debugging artifacts, present only when an agent exposes a
+    ``messages`` property (the built-in LLM agents do, user-provided agents
+    may not).
+    """
 
     emails: list[Email] = Field(default_factory=list)
     final_assistant_calendar: list[Meeting] = Field(default_factory=list)
     final_requestor_calendar: list[Meeting] = Field(default_factory=list)
+    action_trace: list[CalendarActionTrace] = Field(default_factory=list)
     assistant_context: list[SRBenchInputMessage] = Field(default_factory=list)
     requestor_context: list[SRBenchInputMessage] = Field(default_factory=list)
     assistant_tools: list[ChatCompletionFunctionToolParam] = Field(default_factory=list)

@@ -10,7 +10,12 @@ Each agent owns its run loop and touches the environment only through tools:
 the executor hands it directly to ``agent.run``, forces the requestor's
 opening meeting request, then races both loops against the environment's end
 signal and external cancellation. ``Wait`` blocks until the counterpart acts
-and returns any new emails, so no scheduler injects turns.
+and returns any new emails, so no scheduler injects turns. The forced opening
+reaches the assistant the same way, from its first ``Wait``.
+
+The assistant side supports "bring your own agent". Pass
+``assistant_agent_factory`` (any callable returning a
+``BaseAssistantAgent``) to replace the built-in ``CalendarAssistantAgent``.
 
 The execution result carries:
     - task: HashedCalendarTask (with .hash for checkpoint dedup)
@@ -23,9 +28,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import traceback
+from typing import Callable
 
 from srbench_llm import SRBenchModelClient
 
+from ...shared.agent import BaseAssistantAgent
 from ...shared.logging import BenchmarkLogger, VerboseLogger
 from ...shared.signals import run_agents_until_end
 from .agents.assistant import CalendarAssistantAgent
@@ -34,7 +41,7 @@ from .environment import (
     AgentResources,
     CalendarSchedulingEnvironment,
 )
-from .environment.actions import RequestMeeting
+from .environment.actions import CALENDAR_TOOLS, EndConversation, RequestMeeting
 from .types import (
     CalendarExecutionResult,
     CalendarTask,
@@ -50,6 +57,13 @@ logger = logging.getLogger(__name__)
 # End reasons recorded by the harness (rather than by an agent's
 # EndConversation) when a budget or coordination limit stops the run.
 _HARNESS_STOP_REASONS = {"agent_stopped", "stalemate"}
+
+# The environment owns each role's tool space and hands it to ``agent.run``.
+# Only the assistant may end the conversation.
+ASSISTANT_TOOL_SPACE = [t.get_openai_function_tool_param() for t in CALENDAR_TOOLS] + [
+    EndConversation.get_openai_function_tool_param()
+]
+REQUESTOR_TOOL_SPACE = [t.get_openai_function_tool_param() for t in CALENDAR_TOOLS]
 
 
 async def _force_initial_request(
@@ -104,7 +118,7 @@ async def _force_initial_request(
 
 async def execute_task(
     task: HashedCalendarTask,
-    assistant_model: str,
+    assistant_model: str | None,
     assistant_client: SRBenchModelClient,
     requestor_model: str,
     requestor_client: SRBenchModelClient,
@@ -115,6 +129,8 @@ async def execute_task(
     expose_preferences: bool,
     cancel_event: asyncio.Event | None = None,
     benchmark_logger: BenchmarkLogger | None = None,
+    *,
+    assistant_agent_factory: Callable[..., BaseAssistantAgent] | None = None,
 ) -> CalendarExecutionResult:
     """Execute a single calendar scheduling task.
 
@@ -125,7 +141,8 @@ async def execute_task(
 
     Args:
         task: The HashedCalendarTask to run (includes content hash for checkpointing)
-        assistant_model: Model to use for the assistant agent
+        assistant_model: Model to use for the built-in assistant agent. May be
+            ``None`` when ``assistant_agent_factory`` is provided.
         assistant_client: SRBenchModelClient for the assistant
         requestor_model: Model to use for the requestor agent
         requestor_client: SRBenchModelClient for the requestor
@@ -136,6 +153,14 @@ async def execute_task(
         expose_preferences: Whether to expose scheduling preferences
         cancel_event: Optional event to signal cancellation
         benchmark_logger: Optional logger for progress tracking
+        assistant_agent_factory: Optional factory for a user-provided
+            assistant agent (bring your own agent). Called with keyword
+            arguments ``assistant`` (the task's ``CalendarAssistant``),
+            ``allowed_contacts`` (list with the requestor's email), and
+            ``max_actions``. When provided, the built-in
+            ``CalendarAssistantAgent`` and its LLM configuration
+            (``assistant_model``, ``system_prompt``,
+            ``assistant_explicit_cot``, ``expose_preferences``) are not used.
 
     Returns:
         CalendarExecutionResult with all execution data
@@ -197,16 +222,28 @@ async def execute_task(
     )
 
     # Initialize agents
-    assistant_agent = CalendarAssistantAgent(
-        model=assistant_model,
-        model_client=assistant_client,
-        assistant=task.assistant,
-        allowed_contacts=[requestor_email],
-        system_prompt=system_prompt,
-        explicit_cot=assistant_explicit_cot,
-        expose_preferences=expose_preferences,
-        max_actions=max_actions_per_agent,
-    )
+    assistant_agent: BaseAssistantAgent
+    if assistant_agent_factory is not None:
+        assistant_agent = assistant_agent_factory(
+            assistant=task.assistant,
+            allowed_contacts=[requestor_email],
+            max_actions=max_actions_per_agent,
+        )
+    else:
+        if assistant_model is None:
+            raise ValueError(
+                "assistant_model is required when no assistant_agent_factory is provided"
+            )
+        assistant_agent = CalendarAssistantAgent(
+            model=assistant_model,
+            model_client=assistant_client,
+            assistant=task.assistant,
+            allowed_contacts=[requestor_email],
+            system_prompt=system_prompt,
+            explicit_cot=assistant_explicit_cot,
+            expose_preferences=expose_preferences,
+            max_actions=max_actions_per_agent,
+        )
 
     requestor_agent = CalendarRequestorAgent(
         model=requestor_model,
@@ -228,16 +265,14 @@ async def execute_task(
             assistant_email=assistant_email,
         )
 
-        # Surface the opening request in the assistant's context before its
-        # loop starts (exactly what the turn-based executor did at the start
-        # of each turn), and clear the wake signal that delivery produced.
-        assistant_agent.add_new_messages(assistant_resources.email.get_unread())
-        signals.clear(assistant_email)
-
+        # The forced request left the opening email unread and the
+        # assistant's wake signal set, so the assistant's first Wait returns
+        # immediately with the request. Delivery happens through tools, not
+        # by pushing context into the agent.
         await run_agents_until_end(
             [
-                assistant_agent.run(assistant_resources.execute),
-                requestor_agent.run(requestor_resources.execute),
+                assistant_agent.run(assistant_resources.execute, ASSISTANT_TOOL_SPACE),
+                requestor_agent.run(requestor_resources.execute, REQUESTOR_TOOL_SPACE),
             ],
             signals=signals,
             cancel_event=cancel_event,
@@ -265,10 +300,13 @@ async def execute_task(
         emails=environment.get_all_emails(),
         final_assistant_calendar=list(assistant_resources.calendar.list_meetings()),
         final_requestor_calendar=list(requestor_resources.calendar.list_meetings()),
-        assistant_context=list(assistant_agent._messages),
-        requestor_context=list(requestor_agent._messages),
-        assistant_tools=assistant_agent.tools,
-        requestor_tools=requestor_agent.tools,
+        action_trace=list(environment.action_trace),
+        # Transcripts are debugging artifacts, captured only when the agent
+        # exposes them. Evaluation reads the environment's action trace.
+        assistant_context=list(getattr(assistant_agent, "messages", [])),
+        requestor_context=list(requestor_agent.messages),
+        assistant_tools=list(ASSISTANT_TOOL_SPACE),
+        requestor_tools=list(REQUESTOR_TOOL_SPACE),
         max_rounds_reached=signals.end_reason in _HARNESS_STOP_REASONS,
         error=exec_error,
     )

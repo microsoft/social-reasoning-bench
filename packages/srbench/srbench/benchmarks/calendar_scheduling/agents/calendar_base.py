@@ -2,16 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from openai.types.chat import ChatCompletionToolMessageParam
-from pydantic_core import to_json
 from srbench_llm import SRBenchModelClient
 
-from ....shared.agent import BaseAgent, RetryException
+from ....shared.agent import LLMAgent, RetryException
 from ..environment.actions import (
     CALENDAR_TOOLS,
-    GetEmails,
     SendEmail,
 )
 from ..types import TimeSlotPreference, Tool
@@ -51,16 +46,15 @@ def format_preferences_for_prompt(preferences: list[TimeSlotPreference]) -> str:
     return "\n".join(lines)
 
 
-class CalendarAgent(BaseAgent):
+class CalendarAgent(LLMAgent):
     """Base agent class for calendar scheduling.
 
     This agent supports multi-step turns where it can call multiple tools
     before yielding with Wait or ending with EndConversation.
 
-    Extends :class:`BaseAgent` with:
+    Extends :class:`LLMAgent` with:
     - Default tool set (``CALENDAR_TOOLS``)
     - ``SendEmail`` recipient validation via :meth:`validate_tool_call`
-    - ``add_new_messages`` for injecting emails via simulated ``GetEmails``
     """
 
     def __init__(
@@ -106,35 +100,3 @@ class CalendarAgent(BaseAgent):
                 f"Cannot SendEmail to {tool_call.to}. "
                 f"Supported recipients are: {self._allowed_contacts}"
             )
-
-    # ------------------------------------------------------------------ #
-    # Calendar-specific message helpers
-    # ------------------------------------------------------------------ #
-
-    def add_new_messages(self, new_messages: list[Any]) -> None:
-        """Inject new messages by simulating a GetEmails tool call and response.
-
-        Args:
-            new_messages: List of email message objects to inject. They are
-                serialised to JSON and appended as a tool response to a
-                synthetic ``GetEmails`` call.
-        """
-        tool_call_id = str(len(self._messages))
-        self._messages.append(
-            {
-                "role": "assistant",
-                "tool_calls": [
-                    {
-                        "id": tool_call_id,
-                        "type": "function",
-                        "function": {"name": GetEmails.get_name(), "arguments": "{}"},
-                    }
-                ],
-            }
-        )
-        tool_message: ChatCompletionToolMessageParam = {
-            "role": "tool",
-            "tool_call_id": tool_call_id,
-            "content": to_json(new_messages).decode(),
-        }
-        self._messages.append(tool_message)

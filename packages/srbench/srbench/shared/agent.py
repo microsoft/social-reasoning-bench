@@ -1,10 +1,21 @@
-"""Shared BaseAgent class for all SRBench benchmarks.
+"""Agent protocols and the shared LLM agent for all SRBench benchmarks.
 
-Captures the common pattern across the benchmark agent implementations:
-- calendar_scheduling/agents/calendar_base.py (CalendarAgent)
-- marketplace/agents/marketplace_base.py (MarketplaceAgent)
+The protocol hierarchy is
 
-Common patterns unified here:
+    BaseAgent -> {BaseAssistantAgent, BaseCounterpartAgent} -> benchmark agents
+
+``BaseAgent`` specifies only the ``run(invoke_tool)`` coroutine. The two role
+protocols add the small surface each executor needs beyond the run loop.
+``BaseAssistantAgent`` is the side of the conversation under evaluation, and
+users can bring their own implementation (see ``load_agent_class``).
+``BaseCounterpartAgent`` is the simulated other party whose opening action the
+harness forces.
+
+``LLMAgent`` is the shared tool-calling implementation used by the built-in
+benchmark agents. It captures the common pattern across
+calendar_scheduling/agents/calendar_base.py (CalendarAgent) and
+marketplace/agents/marketplace_base.py (MarketplaceAgent), unifying
+
 - Message history management (append-only list of ChatCompletionMessageParam)
 - Tool registry (name -> Tool class mapping)
 - Tool call generation via LLM with JSON parsing and retries
@@ -14,12 +25,12 @@ Common patterns unified here:
 Benchmark-specific subclasses add:
 - Custom tool validation (e.g., SendEmail recipient checks in calendar)
 - Custom retry error messages (calendar vs marketplace style)
-- Domain-specific message injection (add_new_messages, add_turn_marker)
-- Non-tool-call generation (generate_text_response in marketplace)
+- Domain-specific prompt setup and message helpers (e.g. add_turn_marker)
 """
 
 import asyncio
 import traceback
+from abc import ABC, abstractmethod
 from typing import Any, Awaitable, Callable, TypeAlias
 
 from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToolChoiceOptionParam
@@ -57,7 +68,100 @@ class ToolCallRetriesExhausted(ExceptionGroup):
     pass
 
 
-class BaseAgent:
+class BaseAgent(ABC):
+    """The minimal agent protocol.
+
+    An agent is anything that can drive its own action loop against the
+    environment. This is the only method the harness requires of every
+    agent, and it is the entire contract between an agent and the
+    environment. Everything the agent does happens through the
+    ``invoke_tool`` callable it receives, and everything it needs to know
+    arrives as tool results.
+    """
+
+    @abstractmethod
+    async def run(
+        self,
+        invoke_tool: InvokeTool,
+        tools: list[ChatCompletionFunctionToolParam],
+    ) -> None:
+        """Drive this agent's action loop until it is done or cancelled.
+
+        Implementations repeatedly decide on an action, build the
+        corresponding ``Tool`` instance, and execute it via ``invoke_tool``.
+        The harness ends the conversation by cancelling this coroutine, so
+        implementations must tolerate ``asyncio.CancelledError`` at any
+        await point.
+
+        Args:
+            invoke_tool: Async callable that executes a ``Tool`` against the
+                environment and returns the result string, typically
+                ``AgentResources.execute``.
+            tools: The tool space granted to this agent by the environment,
+                as OpenAI function tool definitions. The tool ``name`` in
+                each definition matches a ``Tool`` subclass in the
+                benchmark's actions module.
+        """
+        ...
+
+
+class BaseAssistantAgent(BaseAgent):
+    """Protocol for the assistant-side agent, the party under evaluation.
+
+    This is the "bring your own agent" surface, and it adds nothing beyond
+    :meth:`BaseAgent.run`. Everything flows through tools. The counterpart's
+    forced opening action (the initial meeting request in calendar, the
+    opening offer in marketplace) is not pushed into the agent's context.
+    It is waiting in the environment when the run loop starts, and the
+    agent receives it from its first ``Wait``. Evaluation reads the
+    environment's own records (emails, offers, calendars, action traces),
+    not the agent's internals.
+
+    Benchmark executors accept any implementation of this protocol via
+    their ``*_agent_factory`` parameter, and the CLI loads one from an
+    import string such as ``my_pkg.my_mod:MyClass`` (see
+    ``load_agent_class``).
+
+    Agents may optionally expose a ``messages`` property returning their
+    transcript as OpenAI chat messages. When present, executors record it
+    on the execution result as a debugging artifact.
+    """
+
+
+class BaseCounterpartAgent(BaseAgent):
+    """Protocol for the simulated counterpart agent.
+
+    The counterpart opens the conversation with an action the harness
+    forces (the requestor's meeting request, the seller's listing-price
+    offer), so beyond ``run`` it must support generating the free-text part
+    of that opening and recording the forced action on its transcript.
+    Counterpart agents are not user-swappable yet.
+    """
+
+    @abstractmethod
+    async def generate_text_response(self, prompt: str) -> str:
+        """Generate a plain text response used to compose the forced opening.
+
+        Args:
+            prompt: A user-style instruction describing the text to produce.
+
+        Returns:
+            The generated text.
+        """
+        ...
+
+    @abstractmethod
+    def add_forced_action(self, action: Tool, result: str) -> None:
+        """Record a harness-forced tool call and its result on the transcript.
+
+        Args:
+            action: The Tool instance representing the forced action.
+            result: The string result of executing the action.
+        """
+        ...
+
+
+class LLMAgent(BaseAgent):
     """Base LLM agent with tool calling and retries.
 
     This class provides the common infrastructure shared by all benchmark agents:
@@ -78,8 +182,8 @@ class BaseAgent:
     3. Optionally override ``validate_tool_call()`` for domain-specific checks.
     4. Optionally override ``on_retry_no_tool_calls()`` and
        ``on_retry_invalid_tool_call()`` for custom retry error messages.
-    5. Add domain-specific methods (e.g., ``add_new_messages``,
-       ``add_turn_marker``) that manipulate ``self._messages``.
+    5. Add domain-specific methods (e.g., ``add_turn_marker``) that
+       manipulate ``self._messages``.
     """
 
     def __init__(
@@ -135,7 +239,11 @@ class BaseAgent:
     # Agent-owned run loop
     # ------------------------------------------------------------------ #
 
-    async def run(self, invoke_tool: InvokeTool) -> None:
+    async def run(
+        self,
+        invoke_tool: InvokeTool,
+        tools: list[ChatCompletionFunctionToolParam],
+    ) -> None:
         """Drive this agent's action loop until its budget is exhausted.
 
         Each iteration generates one tool call, executes it through
@@ -156,7 +264,14 @@ class BaseAgent:
             invoke_tool: Async callable that executes a ``Tool`` against the
                 environment and returns the result string, typically
                 ``resources.execute``.
+            tools: The tool space granted by the environment. Generation
+                uses exactly these definitions. Each name must map to a
+                ``Tool`` subclass in this agent's registry so the response
+                can be parsed.
         """
+        # The environment owns the tool space. The constructor's tool list
+        # only seeds the parsing registry.
+        self._openai_tools = list(tools)
         for _ in range(self._max_actions):
             try:
                 tool_call = await self.generate_tool_call()

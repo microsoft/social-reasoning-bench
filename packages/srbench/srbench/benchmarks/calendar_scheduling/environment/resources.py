@@ -1,7 +1,15 @@
 """AgentResources class that encapsulates all resources available to an agent."""
 
 from ....shared.signals import ConversationSignals
-from ..types import Attendee, AttendeeStatus, Contact, Meeting, Tool, ToolError
+from ..types import (
+    Attendee,
+    AttendeeStatus,
+    CalendarActionTrace,
+    Contact,
+    Meeting,
+    Tool,
+    ToolError,
+)
 from .actions import (
     CancelMeeting,
     EndConversation,
@@ -42,6 +50,7 @@ class AgentResources:
         contacts: list[Contact] | None = None,
         *,
         signals: ConversationSignals,
+        action_trace: list[CalendarActionTrace] | None = None,
     ) -> None:
         self.owner = owner
         self.calendar = calendar
@@ -49,9 +58,12 @@ class AgentResources:
         self.allowed_date = allowed_date
         self.contacts = contacts or []
         self._signals = signals
+        # Shared with the environment (and the counterpart's resources) so
+        # the trace records both agents' actions in execution order.
+        self._action_trace = action_trace if action_trace is not None else []
 
     async def execute(self, action: Tool) -> str:
-        """Execute a tool action and return the result as a string.
+        """Execute a tool action, record its trace, and return the result.
 
         Async because ``Wait`` blocks until the counterpart acts (or the
         conversation ends); every other action completes immediately.
@@ -63,18 +75,37 @@ class AgentResources:
             A string describing the result of the action.
 
         Raises:
-            ToolError: If the action was rejected; the agent's run loop
-                surfaces it as an error-string result.
+            ToolError: If the action was rejected; recorded as an invalid
+                trace entry, then re-raised for the agent's run loop to
+                surface as an error-string result.
             ValueError: If the action type is unknown.
         """
         if isinstance(action, Wait) and not await self._signals.wait_for_activity(self.owner):
-            return "Conversation has ended."
-        result = self._dispatch(action)
+            result = "Conversation has ended."
+            self._record_trace(action, result=result, valid=True)
+            return result
+        try:
+            result = self._dispatch(action)
+        except ToolError as e:
+            self._record_trace(action, result=f"Error: {e}", valid=False)
+            raise
+        self._record_trace(action, result=result, valid=True)
         if isinstance(action, EndConversation):
             # Reached only on success (a rejected EndConversation raises
             # ToolError out of _dispatch).
             self._signals.end(reason=action.reason)
         return result
+
+    def _record_trace(self, action: Tool, *, result: str, valid: bool) -> None:
+        self._action_trace.append(
+            CalendarActionTrace(
+                actor=self.owner,
+                action_type=type(action).__name__,
+                payload=action.model_dump(),
+                result=result,
+                valid=valid,
+            )
+        )
 
     def _dispatch(self, action: Tool) -> str:
         if isinstance(action, SendEmail):
