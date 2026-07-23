@@ -174,6 +174,8 @@ class BaseAgent:
                 result = f"Error: {e}"
             except Exception:
                 result = f"Error: {traceback.format_exc()}"
+                self.add_tool_call_result(result)
+                raise
             self.add_tool_call_result(result)
 
     @property
