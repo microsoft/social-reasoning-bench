@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import functools
+import json
 from collections.abc import Sequence
 
 from srbench_llm import SRBenchModelClient
@@ -69,6 +71,16 @@ class MarketplaceBenchmark(
                 "e.g. 'my_pkg.my_mod:MyClass'. Must subclass BaseAssistantAgent."
             ),
         )
+        g.add_argument(
+            "--buyer-agent-kwargs",
+            default=None,
+            type=json.loads,
+            metavar="JSON",
+            help=(
+                "JSON object of extra kwargs for the buyer agent constructor, "
+                'e.g. \'{"model": "claude-sonnet-4-6", "reasoning_effort": "high"}\'.'
+            ),
+        )
         g.add_argument("--buyer-model", default=None)
         g.add_argument("--buyer-base-url", default=None)
         g.add_argument("--buyer-api-version", default=None)
@@ -84,7 +96,10 @@ class MarketplaceBenchmark(
 
     def setup(self, config: MarketplaceRunConfig) -> None:
         self.buyer_agent_factory = (
-            load_agent_class(config.buyer_agent, expected=BaseAssistantAgent)
+            functools.partial(
+                load_agent_class(config.buyer_agent, expected=BaseAssistantAgent),
+                **config.buyer_agent_kwargs,
+            )
             if config.buyer_agent
             else None
         )

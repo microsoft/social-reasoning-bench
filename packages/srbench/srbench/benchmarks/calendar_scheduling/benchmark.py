@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import functools
+import json
 import logging
 from collections.abc import Sequence
 
@@ -76,6 +78,16 @@ class CalendarBenchmark(
                 "e.g. 'my_pkg.my_mod:MyClass'. Must subclass BaseAssistantAgent."
             ),
         )
+        g.add_argument(
+            "--assistant-agent-kwargs",
+            default=None,
+            type=json.loads,
+            metavar="JSON",
+            help=(
+                "JSON object of extra kwargs for the assistant agent constructor, "
+                'e.g. \'{"model": "claude-sonnet-4-6", "reasoning_effort": "high"}\'.'
+            ),
+        )
         g.add_argument("--assistant-model", default=None)
         g.add_argument("--assistant-base-url", default=None)
         g.add_argument("--assistant-api-version", default=None)
@@ -108,7 +120,10 @@ class CalendarBenchmark(
 
     def setup(self, config: CalendarRunConfig) -> None:
         self.assistant_agent_factory = (
-            load_agent_class(config.assistant_agent, expected=BaseAssistantAgent)
+            functools.partial(
+                load_agent_class(config.assistant_agent, expected=BaseAssistantAgent),
+                **config.assistant_agent_kwargs,
+            )
             if config.assistant_agent
             else None
         )

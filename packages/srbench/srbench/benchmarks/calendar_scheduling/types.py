@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, computed_field, field_serializer, field_v
 from srbench_llm import SRBenchInputMessage
 from srbench_llm.types import strip_signatures_from_messages
 
+from ...shared.agent import AssistantTask
 from ...shared.tool import Tool, ToolError
 from ..base import (
     BenchmarkEvaluationResult,
@@ -108,6 +109,18 @@ class CalendarAssistant(BaseModel):
     calendar: list[LabeledMeeting]
     contacts: list[Contact] = Field(default_factory=list)
     preferences: list[TimeSlotPreference] = Field(default_factory=list)
+
+
+class CalendarAssistantTask(AssistantTask):
+    """The private brief handed to the calendar assistant agent.
+
+    Delivered through the agent's constructor. Carries the assistant's own
+    identity, instructions, calendar, contacts, and preferences; the shared
+    ``max_actions`` bounds the run. Tools and ``invoke_tool`` arrive
+    separately through :meth:`BaseAgent.run`.
+    """
+
+    assistant: CalendarAssistant
 
 
 class FailedTaskError(BaseModel):

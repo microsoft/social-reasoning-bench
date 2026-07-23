@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import argparse
+from typing import Any
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from ..base import BaseRunConfig
 
@@ -21,6 +22,19 @@ class MarketplaceRunConfig(BaseRunConfig):
             "When set, the built-in buyer and its model settings are not used."
         ),
     )
+    buyer_agent_kwargs: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Extra keyword arguments passed to the buyer agent constructor "
+            "(e.g. {'model': ..., 'reasoning_effort': ...}). Only used when "
+            "buyer_agent is set."
+        ),
+    )
+
+    @field_validator("buyer_agent_kwargs", mode="before")
+    @classmethod
+    def _default_buyer_agent_kwargs(cls, v: Any) -> Any:
+        return {} if v is None else v
 
     # Per-agent model overrides
     buyer_model: str | None = Field(default=None)

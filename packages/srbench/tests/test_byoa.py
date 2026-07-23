@@ -32,6 +32,7 @@ from srbench.benchmarks.calendar_scheduling.executor import (
 from srbench.benchmarks.calendar_scheduling.types import (
     CalendarActionTrace,
     CalendarAssistant,
+    CalendarAssistantTask,
     CalendarExecutionResult,
     CalendarRequestor,
     CalendarTask,
@@ -39,16 +40,15 @@ from srbench.benchmarks.calendar_scheduling.types import (
     TimeSlotPreference,
 )
 from srbench.benchmarks.marketplace.agents import BuyerAgent, SellerAgent
-from srbench.benchmarks.marketplace.environment.actions import (
-    AcceptOffer,
-)
-from srbench.benchmarks.marketplace.environment.actions import (
-    EndConversation as MktEndConversation,
-)
 from srbench.benchmarks.marketplace.executor import (
     execute_task as marketplace_execute_task,
 )
-from srbench.benchmarks.marketplace.types import MarketplaceTask, Product, RoleConfig
+from srbench.benchmarks.marketplace.types import (
+    MarketplaceBuyerTask,
+    MarketplaceTask,
+    Product,
+    RoleConfig,
+)
 from srbench.shared import (
     BaseAgent,
     BaseAssistantAgent,
@@ -156,18 +156,19 @@ class ScriptedCalendarAssistant(BaseAssistantAgent):
     conversation.
     """
 
-    def __init__(self, *, assistant, allowed_contacts, max_actions):
-        self.assistant = assistant
-        self.allowed_contacts = allowed_contacts
-        self.max_actions = max_actions
+    def __init__(self, *, task):
+        self.task = task
         self.granted_tools: list | None = None
         self.wait_result: str | None = None
 
     async def run(self, invoke_tool, tools):
         self.granted_tools = tools
-        self.wait_result = await invoke_tool(Wait())
-        await invoke_tool(ReplyMeeting(meeting_uid="sync-001", status="ACCEPTED", message="Sure!"))
-        await invoke_tool(EndConversation(reason="Meeting scheduled."))
+        self.wait_result = await invoke_tool("Wait", {})
+        await invoke_tool(
+            "ReplyMeeting",
+            {"meeting_uid": "sync-001", "status": "ACCEPTED", "message": "Sure!"},
+        )
+        await invoke_tool("EndConversation", {"reason": "Meeting scheduled."})
 
 
 def _calendar_task() -> CalendarTask:
@@ -230,11 +231,10 @@ async def test_calendar_byoa_assistant_drives_full_task():
     assert result.error is None
     assert result.max_rounds_reached is False
 
-    # The factory received the documented keyword arguments.
+    # The factory received the documented keyword argument.
     agent = factories_built[0]
-    assert agent.assistant.email == "alice@example.com"
-    assert agent.allowed_contacts == ["bob@external.com"]
-    assert agent.max_actions == 10
+    assert agent.task.assistant.email == "alice@example.com"
+    assert agent.task.max_actions == 10
 
     # The environment granted the assistant its tool space through run().
     assert agent.granted_tools is not None
@@ -267,16 +267,13 @@ async def test_calendar_byoa_assistant_drives_full_task():
 class ScriptedBuyer(BaseAssistantAgent):
     """A minimal custom buyer that accepts the opening offer and ends."""
 
-    def __init__(self, *, instruction_message, max_actions):
-        self.instruction_message = instruction_message
-        self.max_actions = max_actions
+    def __init__(self, *, task):
+        self.task = task
 
     async def run(self, invoke_tool, tools):
-        from srbench.benchmarks.marketplace.environment.actions import Wait as MktWait
-
-        await invoke_tool(MktWait())
-        await invoke_tool(AcceptOffer(offer_id=1, message="Deal."))
-        await invoke_tool(MktEndConversation(reason="Deal reached."))
+        await invoke_tool("Wait", {})
+        await invoke_tool("AcceptOffer", {"offer_id": 1, "message": "Deal."})
+        await invoke_tool("EndConversation", {"reason": "Deal reached."})
 
 
 async def test_marketplace_byoa_buyer_drives_full_task():
@@ -380,3 +377,106 @@ def test_reasonable_assistant_ignores_invalid_actions():
     result = CalendarExecutionResult(task=task, action_trace=[rejected])
 
     assert CalendarReasonableAssistant(result).score() is None
+
+
+# ------------------------------------------------------------------ #
+# BYOA agent kwargs (model / reasoning effort per variant)
+# ------------------------------------------------------------------ #
+
+
+def _write_recording_agent(tmp_path, monkeypatch) -> str:
+    """Create a loadable BYOA agent that records its constructor kwargs."""
+    pkg = tmp_path / "kwargs_byoa_pkg"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text('"""Test package."""\n')
+    (pkg / "rec.py").write_text(
+        textwrap.dedent(
+            """
+            from srbench.shared import BaseAssistantAgent
+
+
+            class RecordingAgent(BaseAssistantAgent):
+                def __init__(self, *, task, model=None, reasoning_effort=None):
+                    self.task = task
+                    self.model = model
+                    self.reasoning_effort = reasoning_effort
+
+                async def run(self, invoke_tool, tools):
+                    pass
+            """
+        )
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    return "kwargs_byoa_pkg.rec:RecordingAgent"
+
+
+def test_agent_kwargs_default_to_empty_dict():
+    """A None kwargs value (the CLI default) coerces to an empty dict."""
+    from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+    from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
+
+    # The CLI passes None (argparse default) through model_validate(vars(args)).
+    cal = CalendarRunConfig.model_validate(
+        {"paths": ["x"], "assistant_agent": "a:B", "assistant_agent_kwargs": None}
+    )
+    assert cal.assistant_agent_kwargs == {}
+    assert CalendarRunConfig(paths=["x"]).assistant_agent_kwargs == {}
+
+    mkt = MarketplaceRunConfig.model_validate(
+        {"paths": ["x"], "buyer_agent": "a:B", "buyer_agent_kwargs": None}
+    )
+    assert mkt.buyer_agent_kwargs == {}
+    assert MarketplaceRunConfig(paths=["x"]).buyer_agent_kwargs == {}
+
+
+def test_calendar_setup_forwards_agent_kwargs(tmp_path, monkeypatch):
+    """CalendarBenchmark.setup binds assistant_agent_kwargs into the factory."""
+    from srbench.benchmarks.calendar_scheduling.benchmark import CalendarBenchmark
+    from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+
+    spec = _write_recording_agent(tmp_path, monkeypatch)
+    config = CalendarRunConfig(
+        paths=["x"],
+        assistant_agent=spec,
+        assistant_agent_kwargs={"model": "claude-sonnet-4-6", "reasoning_effort": "high"},
+    )
+
+    bench = CalendarBenchmark.__new__(CalendarBenchmark)
+    bench.setup(config)
+
+    agent = bench.assistant_agent_factory(task="TASK")
+    assert agent.task == "TASK"
+    assert agent.model == "claude-sonnet-4-6"
+    assert agent.reasoning_effort == "high"
+
+
+def test_marketplace_setup_forwards_agent_kwargs(tmp_path, monkeypatch):
+    """MarketplaceBenchmark.setup binds buyer_agent_kwargs into the factory."""
+    from srbench.benchmarks.marketplace.benchmark import MarketplaceBenchmark
+    from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
+
+    spec = _write_recording_agent(tmp_path, monkeypatch)
+    config = MarketplaceRunConfig(
+        paths=["x"],
+        buyer_agent=spec,
+        buyer_agent_kwargs={"model": "openai/gpt-5.4", "reasoning_effort": "medium"},
+    )
+
+    bench = MarketplaceBenchmark.__new__(MarketplaceBenchmark)
+    bench.setup(config)
+
+    agent = bench.buyer_agent_factory(task="TASK")
+    assert agent.task == "TASK"
+    assert agent.model == "openai/gpt-5.4"
+    assert agent.reasoning_effort == "medium"
+
+
+def test_setup_without_agent_leaves_factory_none(tmp_path, monkeypatch):
+    """No BYOA agent set -> factory stays None (built-in path)."""
+    from srbench.benchmarks.calendar_scheduling.benchmark import CalendarBenchmark
+    from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+
+    config = CalendarRunConfig(paths=["x"], assistant_model="some-model")
+    bench = CalendarBenchmark.__new__(CalendarBenchmark)
+    bench.setup(config)
+    assert bench.assistant_agent_factory is None

@@ -6,16 +6,18 @@ record of what happened, with no judgement.
     execute_task(task, ...) -> MarketplaceExecutionResult
 
 Each agent owns its run loop and touches the environment only through tools:
-``AgentResources.execute`` is the single execution path for every action, and
-the executor hands it directly to ``agent.run``, forces the seller's opening
-offer, then races both loops against the environment's end signal. ``Wait``
-blocks until the counterpart acts and returns the new messages and offers, so
-no scheduler injects turns. The forced opening offer reaches the buyer the
-same way, from its first ``Wait``.
+``AgentResources.invoke_tool`` is the single execution path for every action —
+the environment owns all tool validation — and the executor hands it directly
+to ``agent.run``, forces the seller's opening offer, then races both loops
+against the environment's end signal. ``Wait`` blocks until the counterpart
+acts and returns the new messages and offers, so no scheduler injects turns.
+The forced opening offer reaches the buyer the same way, from its first
+``Wait``.
 
 The buyer (assistant) side supports "bring your own agent". Pass
-``buyer_agent_factory`` (any callable returning a ``BaseAssistantAgent``) to
-replace the built-in ``BuyerAgent``.
+``buyer_agent_factory`` (any callable returning a ``BaseAssistantAgent``,
+called with ``task=MarketplaceBuyerTask(...)``) to replace the built-in
+``BuyerAgent``.
 
 The execution result carries:
     - task: MarketplaceTask (with .hash for checkpoint dedup)
@@ -38,16 +40,18 @@ from ...shared.signals import run_agents_until_end
 from .agents import BuyerAgent, SellerAgent
 from .environment import AgentResources, MakeOffer, MarketplaceEnvironment
 from .environment.actions import MARKETPLACE_TOOLS, EndConversation
-from .types import MarketplaceExecutionResult, MarketplaceTask
+from .types import MarketplaceBuyerTask, MarketplaceExecutionResult, MarketplaceTask, Tool
 
 logger = logging.getLogger(__name__)
 
 # The environment owns each role's tool space and hands it to ``agent.run``.
-# Only the buyer may end the conversation.
-BUYER_TOOL_SPACE = [t.get_openai_function_tool_param() for t in MARKETPLACE_TOOLS] + [
-    EndConversation.get_openai_function_tool_param()
-]
-SELLER_TOOL_SPACE = [t.get_openai_function_tool_param() for t in MARKETPLACE_TOOLS]
+# The same Tool classes seed the environment's ``invoke_tool`` registry, and
+# their OpenAI schemas are what the agent sees. Only the buyer may end the
+# conversation.
+BUYER_TOOLS: list[type[Tool]] = list(MARKETPLACE_TOOLS) + [EndConversation]
+SELLER_TOOLS: list[type[Tool]] = list(MARKETPLACE_TOOLS)
+BUYER_TOOL_SPACE = [t.get_openai_function_tool_param() for t in BUYER_TOOLS]
+SELLER_TOOL_SPACE = [t.get_openai_function_tool_param() for t in SELLER_TOOLS]
 
 
 async def _force_initial_seller_offer(
@@ -78,8 +82,8 @@ async def _force_initial_seller_offer(
         logger.warning("SellerAgent failed to generate opening message.")
 
     offer_action = MakeOffer(price=listed_price, message=message or "")
-    result = await seller_resources.execute(offer_action)
-    seller_agent.add_forced_action(offer_action, result)
+    result = await seller_resources.invoke_tool(offer_action.get_name(), offer_action.model_dump())
+    seller_agent.add_forced_action(offer_action.get_name(), offer_action.model_dump(), result)
 
 
 async def execute_task(
@@ -115,35 +119,39 @@ async def execute_task(
         seller_explicit_cot: Whether to enable explicit chain-of-thought for seller.
         system_prompt: Optional resolved system prompt for the buyer (assistant).
         buyer_agent_factory: Optional factory for a user-provided buyer agent
-            (bring your own agent). Called with keyword arguments
-            ``instruction_message`` (the buyer's task instructions) and
-            ``max_actions``. When provided, the built-in ``BuyerAgent`` and
-            its LLM configuration (``buyer_model``, ``system_prompt``,
-            ``buyer_explicit_cot``) are not used.
+            (bring your own agent). Called with the keyword argument ``task``
+            (a ``MarketplaceBuyerTask`` carrying the buyer's instructions and
+            ``max_actions``). The tool space and ``invoke_tool`` are delivered
+            separately through ``agent.run``. When provided, the built-in
+            ``BuyerAgent`` and its LLM configuration (``buyer_model``,
+            ``system_prompt``, ``buyer_explicit_cot``) are not used.
 
     Returns:
         MarketplaceExecutionResult with all execution state.
     """
     env = MarketplaceEnvironment()
     signals = env.signals
-    buyer_resources = env.create_agent_resources("buyer")
-    seller_resources = env.create_agent_resources("seller")
+    buyer_resources = env.create_agent_resources("buyer", tools=BUYER_TOOLS)
+    seller_resources = env.create_agent_resources("seller", tools=SELLER_TOOLS)
+
+    # The buyer's private brief, delivered through its constructor.
+    buyer_task = MarketplaceBuyerTask(
+        instruction_message=task.buyer.instruction_message,
+        max_actions=max_actions_per_agent,
+    )
+
     buyer_agent: BaseAssistantAgent
     if buyer_agent_factory is not None:
-        buyer_agent = buyer_agent_factory(
-            instruction_message=task.buyer.instruction_message,
-            max_actions=max_actions_per_agent,
-        )
+        buyer_agent = buyer_agent_factory(task=buyer_task)
     else:
         if buyer_model is None:
             raise ValueError("buyer_model is required when no buyer_agent_factory is provided")
         buyer_agent = BuyerAgent(
             model=buyer_model,
             model_client=buyer_client,
-            instruction_message=task.buyer.instruction_message,
+            task=buyer_task,
             explicit_cot=buyer_explicit_cot,
             system_prompt=system_prompt,
-            max_actions=max_actions_per_agent,
         )
     seller_agent = SellerAgent(
         model=seller_model,
@@ -168,8 +176,8 @@ async def execute_task(
 
         await run_agents_until_end(
             [
-                buyer_agent.run(buyer_resources.execute, BUYER_TOOL_SPACE),
-                seller_agent.run(seller_resources.execute, SELLER_TOOL_SPACE),
+                buyer_agent.run(buyer_resources.invoke_tool, BUYER_TOOL_SPACE),
+                seller_agent.run(seller_resources.invoke_tool, SELLER_TOOL_SPACE),
             ],
             signals=signals,
         )

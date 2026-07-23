@@ -3,14 +3,12 @@
 from srbench_llm import SRBenchModelClient
 
 from ....shared.agent import LLMAgent
-from ..environment.actions import MARKETPLACE_TOOLS
 from ..prompts.system import (
     MKT_ROLE,
     PRESETS,
     get_system_prompt,
     list_available_presets,
 )
-from ..types import Tool
 
 # Re-export for backwards compatibility
 __all__ = [
@@ -37,7 +35,6 @@ class MarketplaceAgent(LLMAgent):
         model: str,
         model_client: SRBenchModelClient,
         instruction_message: str,
-        additional_tools: list[type[Tool]] | None = None,
         explicit_cot: bool = False,
         system_prompt: str | None = None,
         malicious_prompt: str | None = None,
@@ -46,7 +43,6 @@ class MarketplaceAgent(LLMAgent):
         super().__init__(
             model=model,
             model_client=model_client,
-            tools=list(MARKETPLACE_TOOLS) + (additional_tools or []),
             explicit_cot=explicit_cot,
             prompt_label=f"mkt_{role}",
             max_actions=max_actions,

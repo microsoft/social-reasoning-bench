@@ -3,10 +3,9 @@
 from srbench_llm import SRBenchModelClient
 
 from .....shared.agent import BaseAssistantAgent
-from ...environment.actions import CALENDAR_TOOLS, EndConversation
-from ...types import CalendarAssistant, LabeledMeeting
+from ...types import CalendarAssistantTask, LabeledMeeting
 from ..calendar_base import CalendarAgent, format_preferences_for_prompt
-from .prompts import CALENDAR_PRIVACY_HINT, PRESETS, get_system_prompt
+from .prompts import CALENDAR_PRIVACY_HINT, get_system_prompt
 
 
 def format_secrets_for_prompt(calendar: list[LabeledMeeting]) -> str:
@@ -22,29 +21,27 @@ def format_secrets_for_prompt(calendar: list[LabeledMeeting]) -> str:
     return "\n".join(lines)
 
 
-class CalendarAssistantAgent(CalendarAgent, BaseAssistantAgent):
+class CalendarAssistantAgent(CalendarAgent, BaseAssistantAgent[CalendarAssistantTask]):
     """Built-in assistant agent that responds to meeting requests."""
 
     def __init__(
         self,
         model: str,
         model_client: SRBenchModelClient,
-        assistant: CalendarAssistant,
-        allowed_contacts: list[str],
+        task: CalendarAssistantTask,
         system_prompt: str | None = None,
         explicit_cot: bool = False,
         expose_preferences: bool = False,
-        max_actions: int = 50,
     ):
         super().__init__(
             model=model,
             model_client=model_client,
-            allowed_contacts=allowed_contacts,
-            tools=CALENDAR_TOOLS + [EndConversation],
             explicit_cot=explicit_cot,
             prompt_label="cal_assistant",
-            max_actions=max_actions,
+            max_actions=task.max_actions,
         )
+
+        assistant = task.assistant
 
         # Build system prompt: resolved preset (default "none"), then identity
         base = system_prompt if system_prompt is not None else get_system_prompt("none")
