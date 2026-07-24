@@ -191,13 +191,7 @@ class CalendarBenchmark(
             avg_leakage_rate=_safe_avg(leakage_rates),
             avg_duty_of_care=_safe_avg([r.duty_of_care for r in valid]),
             avg_due_diligence=_safe_avg(dd_scores),
-            avg_outcome_optimality=_safe_avg(
-                [
-                    r.outcome_optimality_score
-                    for r in valid
-                    if r.outcome_optimality_score is not None
-                ]
-            ),
+            avg_outcome_optimality=_safe_avg([r.preference_adherence for r in valid]),
             # Calendar-specific
             tasks_succeeded=[r.execution.task.id for r in successes],
             tasks_failed_execution=[
@@ -227,6 +221,19 @@ class CalendarBenchmark(
                 and r.scheduled_meeting_found
             ),
             privacy_tasks_with_leakage=sum(1 for r in valid if r.leakage_rate > 0),
+            avg_hard_constraints_satisfied=_safe_avg(
+                [
+                    float(r.hard_constraints_satisfied)
+                    for r in valid
+                    if r.hard_constraints_satisfied is not None
+                ]
+            ),
+            avg_soft_constraints_score=_safe_avg(
+                [r.soft_constraints_score for r in valid if r.soft_constraints_score is not None]
+            ),
+            tasks_without_preference_verifier=[
+                r.execution.task.id for r in valid if r.hard_constraints_satisfied is None
+            ],
             fiduciary_avg_scheduled_duration_error=_safe_avg(
                 [
                     float(r.scheduled_duration_error)
@@ -261,18 +268,25 @@ class CalendarBenchmark(
         # Delegate to the original summary printer via conversion.
         # For now, a simple table.
         self._benchmark_logger.info(
-            f"\n{'ID':>4}  {'Done':>4}  {'Leak':>5}  {'DoC':>5}  {'DD':>5}  {'Err':>3}"
+            f"\n{'ID':>4}  {'Done':>4}  {'Hard':>4}  {'Soft':>5}  {'Leak':>5}  "
+            f"{'DoC':>5}  {'DD':>5}  {'Err':>3}"
         )
-        self._benchmark_logger.info("-" * 38)
+        self._benchmark_logger.info("-" * 54)
         for r in sorted(eval_results, key=lambda r: r.execution.task.id):
             tid = r.execution.task.id
             done = "Y" if r.task_completed else "N"
+            hard = (
+                "-"
+                if r.hard_constraints_satisfied is None
+                else ("Y" if r.hard_constraints_satisfied else "N")
+            )
+            soft = "-" if r.soft_constraints_score is None else f"{r.soft_constraints_score:.2f}"
             leak = f"{r.leakage_rate:.2f}"
             doc = f"{r.duty_of_care:.2f}"
             dd = f"{r.due_diligence:.2f}"
             err = "Y" if r.error else ""
             self._benchmark_logger.info(
-                f"{tid:>4}  {done:>4}  {leak:>5}  {doc:>5}  {dd:>5}  {err:>3}"
+                f"{tid:>4}  {done:>4}  {hard:>4}  {soft:>5}  {leak:>5}  {doc:>5}  {dd:>5}  {err:>3}"
             )
 
     def print_evaluation_summary(self, evaluation: CalendarBenchmarkEvaluation) -> None:
@@ -288,7 +302,20 @@ class CalendarBenchmark(
             self._benchmark_logger.info(f"Avg duty of care: {evaluation.avg_duty_of_care:.3f}")
         if evaluation.avg_outcome_optimality is not None:
             self._benchmark_logger.info(
-                f"Avg outcome optimality: {evaluation.avg_outcome_optimality:.3f}"
+                f"Avg preference adherence: {evaluation.avg_outcome_optimality:.3f}"
+            )
+        if evaluation.avg_hard_constraints_satisfied is not None:
+            self._benchmark_logger.info(
+                f"Hard constraints satisfied: {evaluation.avg_hard_constraints_satisfied:.1%}"
+            )
+        if evaluation.avg_soft_constraints_score is not None:
+            self._benchmark_logger.info(
+                f"Avg soft constraints score: {evaluation.avg_soft_constraints_score:.3f}"
+            )
+        if evaluation.tasks_without_preference_verifier:
+            self._benchmark_logger.info(
+                f"Tasks without a preference verifier: "
+                f"{len(evaluation.tasks_without_preference_verifier)}"
             )
         if evaluation.avg_due_diligence is not None:
             self._benchmark_logger.info(f"Avg due diligence: {evaluation.avg_due_diligence:.3f}")

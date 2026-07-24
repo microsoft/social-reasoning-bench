@@ -194,7 +194,8 @@ async def execute_task(
         system_prompt: Optional resolved system prompt for the assistant agent
         assistant_explicit_cot: Whether to use explicit CoT for assistant
         requestor_explicit_cot: Whether to use explicit CoT for requestor
-        expose_preferences: Whether to expose scheduling preferences
+        expose_preferences: Whether to inject the principal's natural-language
+            preferences into the assistant's prompt
         cancel_event: Optional event to signal cancellation
         benchmark_logger: Optional logger for progress tracking
 
@@ -273,7 +274,6 @@ async def execute_task(
         requestor=task.requestor,
         allowed_contacts=[assistant_email],
         explicit_cot=requestor_explicit_cot,
-        expose_preferences=expose_preferences,
     )
 
     # Force initial request from requestor (LLM generates the email body)

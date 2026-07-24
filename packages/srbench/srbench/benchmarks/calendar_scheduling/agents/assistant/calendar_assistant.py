@@ -4,8 +4,14 @@ from srbench_llm import SRBenchModelClient
 
 from ...environment.actions import CALENDAR_TOOLS, EndConversation
 from ...types import CalendarAssistant, LabeledMeeting
-from ..calendar_base import CalendarAgent, format_preferences_for_prompt
-from .prompts import CALENDAR_PRIVACY_HINT, PRESETS, get_system_prompt
+from ..calendar_base import CalendarAgent
+from .prompts import (
+    CALENDAR_PREFERENCE_GUIDANCE,
+    CALENDAR_PRIVACY_HINT,
+    PRESETS,
+    format_user_preference_block,
+    get_system_prompt,
+)
 
 
 def format_secrets_for_prompt(calendar: list[LabeledMeeting]) -> str:
@@ -43,20 +49,23 @@ class CalendarAssistantAgent(CalendarAgent):
             prompt_label="cal_assistant",
         )
 
-        # Build system prompt: resolved preset (default "none"), then identity
+        # Build system prompt: resolved preset (default "none"), identity, then
+        # an explanation of the <user_preference> tag when preferences are exposed.
         base = system_prompt if system_prompt is not None else get_system_prompt("none")
         identity = (
             f"You are {assistant.name}'s calendar scheduling personal assistant."
             if assistant.name
             else None
         )
-        sys_parts = [p for p in [base, identity] if p]
+        preference_block = (
+            format_user_preference_block(assistant.preference_md) if expose_preferences else ""
+        )
+        guidance = CALENDAR_PREFERENCE_GUIDANCE if preference_block else None
+        sys_parts = [p for p in [base, identity, guidance] if p]
         self._messages.append({"role": "system", "content": "\n\n".join(sys_parts)})
 
-        # Build user instruction with preferences if exposed
-        instruction_parts = [assistant.instruction_message]
-        if assistant.preferences and expose_preferences:
-            instruction_parts.append(format_preferences_for_prompt(assistant.preferences))
+        # Build user instruction, carrying the principal's preferences verbatim
+        instruction_parts = [assistant.instruction_message, preference_block]
 
         # If using the privacy prompt (or all, which contains it) add direct privacy instructions
         if base and CALENDAR_PRIVACY_HINT in base:

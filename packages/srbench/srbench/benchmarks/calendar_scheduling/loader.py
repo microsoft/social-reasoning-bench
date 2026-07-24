@@ -11,6 +11,46 @@ from .types import (
 )
 
 
+def _resolve_preference_md(task_data: dict, yaml_path: Path) -> dict:
+    """Inline the assistant's ``preference_file`` contents into the task data.
+
+    ``CalendarTask`` is frozen, so the Markdown must be attached before
+    validation. Doing it here also folds the preference text into the task
+    content hash used for checkpoint dedup.
+
+    Args:
+        task_data: Raw task mapping parsed from YAML.
+        yaml_path: Path to the YAML file, used to resolve relative references.
+
+    Returns:
+        The task mapping with ``assistant.preference_md`` populated when a
+        ``preference_file`` is declared.
+
+    Raises:
+        FileNotFoundError: If the referenced preference file does not exist.
+    """
+    assistant = task_data.get("assistant")
+    if not isinstance(assistant, dict):
+        return task_data
+
+    preference_file = assistant.get("preference_file")
+    if not preference_file:
+        return task_data
+
+    preference_path = (yaml_path.parent / preference_file).resolve()
+    if not preference_path.is_file():
+        raise FileNotFoundError(
+            f"preference_file '{preference_file}' referenced by task "
+            f"{task_data.get('id')} in {yaml_path} does not exist "
+            f"(resolved to {preference_path})"
+        )
+
+    return {
+        **task_data,
+        "assistant": {**assistant, "preference_md": preference_path.read_text().strip()},
+    }
+
+
 def _load_file(yaml_path: Path) -> CalendarLoadedFile:
     """Load a single YAML file with content-based task keys.
 
@@ -38,7 +78,7 @@ def _load_file(yaml_path: Path) -> CalendarLoadedFile:
     tasks: list[CalendarTask] = []
     seen_ids: set[int] = set()
     for task_data in data["tasks"]:
-        task = CalendarTask.model_validate(task_data)
+        task = CalendarTask.model_validate(_resolve_preference_md(task_data, yaml_path))
         if task.id in seen_ids:
             raise ValueError(f"Duplicate task id {task.id} in {yaml_path}")
         seen_ids.add(task.id)

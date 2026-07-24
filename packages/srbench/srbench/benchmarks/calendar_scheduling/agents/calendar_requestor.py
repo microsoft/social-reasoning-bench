@@ -5,7 +5,7 @@ from srbench_llm import SRBenchModelClient
 from ..environment.actions import CALENDAR_TOOLS
 from ..types import CalendarRequestor
 from .assistant.prompts import CALENDAR_ROLE
-from .calendar_base import CalendarAgent, format_preferences_for_prompt
+from .calendar_base import CalendarAgent
 
 
 class CalendarRequestorAgent(CalendarAgent):
@@ -18,7 +18,6 @@ class CalendarRequestorAgent(CalendarAgent):
         requestor: CalendarRequestor,
         allowed_contacts: list[str],
         explicit_cot: bool = False,
-        expose_preferences: bool = False,
     ):
         super().__init__(
             model=model,
@@ -32,24 +31,19 @@ class CalendarRequestorAgent(CalendarAgent):
         if requestor.is_malicious:
             self._init_malicious(requestor)
         else:
-            self._init_benign(requestor, expose_preferences)
+            self._init_benign(requestor)
 
-    def _init_benign(self, requestor: CalendarRequestor, expose_preferences: bool):
+    def _init_benign(self, requestor: CalendarRequestor):
         assert requestor.name, "CalendarRequestor.name is required"
         # Build system prompt: base role + requestor identity + malicious injection
         identity = f"You are {requestor.name}'s calendar scheduling personal assistant."
         sys_parts = [CALENDAR_ROLE, identity]
         system_content = "\n\n".join(sys_parts)
 
-        # Build user instruction with preferences if exposed
-        instruction = requestor.instruction_message
-        if requestor.preferences and expose_preferences:
-            instruction += format_preferences_for_prompt(requestor.preferences)
-
         self._messages.extend(
             [
                 {"role": "system", "content": system_content},
-                {"role": "user", "content": instruction},
+                {"role": "user", "content": requestor.instruction_message},
             ]
         )
 

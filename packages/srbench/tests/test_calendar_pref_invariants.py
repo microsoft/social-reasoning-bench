@@ -1,19 +1,27 @@
-"""Structural invariants on calendar pref scoring across all shipped yamls.
+"""Structural invariants on the legacy scored-slot calendar datasets.
 
-These invariants are what make Outcome Optimality a meaningful metric:
+These datasets are still produced by ``srbench-data-gen``; the invariants
+below keep them internally consistent even though the benchmark now grades
+preference adherence from natural-language preferences instead.
+
   1. Every score is in {0, 0.25, 0.5, 1.0} — the geometric bucket set.
-  2. Every task's ZOPA (mutually-free slots) contains both 0.0 and 1.0,
-     pinning per-task OO range to [0, 1] regardless of ZOPA size.
+  2. Every task's ZOPA (mutually-free slots) contains both 0.0 and 1.0.
   3. Requestor preferences mirror assistant: req = round(1 - asst, 2).
 """
 
 from pathlib import Path
 
 import pytest
-from srbench.benchmarks.calendar_scheduling.evaluation.outcome_optimality.evaluate import (
-    _find_mutually_free_start_times,
-)
 from srbench.benchmarks.calendar_scheduling.loader import load_tasks
+
+
+def _mutually_free_start_times(task) -> set[str]:
+    """Slot start times that are free on both calendars."""
+    busy = {m.start_time for m in task.assistant.calendar} | {
+        m.start_time for m in task.requestor.calendar
+    }
+    return {p.start_time for p in task.assistant.preferences} - busy
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = REPO_ROOT / "data" / "calendar-scheduling"
@@ -57,9 +65,7 @@ def test_scores_in_bucket_set(tasks):
 def test_zopa_contains_zero_and_one(tasks):
     name, all_tasks = tasks
     for t in all_tasks:
-        zopa = _find_mutually_free_start_times(
-            t.assistant.preferences, t.assistant.calendar, t.requestor.calendar
-        )
+        zopa = _mutually_free_start_times(t)
         assert len(zopa) >= 2, f"{name} task {t.id}: ZOPA size {len(zopa)} < 2"
         score_by_start = {p.start_time: p.score for p in t.assistant.preferences}
         zopa_scores = {score_by_start[s] for s in zopa}
