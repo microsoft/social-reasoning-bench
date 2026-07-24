@@ -38,6 +38,9 @@ OpenClaw must be onboarded with a model provider (or pass ``--model``/
 - ``SRBENCH_OPENCLAW_REASONING_EFFORT`` — ``--thinking`` level (``off``/``minimal``/
   ``low``/``medium``/``high``, plus provider ``xhigh``/``adaptive``/``max``).
 - ``SRBENCH_OPENCLAW_AGENT`` — a configured OpenClaw agent id to target.
+- ``SRBENCH_OPENCLAW_MAX_RETRIES`` — retries for an invocation that fails before
+  the agent makes any tool call (default ``2``); absorbs transient provider
+  errors such as rate limits.
 - ``SRBENCH_OPENCLAW_SYSTEM_PROMPT`` — operating system prompt, prepended to the
   opening message (defaults to
   :data:`srbench_agents.prompts.DEFAULT_ASSISTANT_SYSTEM_PROMPT`).
@@ -50,9 +53,10 @@ import contextlib
 import json
 import os
 import shutil
+import signal
 import socket
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 from uuid import uuid4
 
 from openai.types.chat import ChatCompletionFunctionToolParam
@@ -78,6 +82,21 @@ _PROFILE_PREFIX = "srbench-"
 #: Grace period (seconds) to let the CLI exit after EndConversation before we
 #: terminate it, and slack added on top of the agent timeout.
 _GRACE_SECONDS = 30.0
+
+
+class _RunOutcome(NamedTuple):
+    """Result of a single OpenClaw subprocess invocation.
+
+    ``tool_calls`` is the number of MCP tool calls the agent made during the
+    invocation; a run that made none never engaged with the environment and is
+    treated as a (retryable) failure.
+    """
+
+    returncode: int | None
+    stdout: str
+    stderr: str
+    timed_out: bool
+    tool_calls: int
 
 
 def _bind_socket() -> socket.socket:
@@ -149,9 +168,15 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
         self._binary = os.environ.get("SRBENCH_OPENCLAW_BIN", "openclaw")
         self._agent_id = os.environ.get("SRBENCH_OPENCLAW_AGENT") or None
         self._timeout = float(self.task.max_actions) * 30.0 + 120.0
+        # How many times to retry an invocation that failed *before* the agent
+        # engaged (no MCP tool calls yet, so no environment state to corrupt).
+        # This absorbs transient provider errors (e.g. rate limits) that tend to
+        # appear once a sweep has been running for a few minutes.
+        self._max_retries = int(os.environ.get("SRBENCH_OPENCLAW_MAX_RETRIES", "2"))
         self._ended = False
         self._proc: asyncio.subprocess.Process | None = None
         self._transcript: list[dict[str, str]] = []
+        self._tool_calls = 0
 
     @property
     def messages(self) -> list[dict[str, str]]:
@@ -169,6 +194,7 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
         async def bridged(name: str, arguments: Any) -> str:
             args = arguments or {}
             result = await invoke_tool(name, args)
+            self._tool_calls += 1
             self._transcript.append(
                 {"role": "assistant", "content": f"{name}({json.dumps(args)}) -> {result}"}
             )
@@ -251,28 +277,7 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
             if code != 0:
                 raise RuntimeError(f"`openclaw mcp set` failed (exit {code}): {err.strip()}")
 
-            cmd = [self._binary, "--profile", profile, "agent", "--local"]
-            if self._agent_id:
-                cmd += ["--agent", self._agent_id]
-            if self._model:
-                cmd += ["--model", self._model]
-            if self._reasoning_effort:
-                cmd += ["--thinking", self._reasoning_effort]
-            cmd += [
-                "--session-key",
-                profile,
-                "--message",
-                self._opening_message(),
-                "--json",
-                "--timeout",
-                str(int(self._timeout)),
-            ]
-            self._proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            await self._drive(self._proc)
+            await self._run_agent_with_retries(profile)
         finally:
             # Critical, synchronous teardown first, so nothing leaks even if this
             # coroutine is being cancelled (e.g. the harness hit max rounds):
@@ -290,31 +295,130 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
             with contextlib.suppress(Exception):
                 sock.close()
 
-    async def _drive(self, proc: asyncio.subprocess.Process) -> None:
-        """Wait for the OpenClaw run to finish and record its output."""
+    def _agent_cmd(self, profile: str, session_key: str) -> list[str]:
+        """Build the ``openclaw agent`` command line for this task."""
+        cmd = [self._binary, "--profile", profile, "agent", "--local"]
+        if self._agent_id:
+            cmd += ["--agent", self._agent_id]
+        if self._model:
+            cmd += ["--model", self._model]
+        if self._reasoning_effort:
+            cmd += ["--thinking", self._reasoning_effort]
+        cmd += [
+            "--session-key",
+            session_key,
+            "--message",
+            self._opening_message(),
+            "--json",
+            "--timeout",
+            str(int(self._timeout)),
+        ]
+        return cmd
+
+    async def _run_agent_with_retries(self, profile: str) -> None:
+        """Run the OpenClaw agent, retrying no-op failures and raising on error.
+
+        A failure that occurs *before* the agent makes any MCP tool call has not
+        mutated environment state, so it is safe to retry (this absorbs transient
+        provider errors such as rate limits). Once the agent has engaged, the run
+        is not retried; if it still fails, the error is raised so the harness
+        records the real cause instead of silently returning an empty trace.
+        """
+        last: _RunOutcome | None = None
+        for attempt in range(self._max_retries + 1):
+            calls_before = self._tool_calls
+            # A fresh session key per attempt so a retry starts a clean
+            # conversation rather than resuming the failed one.
+            session_key = profile if attempt == 0 else f"{profile}-r{attempt}"
+            cmd = self._agent_cmd(profile, session_key)
+            self._proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                start_new_session=True,
+            )
+            last = await self._drive(self._proc)
+            # Success: the agent engaged (made tool calls) and exited cleanly.
+            if not last.timed_out and last.returncode in (0, None) and last.tool_calls > 0:
+                return
+            # Only retry when nothing was done yet — otherwise retrying would
+            # replay actions against already-mutated environment state.
+            engaged = self._tool_calls > calls_before
+            if engaged or attempt >= self._max_retries:
+                break
+            await asyncio.sleep(2.0 * (attempt + 1))
+
+        raise RuntimeError(self._failure_message(last))
+
+    def _failure_message(self, outcome: _RunOutcome | None) -> str:
+        """Human-readable explanation of why an OpenClaw run failed."""
+        if outcome is None:  # pragma: no cover - defensive
+            return "openclaw run failed before producing any outcome"
+
+        def tail(s: str) -> str:
+            return s.strip()[-800:]
+
+        if outcome.timed_out:
+            return (
+                f"openclaw run timed out after ~{int(self._timeout)}s and was "
+                f"terminated; stderr tail: {tail(outcome.stderr)!r}"
+            )
+        if outcome.returncode not in (0, None):
+            return (
+                f"openclaw exited with code {outcome.returncode}; "
+                f"stderr tail: {tail(outcome.stderr)!r}; stdout tail: {tail(outcome.stdout)!r}"
+            )
+        # Exited cleanly but never called a tool: nothing to score.
+        return (
+            "openclaw completed without performing any actions (no MCP tool calls); "
+            f"stdout tail: {tail(outcome.stdout)!r}; stderr tail: {tail(outcome.stderr)!r}"
+        )
+
+    async def _drive(self, proc: asyncio.subprocess.Process) -> _RunOutcome:
+        """Wait for one OpenClaw invocation to finish and capture its output.
+
+        Returns a :class:`_RunOutcome`; unlike a raising path this lets the
+        caller decide whether the invocation should be retried or surfaced as a
+        fatal error.
+        """
+        timed_out = False
         try:
-            out, err = await asyncio.wait_for(
+            out_b, err_b = await asyncio.wait_for(
                 proc.communicate(), timeout=self._timeout + _GRACE_SECONDS
             )
+            out = out_b.decode(errors="replace")
+            err = err_b.decode(errors="replace")
         except asyncio.TimeoutError:
             self._terminate()
-            self._transcript.append(
-                {"role": "assistant", "content": "openclaw run timed out; terminated."}
-            )
-            return
+            timed_out = True
+            out, err = "", ""
         if out.strip():
-            self._transcript.append({"role": "assistant", "content": out.decode(errors="replace")})
+            self._transcript.append({"role": "assistant", "content": out})
         if proc.returncode not in (0, None) and err.strip():
-            self._transcript.append(
-                {"role": "assistant", "content": f"openclaw stderr: {err.decode(errors='replace')}"}
-            )
+            self._transcript.append({"role": "assistant", "content": f"openclaw stderr: {err}"})
+        return _RunOutcome(
+            returncode=proc.returncode,
+            stdout=out,
+            stderr=err,
+            timed_out=timed_out,
+            tool_calls=self._tool_calls,
+        )
 
     def _terminate(self) -> None:
-        """Terminate the OpenClaw subprocess if it is still running."""
+        """Terminate the OpenClaw subprocess (and its children) if still running.
+
+        OpenClaw spawns helper child processes; terminating only the direct
+        child can orphan them, and over a long sweep those orphans accumulate and
+        exhaust resources. Because the subprocess is started in its own session
+        (``start_new_session=True``), we can signal the whole process group.
+        """
         proc = self._proc
-        if proc is not None and proc.returncode is None:
-            with contextlib.suppress(ProcessLookupError):
-                proc.terminate()
+        if proc is None or proc.returncode is not None:
+            return
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        with contextlib.suppress(ProcessLookupError):
+            proc.terminate()
 
 
 def _cleanup_profile(profile: str) -> None:

@@ -10,6 +10,7 @@ still works from the environment's action trace.
 
 import asyncio
 import textwrap
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from srbench.benchmarks.calendar_scheduling.agents import (
@@ -50,6 +51,7 @@ from srbench.benchmarks.marketplace.types import (
     RoleConfig,
 )
 from srbench.shared import (
+    AssistantTask,
     BaseAgent,
     BaseAssistantAgent,
     BaseCounterpartAgent,
@@ -57,6 +59,9 @@ from srbench.shared import (
     load_agent_class,
 )
 from test_executor_integration import ScriptedModelClient
+
+if TYPE_CHECKING:
+    from srbench_llm import SRBenchModelClient
 
 _GUARD_SECONDS = 10.0
 
@@ -379,6 +384,37 @@ def test_reasonable_assistant_ignores_invalid_actions():
     assert CalendarReasonableAssistant(result).score() is None
 
 
+def test_evaluator_surfaces_execution_error_without_scoring():
+    """A failed execution short-circuits eval and reports the real error.
+
+    When execution fails there is no trace to score, so the evaluator must not
+    run the deterministic scorers (which would raise a misleading "no scorable
+    decisions" error). Instead it returns an error result carrying the actual
+    execution error, and never touches the judge client.
+    """
+    from srbench.benchmarks.calendar_scheduling.evaluation.evaluator import (
+        evaluate_single_task,
+    )
+
+    task = _calendar_task()
+    exec_error = (
+        "Calendar execution error: openclaw exited with code 1; stderr tail: 'rate limited'"
+    )
+    result = CalendarExecutionResult(task=task, action_trace=[], error=exec_error)
+
+    eval_result = asyncio.run(
+        evaluate_single_task(
+            result,
+            judge_model="unused",
+            judge_client=cast("SRBenchModelClient", None),
+        )
+    )
+
+    assert eval_result.error == exec_error
+    assert eval_result.appropriately_scheduled_or_notscheduled is False
+    assert eval_result.scheduled_meeting is None
+
+
 # ------------------------------------------------------------------ #
 # BYOA agent kwargs (model / reasoning effort per variant)
 # ------------------------------------------------------------------ #
@@ -532,3 +568,104 @@ def test_agent_kwargs_without_model_leaves_reporting_fields_none():
     config = CalendarRunConfig(paths=["x"], assistant_agent="a:B", assistant_agent_kwargs={})
     assert config.assistant_model is None
     assert config.assistant_reasoning_effort is None
+
+
+# ------------------------------------------------------------------ #
+# OpenClaw agent robustness (retry + loud failure)
+# ------------------------------------------------------------------ #
+
+
+def _openclaw_agent(monkeypatch, *, max_retries=2):
+    """Build an OpenClawAgent with a trivial task, retries configurable."""
+    from srbench_agents import openclaw_agent as oc
+
+    monkeypatch.setenv("SRBENCH_OPENCLAW_MAX_RETRIES", str(max_retries))
+    return oc.OpenClawAgent(task=AssistantTask(max_actions=2)), oc
+
+
+async def _instant_sleep(*_args, **_kwargs):
+    """Drop-in for asyncio.sleep that returns immediately (no real delay)."""
+    return None
+
+
+class _FakeProc:
+    def __init__(self):
+        self.pid = 424242
+        self.returncode = 0
+
+
+def test_openclaw_retries_noop_then_succeeds(monkeypatch):
+    """A no-op first attempt is retried; a subsequent engaged run succeeds."""
+    agent, oc = _openclaw_agent(monkeypatch)
+
+    spawned = {"n": 0}
+
+    async def fake_spawn(*args, **kwargs):
+        spawned["n"] += 1
+        return _FakeProc()
+
+    outcomes = iter(
+        [
+            oc._RunOutcome(
+                returncode=0, stdout="", stderr="rate limited", timed_out=False, tool_calls=0
+            ),
+            oc._RunOutcome(returncode=0, stdout="ok", stderr="", timed_out=False, tool_calls=3),
+        ]
+    )
+
+    async def fake_drive(proc):
+        out = next(outcomes)
+        agent._tool_calls = out.tool_calls
+        return out
+
+    monkeypatch.setattr(oc.asyncio, "create_subprocess_exec", fake_spawn)
+    monkeypatch.setattr(agent, "_drive", fake_drive)
+    monkeypatch.setattr(oc.asyncio, "sleep", _instant_sleep)
+
+    asyncio.run(agent._run_agent_with_retries("srbench-deadbeef"))
+    assert spawned["n"] == 2  # retried once
+
+
+def test_openclaw_raises_loud_error_on_persistent_noop(monkeypatch):
+    """Exhausted retries surface a clear error instead of an empty trace."""
+    agent, oc = _openclaw_agent(monkeypatch, max_retries=1)
+
+    async def fake_spawn(*args, **kwargs):
+        return _FakeProc()
+
+    async def fake_drive(proc):
+        return oc._RunOutcome(
+            returncode=0, stdout="nothing", stderr="", timed_out=False, tool_calls=0
+        )
+
+    monkeypatch.setattr(oc.asyncio, "create_subprocess_exec", fake_spawn)
+    monkeypatch.setattr(agent, "_drive", fake_drive)
+    monkeypatch.setattr(oc.asyncio, "sleep", _instant_sleep)
+
+    with pytest.raises(RuntimeError, match="no MCP tool calls"):
+        asyncio.run(agent._run_agent_with_retries("srbench-deadbeef"))
+
+
+def test_openclaw_does_not_retry_after_engaging(monkeypatch):
+    """Once the agent has acted, a failure is not retried (state is mutated)."""
+    agent, oc = _openclaw_agent(monkeypatch, max_retries=3)
+
+    spawned = {"n": 0}
+
+    async def fake_spawn(*args, **kwargs):
+        spawned["n"] += 1
+        return _FakeProc()
+
+    async def fake_drive(proc):
+        # Engaged (made a tool call) but exited non-zero: must not retry.
+        agent._tool_calls += 2
+        return oc._RunOutcome(
+            returncode=1, stdout="", stderr="boom", timed_out=False, tool_calls=agent._tool_calls
+        )
+
+    monkeypatch.setattr(oc.asyncio, "create_subprocess_exec", fake_spawn)
+    monkeypatch.setattr(agent, "_drive", fake_drive)
+
+    with pytest.raises(RuntimeError, match="exited with code 1"):
+        asyncio.run(agent._run_agent_with_retries("srbench-deadbeef"))
+    assert spawned["n"] == 1  # no retry after engaging
