@@ -265,7 +265,9 @@ class MarketplaceBenchmark(
     # ==================================================================
 
     def get_run_path_models(self) -> list[str]:
-        buyer = self.config.buyer_agent or self.config.resolved_buyer_model or "unknown"
+        from ..base.run_paths import agent_model_label
+
+        buyer = agent_model_label(self.config.buyer_agent, self.config.resolved_buyer_model)
         return [
             buyer,
             self.config.resolved_seller_model or "unknown",

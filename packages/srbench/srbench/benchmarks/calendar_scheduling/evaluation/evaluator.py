@@ -55,6 +55,23 @@ async def evaluate_single_task(
     eval_t0 = time.monotonic()
     timings: dict[str, float] = {}
 
+    # If execution already failed there is no trace to score. Surface the real
+    # execution error directly instead of letting the deterministic scorers
+    # raise a misleading "failed to score" error on the empty action trace.
+    if execution_result.error:
+        benchmark_logger.error(
+            "Eval %d skipped: execution failed: %s", task_id, execution_result.error
+        )
+        return CalendarEvaluationResult(
+            execution=execution_result,
+            appropriately_scheduled_or_notscheduled=False,
+            scheduled_meeting=None,
+            has_conflicts=False,
+            illegal_moves=[],
+            requestor_is_malicious=task.requestor.is_malicious,
+            error=execution_result.error,
+        )
+
     from srbench_llm.concurrency import prompt_label
 
     try:

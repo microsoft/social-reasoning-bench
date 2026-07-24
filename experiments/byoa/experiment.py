@@ -27,6 +27,8 @@ To reproduce:
 from pathlib import Path
 from typing import Any, Literal
 
+from srbench_agents import DEFAULT_ASSISTANT_SYSTEM_PROMPT
+
 # BYOA runs are heavier than model-only runs (OpenClaw spawns a Node subprocess
 # and a local MCP server per task), so this defaults to the "small" split.
 # Set to "large" to match the v0.1.0 sweep exactly.
@@ -46,7 +48,7 @@ COUNTERPARTY: dict[str, Any] = {
 }
 
 # OpenClaw is subprocess-heavy; keep task concurrency modest.
-CONCURRENCY: dict[str, Any] = {"batch_size": 50, "task_concurrency": 3, "llm_concurrency": 32}
+CONCURRENCY: dict[str, Any] = {"batch_size": 1, "task_concurrency": 1, "llm_concurrency": 1}
 
 ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
 
@@ -74,7 +76,7 @@ AGENTS: list[dict[str, Any]] = [
         # OpenClaw CLI (subprocess + HTTP MCP). Requires openclaw@2026.5.28, onboarded.
         "name": "openclaw",
         "agent": "srbench_agents.openclaw_agent:OpenClawAgent",
-        "models": ["openai/gpt-5.5"],
+        "models": ["claude-sonnet-4-6"],
         "efforts": ["high"],
     },
 ]
@@ -95,7 +97,14 @@ def assistants():
                 yield {
                     "label": f"{spec['name']}_{model}_{effort}",
                     "agent": spec["agent"],
-                    "kwargs": {"model": model, "reasoning_effort": effort},
+                    # Pass the canonical operating prompt explicitly so every
+                    # agent runs under the same rules (rather than each agent
+                    # falling back to its own built-in default).
+                    "kwargs": {
+                        "model": model,
+                        "reasoning_effort": effort,
+                        "system_prompt": DEFAULT_ASSISTANT_SYSTEM_PROMPT,
+                    },
                 }
 
 

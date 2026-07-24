@@ -22,6 +22,8 @@ Optional environment overrides:
 - ``SRBENCH_CLAUDE_MODEL``            — model id for the run.
 - ``SRBENCH_CLAUDE_REASONING_EFFORT`` — SDK ``effort`` level
   (``low``/``medium``/``high``/``xhigh``/``max``).
+- ``SRBENCH_CLAUDE_SYSTEM_PROMPT``    — operating system prompt (defaults to
+  :data:`srbench_agents.prompts.DEFAULT_ASSISTANT_SYSTEM_PROMPT`).
 """
 
 from __future__ import annotations
@@ -33,6 +35,8 @@ from typing import Any, Literal, cast
 from openai.types.chat import ChatCompletionFunctionToolParam
 from srbench.mcp import build_server
 from srbench.shared import AssistantTask, BaseAssistantAgent, InvokeTool
+
+from srbench_agents.prompts import DEFAULT_ASSISTANT_SYSTEM_PROMPT
 
 try:
     from claude_agent_sdk import (
@@ -56,25 +60,6 @@ _MCP_SERVER_NAME = "srbench"
 
 # SDK ``effort`` levels; user-supplied effort is narrowed to this before use.
 ClaudeEffort = Literal["low", "medium", "high", "xhigh", "max"]
-
-_SYSTEM_PROMPT = """\
-You are an autonomous agent participating in a social-reasoning benchmark. You \
-can perceive and affect the world ONLY through the tools you are given; you \
-have no other senses or abilities.
-
-Ground rules:
-- Your private task briefing arrives as JSON in the first message. Read it \
-carefully to understand who you are, your objective, and any constraints.
-- The other party has already made an opening move that is waiting for you. \
-Call the `Wait` tool to receive it, and to receive anything they send later.
-- Take exactly one concrete action at a time, then read its result before \
-deciding your next action.
-- After you act and are waiting on the other party to respond, call `Wait` to \
-yield your turn. Do not poll repeatedly.
-- When your objective is fully resolved, or you must refuse the request, call \
-`EndConversation` with a brief reason. This permanently ends your participation.
-- Rely only on tool results. Never invent facts, messages, or confirmations.
-"""
 
 _CONTINUE_PROMPT = (
     "Continue. Take your next action using a tool. If you are waiting on the "
@@ -100,6 +85,7 @@ class ClaudeAgent(BaseAssistantAgent[AssistantTask]):
         task: AssistantTask,
         model: str | None = None,
         reasoning_effort: str | None = None,
+        system_prompt: str | None = None,
     ) -> None:
         self.task = task
         # Falls back to the SDK/CLI default model when unset.
@@ -111,6 +97,13 @@ class ClaudeAgent(BaseAssistantAgent[AssistantTask]):
         self._reasoning_effort = cast(
             "ClaudeEffort | None",
             reasoning_effort or os.environ.get("SRBENCH_CLAUDE_REASONING_EFFORT"),
+        )
+        # The harness may supply the operating system prompt; otherwise fall
+        # back to this agent's built-in benchmark ground rules.
+        self._system_prompt = (
+            system_prompt
+            or os.environ.get("SRBENCH_CLAUDE_SYSTEM_PROMPT")
+            or DEFAULT_ASSISTANT_SYSTEM_PROMPT
         )
         self._ended = False
         self._transcript: list[dict[str, str]] = []
@@ -179,7 +172,7 @@ class ClaudeAgent(BaseAssistantAgent[AssistantTask]):
         server = build_server(tools, self._bridge(invoke_tool), name=_MCP_SERVER_NAME)
 
         options = ClaudeAgentOptions(
-            system_prompt=_SYSTEM_PROMPT,
+            system_prompt=self._system_prompt,
             # Mount the reusable srbench MCP server in-process. The SDK routes
             # tool calls to ``server`` (a raw mcp.Server) directly; this is the
             # same shape ``create_sdk_mcp_server`` produces.

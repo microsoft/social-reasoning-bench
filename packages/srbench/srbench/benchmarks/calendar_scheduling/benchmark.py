@@ -337,7 +337,11 @@ class CalendarBenchmark(
     # ==================================================================
 
     def get_run_path_models(self) -> list[str]:
-        assistant = self.config.assistant_agent or self.config.resolved_assistant_model or "unknown"
+        from ..base.run_paths import agent_model_label
+
+        assistant = agent_model_label(
+            self.config.assistant_agent, self.config.resolved_assistant_model
+        )
         return [
             assistant,
             self.config.resolved_requestor_model or "unknown",

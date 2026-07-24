@@ -399,6 +399,7 @@ const SERIES_PALETTE = [
 const DIMENSION_DEFS = {
   benchmark:      { label: 'Benchmark',      colorMap: BENCHMARK_COLORS, order: ['calendar', 'marketplace'] },
   model:          { label: 'Model',          colorMap: null },
+  assistantAgent: { label: 'Assistant Agent', colorMap: null },
   attackType:     { label: 'Attack Type',    colorMap: ATTACK_TYPE_COLORS, order: ['none', 'privacy', 'outcome_optimality', 'due_diligence'] },
   attackStyle:    { label: 'Attack Style',   colorMap: null },
   privacyLevel:   { label: 'System Prompt', colorMap: null, order: ['none', 'simple', 'strong', 'ci'] },
@@ -572,6 +573,14 @@ function extractPrivacyLevel(cfg) {
   return cfg.system_prompt || cfg.assistant_system_prompt || cfg.prompt_type || 'none';
 }
 
+function extractAssistantAgent(cfg, benchmark) {
+  // BYOA agent import string ("pkg.mod:ClassName"); show the class name.
+  // No agent means the built-in assistant is used -> "default".
+  const spec = benchmark === 'marketplace' ? cfg.buyer_agent : cfg.assistant_agent;
+  if (!spec) return 'default';
+  return spec.split(':').pop() || spec;
+}
+
 function extractRoleModels(cfg, benchmark) {
   const fallback = displayModel(cfg.model);
   if (benchmark === 'calendar') {
@@ -601,6 +610,7 @@ function parseResultsFile(json, filename) {
   const attack = parseAttackFromTasks(json.results) || parseAttackFromVariant(variant) || parseAttackFromPaths(cfg.paths) || { attackType: 'none', attackStyle: 'none' };
   const benchmark = parseBenchmarkFromPaths(cfg.paths) || detectBenchmark(json);
   const model = displayModel(cfg.model || (benchmark === 'marketplace' ? cfg.buyer_model : cfg.assistant_model));
+  const assistantAgent = extractAssistantAgent(cfg, benchmark);
   const privacyLevel = extractPrivacyLevel(cfg);
   const reasoningConfig = extractReasoningConfig(cfg);
   const roleModels = extractRoleModels(cfg, benchmark);
@@ -612,6 +622,7 @@ function parseResultsFile(json, filename) {
     attackType: attack.attackType,
     attackStyle: attack.attackStyle,
     model,
+    assistantAgent,
     privacyLevel,
     reasoningConfig,
     ...roleModels,

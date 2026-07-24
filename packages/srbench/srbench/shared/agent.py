@@ -154,13 +154,14 @@ class BaseAssistantAgent(BaseAgent, Generic[TaskT]):
     on the execution result as a debugging artifact.
 
     Constructor convention (optional but recommended): in addition to the
-    typed ``task``, agents may accept keyword-only ``model`` and
-    ``reasoning_effort`` parameters, supplied through the CLI's
-    ``--assistant-agent-kwargs`` / ``--buyer-agent-kwargs`` JSON. When
-    present in those kwargs, the harness mirrors them onto the run config's
-    ``assistant_model`` / ``assistant_reasoning_effort`` (buyer equivalents)
-    so results files and the dashboard report the agent's model like any
-    built-in run.
+    typed ``task``, agents may accept keyword-only ``model``,
+    ``reasoning_effort`` and ``system_prompt`` parameters, supplied through the
+    CLI's ``--assistant-agent-kwargs`` / ``--buyer-agent-kwargs`` JSON. When
+    ``model`` / ``reasoning_effort`` are present in those kwargs, the harness
+    mirrors them onto the run config's ``assistant_model`` /
+    ``assistant_reasoning_effort`` (buyer equivalents) so results files and the
+    dashboard report the agent's model like any built-in run. ``system_prompt``
+    lets the harness own the agent's operating prompt instead of hardcoding it.
     """
 
 

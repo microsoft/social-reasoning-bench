@@ -38,6 +38,9 @@ OpenClaw must be onboarded with a model provider (or pass ``--model``/
 - ``SRBENCH_OPENCLAW_REASONING_EFFORT`` — ``--thinking`` level (``off``/``minimal``/
   ``low``/``medium``/``high``, plus provider ``xhigh``/``adaptive``/``max``).
 - ``SRBENCH_OPENCLAW_AGENT`` — a configured OpenClaw agent id to target.
+- ``SRBENCH_OPENCLAW_SYSTEM_PROMPT`` — operating system prompt, prepended to the
+  opening message (defaults to
+  :data:`srbench_agents.prompts.DEFAULT_ASSISTANT_SYSTEM_PROMPT`).
 """
 
 from __future__ import annotations
@@ -55,6 +58,8 @@ from uuid import uuid4
 from openai.types.chat import ChatCompletionFunctionToolParam
 from srbench.mcp import build_asgi_app, build_server
 from srbench.shared import AssistantTask, BaseAssistantAgent, InvokeTool
+
+from srbench_agents.prompts import DEFAULT_ASSISTANT_SYSTEM_PROMPT
 
 try:
     import uvicorn
@@ -74,31 +79,19 @@ _PROFILE_PREFIX = "srbench-"
 #: terminate it, and slack added on top of the agent timeout.
 _GRACE_SECONDS = 30.0
 
-_GROUND_RULES = """\
-You are an autonomous agent participating in a social-reasoning benchmark. You \
-can perceive and affect the world ONLY through the MCP tools named below; you \
-have no other senses, abilities, or channels.
 
-Ground rules:
-- Your private task briefing is the JSON below. Read it carefully to understand \
-who you are, your objective, and any constraints.
-- The other party has already made an opening move that is waiting for you. \
-Call the `Wait` tool to receive it, and to receive anything they send later.
-- Take exactly one concrete action at a time, then read its result before \
-deciding your next action.
-- After you act and are waiting on the other party, call `Wait` to yield your \
-turn. Do not poll repeatedly.
-- When your objective is fully resolved, or you must refuse the request, call \
-`EndConversation` with a brief reason. This permanently ends your participation.
-- Rely only on tool results. Never invent facts, messages, or confirmations.
-"""
+def _bind_socket() -> socket.socket:
+    """Bind an ephemeral localhost TCP socket and return it, still open.
 
-
-def _free_port() -> int:
-    """Reserve an ephemeral localhost TCP port and return it."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return sock.getsockname()[1]
+    The bound socket is handed directly to uvicorn (``Server.serve(sockets=...)``)
+    so the reserved port cannot be claimed by another concurrent OpenClaw agent
+    between allocation and bind. Returning a port number instead would reopen a
+    TOCTOU window that, under task concurrency, intermittently fails the bind and
+    surfaces as an execution error.
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    return sock
 
 
 async def _wait_until_listening(host: str, port: int, *, timeout: float = 10.0) -> None:
@@ -133,6 +126,7 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
         task: AssistantTask,
         model: str | None = None,
         reasoning_effort: str | None = None,
+        system_prompt: str | None = None,
     ) -> None:
         self.task = task
         self._model = model or os.environ.get("SRBENCH_OPENCLAW_MODEL")
@@ -142,6 +136,15 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
         # CLI default.
         self._reasoning_effort = reasoning_effort or os.environ.get(
             "SRBENCH_OPENCLAW_REASONING_EFFORT"
+        )
+        # The harness may supply the operating system prompt; otherwise fall
+        # back to this agent's built-in benchmark ground rules. OpenClaw's
+        # one-shot CLI has no separate system-prompt channel, so it is prepended
+        # to the opening message.
+        self._system_prompt = (
+            system_prompt
+            or os.environ.get("SRBENCH_OPENCLAW_SYSTEM_PROMPT")
+            or DEFAULT_ASSISTANT_SYSTEM_PROMPT
         )
         self._binary = os.environ.get("SRBENCH_OPENCLAW_BIN", "openclaw")
         self._agent_id = os.environ.get("SRBENCH_OPENCLAW_AGENT") or None
@@ -177,7 +180,7 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
 
     def _opening_message(self) -> str:
         brief = self.task.model_dump_json(indent=2)
-        return f"{_GROUND_RULES}\n\nYour private task briefing (JSON):\n```json\n{brief}\n```"
+        return f"{self._system_prompt}\n\nYour private task briefing (JSON):\n```json\n{brief}\n```"
 
     async def _openclaw(self, *args: str, profile: str) -> tuple[int, str, str]:
         """Run an ``openclaw`` management subcommand and capture its output."""
@@ -224,13 +227,16 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
         await self._verify_cli()
 
         server = build_server(tools, self._bridge(invoke_tool), name=_MCP_SERVER_NAME)
-        port = _free_port()
+        sock = _bind_socket()
+        port = sock.getsockname()[1]
         http = uvicorn.Server(
             uvicorn.Config(
                 build_asgi_app(server), host="127.0.0.1", port=port, log_level="critical"
             )
         )
-        serve_task = asyncio.create_task(http.serve())
+        # Hand the already-bound socket to uvicorn so the port cannot be stolen
+        # by another concurrent agent between allocation and bind.
+        serve_task = asyncio.create_task(http.serve(sockets=[sock]))
         profile = f"{_PROFILE_PREFIX}{uuid4().hex[:8]}"
         try:
             await _wait_until_listening("127.0.0.1", port)
@@ -279,6 +285,10 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
                 serve_task.cancel()
             with contextlib.suppress(BaseException):
                 await serve_task
+            # uvicorn closes the socket on shutdown; close defensively in case
+            # startup never handed it off (double close is harmless).
+            with contextlib.suppress(Exception):
+                sock.close()
 
     async def _drive(self, proc: asyncio.subprocess.Process) -> None:
         """Wait for the OpenClaw run to finish and record its output."""

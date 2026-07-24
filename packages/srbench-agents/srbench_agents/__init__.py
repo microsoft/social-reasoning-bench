@@ -25,3 +25,7 @@ one with the CLI, e.g.::
     srbench benchmark marketplace \\
         --buyer-agent srbench_agents.claude_agent:ClaudeAgent ...
 """
+
+from srbench_agents.prompts import DEFAULT_ASSISTANT_SYSTEM_PROMPT
+
+__all__ = ["DEFAULT_ASSISTANT_SYSTEM_PROMPT"]
