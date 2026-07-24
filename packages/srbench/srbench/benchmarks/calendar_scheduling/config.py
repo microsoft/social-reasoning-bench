@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from ..base import BaseRunConfig
 
@@ -52,6 +52,26 @@ class CalendarRunConfig(BaseRunConfig):
 
     # Calendar-specific
     expose_preferences: bool = Field(default=True)
+
+    @model_validator(mode="after")
+    def _mirror_assistant_agent_model(self) -> CalendarRunConfig:
+        """Surface a BYOA agent's model/effort on the reporting fields.
+
+        BYOA agents receive ``model`` and ``reasoning_effort`` through
+        ``assistant_agent_kwargs``. Mirror those onto ``assistant_model`` /
+        ``assistant_reasoning_effort`` (when not set explicitly) so results and
+        the dashboard report them like any built-in run.
+        """
+        if self.assistant_agent:
+            kwargs = self.assistant_agent_kwargs
+            if self.assistant_model is None and kwargs.get("model") is not None:
+                self.assistant_model = kwargs["model"]
+            if (
+                self.assistant_reasoning_effort is None
+                and kwargs.get("reasoning_effort") is not None
+            ):
+                self.assistant_reasoning_effort = kwargs["reasoning_effort"]
+        return self
 
     # --- Assistant resolved properties ---
 

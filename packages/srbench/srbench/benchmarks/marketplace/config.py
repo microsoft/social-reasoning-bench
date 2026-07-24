@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from ..base import BaseRunConfig
 
@@ -49,6 +49,23 @@ class MarketplaceRunConfig(BaseRunConfig):
     # Per-agent CoT
     buyer_explicit_cot: bool | None = Field(default=None)
     seller_explicit_cot: bool | None = Field(default=None)
+
+    @model_validator(mode="after")
+    def _mirror_buyer_agent_model(self) -> MarketplaceRunConfig:
+        """Surface a BYOA agent's model/effort on the reporting fields.
+
+        BYOA agents receive ``model`` and ``reasoning_effort`` through
+        ``buyer_agent_kwargs``. Mirror those onto ``buyer_model`` /
+        ``buyer_reasoning_effort`` (when not set explicitly) so results and the
+        dashboard report them like any built-in run.
+        """
+        if self.buyer_agent:
+            kwargs = self.buyer_agent_kwargs
+            if self.buyer_model is None and kwargs.get("model") is not None:
+                self.buyer_model = kwargs["model"]
+            if self.buyer_reasoning_effort is None and kwargs.get("reasoning_effort") is not None:
+                self.buyer_reasoning_effort = kwargs["reasoning_effort"]
+        return self
 
     # --- Buyer resolved properties ---
 

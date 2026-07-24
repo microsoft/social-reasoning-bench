@@ -480,3 +480,55 @@ def test_setup_without_agent_leaves_factory_none(tmp_path, monkeypatch):
     bench = CalendarBenchmark.__new__(CalendarBenchmark)
     bench.setup(config)
     assert bench.assistant_agent_factory is None
+
+
+def test_calendar_agent_kwargs_mirror_reporting_fields():
+    """A BYOA agent's model/effort surface on assistant_* reporting fields."""
+    from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+
+    config = CalendarRunConfig(
+        paths=["x"],
+        assistant_agent="a:B",
+        assistant_agent_kwargs={"model": "openai/gpt-5.5", "reasoning_effort": "high"},
+    )
+    assert config.assistant_model == "openai/gpt-5.5"
+    assert config.assistant_reasoning_effort == "high"
+    # Kwargs stay intact so they still forward to the agent constructor.
+    assert config.assistant_agent_kwargs["model"] == "openai/gpt-5.5"
+
+
+def test_marketplace_agent_kwargs_mirror_reporting_fields():
+    """A BYOA agent's model/effort surface on buyer_* reporting fields."""
+    from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
+
+    config = MarketplaceRunConfig(
+        paths=["x"],
+        buyer_agent="a:B",
+        buyer_agent_kwargs={"model": "openai/gpt-5.4", "reasoning_effort": "medium"},
+    )
+    assert config.buyer_model == "openai/gpt-5.4"
+    assert config.buyer_reasoning_effort == "medium"
+
+
+def test_explicit_reporting_fields_win_over_agent_kwargs():
+    """Explicit assistant_model/effort are not overwritten by agent kwargs."""
+    from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+
+    config = CalendarRunConfig(
+        paths=["x"],
+        assistant_agent="a:B",
+        assistant_model="explicit-model",
+        assistant_reasoning_effort="low",
+        assistant_agent_kwargs={"model": "openai/gpt-5.5", "reasoning_effort": "high"},
+    )
+    assert config.assistant_model == "explicit-model"
+    assert config.assistant_reasoning_effort == "low"
+
+
+def test_agent_kwargs_without_model_leaves_reporting_fields_none():
+    """No model in kwargs -> reporting fields stay None (no false labels)."""
+    from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+
+    config = CalendarRunConfig(paths=["x"], assistant_agent="a:B", assistant_agent_kwargs={})
+    assert config.assistant_model is None
+    assert config.assistant_reasoning_effort is None
