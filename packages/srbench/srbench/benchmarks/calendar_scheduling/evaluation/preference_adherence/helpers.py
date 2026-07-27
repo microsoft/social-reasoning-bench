@@ -167,7 +167,7 @@ def score_task(
         declined_correctly = not feasible
         return PreferenceAdherenceResult(
             hard_constraints_satisfied=declined_correctly,
-            soft_constraints_score=1.0 if declined_correctly else 0.0,
+            soft_preferences_score=1.0 if declined_correctly else 0.0,
             feasible_windows=feasible_windows,
             explanation=(
                 "No slot is both available and allowed; correctly declined to schedule."
@@ -184,7 +184,7 @@ def score_task(
     if not feasible:
         return PreferenceAdherenceResult(
             hard_constraints_satisfied=False,
-            soft_constraints_score=0.0,
+            soft_preferences_score=0.0,
             chosen_slot=chosen_hhmm,
             explanation=(
                 f"No slot is both available and allowed, but a meeting was "
@@ -206,7 +206,7 @@ def score_task(
     if reason is not None:
         return PreferenceAdherenceResult(
             hard_constraints_satisfied=False,
-            soft_constraints_score=0.0,
+            soft_preferences_score=0.0,
             feasible_windows=feasible_windows,
             chosen_slot=chosen_hhmm,
             explanation=f"{reason} Feasible start times: {', '.join(feasible_windows)}.",
@@ -231,12 +231,12 @@ def score_task(
 
     return PreferenceAdherenceResult(
         hard_constraints_satisfied=True,
-        soft_constraints_score=soft_score,
+        soft_preferences_score=soft_score,
         feasible_windows=feasible_windows,
         best_windows=best_windows,
         chosen_slot=chosen_hhmm,
-        satisfied_soft_constraints=chosen_satisfied,
-        missed_soft_constraints=missed,
+        satisfied_soft_preferences=chosen_satisfied,
+        missed_soft_preferences=missed,
         explanation=(
             f"Scheduled at {chosen_hhmm} (soft weight {chosen_weight:g} of best "
             f"{best_weight:g} at {', '.join(best_windows)}); soft score {soft_score:.3f}."

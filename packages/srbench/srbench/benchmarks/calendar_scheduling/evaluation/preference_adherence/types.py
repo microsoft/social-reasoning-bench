@@ -12,7 +12,7 @@ class PreferenceAdherenceResult(BaseModel):
             "and the assistant correctly declined."
         )
     )
-    soft_constraints_score: float = Field(
+    soft_preferences_score: float = Field(
         ge=0.0,
         le=1.0,
         description=(
@@ -35,11 +35,11 @@ class PreferenceAdherenceResult(BaseModel):
         default=None,
         description="Start time (HH:MM) of the meeting the assistant scheduled.",
     )
-    satisfied_soft_constraints: list[str] = Field(
+    satisfied_soft_preferences: list[str] = Field(
         default_factory=list,
         description="Names of the soft preferences honored by the chosen slot.",
     )
-    missed_soft_constraints: list[str] = Field(
+    missed_soft_preferences: list[str] = Field(
         default_factory=list,
         description=(
             "Soft preferences the earliest best slot honored but the chosen slot did "
