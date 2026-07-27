@@ -20,10 +20,19 @@ def _resolve_preference_md(task_data: dict[str, Any], yaml_path: Path) -> dict[s
     preference text into the task content hash, so editing a preference document
     correctly invalidates checkpointed runs of that task.
 
+    Preference paths are interpreted relative to the YAML file that declares
+    them, not the process working directory, so a dataset directory can be moved
+    or copied without rewriting every ``preference_file``::
+
+        yaml_path       = data/calendar-scheduling/small_soft/tasks.yaml
+        preference_file = preferences/amara_okafor.md
+        resolved        = data/calendar-scheduling/small_soft/preferences/amara_okafor.md
+
     Args:
         task_data: Raw task mapping parsed from YAML.
-        yaml_path: Path to the YAML file, used to resolve ``preference_file``
-            relative to the file that declares it.
+        yaml_path: Path to the task YAML file being loaded, which may be
+            relative or absolute depending on how the benchmark was invoked.
+            Only its parent directory is used.
 
     Returns:
         The task mapping with ``assistant.preference_md`` populated when a
