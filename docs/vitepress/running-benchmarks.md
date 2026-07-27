@@ -36,6 +36,8 @@ srbench benchmark calendar \
 | `--requestor-explicit-cot`    | `true`/`false` — chain-of-thought for the requestor |
 | `--expose-preferences`        | `true`/`false` — share scheduling preferences (default `true`) |
 
+Tasks can state their preferences as prose rather than a numeric table. See [Soft preferences](/soft-preferences).
+
 ## Marketplace
 
 ```bash

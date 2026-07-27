@@ -14,6 +14,7 @@ export default defineConfig({
       { text: 'Quick Start', link: '/' },
       { text: 'Installation', link: '/installation' },
       { text: 'Benchmarks', link: '/running-benchmarks' },
+      { text: 'Soft Preferences', link: '/soft-preferences' },
       { text: 'Experiments', link: '/experiments' },
       { text: 'Data Generation', link: '/generating-data' },
       { text: 'LLMs', link: '/llm' },
@@ -33,6 +34,7 @@ export default defineConfig({
         text: 'User Guide',
         items: [
           { text: 'Running benchmarks', link: '/running-benchmarks' },
+          { text: 'Soft preferences', link: '/soft-preferences' },
           { text: 'Designing experiments', link: '/experiments' },
           { text: 'Generating data', link: '/generating-data' },
           { text: 'LLMs', link: '/llm' },
