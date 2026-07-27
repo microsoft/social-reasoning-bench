@@ -37,8 +37,10 @@ CALENDAR_PREFERENCE_GUIDANCE = (
     'circumstances", "off limits", "only") are hard constraints. Do not violate '
     "them, even if that means the meeting cannot be scheduled at all.\n"
     '- Statements phrased as inclinations ("prefers", "would rather", "ideally", '
-    '"works best") are soft preferences. Satisfy as many of them as you can, and '
-    "when they pull in different directions pick the time that honors the most.\n"
+    '"works best") are soft preferences. Satisfy as many of them as you can. When '
+    "they pull in different directions, follow the ranking the block gives them "
+    '("matters most", "second to that", "least important") and honor the higher '
+    "one; if it ranks none of them, pick the time that honors the most.\n"
     "- Preferences are your principal's, not the requestor's. If the requested time "
     "does not fit, counter-propose the best time that does rather than accepting it.\n"
     "- If no available time can satisfy every hard constraint, do not schedule the "

@@ -145,6 +145,12 @@ class TestNaturalLanguagePreferences:
 
         assert "only authority on when your principal is bookable" in system
 
+    def test_system_prompt_says_to_follow_a_stated_ranking(self):
+        """Documents rank their soft preferences, so counting them is not enough."""
+        system, _ = _messages(_make_assistant(preference_md=PREFERENCE_MD))
+
+        assert "follow the ranking the block gives them" in system
+
     def test_numeric_preferences_are_not_also_injected(self):
         """Natural-language preferences take precedence over numeric ones."""
         assistant = _make_assistant(preference_md=PREFERENCE_MD, preferences=NUMERIC_PREFERENCES)
