@@ -5,6 +5,7 @@ from ..types import Contact, Email, Meeting
 from .calendar import CalendarManager
 from .email import EmailManager
 from .resources import AgentResources
+from .utils import BUSINESS_HOURS_WINDOW
 
 
 class CalendarSchedulingEnvironment:
@@ -29,6 +30,7 @@ class CalendarSchedulingEnvironment:
         allowed_date: str,
         initial_meetings: list[Meeting] | None = None,
         contacts: list[Contact] | None = None,
+        free_block_window: tuple[str, str] = BUSINESS_HOURS_WINDOW,
     ) -> AgentResources:
         """Create AgentResources for an agent.
 
@@ -37,6 +39,7 @@ class CalendarSchedulingEnvironment:
             initial_meetings: Optional list of meetings to pre-populate the calendar
             allowed_date: If set, RequestMeeting will only allow this date (ISO format)
             contacts: Optional list of contacts for the agent's address book
+            free_block_window: Hours over which ``ListMeetings`` reports free blocks.
 
         Returns:
             AgentResources with calendar, email, and contacts configured
@@ -54,6 +57,7 @@ class CalendarSchedulingEnvironment:
             allowed_date=allowed_date,
             contacts=contacts,
             signals=self.signals,
+            free_block_window=free_block_window,
         )
 
     def get_all_emails(self) -> list[Email]:
