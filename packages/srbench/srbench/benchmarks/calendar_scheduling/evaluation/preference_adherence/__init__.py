@@ -22,6 +22,10 @@ from .registry import (
 )
 from .types import PreferenceAdherenceResult
 
+# Imported for its side effect: registering every persona verifier. Keep this
+# last, since the verifier modules import the names defined above.
+from . import verifiers  # noqa: E402, F401  (isort: skip)
+
 __all__ = [
     # Result type
     "PreferenceAdherenceResult",
