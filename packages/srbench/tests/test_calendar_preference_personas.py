@@ -4,16 +4,17 @@ A document is prose the assistant reads and a verifier is its executable
 counterpart, so the pair only works if they say the same thing. These tests
 check the parts of that agreement a machine can check: that every document has
 a verifier and vice versa, that each verifier quotes its document accurately,
-that it enforces the document's absolute rules, that its soft preferences rank
-slots the way the prose reads, and that every real task remains schedulable
-under them.
+that it enforces the document's absolute rules, and that its soft preferences
+rank slots the way the prose reads.
+
+Whether the tasks that use these documents stay schedulable is pinned in
+``test_calendar_soft_dataset.py``, next to the dataset that pairs them.
 """
 
 import re
 from pathlib import Path
 
 import pytest
-import yaml
 from srbench.benchmarks.calendar_scheduling.evaluation.preference_adherence import (
     VerifierContext,
     evaluate_preference_adherence,
@@ -21,7 +22,6 @@ from srbench.benchmarks.calendar_scheduling.evaluation.preference_adherence impo
     verifiers,
 )
 from srbench.benchmarks.calendar_scheduling.types import (
-    CalendarTask,
     LabeledMeeting,
     Meeting,
 )
@@ -84,15 +84,6 @@ def _quoted_comments(source_path: Path) -> list[str]:
     return fragments
 
 
-# Which persona each name in small.yaml is graded by, once PR 8 points the
-# tasks at these documents.
-DOCUMENT_FOR_PRINCIPAL = {
-    "Amara Okafor": AMARA,
-    "David O'Connor": DAVID,
-    "Elena Vance": ELENA,
-}
-
-
 def _meeting(start_time: str, end_time: str) -> Meeting:
     """Return a meeting occupying the given window."""
     return Meeting(
@@ -146,12 +137,6 @@ def _score(
             duration_minutes=60,
         )
     )
-
-
-def _load_small_tasks() -> list[CalendarTask]:
-    """Return the 21 tasks whose personas these documents describe."""
-    raw = yaml.safe_load((DATA_DIR / "small.yaml").read_text(encoding="utf-8"))
-    return [CalendarTask.model_validate(entry) for entry in raw["tasks"]]
 
 
 class TestEveryDocumentIsWired:
@@ -264,27 +249,6 @@ class TestSoftPreferencesRankSlots:
 
         assert result.hard_constraints_satisfied
         assert result.soft_preferences_score == 1.0
-
-
-class TestEveryRealTaskStaysSchedulable:
-    """Tests these documents against the calendars they will be paired with."""
-
-    @pytest.mark.parametrize("task", _load_small_tasks(), ids=lambda t: f"task-{t.id}")
-    def test_a_slot_survives_the_document_and_both_calendars(self, task):
-        """A document that closed a task's whole day would make declining correct."""
-        preference_file = DOCUMENT_FOR_PRINCIPAL[task.assistant.name]
-        task = task.model_copy(
-            update={
-                "assistant": task.assistant.model_copy(
-                    update={"preference_file": preference_file, "preference_md": "..."}
-                )
-            }
-        )
-
-        result = evaluate_preference_adherence(task, scheduled_meeting=None)
-
-        assert result is not None
-        assert result.feasible_windows != []
 
 
 class TestWeightsMatchTheStatedRanking:
