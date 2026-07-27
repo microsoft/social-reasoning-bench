@@ -141,7 +141,7 @@ def _registered_verifier():
     def _verify(context: VerifierContext) -> PreferenceAdherenceResult:
         return PreferenceAdherenceResult(
             hard_constraints_satisfied=VERIFIER_HARD,
-            soft_constraints_score=VERIFIER_SOFT,
+            soft_preferences_score=VERIFIER_SOFT,
             explanation="graded by the fake verifier",
         )
 
@@ -197,11 +197,10 @@ class TestGradingDispatch:
 
     @pytest.mark.asyncio
     async def test_a_numeric_task_reports_no_preference_adherence(self):
-        """The soft fields stay empty so a reader can tell the systems apart."""
+        """The document-only fields stay empty so the systems stay tellable apart."""
         result = await _evaluate(_task())
 
         assert result.hard_constraints_satisfied is None
-        assert result.soft_constraints_score is None
         assert result.preference_adherence_eval is None
 
     @pytest.mark.asyncio
@@ -210,22 +209,21 @@ class TestGradingDispatch:
         result = await _evaluate(_task(PREFERENCE_FILE))
 
         assert result.hard_constraints_satisfied is VERIFIER_HARD
-        assert result.soft_constraints_score == VERIFIER_SOFT
         assert result.preference_adherence_eval is not None
 
     @pytest.mark.asyncio
-    async def test_a_document_task_skips_outcome_optimality(self):
+    async def test_a_document_task_skips_the_numeric_evaluation(self):
         """The two systems are alternatives, so only one of them runs."""
         result = await _evaluate(_task(PREFERENCE_FILE))
 
-        assert result.outcome_optimality_score is None
         assert result.outcome_optimality_eval is None
 
     @pytest.mark.asyncio
-    async def test_a_document_task_reports_its_soft_score_as_outcome_optimality(self):
+    async def test_a_document_task_reports_its_score_as_outcome_optimality(self):
         """Both systems measure slot quality, so they share the reported field."""
         result = await _evaluate(_task(PREFERENCE_FILE))
 
+        assert result.outcome_optimality_score == VERIFIER_SOFT
         assert result.outcome_optimality == VERIFIER_SOFT
 
     @pytest.mark.asyncio
@@ -242,7 +240,7 @@ class TestGradingDispatch:
 
         assert result.error is not None
         assert "no verifier is registered" in result.error
-        assert result.soft_constraints_score is None
+        assert result.hard_constraints_satisfied is None
         assert result.outcome_optimality_score is None
 
 
@@ -319,7 +317,6 @@ class TestNumericTasksAreUnchanged:
 def _result(
     outcome_optimality_score: float | None = None,
     hard_constraints_satisfied: bool | None = None,
-    soft_constraints_score: float | None = None,
 ) -> CalendarEvaluationResult:
     """Return an evaluation result carrying only the fields aggregates read."""
     return CalendarEvaluationResult(
@@ -327,7 +324,6 @@ def _result(
         appropriately_scheduled_or_notscheduled=True,
         outcome_optimality_score=outcome_optimality_score,
         hard_constraints_satisfied=hard_constraints_satisfied,
-        soft_constraints_score=soft_constraints_score,
     )
 
 
@@ -337,37 +333,35 @@ class TestAggregates:
     def setup_method(self):
         self.benchmark = CalendarBenchmark(CalendarRunConfig())
         self.numeric = _result(outcome_optimality_score=0.5)
-        self.document = _result(hard_constraints_satisfied=True, soft_constraints_score=1.0)
+        self.document = _result(outcome_optimality_score=1.0, hard_constraints_satisfied=True)
 
     def test_preference_tasks_counts_only_document_tasks(self):
-        """The count tells a reader how much of a run the soft averages cover."""
+        """The count tells a reader how much of a run the hard average covers."""
         evaluation = self.benchmark.compute_evaluation([self.numeric, self.document])
 
         assert evaluation.preference_tasks == 1
 
-    def test_the_soft_averages_ignore_numeric_tasks(self):
-        """A numeric task has no hard or soft score to contribute."""
+    def test_the_hard_average_ignores_numeric_tasks(self):
+        """A numeric task has no hard constraints to satisfy or violate."""
         evaluation = self.benchmark.compute_evaluation([self.numeric, self.document])
 
         assert evaluation.avg_hard_constraints_satisfied == 1.0
-        assert evaluation.avg_soft_constraints_score == 1.0
 
-    def test_the_soft_averages_are_absent_from_a_purely_numeric_run(self):
+    def test_the_hard_average_is_absent_from_a_purely_numeric_run(self):
         """A legacy run reports nothing about a system it never used."""
         evaluation = self.benchmark.compute_evaluation([self.numeric])
 
         assert evaluation.preference_tasks == 0
         assert evaluation.avg_hard_constraints_satisfied is None
-        assert evaluation.avg_soft_constraints_score is None
 
     def test_outcome_optimality_averages_over_both_systems(self):
-        """It is the one number both systems report, so both count toward it."""
+        """It is the one field both systems report through, so both count."""
         evaluation = self.benchmark.compute_evaluation([self.numeric, self.document])
 
         assert evaluation.avg_outcome_optimality == pytest.approx(0.75)
 
     def test_a_purely_numeric_run_averages_exactly_as_before(self):
-        """The added tasks-with-a-document term cannot change a legacy run."""
+        """Nothing this PR added can change a legacy run's headline number."""
         evaluation = self.benchmark.compute_evaluation([self.numeric])
 
         assert evaluation.avg_outcome_optimality == 0.5

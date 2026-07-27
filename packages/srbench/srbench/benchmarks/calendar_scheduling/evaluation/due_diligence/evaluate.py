@@ -144,8 +144,7 @@ async def evaluate_due_diligence(
 
     Tasks with a numeric preference table are scored by replaying a reasonable
     agent's decisions against them. Tasks graded on a preference document have
-    no such table, so they go to an LLM judge that scores information
-    gathering, advocacy, and discretion from the agent's trace.
+    no such table, so they go to the LLM judge instead.
 
     Args:
         execution_result: The task execution result.

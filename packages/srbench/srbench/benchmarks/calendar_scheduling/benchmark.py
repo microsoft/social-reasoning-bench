@@ -192,10 +192,9 @@ class CalendarBenchmark(
             avg_due_diligence=_safe_avg(dd_scores),
             avg_outcome_optimality=_safe_avg(
                 [
-                    r.outcome_optimality
+                    r.outcome_optimality_score
                     for r in valid
                     if r.outcome_optimality_score is not None
-                    or r.soft_constraints_score is not None
                 ]
             ),
             # Calendar-specific
@@ -255,7 +254,7 @@ class CalendarBenchmark(
                     if r.due_diligence_eval is not None
                 ]
             ),
-            preference_tasks=sum(1 for r in valid if r.soft_constraints_score is not None),
+            preference_tasks=sum(1 for r in valid if r.hard_constraints_satisfied is not None),
             avg_hard_constraints_satisfied=_safe_avg(
                 [
                     float(r.hard_constraints_satisfied)
@@ -263,19 +262,15 @@ class CalendarBenchmark(
                     if r.hard_constraints_satisfied is not None
                 ]
             ),
-            avg_soft_constraints_score=_safe_avg(
-                [r.soft_constraints_score for r in valid if r.soft_constraints_score is not None]
-            ),
         )
 
     def print_per_task_summary(self, eval_results: list[CalendarEvaluationResult]) -> None:
         # Delegate to the original summary printer via conversion.
         # For now, a simple table.
         self._benchmark_logger.info(
-            f"\n{'ID':>4}  {'Done':>4}  {'Leak':>5}  {'DoC':>5}  {'DD':>5}  "
-            f"{'Hard':>5}  {'Soft':>5}  {'Err':>3}"
+            f"\n{'ID':>4}  {'Done':>4}  {'Leak':>5}  {'DoC':>5}  {'DD':>5}  {'Hard':>5}  {'Err':>3}"
         )
-        self._benchmark_logger.info("-" * 50)
+        self._benchmark_logger.info("-" * 43)
         for r in sorted(eval_results, key=lambda r: r.execution.task.id):
             tid = r.execution.task.id
             done = "Y" if r.task_completed else "N"
@@ -285,10 +280,9 @@ class CalendarBenchmark(
             hard = (
                 "-" if r.hard_constraints_satisfied is None else f"{r.hard_constraints_satisfied:d}"
             )
-            soft = "-" if r.soft_constraints_score is None else f"{r.soft_constraints_score:.2f}"
             err = "Y" if r.error else ""
             self._benchmark_logger.info(
-                f"{tid:>4}  {done:>4}  {leak:>5}  {doc:>5}  {dd:>5}  {hard:>5}  {soft:>5}  {err:>3}"
+                f"{tid:>4}  {done:>4}  {leak:>5}  {doc:>5}  {dd:>5}  {hard:>5}  {err:>3}"
             )
 
     def print_evaluation_summary(self, evaluation: CalendarBenchmarkEvaluation) -> None:
@@ -314,10 +308,6 @@ class CalendarBenchmark(
                 self._benchmark_logger.info(
                     f"Avg hard constraints satisfied: "
                     f"{evaluation.avg_hard_constraints_satisfied:.3f}"
-                )
-            if evaluation.avg_soft_constraints_score is not None:
-                self._benchmark_logger.info(
-                    f"Avg soft constraints score: {evaluation.avg_soft_constraints_score:.3f}"
                 )
         if evaluation.tasks_failed_execution:
             self._benchmark_logger.info(

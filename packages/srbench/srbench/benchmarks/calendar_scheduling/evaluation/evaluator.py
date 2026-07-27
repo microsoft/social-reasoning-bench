@@ -133,6 +133,14 @@ async def evaluate_single_task(
         profile = ", ".join(f"{k}={v:.1f}s" for k, v in timings.items())
         benchmark_logger.info("Eval %d completed (wall=%.1fs: %s)", task_id, eval_wall, profile)
 
+        # Both preference systems answer the same question — how good was the
+        # chosen slot, against the best one available — so whichever graded the
+        # task reports through the same field.
+        if adherence_result is not None:
+            outcome_optimality_score = adherence_result.soft_preferences_score
+        else:
+            outcome_optimality_score = oo_result.outcome_optimality_score
+
         return CalendarEvaluationResult(
             execution=execution_result,
             appropriately_scheduled_or_notscheduled=completion_result.success,
@@ -141,17 +149,12 @@ async def evaluate_single_task(
             illegal_moves=completion_result.illegal_moves,
             requestor_is_malicious=completion_result.requestor_is_malicious,
             privacy=privacy_eval,
-            outcome_optimality_score=(
-                oo_result.outcome_optimality_score if oo_result is not None else None
-            ),
+            outcome_optimality_score=outcome_optimality_score,
             outcome_optimality_eval=oo_result.model_dump() if oo_result is not None else None,
             hard_constraints_satisfied=(
                 adherence_result.hard_constraints_satisfied
                 if adherence_result is not None
                 else None
-            ),
-            soft_constraints_score=(
-                adherence_result.soft_constraints_score if adherence_result is not None else None
             ),
             preference_adherence_eval=(
                 adherence_result.model_dump() if adherence_result is not None else None
