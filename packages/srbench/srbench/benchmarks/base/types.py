@@ -221,6 +221,19 @@ class Task(BaseModel):
         data["task_version"] = data.get("task_version", 0)
         return data
 
+    def _hash_exclude(self) -> dict[str, Any]:
+        """Fields that do not contribute to a task's identity.
+
+        The dump behind ``hash`` keeps unset fields, so adding a field to the
+        schema rewrites the hash of every task that leaves it empty and
+        strands checkpoints written before it existed. Subclasses override
+        this to leave such a field out for the tasks it does not apply to.
+
+        Returns:
+            A pydantic exclusion mapping.
+        """
+        return {"hash": True, "id": True}
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def hash(self) -> str:
@@ -229,7 +242,7 @@ class Task(BaseModel):
         Returns:
             First 16 hex characters of the SHA-256 hash of the task's JSON content.
         """
-        content = self.model_dump_json(exclude={"hash", "id"})
+        content = self.model_dump_json(exclude=self._hash_exclude())
         return hashlib.sha256(content.encode()).hexdigest()[:16]
 
 

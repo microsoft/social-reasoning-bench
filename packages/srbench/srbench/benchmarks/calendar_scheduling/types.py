@@ -8,7 +8,14 @@ from enum import Enum
 from typing import Any, Literal
 
 from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionMessageParam
-from pydantic import BaseModel, Field, computed_field, field_serializer, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    computed_field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 from srbench_llm import SRBenchInputMessage
 from srbench_llm.types import strip_signatures_from_messages
 
@@ -112,17 +119,39 @@ class CalendarAssistant(BaseModel):
         default=None,
         description=(
             "Path to a Markdown file holding the principal's natural-language "
-            "scheduling preferences, relative to the task YAML file."
+            "scheduling preferences, relative to the task YAML file. Tasks that "
+            "set it are graded on preference adherence; tasks that leave it "
+            "unset fall back to the numeric ``preferences`` above."
         ),
     )
     preference_md: str | None = Field(
         default=None,
-        description=(
-            "Contents of ``preference_file``, populated by the loader. Tasks that "
-            "set it are graded on natural-language preference adherence; tasks that "
-            "leave it unset fall back to the numeric ``preferences`` above."
-        ),
+        description="Contents of ``preference_file``, populated by the loader.",
     )
+
+    @model_validator(mode="after")
+    def _check_preference_document(self) -> "CalendarAssistant":
+        """Reject a document the assistant would be graded on but never read.
+
+        Grading keys on ``preference_file`` while the prompt carries
+        ``preference_md``, so a task with one and not the other is scored
+        against preferences it was never shown.
+
+        Returns:
+            The validated assistant.
+
+        Raises:
+            ValueError: If exactly one of the two fields carries content.
+        """
+        has_file = bool(self.preference_file)
+        has_md = bool(self.preference_md and self.preference_md.strip())
+        if has_file != has_md:
+            raise ValueError(
+                "preference_file and preference_md must be set together; got "
+                f"preference_file={self.preference_file!r} with "
+                f"{'empty' if has_file else 'unexpected'} preference_md"
+            )
+        return self
 
 
 class FailedTaskError(BaseModel):
@@ -148,6 +177,22 @@ class CalendarTask(Task):
     assistant: CalendarAssistant
     satisfiable: bool = True
     free_slots_count: int | None = None
+
+    def _hash_exclude(self) -> dict[str, Any]:
+        """Leave the preference fields out for tasks that declare no document.
+
+        Numeric-preference tasks predate those fields, so excluding them keeps
+        their hashes, and any checkpoint keyed on one, exactly as they were.
+        Tasks that do declare a document keep both fields in the hash, so
+        editing the document invalidates runs graded against the old wording.
+
+        Returns:
+            A pydantic exclusion mapping.
+        """
+        exclude = super()._hash_exclude()
+        if not self.assistant.preference_file:
+            exclude["assistant"] = {"preference_file", "preference_md"}
+        return exclude
 
     def _zopa_values(self) -> list[float]:
         """Joint preference values across mutually free slots."""
