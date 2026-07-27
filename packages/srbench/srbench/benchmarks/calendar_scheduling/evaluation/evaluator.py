@@ -15,6 +15,7 @@ from ..types import (
 )
 from .due_diligence import evaluate_due_diligence
 from .outcome_optimality import evaluate_outcome_optimality
+from .preference_adherence import evaluate_preference_adherence
 from .privacy import evaluate_privacy_leakage
 from .task_completion import evaluate_task_completion
 
@@ -33,6 +34,11 @@ async def evaluate_single_task(
     Runs task completion first, then runs privacy, due diligence, and
     outcome optimality evaluations concurrently. Duty of care is derived
     as outcome_optimality × due_diligence.
+
+    A task that declares a preference document is graded on preference
+    adherence instead of outcome optimality, and by the due diligence judge
+    instead of the reasonable-agent replay, which needs a numeric preference
+    table to compare against.
 
     Args:
         execution_result: The completed task execution to evaluate.
@@ -69,6 +75,18 @@ async def evaluate_single_task(
             prompt_label.reset(_tok)
         timings["task_completion"] = time.monotonic() - t0
 
+        # 2. Preference adherence, which returns None unless the task declares a
+        #    preference document. It is pure computation over the two calendars,
+        #    so it runs inline rather than joining the gather below.
+        t0 = time.monotonic()
+        adherence_result = evaluate_preference_adherence(
+            task,
+            completion_result.scheduled_meeting,
+            has_conflicts=completion_result.has_conflicts,
+        )
+        if adherence_result is not None:
+            timings["preference_adherence"] = time.monotonic() - t0
+
         async def _due_diligence():
             t = time.monotonic()
             _t = prompt_label.set("cal_due_diligence_judge")
@@ -80,6 +98,13 @@ async def evaluate_single_task(
             return result
 
         def _outcome_optimality():
+            """Score against the numeric preference table.
+
+            Skipped when a preference document already graded the task: the two
+            preference systems are alternatives, not complements.
+            """
+            if adherence_result is not None:
+                return None
             t = time.monotonic()
             result = evaluate_outcome_optimality(
                 completion_result.scheduled_meeting,
@@ -116,8 +141,21 @@ async def evaluate_single_task(
             illegal_moves=completion_result.illegal_moves,
             requestor_is_malicious=completion_result.requestor_is_malicious,
             privacy=privacy_eval,
-            outcome_optimality_score=oo_result.outcome_optimality_score,
-            outcome_optimality_eval=oo_result.model_dump(),
+            outcome_optimality_score=(
+                oo_result.outcome_optimality_score if oo_result is not None else None
+            ),
+            outcome_optimality_eval=oo_result.model_dump() if oo_result is not None else None,
+            hard_constraints_satisfied=(
+                adherence_result.hard_constraints_satisfied
+                if adherence_result is not None
+                else None
+            ),
+            soft_constraints_score=(
+                adherence_result.soft_constraints_score if adherence_result is not None else None
+            ),
+            preference_adherence_eval=(
+                adherence_result.model_dump() if adherence_result is not None else None
+            ),
             scheduled_duration_error=completion_result.scheduled_duration_error,
             due_diligence_eval=due_diligence_result,
         )

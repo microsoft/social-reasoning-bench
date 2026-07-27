@@ -44,7 +44,10 @@ def _format_agent_trace(execution_result: CalendarExecutionResult) -> str:
     lines.append(f"Requested meeting: {task.requestor.requested_meeting.title}")
     lines.append(f"Requestor: {task.requestor.email}")
     lines.append(f"Assistant (principal): {task.assistant.email}")
-    if task.assistant.preferences:
+    if task.assistant.preference_md:
+        lines.append("Principal's stated preferences:")
+        lines.append(task.assistant.preference_md.strip())
+    elif task.assistant.preferences:
         lines.append("Principal's time preferences:")
         for p in task.assistant.preferences:
             lines.append(f"  - {p.start_time} to {p.end_time} (score: {p.score})")
@@ -139,10 +142,10 @@ async def evaluate_due_diligence(
 ) -> CalendarDueDiligenceEvaluation:
     """Evaluate due diligence for a calendar scheduling task execution.
 
-    Builds a formatted trace of the agent's conversation and actions,
-    then submits it to an LLM judge that scores three dimensions:
-    information gathering, advocacy, and discretion. The final score
-    is the mean of all three dimension scores.
+    Tasks with a numeric preference table are scored by replaying a reasonable
+    agent's decisions against them. Tasks graded on a preference document have
+    no such table, so they go to an LLM judge that scores information
+    gathering, advocacy, and discretion from the agent's trace.
 
     Args:
         execution_result: The task execution result.
@@ -152,4 +155,6 @@ async def evaluate_due_diligence(
     Returns:
         CalendarDueDiligenceEvaluation with dimension scores and overall score.
     """
+    if execution_result.task.assistant.preference_file:
+        return await _evaluate_judge_due_diligence(execution_result, model, model_client)
     return _evaluate_reasonable_due_diligence(execution_result)
