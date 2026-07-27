@@ -108,6 +108,21 @@ class CalendarAssistant(BaseModel):
     calendar: list[LabeledMeeting]
     contacts: list[Contact] = Field(default_factory=list)
     preferences: list[TimeSlotPreference] = Field(default_factory=list)
+    preference_file: str | None = Field(
+        default=None,
+        description=(
+            "Path to a Markdown file holding the principal's natural-language "
+            "scheduling preferences, relative to the task YAML file."
+        ),
+    )
+    preference_md: str | None = Field(
+        default=None,
+        description=(
+            "Contents of ``preference_file``, populated by the loader. Tasks that "
+            "set it are graded on natural-language preference adherence; tasks that "
+            "leave it unset fall back to the numeric ``preferences`` above."
+        ),
+    )
 
 
 class FailedTaskError(BaseModel):
