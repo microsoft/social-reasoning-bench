@@ -208,6 +208,14 @@ class TestScheduledButUnacceptable:
         assert not result.hard_constraints_satisfied
         assert "conflict" in result.explanation
 
+    def test_booking_outside_the_working_day_scores_zero(self):
+        """An evening slot is unacceptable even with both calendars empty."""
+        result = _score(_scheduled("20:00", "21:00"))
+
+        assert not result.hard_constraints_satisfied
+        assert result.soft_constraints_score == 0.0
+        assert "outside the 08:00-19:00 day" in result.explanation
+
 
 class TestSoftPreferenceScoring:
     """Case 4: the slot is acceptable, so soft preferences decide the score."""
@@ -365,22 +373,14 @@ class TestSoftPreferenceScoring:
         assert "08:30" in result.feasible_slots
         assert result.hard_constraints_satisfied
 
-    def test_predicate_without_breakpoints_cannot_score_above_one(self):
-        """A custom predicate declaring nothing degrades safely rather than crashing.
+    def test_predicate_must_declare_its_breakpoints(self):
+        """A predicate with no declared thresholds is rejected at construction.
 
-        With no thresholds to consider, the search falls back to the sweep and
-        can undercount the best weight, so the ratio is clamped. The result
-        field is bounded, so an unclamped ratio would fail validation.
+        Accepting one would silently degrade the search to the regular sweep,
+        so this fails where the mistake is made rather than at scoring time.
         """
-        at_nine_thirty = Predicate(test=lambda start, _end: start == to_minutes("09:30"))
-        preferences = [
-            SoftPreference("morning", ends_by("12:00")),
-            SoftPreference("exactly_nine_thirty", at_nine_thirty),
-        ]
-
-        result = _score(_scheduled("09:30", "10:30"), soft_preferences=preferences)
-
-        assert result.soft_constraints_score == 1.0
+        with pytest.raises(ValueError, match="must declare the times"):
+            Predicate(test=lambda start, _end: start == to_minutes("09:30"), breakpoints=())
 
     def test_feasible_slots_exclude_busy_and_forbidden_times(self):
         """The reported slot list reflects both calendars and the hard constraints."""

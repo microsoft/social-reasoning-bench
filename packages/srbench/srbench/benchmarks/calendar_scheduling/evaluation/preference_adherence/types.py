@@ -8,26 +8,23 @@ class PreferenceAdherenceResult(BaseModel):
 
     hard_constraints_satisfied: bool = Field(
         description=(
-            "True iff the meeting landed on a slot that is free for both parties and "
-            "respects every hard constraint, or the task admits no such slot and the "
-            "assistant correctly declined to schedule."
+            "Whether the meeting landed on a feasible slot, or the task admits none "
+            "and the assistant correctly declined."
         )
     )
     soft_constraints_score: float = Field(
         ge=0.0,
         le=1.0,
         description=(
-            "Soft-preference adherence in [0, 1]: the weight of soft preferences met "
-            "by the chosen slot divided by the best weight achievable on any feasible "
-            "slot. 0.0 whenever a hard constraint is violated."
+            "Weight of the soft preferences the chosen slot met, over the best weight "
+            "achievable on any feasible slot. 0.0 if a hard constraint is violated."
         ),
     )
     feasible_slots: list[str] = Field(
         default_factory=list,
         description=(
-            "Representative start times (HH:MM) free for both parties that satisfy all "
-            "hard constraints. Includes every time where feasibility or soft-preference "
-            "adherence can change, so the best of these is the true best slot."
+            "Representative feasible start times (HH:MM), including every time at which "
+            "feasibility or soft-preference adherence can change."
         ),
     )
     best_slots: list[str] = Field(
@@ -45,8 +42,8 @@ class PreferenceAdherenceResult(BaseModel):
     missed_soft_constraints: list[str] = Field(
         default_factory=list,
         description=(
-            "Names of the soft preferences the earliest best slot honoured but the "
-            "chosen slot did not. Empty when the chosen slot ties the best weight."
+            "Soft preferences the earliest best slot honoured but the chosen slot did "
+            "not. Empty when the chosen slot ties the best weight."
         ),
     )
     explanation: str = Field(
