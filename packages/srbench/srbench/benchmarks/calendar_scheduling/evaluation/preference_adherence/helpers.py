@@ -7,8 +7,9 @@ declarations: *hard constraints*, which every acceptable slot must satisfy, and
 what the assistant actually scheduled.
 
 Times are ``"HH:MM"`` strings externally and minutes-from-midnight internally.
-A :data:`Predicate` answers "is this candidate slot acceptable?" for a slot
-given as ``(start_minutes, end_minutes)``.
+A :class:`Predicate` answers "is this candidate slot acceptable?" for a slot
+given as ``(start_minutes, end_minutes)``, and declares the times at which its
+answer can change so that the best-slot search can be exact.
 
 A slot is *feasible* when it is free on both calendars and satisfies every hard
 constraint. Grading is then:
@@ -24,17 +25,35 @@ satisfy a set of wishes that no single slot can satisfy at once.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ...types import LabeledMeeting, Meeting
 from .types import PreferenceAdherenceResult
 
-#: Accepts a candidate slot as ``(start_minutes, end_minutes)``.
-Predicate = Callable[[int, int], bool]
-
 DEFAULT_DAY_START = "08:00"
 DEFAULT_DAY_END = "19:00"
 DEFAULT_SLOT_STEP_MINUTES = 60
+
+
+@dataclass(frozen=True)
+class Predicate:
+    """A condition on a candidate slot, with the times its answer depends on.
+
+    Attributes:
+        test: Accepts a slot as ``(start_minutes, end_minutes)``.
+        breakpoints: Times, in minutes from midnight, at which ``test`` can
+            change its answer. Declaring them lets the scorer consider the
+            slots that sit exactly on a boundary instead of only those on a
+            fixed grid. A predicate that leaves this empty still works, but
+            the scorer may miss an optimum that falls between grid steps.
+    """
+
+    test: Callable[[int, int], bool]
+    breakpoints: tuple[int, ...] = field(default=())
+
+    def __call__(self, slot_start: int, slot_end: int) -> bool:
+        """Return whether the slot satisfies this condition."""
+        return self.test(slot_start, slot_end)
 
 
 @dataclass(frozen=True)
@@ -72,7 +91,10 @@ def to_hhmm(minutes: int) -> str:
 def within(start: str, end: str) -> Predicate:
     """Build a predicate requiring the slot to lie entirely inside ``[start, end]``."""
     lower, upper = to_minutes(start), to_minutes(end)
-    return lambda slot_start, slot_end: slot_start >= lower and slot_end <= upper
+    return Predicate(
+        test=lambda slot_start, slot_end: slot_start >= lower and slot_end <= upper,
+        breakpoints=(lower, upper),
+    )
 
 
 def outside(start: str, end: str) -> Predicate:
@@ -82,19 +104,28 @@ def outside(start: str, end: str) -> Predicate:
     ending exactly at *start* or beginning exactly at *end* is accepted.
     """
     lower, upper = to_minutes(start), to_minutes(end)
-    return lambda slot_start, slot_end: not (slot_start < upper and lower < slot_end)
+    return Predicate(
+        test=lambda slot_start, slot_end: not (slot_start < upper and lower < slot_end),
+        breakpoints=(lower, upper),
+    )
 
 
 def ends_by(time: str) -> Predicate:
     """Build a predicate requiring the slot to end at or before *time*."""
     limit = to_minutes(time)
-    return lambda _slot_start, slot_end: slot_end <= limit
+    return Predicate(
+        test=lambda _slot_start, slot_end: slot_end <= limit,
+        breakpoints=(limit,),
+    )
 
 
 def starts_at_or_after(time: str) -> Predicate:
     """Build a predicate requiring the slot to start at or after *time*."""
     limit = to_minutes(time)
-    return lambda slot_start, _slot_end: slot_start >= limit
+    return Predicate(
+        test=lambda slot_start, _slot_end: slot_start >= limit,
+        breakpoints=(limit,),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -112,12 +143,52 @@ def _is_free(start: int, end: int, busy: list[tuple[int, int]]) -> bool:
     return not any(start < busy_end and busy_start < end for busy_start, busy_end in busy)
 
 
-def _candidate_starts(day_start: str, day_end: str, duration: int, step: int) -> range:
-    """Return the start times to consider, spaced *step* minutes apart.
+def _candidate_starts(
+    day_start: str,
+    day_end: str,
+    duration: int,
+    step: int,
+    busy: list[tuple[int, int]],
+    constraints: list[Predicate],
+) -> list[int]:
+    """Return the start times to consider, from a regular sweep plus the boundaries.
 
-    Only slots that finish by *day_end* are included.
+    Two sources are combined:
+
+    * A sweep every *step* minutes. This contributes nothing to correctness;
+      it keeps the reported slot lists readable (08:00, 09:00, ...).
+    * The times at which something can actually change: the moment each
+      existing commitment ends, and, for every threshold a predicate declares,
+      the slot that starts on that threshold and the slot that ends on it.
+
+    The second source is what makes the search exact. Feasible start times form
+    a union of intervals, and within one interval the set of satisfied
+    preferences only changes at a declared threshold. Every such interval
+    therefore begins at the end of a commitment, at the day's start, or at a
+    threshold, so sampling those points cannot miss the best slot even when it
+    falls between two steps of the sweep.
+
+    Args:
+        day_start: First start time considered.
+        day_end: Latest time a slot may end.
+        duration: Meeting length in minutes.
+        step: Spacing of the regular sweep.
+        busy: Existing commitments from both calendars.
+        constraints: Every predicate whose thresholds matter, hard and soft.
+
+    Returns:
+        Ascending, de-duplicated start times within the bookable window.
     """
-    return range(to_minutes(day_start), to_minutes(day_end) - duration + 1, step)
+    earliest = to_minutes(day_start)
+    latest = to_minutes(day_end) - duration
+
+    times = set(range(earliest, latest + 1, step))
+    times.update(busy_end for _, busy_end in busy)
+    for constraint in constraints:
+        for boundary in constraint.breakpoints:
+            times.update((boundary, boundary - duration))
+
+    return sorted(time for time in times if earliest <= time <= latest)
 
 
 def _weight_of(
@@ -173,7 +244,9 @@ def score_task(
             assistant introduced itself are only visible via this flag.
         day_start: First candidate start time considered.
         day_end: Latest time a candidate slot may end.
-        step_minutes: Spacing between candidate start times.
+        step_minutes: Spacing of the regular slot sweep. Affects only how many
+            slots the explanation lists; the best-slot search stays exact
+            regardless because predicate boundaries are always considered.
 
     Returns:
         A PreferenceAdherenceResult with both scores and the supporting slot
@@ -195,7 +268,14 @@ def score_task(
 
     feasible = [
         start
-        for start in _candidate_starts(day_start, day_end, duration_minutes, step_minutes)
+        for start in _candidate_starts(
+            day_start,
+            day_end,
+            duration_minutes,
+            step_minutes,
+            busy=assistant_busy + requestor_busy,
+            constraints=hard_constraints + [p.predicate for p in soft_preferences],
+        )
         if is_acceptable(start, start + duration_minutes)
     ]
     feasible_hhmm = [to_hhmm(start) for start in feasible]
@@ -260,8 +340,9 @@ def score_task(
 
     chosen_weight, chosen_satisfied = _weight_of(chosen_start, chosen_end, soft_preferences)
 
-    # The chosen slot need not sit on the candidate grid, so it can out-score
-    # every slot considered. Doing better than the reference still scores 1.0.
+    # Every predicate boundary is a candidate, so a slot cannot normally beat
+    # the best considered. The clamp only guards a custom Predicate that
+    # declares no breakpoints, where the search degrades to the regular sweep.
     soft_score = 1.0 if best_weight == 0.0 else min(1.0, chosen_weight / best_weight)
 
     # Report misses against the earliest best slot, so the breakdown names one

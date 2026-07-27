@@ -7,6 +7,7 @@ These tests pin the scoring contract branch by branch.
 
 import pytest
 from srbench.benchmarks.calendar_scheduling.evaluation.preference_adherence import (
+    Predicate,
     SoftPreference,
     ends_by,
     outside,
@@ -119,6 +120,23 @@ class TestPredicates:
 
         assert predicate(to_minutes("13:00"), to_minutes("14:00"))
         assert not predicate(to_minutes("12:00"), to_minutes("13:00"))
+
+    @pytest.mark.parametrize(
+        ("predicate", "expected"),
+        [
+            (within("09:00", "12:00"), (540, 720)),
+            (outside("12:00", "13:00"), (720, 780)),
+            (ends_by("17:00"), (1020,)),
+            (starts_at_or_after("13:00"), (780,)),
+        ],
+    )
+    def test_constructors_declare_their_thresholds(self, predicate, expected):
+        """Each constructor reports the times at which its answer can change.
+
+        The scorer relies on these to consider boundary slots that a fixed
+        sweep would step over.
+        """
+        assert predicate.breakpoints == expected
 
 
 class TestNothingScheduled:
@@ -284,11 +302,13 @@ class TestSoftPreferenceScoring:
         assert result.satisfied_soft_constraints == ["late"]
         assert result.missed_soft_constraints == []
 
-    def test_off_grid_slot_beating_the_reference_is_clamped(self):
-        """A slot between grid points may out-score the reference; 1.0 is the cap.
+    def test_off_grid_optimum_is_found(self):
+        """The best slot is found even when it falls between two sweep steps.
 
-        Candidate starts are on the hour, so no considered slot satisfies both
-        preferences. The 09:30 booking satisfies both and would score 2.0.
+        The regular sweep only visits whole hours, and no whole hour satisfies
+        both preferences. Because each predicate declares its threshold, 09:30
+        is considered too, and it becomes the reference the booking is graded
+        against.
         """
         preferences = [
             SoftPreference("starts_after_nine_thirty", starts_at_or_after("09:30")),
@@ -297,9 +317,70 @@ class TestSoftPreferenceScoring:
 
         result = _score(_scheduled("09:30", "10:30"), soft_preferences=preferences)
 
-        assert result.hard_constraints_satisfied
+        assert result.best_slots == ["09:30"]
         assert result.soft_constraints_score == 1.0
         assert len(result.satisfied_soft_constraints) == 2
+
+    def test_on_grid_booking_is_graded_against_the_off_grid_optimum(self):
+        """A whole-hour booking does not get full marks when 09:30 was better.
+
+        This is the case a fixed hourly grid gets wrong: it would rate 09:00
+        the joint best and award 1.0, hiding the strictly better slot.
+        """
+        preferences = [
+            SoftPreference("starts_after_nine_thirty", starts_at_or_after("09:30")),
+            SoftPreference("ends_by_ten_thirty", ends_by("10:30")),
+        ]
+
+        result = _score(_scheduled("09:00", "10:00"), soft_preferences=preferences)
+
+        assert result.hard_constraints_satisfied
+        assert result.soft_constraints_score == 0.5
+        assert result.missed_soft_constraints == ["starts_after_nine_thirty"]
+
+    def test_slot_freed_by_a_commitment_ending_off_grid_is_considered(self):
+        """The moment an existing commitment ends is always a candidate."""
+        blocked = [_busy("08:00", "09:20")]
+        preferences = [SoftPreference("before_ten_twenty", ends_by("10:20"))]
+
+        result = _score(
+            _scheduled("10:30", "11:30"),
+            assistant_calendar=blocked,
+            soft_preferences=preferences,
+        )
+
+        assert "09:20" in result.feasible_slots
+        assert result.soft_constraints_score == 0.0
+
+    def test_half_hour_starts_are_considered_for_short_meetings(self):
+        """A 30-minute meeting can start on the half hour, so those slots count."""
+        result = score_task(
+            scheduled_meeting=_scheduled("08:30", "09:00"),
+            assistant_calendar=[],
+            requestor_calendar=[],
+            duration_minutes=30,
+            soft_preferences=[SoftPreference("after_eight_thirty", starts_at_or_after("08:30"))],
+        )
+
+        assert "08:30" in result.feasible_slots
+        assert result.hard_constraints_satisfied
+
+    def test_predicate_without_breakpoints_cannot_score_above_one(self):
+        """A custom predicate declaring nothing degrades safely rather than crashing.
+
+        With no thresholds to consider, the search falls back to the sweep and
+        can undercount the best weight, so the ratio is clamped. The result
+        field is bounded, so an unclamped ratio would fail validation.
+        """
+        at_nine_thirty = Predicate(test=lambda start, _end: start == to_minutes("09:30"))
+        preferences = [
+            SoftPreference("morning", ends_by("12:00")),
+            SoftPreference("exactly_nine_thirty", at_nine_thirty),
+        ]
+
+        result = _score(_scheduled("09:30", "10:30"), soft_preferences=preferences)
+
+        assert result.soft_constraints_score == 1.0
 
     def test_feasible_slots_exclude_busy_and_forbidden_times(self):
         """The reported slot list reflects both calendars and the hard constraints."""

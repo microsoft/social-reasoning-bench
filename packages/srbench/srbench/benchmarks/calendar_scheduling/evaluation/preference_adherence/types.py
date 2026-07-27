@@ -24,7 +24,11 @@ class PreferenceAdherenceResult(BaseModel):
     )
     feasible_slots: list[str] = Field(
         default_factory=list,
-        description="Start times (HH:MM) free for both parties that satisfy all hard constraints.",
+        description=(
+            "Representative start times (HH:MM) free for both parties that satisfy all "
+            "hard constraints. Includes every time where feasibility or soft-preference "
+            "adherence can change, so the best of these is the true best slot."
+        ),
     )
     best_slots: list[str] = Field(
         default_factory=list,
