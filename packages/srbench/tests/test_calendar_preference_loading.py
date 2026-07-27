@@ -41,7 +41,7 @@ def _write_task_yaml(directory: Path, task_data: dict) -> Path:
 
     Args:
         directory: Directory to write ``tasks.yaml`` into.
-        task_data: Raw task mapping to serialise.
+        task_data: Raw task mapping to serialize.
 
     Returns:
         Path to the written YAML file.
