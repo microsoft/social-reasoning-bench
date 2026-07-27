@@ -16,6 +16,7 @@ from srbench.benchmarks.calendar_scheduling.evaluation.preference_adherence impo
     VerifierContext,
     evaluate_preference_adherence,
     registry,
+    verifiers,
 )
 from srbench.benchmarks.calendar_scheduling.types import (
     CalendarTask,
@@ -30,6 +31,7 @@ AMARA = "preferences/amara_okafor.md"
 DAVID = "preferences/david_oconnor.md"
 ELENA = "preferences/elena_vance.md"
 PERSONAS = [AMARA, DAVID, ELENA]
+PERSONA_MODULES = [verifiers.amara_okafor, verifiers.david_oconnor, verifiers.elena_vance]
 
 # Which persona each name in small.yaml is graded by, once PR 8 points the
 # tasks at these documents.
@@ -203,3 +205,26 @@ class TestEveryRealTaskStaysSchedulable:
 
         assert result is not None
         assert result.feasible_windows != []
+
+
+class TestWeightsMatchTheStatedRanking:
+    """Tests that the weights implement the ordering the prose spells out."""
+
+    @pytest.mark.parametrize("module", PERSONA_MODULES, ids=lambda m: m.__name__.rsplit(".", 1)[-1])
+    def test_declaration_order_is_the_documents_order(self, module):
+        """Reading the list top to bottom should match reading the document."""
+        weights = [pref.weight for pref in module.SOFT_PREFERENCES]
+
+        assert weights == sorted(weights, reverse=True)
+
+    @pytest.mark.parametrize("module", PERSONA_MODULES, ids=lambda m: m.__name__.rsplit(".", 1)[-1])
+    def test_a_preference_outweighs_everything_below_it(self, module):
+        """Each document says which preference wins, so the rest must not outvote it.
+
+        Equal-sum weights would let two minor preferences beat the one the
+        document calls most important, which is not what the assistant is told.
+        """
+        weights = [pref.weight for pref in module.SOFT_PREFERENCES]
+
+        for i, weight in enumerate(weights):
+            assert weight > sum(weights[i + 1 :])

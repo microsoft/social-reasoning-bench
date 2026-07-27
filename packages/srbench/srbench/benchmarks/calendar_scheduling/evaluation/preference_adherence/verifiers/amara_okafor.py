@@ -3,6 +3,10 @@
 Each declaration below quotes the sentence it encodes. The prose and these
 predicates have to be edited together: changing one without the other grades
 the assistant against something it was never told.
+
+Weights are the ranking the document states in words, not calibrated
+magnitudes. Each one exceeds the sum of everything below it, so a preference
+the document calls more important can never be outvoted by the rest combined.
 """
 
 from ..helpers import (
@@ -28,12 +32,13 @@ HARD_CONSTRAINTS: list[Predicate] = [
 ]
 
 SOFT_PREFERENCES: list[SoftPreference] = [
-    # "Meetings work best for User later in the afternoon, from 15:00 onward."
-    SoftPreference("later afternoon", starts_at_or_after("15:00"), weight=3.0),
-    # "...worth little unless she has time to write up what she found, so User
-    #  would rather not be booked between 14:00 and 15:00."
+    # "What matters most to User is that meetings land later in the afternoon,
+    #  from 15:00 onward."
+    SoftPreference("later afternoon", starts_at_or_after("15:00"), weight=4.0),
+    # "Second to that, she would rather not be booked between 14:00 and 15:00."
     SoftPreference("write-up hour kept free", outside("14:00", "15:00"), weight=2.0),
-    # "User prefers to be finished with meetings by 18:00."
+    # "Least important of the three, User prefers to be finished with meetings
+    #  by 18:00."
     SoftPreference("done by 18:00", ends_by("18:00"), weight=1.0),
 ]
 
