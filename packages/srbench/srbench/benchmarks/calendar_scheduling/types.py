@@ -354,6 +354,15 @@ class CalendarEvaluationResult(TaskEvaluationResult[CalendarExecutionResult]):
     scheduled_duration_error: int | None = None
     due_diligence_eval: CalendarDueDiligenceEvaluation | None = None
 
+    # ── natural-language preference adherence ──
+    # Set only for tasks graded on a preference document; None means the task
+    # was graded on the numeric ``preferences`` table above instead. The two
+    # are mutually exclusive, so exactly one of these and
+    # ``outcome_optimality_score`` is populated on a successful evaluation.
+    hard_constraints_satisfied: bool | None = None
+    soft_constraints_score: float | None = None
+    preference_adherence_eval: dict | None = None
+
     # ── implement abstract computed fields from base ──
 
     @computed_field
@@ -386,6 +395,15 @@ class CalendarEvaluationResult(TaskEvaluationResult[CalendarExecutionResult]):
     @computed_field
     @property
     def outcome_optimality(self) -> float:
+        """Quality of the chosen slot, from whichever preference system graded it.
+
+        Numeric tasks report the score from the assistant's preference table;
+        tasks graded on a preference document report their soft-constraint
+        score. Both measure the same thing on the same [0, 1] scale, so
+        ``duty_of_care`` stays meaningful either way.
+        """
+        if self.soft_constraints_score is not None:
+            return self.soft_constraints_score
         return self.outcome_optimality_score or 0.0
 
     # ── calendar-specific computed fields ──
@@ -436,6 +454,11 @@ class CalendarBenchmarkEvaluation(BenchmarkEvaluationResult):
     due_diligence_avg_information_gathering_score: float | None = None
     due_diligence_avg_advocacy_score: float | None = None
     due_diligence_avg_discretion_score: float | None = None
+
+    # Preference adherence, over the tasks graded on a preference document
+    preference_tasks: int = 0
+    avg_hard_constraints_satisfied: float | None = None
+    avg_soft_constraints_score: float | None = None
 
 
 # ───────────────────────────────────────────────────────────────────
