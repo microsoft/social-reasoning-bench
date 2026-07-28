@@ -1,46 +1,51 @@
-"""A generic, LLM-driven BYOA agent that drives the OpenClaw CLI.
+"""A bring-your-own-agent implementation driven by the OpenClaw Gateway.
 
-:class:`OpenClawAgent` is a single "bring your own agent" implementation
-that is *generic over the task*: it reads whatever
-:class:`~srbench.shared.AssistantTask` it is handed as JSON and therefore runs
-the calendar and marketplace benchmarks unchanged::
+This agent exposes the environment's granted tools to OpenClaw as an HTTP MCP
+server and lets OpenClaw drive the conversation to ``EndConversation``.
 
-    srbench benchmark calendar \\
-        --assistant-agent srbench_agents.openclaw_agent:OpenClawAgent ...
-    srbench benchmark marketplace \\
-        --buyer-agent srbench_agents.openclaw_agent:OpenClawAgent ...
+How it talks to OpenClaw
+------------------------
+Each task:
 
-Unlike the in-process Claude agent, `OpenClaw <https://github.com/openclaw/openclaw>`_
-ships no Python SDK — it is a Node CLI. This agent therefore drives it as a
-subprocess:
+1. Builds an MCP server around the environment's live, stateful ``invoke_tool``
+   boundary (via :func:`srbench.mcp.build_server`) and serves it over
+   streamable-HTTP on an ephemeral loopback port. HTTP (rather than in-process
+   MCP) is required because OpenClaw runs in a separate process and must reach a
+   server bound to *this* process's live state.
+2. Borrows a Gateway from :class:`~srbench_agents.openclaw_gateway.GatewayPool`.
+   The Gateway is a long-lived OpenClaw process; the pool is sized to task
+   concurrency and each task holds one Gateway exclusively. That exclusivity is
+   what keeps the task's tool space private: ``mcp.servers`` is global to a
+   Gateway, so a worker with exactly one registration at a time cannot leak one
+   task's tools into another.
+3. Registers the MCP server, pins the model and thinking level, runs one agent
+   turn over WebSocket RPC, and then deregisters.
 
-1. It builds an MCP server from the environment's granted tools and its
-   ``invoke_tool`` boundary (via :func:`srbench.mcp.build_server`) and serves it
-   over streamable-HTTP on an ephemeral localhost port. HTTP (not stdio) is
-   required because the OpenClaw subprocess must reach a server bound to *this*
-   process's live, stateful ``invoke_tool``.
-2. It registers that server in an isolated OpenClaw ``--profile`` with
-   ``openclaw mcp set``, so the agent run can call the environment's tools.
-3. It runs a one-shot embedded turn (``openclaw agent --local``) with the task
-   JSON as the message and lets OpenClaw drive the conversation to
-   ``EndConversation``.
+An earlier version of this agent spawned a one-shot ``openclaw agent --local``
+subprocess per task and scraped its stdout. That cost a Node cold start per task
+and collapsed every failure into ``exited with code 1`` plus a stderr tail.
 
 Pin: this agent targets **OpenClaw v2026.5.28** and asserts the installed CLI
 reports that version at runtime. Install the pinned CLI with::
 
     npm install -g openclaw@2026.5.28   # tag v2026.5.28 == e93216080aa1f425d3ab127014603eba8e365b2d
 
-OpenClaw must be onboarded with a model provider (or pass ``--model``/
-``SRBENCH_OPENCLAW_MODEL``). Optional environment overrides:
+Provider credentials are read from the environment (e.g. ``ANTHROPIC_API_KEY``);
+each Gateway runs in a throwaway profile, so no ``openclaw onboard`` step is
+needed. Models are ``provider/model`` ids such as ``anthropic/claude-sonnet-4-6``.
+
+Optional environment overrides:
 
 - ``SRBENCH_OPENCLAW_BIN``   — path to the ``openclaw`` binary (default ``openclaw``).
 - ``SRBENCH_OPENCLAW_MODEL`` — ``provider/model`` override for the run.
-- ``SRBENCH_OPENCLAW_REASONING_EFFORT`` — ``--thinking`` level (``off``/``minimal``/
+- ``SRBENCH_OPENCLAW_REASONING_EFFORT`` — thinking level (``off``/``minimal``/
   ``low``/``medium``/``high``, plus provider ``xhigh``/``adaptive``/``max``).
-- ``SRBENCH_OPENCLAW_AGENT`` — a configured OpenClaw agent id to target.
 - ``SRBENCH_OPENCLAW_MAX_RETRIES`` — retries for an invocation that fails before
   the agent makes any tool call (default ``2``); absorbs transient provider
   errors such as rate limits.
+- ``SRBENCH_OPENCLAW_POOL_SIZE`` — number of Gateways to run concurrently
+  (default ``1``). A task holds one Gateway exclusively, so set this to the
+  harness's ``batch_size`` (concurrent tasks) or tasks queue behind one Gateway.
 - ``SRBENCH_OPENCLAW_SYSTEM_PROMPT`` — operating system prompt, prepended to the
   opening message (defaults to
   :data:`srbench_agents.prompts.DEFAULT_ASSISTANT_SYSTEM_PROMPT`).
@@ -52,64 +57,43 @@ import asyncio
 import contextlib
 import json
 import os
-import shutil
-import signal
 import socket
-from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any
 from uuid import uuid4
 
+import uvicorn
 from openai.types.chat import ChatCompletionFunctionToolParam
 from srbench.mcp import build_asgi_app, build_server
 from srbench.shared import AssistantTask, BaseAssistantAgent, InvokeTool
 
+from srbench_agents.openclaw_gateway import (
+    OPENCLAW_VERSION,
+    GatewayWorker,
+    get_pool,
+    is_error_message,
+)
 from srbench_agents.prompts import DEFAULT_ASSISTANT_SYSTEM_PROMPT
 
-try:
-    import uvicorn
-except ImportError as exc:  # pragma: no cover - exercised only without the extra
-    raise ImportError(
-        "srbench_agents.openclaw_agent requires the optional 'mcp' HTTP stack. "
-        "Install it with: pip install 'srbench-agents'"
-    ) from exc
-
-#: The pinned OpenClaw release this agent targets (npm tag ``openclaw@2026.5.28``,
-#: git ``e93216080aa1f425d3ab127014603eba8e365b2d``).
-OPENCLAW_VERSION = "2026.5.28"
+__all__ = ["OPENCLAW_VERSION", "OpenClawAgent"]
 
 _MCP_SERVER_NAME = "srbench"
-_PROFILE_PREFIX = "srbench-"
-#: Grace period (seconds) to let the CLI exit after EndConversation before we
-#: terminate it, and slack added on top of the agent timeout.
-_GRACE_SECONDS = 30.0
 
 
-class _RunOutcome(NamedTuple):
-    """Result of a single OpenClaw subprocess invocation.
-
-    ``tool_calls`` is the number of MCP tool calls the agent made during the
-    invocation; a run that made none never engaged with the environment and is
-    treated as a (retryable) failure.
-    """
-
-    returncode: int | None
-    stdout: str
-    stderr: str
-    timed_out: bool
-    tool_calls: int
-
-
-def _bind_socket() -> socket.socket:
-    """Bind an ephemeral localhost TCP socket and return it, still open.
+def _bind_socket(port: int) -> socket.socket:
+    """Bind ``127.0.0.1:port`` and return the socket, still open.
 
     The bound socket is handed directly to uvicorn (``Server.serve(sockets=...)``)
-    so the reserved port cannot be claimed by another concurrent OpenClaw agent
-    between allocation and bind. Returning a port number instead would reopen a
-    TOCTOU window that, under task concurrency, intermittently fails the bind and
-    surfaces as an execution error.
+    rather than passing a port number, which would reopen a TOCTOU window between
+    allocation and bind.
+
+    ``port`` is the one its Gateway worker reserved and registered with OpenClaw,
+    so every task on that worker serves at the same URL. ``SO_REUSEADDR`` lets the
+    next task rebind immediately after the previous one released the port instead
+    of waiting out ``TIME_WAIT``.
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(("127.0.0.1", 0))
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(("127.0.0.1", port))
     return sock
 
 
@@ -129,8 +113,43 @@ async def _wait_until_listening(host: str, port: int, *, timeout: float = 10.0) 
             await asyncio.sleep(0.05)
 
 
+async def _stop_server(
+    http: uvicorn.Server, serve_task: asyncio.Task[None], sock: socket.socket
+) -> None:
+    """Shut the per-task MCP server down without orphaning its listening socket.
+
+    ``uvicorn.Server.serve`` has no ``finally``: cancelling it skips uvicorn's own
+    shutdown, so the asyncio server keeps a reader registered on the listening fd.
+    Closing that fd underneath the loop then floods it with ``EBADF`` on every
+    accept and wedges the next task that binds the same port. So ask uvicorn to
+    stop cooperatively first, and only fall back to cancellation — followed by an
+    explicit ``Server.shutdown`` — if it refuses to.
+
+    The loop tolerates a cancellation delivered *into* teardown (the harness
+    cancelling the task) rather than letting it abort the cleanup.
+    """
+    http.should_exit = True
+    for _ in range(3):
+        try:
+            done, _pending = await asyncio.wait({serve_task}, timeout=10.0)
+        except asyncio.CancelledError:
+            continue
+        if done:
+            break
+    if not serve_task.done():
+        serve_task.cancel()
+        with contextlib.suppress(BaseException):
+            await serve_task
+        with contextlib.suppress(BaseException):
+            await http.shutdown(sockets=[sock])
+    # uvicorn closes the socket on shutdown; close defensively in case startup
+    # never handed it off (a double close is harmless).
+    with contextlib.suppress(Exception):
+        sock.close()
+
+
 class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
-    """A task-agnostic assistant agent that drives the OpenClaw CLI.
+    """A task-agnostic assistant agent that drives OpenClaw over its Gateway.
 
     The agent receives its task through the constructor and, in :meth:`run`,
     exposes the environment's granted tools to OpenClaw as an HTTP MCP server
@@ -149,24 +168,24 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
     ) -> None:
         self.task = task
         self._model = model or os.environ.get("SRBENCH_OPENCLAW_MODEL")
-        # Reasoning effort maps to the CLI ``--thinking`` level
+        # Reasoning effort maps to OpenClaw's thinking level
         # (``off``/``minimal``/``low``/``medium``/``high``, plus
         # provider-supported ``xhigh``/``adaptive``/``max``); ``None`` uses the
-        # CLI default.
+        # OpenClaw default.
         self._reasoning_effort = reasoning_effort or os.environ.get(
             "SRBENCH_OPENCLAW_REASONING_EFFORT"
         )
         # The harness may supply the operating system prompt; otherwise fall
-        # back to this agent's built-in benchmark ground rules. OpenClaw's
-        # one-shot CLI has no separate system-prompt channel, so it is prepended
-        # to the opening message.
+        # back to this agent's built-in benchmark ground rules. The opening turn
+        # has no separate system-prompt channel, so it is prepended to the
+        # opening message.
         self._system_prompt = (
             system_prompt
             or os.environ.get("SRBENCH_OPENCLAW_SYSTEM_PROMPT")
             or DEFAULT_ASSISTANT_SYSTEM_PROMPT
         )
         self._binary = os.environ.get("SRBENCH_OPENCLAW_BIN", "openclaw")
-        self._agent_id = os.environ.get("SRBENCH_OPENCLAW_AGENT") or None
+        self._pool_size = int(os.environ.get("SRBENCH_OPENCLAW_POOL_SIZE", "1"))
         self._timeout = float(self.task.max_actions) * 30.0 + 120.0
         # How many times to retry an invocation that failed *before* the agent
         # engaged (no MCP tool calls yet, so no environment state to corrupt).
@@ -174,7 +193,6 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
         # appear once a sweep has been running for a few minutes.
         self._max_retries = int(os.environ.get("SRBENCH_OPENCLAW_MAX_RETRIES", "2"))
         self._ended = False
-        self._proc: asyncio.subprocess.Process | None = None
         self._transcript: list[dict[str, str]] = []
         self._tool_calls = 0
 
@@ -208,115 +226,53 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
         brief = self.task.model_dump_json(indent=2)
         return f"{self._system_prompt}\n\nYour private task briefing (JSON):\n```json\n{brief}\n```"
 
-    async def _openclaw(self, *args: str, profile: str) -> tuple[int, str, str]:
-        """Run an ``openclaw`` management subcommand and capture its output."""
-        proc = await asyncio.create_subprocess_exec(
-            self._binary,
-            "--profile",
-            profile,
-            *args,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        out, err = await proc.communicate()
-        return proc.returncode or 0, out.decode(errors="replace"), err.decode(errors="replace")
-
-    async def _verify_cli(self) -> None:
-        """Ensure the OpenClaw CLI is installed and matches the pinned version."""
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                self._binary,
-                "--version",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-        except FileNotFoundError as exc:
-            raise RuntimeError(
-                f"OpenClaw CLI {self._binary!r} not found. Install the pinned "
-                f"release with: npm install -g openclaw@{OPENCLAW_VERSION}"
-            ) from exc
-
-        out, err = await proc.communicate()
-        reported = (out or err).decode(errors="replace").strip()
-        if OPENCLAW_VERSION not in reported:
-            raise RuntimeError(
-                f"OpenClaw CLI reports {reported!r}, but this agent is pinned to "
-                f"v{OPENCLAW_VERSION}. Install it with: "
-                f"npm install -g openclaw@{OPENCLAW_VERSION}"
-            )
-
     async def run(
         self,
         invoke_tool: InvokeTool,
         tools: list[ChatCompletionFunctionToolParam],
     ) -> None:
-        await self._verify_cli()
+        pool = await get_pool(self._pool_size, binary=self._binary)
+        async with pool.acquire() as worker:
+            # Preflight before anything is served: an unresolvable model should
+            # fail with an actionable message, not as a mysterious empty run.
+            await worker.ensure_model(self._model)
+            await worker.ensure_registered(mcp_name=_MCP_SERVER_NAME)
+            await self._serve_and_run(worker, invoke_tool, tools)
 
+    async def _serve_and_run(
+        self,
+        worker: GatewayWorker,
+        invoke_tool: InvokeTool,
+        tools: list[ChatCompletionFunctionToolParam],
+    ) -> None:
+        """Serve this task's tools on the worker's MCP port for one run.
+
+        The server is bound to the port the worker already registered with
+        OpenClaw, and is torn down when the task finishes. OpenClaw rediscovers
+        the tool list on every run, so the next task on this worker sees only
+        its own tools.
+        """
         server = build_server(tools, self._bridge(invoke_tool), name=_MCP_SERVER_NAME)
-        sock = _bind_socket()
-        port = sock.getsockname()[1]
+        sock = _bind_socket(worker.mcp_port)
         http = uvicorn.Server(
             uvicorn.Config(
-                build_asgi_app(server), host="127.0.0.1", port=port, log_level="critical"
+                build_asgi_app(server),
+                host="127.0.0.1",
+                port=worker.mcp_port,
+                log_level="critical",
             )
         )
-        # Hand the already-bound socket to uvicorn so the port cannot be stolen
-        # by another concurrent agent between allocation and bind.
         serve_task = asyncio.create_task(http.serve(sockets=[sock]))
-        profile = f"{_PROFILE_PREFIX}{uuid4().hex[:8]}"
         try:
-            await _wait_until_listening("127.0.0.1", port)
-            url = f"http://127.0.0.1:{port}/mcp"
-            code, _out, err = await self._openclaw(
-                "mcp",
-                "set",
-                _MCP_SERVER_NAME,
-                json.dumps({"url": url, "transport": "streamable-http"}),
-                profile=profile,
-            )
-            if code != 0:
-                raise RuntimeError(f"`openclaw mcp set` failed (exit {code}): {err.strip()}")
-
-            await self._run_agent_with_retries(profile)
+            await _wait_until_listening("127.0.0.1", worker.mcp_port)
+            await self._run_with_retries(worker)
         finally:
-            # Critical, synchronous teardown first, so nothing leaks even if this
-            # coroutine is being cancelled (e.g. the harness hit max rounds):
-            # kill the subprocess, signal uvicorn to stop, and delete the
-            # isolated profile (which also drops the MCP registration).
-            self._terminate()
-            http.should_exit = True
-            _cleanup_profile(profile)
-            if not serve_task.done():
-                serve_task.cancel()
-            with contextlib.suppress(BaseException):
-                await serve_task
-            # uvicorn closes the socket on shutdown; close defensively in case
-            # startup never handed it off (double close is harmless).
-            with contextlib.suppress(Exception):
-                sock.close()
+            # Teardown must survive cancellation (e.g. the harness hit max
+            # rounds), or the port stays busy and the next task cannot bind.
+            await _stop_server(http, serve_task, sock)
 
-    def _agent_cmd(self, profile: str, session_key: str) -> list[str]:
-        """Build the ``openclaw agent`` command line for this task."""
-        cmd = [self._binary, "--profile", profile, "agent", "--local"]
-        if self._agent_id:
-            cmd += ["--agent", self._agent_id]
-        if self._model:
-            cmd += ["--model", self._model]
-        if self._reasoning_effort:
-            cmd += ["--thinking", self._reasoning_effort]
-        cmd += [
-            "--session-key",
-            session_key,
-            "--message",
-            self._opening_message(),
-            "--json",
-            "--timeout",
-            str(int(self._timeout)),
-        ]
-        return cmd
-
-    async def _run_agent_with_retries(self, profile: str) -> None:
-        """Run the OpenClaw agent, retrying no-op failures and raising on error.
+    async def _run_with_retries(self, worker: GatewayWorker) -> None:
+        """Run the agent turn, retrying no-op failures and raising on error.
 
         A failure that occurs *before* the agent makes any MCP tool call has not
         mutated environment state, so it is safe to retry (this absorbs transient
@@ -324,107 +280,71 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
         is not retried; if it still fails, the error is raised so the harness
         records the real cause instead of silently returning an empty trace.
         """
-        last: _RunOutcome | None = None
+        last_error: str | None = None
         for attempt in range(self._max_retries + 1):
             calls_before = self._tool_calls
-            # A fresh session key per attempt so a retry starts a clean
-            # conversation rather than resuming the failed one.
-            session_key = profile if attempt == 0 else f"{profile}-r{attempt}"
-            cmd = self._agent_cmd(profile, session_key)
-            self._proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                start_new_session=True,
-            )
-            last = await self._drive(self._proc)
-            # Success: the agent engaged (made tool calls) and exited cleanly.
-            if not last.timed_out and last.returncode in (0, None) and last.tool_calls > 0:
+            # A fresh session per attempt so a retry starts a clean conversation
+            # rather than resuming the failed one.
+            session_key = f"agent:main:srbench-{uuid4().hex[:8]}-r{attempt}"
+            run_id = uuid4().hex
+            try:
+                messages = await worker.run_turn(
+                    session_key=session_key,
+                    message=self._opening_message(),
+                    run_id=run_id,
+                    timeout=self._timeout,
+                    model=self._model,
+                    thinking=self._reasoning_effort,
+                )
+                last_error = self._record(messages)
+            except asyncio.CancelledError:
+                await worker.abort(session_key=session_key, run_id=run_id)
+                await worker.delete_session(session_key)
+                raise
+            except Exception as exc:
+                last_error = str(exc)
+            await worker.delete_session(session_key)
+
+            engaged = self._tool_calls > calls_before
+            # Success: the agent engaged with the environment and did not error.
+            if last_error is None and engaged:
                 return
             # Only retry when nothing was done yet — otherwise retrying would
             # replay actions against already-mutated environment state.
-            engaged = self._tool_calls > calls_before
             if engaged or attempt >= self._max_retries:
                 break
             await asyncio.sleep(2.0 * (attempt + 1))
 
-        raise RuntimeError(self._failure_message(last))
+        raise RuntimeError(self._failure_message(last_error))
 
-    def _failure_message(self, outcome: _RunOutcome | None) -> str:
+    def _record(self, messages: list[dict[str, Any]]) -> str | None:
+        """Append assistant text to the transcript, returning any failure text.
+
+        OpenClaw reports run failures inside the transcript rather than through
+        the RPC result, so the transcript is also the error channel.
+        """
+        error: str | None = None
+        for msg in messages:
+            failure = is_error_message(msg)
+            if failure:
+                error = failure
+                continue
+            if msg.get("role") != "assistant":
+                continue
+            content = msg.get("content")
+            if isinstance(content, list):
+                text = " ".join(
+                    str(part.get("text", "")) for part in content if isinstance(part, dict)
+                ).strip()
+            else:
+                text = str(content or "").strip()
+            if text:
+                self._transcript.append({"role": "assistant", "content": text})
+        return error
+
+    def _failure_message(self, error: str | None) -> str:
         """Human-readable explanation of why an OpenClaw run failed."""
-        if outcome is None:  # pragma: no cover - defensive
-            return "openclaw run failed before producing any outcome"
-
-        def tail(s: str) -> str:
-            return s.strip()[-800:]
-
-        if outcome.timed_out:
-            return (
-                f"openclaw run timed out after ~{int(self._timeout)}s and was "
-                f"terminated; stderr tail: {tail(outcome.stderr)!r}"
-            )
-        if outcome.returncode not in (0, None):
-            return (
-                f"openclaw exited with code {outcome.returncode}; "
-                f"stderr tail: {tail(outcome.stderr)!r}; stdout tail: {tail(outcome.stdout)!r}"
-            )
-        # Exited cleanly but never called a tool: nothing to score.
-        return (
-            "openclaw completed without performing any actions (no MCP tool calls); "
-            f"stdout tail: {tail(outcome.stdout)!r}; stderr tail: {tail(outcome.stderr)!r}"
-        )
-
-    async def _drive(self, proc: asyncio.subprocess.Process) -> _RunOutcome:
-        """Wait for one OpenClaw invocation to finish and capture its output.
-
-        Returns a :class:`_RunOutcome`; unlike a raising path this lets the
-        caller decide whether the invocation should be retried or surfaced as a
-        fatal error.
-        """
-        timed_out = False
-        try:
-            out_b, err_b = await asyncio.wait_for(
-                proc.communicate(), timeout=self._timeout + _GRACE_SECONDS
-            )
-            out = out_b.decode(errors="replace")
-            err = err_b.decode(errors="replace")
-        except asyncio.TimeoutError:
-            self._terminate()
-            timed_out = True
-            out, err = "", ""
-        if out.strip():
-            self._transcript.append({"role": "assistant", "content": out})
-        if proc.returncode not in (0, None) and err.strip():
-            self._transcript.append({"role": "assistant", "content": f"openclaw stderr: {err}"})
-        return _RunOutcome(
-            returncode=proc.returncode,
-            stdout=out,
-            stderr=err,
-            timed_out=timed_out,
-            tool_calls=self._tool_calls,
-        )
-
-    def _terminate(self) -> None:
-        """Terminate the OpenClaw subprocess (and its children) if still running.
-
-        OpenClaw spawns helper child processes; terminating only the direct
-        child can orphan them, and over a long sweep those orphans accumulate and
-        exhaust resources. Because the subprocess is started in its own session
-        (``start_new_session=True``), we can signal the whole process group.
-        """
-        proc = self._proc
-        if proc is None or proc.returncode is not None:
-            return
-        with contextlib.suppress(ProcessLookupError, PermissionError):
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-        with contextlib.suppress(ProcessLookupError):
-            proc.terminate()
-
-
-def _cleanup_profile(profile: str) -> None:
-    """Remove the isolated OpenClaw profile directory we created for this run."""
-    if not profile.startswith(_PROFILE_PREFIX):  # defensive: never touch other state
-        return
-    profile_dir = Path.home() / f".openclaw-{profile}"
-    with contextlib.suppress(Exception):
-        shutil.rmtree(profile_dir, ignore_errors=True)
+        if error:
+            return f"openclaw run failed: {error[-800:]}"
+        # Completed without erroring but never called a tool: nothing to score.
+        return "openclaw completed without performing any actions (no MCP tool calls)"

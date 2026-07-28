@@ -11,7 +11,7 @@ Agents under test (a **model × reasoning-effort grid** per agent):
 | Agent | Backend | Default sweep |
 | --- | --- | --- |
 | `srbench_agents.claude_agent:ClaudeAgent` | [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/python) (in-process) | `claude-sonnet-4-6` × {low, medium, high} |
-| `srbench_agents.openclaw_agent:OpenClawAgent` | [OpenClaw](https://github.com/openclaw/openclaw) CLI v2026.5.28 (subprocess) | `openai/gpt-5.4` × {low, medium, high} |
+| `srbench_agents.openclaw_agent:OpenClawAgent` | [OpenClaw](https://github.com/openclaw/openclaw) v2026.5.28 (Gateway) | `openai/gpt-5.4` × {low, medium, high} |
 
 ## Setup
 
@@ -20,10 +20,14 @@ Agents under test (a **model × reasoning-effort grid** per agent):
 pip install 'srbench-agents[claude]'
 export ANTHROPIC_API_KEY=...
 
-# OpenClaw agent (Node CLI, pinned) + onboarding
+# OpenClaw agent (Node CLI, pinned) + credentials
 npm install -g openclaw@2026.5.28
-openclaw onboard          # configure a model provider
+export OPENAI_API_KEY=...  # provider key for the swept `openai/*` models
 ```
+
+OpenClaw runs as a Gateway in a throwaway profile per sweep and reads provider
+credentials from the environment, so `openclaw onboard` is not required. Model
+ids must be `provider/model`; a bare id such as `gpt-5.5` is rejected up front.
 
 ## Run
 

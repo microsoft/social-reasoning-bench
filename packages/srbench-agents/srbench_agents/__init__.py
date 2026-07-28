@@ -12,7 +12,9 @@ runtime, so nothing is imported here eagerly:
 - :mod:`srbench_agents.claude_agent` — :class:`ClaudeAgent`, built on the
   Claude Agent SDK (install with ``pip install 'srbench-agents[claude]'``).
 - :mod:`srbench_agents.openclaw_agent` — :class:`OpenClawAgent`, which drives
-  the OpenClaw CLI (``npm install -g openclaw@2026.5.28``) as a subprocess.
+  OpenClaw (``npm install -g openclaw@2026.5.28``) over its Gateway, a
+  long-lived process spoken to via WebSocket RPC
+  (see :mod:`srbench_agents.openclaw_gateway`).
 
 Every agent is *generic over the task*: it reads whatever
 :class:`srbench.shared.AssistantTask` it is handed as JSON and therefore drives

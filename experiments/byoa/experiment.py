@@ -13,10 +13,12 @@ constructor), so a single ``srbench experiment`` run can sweep multiple agents.
 
 Prerequisites:
     pip install 'srbench-agents[claude]'      # Claude agent (in-process)
-    npm install -g openclaw@2026.5.28          # OpenClaw agent (subprocess), then: openclaw onboard
+    npm install -g openclaw@2026.5.28         # OpenClaw agent (Gateway)
 
-Provide each backend's credentials the usual way (e.g. ``ANTHROPIC_API_KEY`` for
-Claude; an onboarded model provider for OpenClaw).
+Provide each backend's credentials through the environment (e.g.
+``ANTHROPIC_API_KEY`` for Claude, ``OPENAI_API_KEY`` for OpenClaw's ``openai/*``
+models). OpenClaw runs in a throwaway profile per sweep, so ``openclaw onboard``
+is not required.
 
 To reproduce:
     srbench experiment experiments/byoa
@@ -29,8 +31,8 @@ from typing import Any, Literal
 
 from srbench_agents import DEFAULT_ASSISTANT_SYSTEM_PROMPT
 
-# BYOA runs are heavier than model-only runs (OpenClaw spawns a Node subprocess
-# and a local MCP server per task), so this defaults to the "small" split.
+# BYOA runs are heavier than model-only runs (each task holds an OpenClaw
+# Gateway exclusively while it runs), so this defaults to the "small" split.
 # Set to "large" to match the v0.1.0 sweep exactly.
 DATA_SIZE: Literal["small", "medium", "large"] = "small"
 
@@ -47,7 +49,11 @@ COUNTERPARTY: dict[str, Any] = {
     "explicit_cot": False,
 }
 
-# OpenClaw is subprocess-heavy; keep task concurrency modest.
+# ``batch_size`` is the number of tasks run concurrently. A task holds one
+# OpenClaw Gateway exclusively while it runs, and the pool defaults to a single
+# Gateway, so set SRBENCH_OPENCLAW_POOL_SIZE to batch_size to actually run tasks
+# in parallel; otherwise they queue behind one Gateway. Each Gateway is a Node
+# process, so size it deliberately.
 CONCURRENCY: dict[str, Any] = {"batch_size": 1, "task_concurrency": 1, "llm_concurrency": 1}
 
 ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
@@ -59,11 +65,13 @@ ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
 # `srbench experiment` run sweeps the whole grid. Model namespaces and effort
 # vocabularies differ per backend, so each agent declares its own lists:
 #
-#   - Claude effort   -> SDK ``effort``  : low / medium / high / xhigh / max
-#   - OpenClaw effort -> CLI --thinking  : off / minimal / low / medium / high /
-#                                          xhigh / adaptive / max
+#   - Claude effort   -> SDK ``effort``    : low / medium / high / xhigh / max
+#   - OpenClaw effort -> thinking level    : off / minimal / low / medium / high /
+#                                            xhigh / adaptive / max
 #
-# OpenClaw models are ``provider/model`` strings and must be onboarded first.
+# OpenClaw models are ``provider/model`` strings (a bare model id is rejected).
+# Provider credentials come from the environment (e.g. OPENAI_API_KEY,
+# ANTHROPIC_API_KEY); no ``openclaw onboard`` step is required.
 AGENTS: list[dict[str, Any]] = [
     {
         # Claude Agent SDK (in-process MCP). Requires srbench-agents[claude].
@@ -73,10 +81,10 @@ AGENTS: list[dict[str, Any]] = [
         "efforts": ["high"],
     },
     {
-        # OpenClaw CLI (subprocess + HTTP MCP). Requires openclaw@2026.5.28, onboarded.
+        # OpenClaw, driven over its Gateway (HTTP MCP). Requires openclaw@2026.5.28.
         "name": "openclaw",
         "agent": "srbench_agents.openclaw_agent:OpenClawAgent",
-        "models": ["claude-sonnet-4-6"],
+        "models": ["openai/gpt-5.4"],
         "efforts": ["high"],
     },
 ]
