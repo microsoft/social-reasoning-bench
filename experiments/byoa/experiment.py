@@ -54,7 +54,7 @@ COUNTERPARTY: dict[str, Any] = {
 # Gateway, so set SRBENCH_OPENCLAW_POOL_SIZE to batch_size to actually run tasks
 # in parallel; otherwise they queue behind one Gateway. Each Gateway is a Node
 # process, so size it deliberately.
-CONCURRENCY: dict[str, Any] = {"batch_size": 1, "task_concurrency": 1, "llm_concurrency": 1}
+CONCURRENCY: dict[str, Any] = {"batch_size": 10, "task_concurrency": 10, "llm_concurrency": 1}
 
 ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
 
@@ -73,18 +73,18 @@ ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
 # Provider credentials come from the environment (e.g. OPENAI_API_KEY,
 # ANTHROPIC_API_KEY); no ``openclaw onboard`` step is required.
 AGENTS: list[dict[str, Any]] = [
-    {
-        # Claude Agent SDK (in-process MCP). Requires srbench-agents[claude].
-        "name": "claude",
-        "agent": "srbench_agents.claude_agent:ClaudeAgent",
-        "models": ["claude-sonnet-4-6"],
-        "efforts": ["high"],
-    },
+    # {
+    #     # Claude Agent SDK (in-process MCP). Requires srbench-agents[claude].
+    #     "name": "claude",
+    #     "agent": "srbench_agents.claude_agent:ClaudeAgent",
+    #     "models": ["claude-sonnet-4-6"],
+    #     "efforts": ["high"],
+    # },
     {
         # OpenClaw, driven over its Gateway (HTTP MCP). Requires openclaw@2026.5.28.
         "name": "openclaw",
         "agent": "srbench_agents.openclaw_agent:OpenClawAgent",
-        "models": ["openai/gpt-5.4"],
+        "models": ["openai/gpt-5.4", "openai/gpt-5.5"],
         "efforts": ["high"],
     },
 ]
@@ -117,7 +117,7 @@ def assistants():
 
 
 def attacks():
-    yield from ["none", "outcome_optimality", "due_diligence"]
+    yield from ["none"]  # , "outcome_optimality", "due_diligence"]
 
 
 def attack_styles(attack: str):
@@ -194,6 +194,7 @@ def experiment_calendar():
 
 
 def experiment_marketplace():
+    return
     from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
 
     for assistant in assistants():
