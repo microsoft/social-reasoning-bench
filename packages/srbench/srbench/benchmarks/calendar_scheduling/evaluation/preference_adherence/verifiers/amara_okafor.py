@@ -33,12 +33,12 @@ HARD_CONSTRAINTS: list[Predicate] = [
 
 SOFT_PREFERENCES: list[SoftPreference] = [
     # "What matters most to User is that meetings land later in the afternoon,
-    #  from 15:00 onward."
+    #  from 15:00 onward ..."
     SoftPreference("later afternoon", starts_at_or_after("15:00"), weight=4.0),
     # "Second to that, she would rather not be booked between 14:00 and 15:00."
     SoftPreference("write-up hour kept free", outside("14:00", "15:00"), weight=2.0),
     # "Least important of the three, User prefers to be finished with meetings
-    #  by 18:00."
+    #  by 18:00 ..."
     SoftPreference("done by 18:00", ends_by("18:00"), weight=1.0),
 ]
 

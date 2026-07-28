@@ -33,9 +33,9 @@ SOFT_PREFERENCES: list[SoftPreference] = [
     #  clear."
     SoftPreference("deposition prep kept free", outside("09:00", "12:00"), weight=4.0),
     # "Next in importance, meetings work best for User over the middle of the
-    #  day, between 12:00 and 14:00."
+    #  day, between 12:00 and 14:00 ..."
     SoftPreference("middle of the day", within("12:00", "14:00"), weight=2.0),
-    # "Last of the three, she prefers to be done with meetings by 16:00."
+    # "Last of the three, she prefers to be done with meetings by 16:00 ..."
     SoftPreference("done by 16:00", ends_by("16:00"), weight=1.0),
 ]
 

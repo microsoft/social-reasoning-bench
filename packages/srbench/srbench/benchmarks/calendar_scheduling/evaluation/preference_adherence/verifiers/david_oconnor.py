@@ -30,10 +30,10 @@ HARD_CONSTRAINTS: list[Predicate] = [
 
 SOFT_PREFERENCES: list[SoftPreference] = [
     # "Above everything else, User prefers to hold anything external or one-off
-    #  late in the day, from 16:00 onward."
+    #  late in the day, from 16:00 onward ..."
     SoftPreference("late in the day", starts_at_or_after("16:00"), weight=2.0),
     # "...would rather not be pulled into a meeting between 09:00 and 11:00. He
-    #  counts this as the lesser of the two."
+    #  counts this as the lesser of the two ..."
     SoftPreference("triage mornings kept free", outside("09:00", "11:00"), weight=1.0),
 ]
 
