@@ -11,6 +11,7 @@ from .helpers import (
     ends_by,
     outside,
     starts_at_or_after,
+    starts_within,
     to_hhmm,
     to_minutes,
     within,
@@ -24,6 +25,7 @@ __all__ = [
     "ends_by",
     "outside",
     "starts_at_or_after",
+    "starts_within",
     "within",
     # Time helpers
     "to_hhmm",

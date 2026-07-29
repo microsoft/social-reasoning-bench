@@ -11,6 +11,7 @@ from srbench.benchmarks.calendar_scheduling.evaluation.preference_adherence impo
     ends_by,
     outside,
     starts_at_or_after,
+    starts_within,
     to_hhmm,
     to_minutes,
     within,
@@ -106,6 +107,21 @@ class TestPredicates:
 
         assert predicate(to_minutes("13:00"), to_minutes("14:00"))
         assert not predicate(to_minutes("12:00"), to_minutes("13:00"))
+
+    def test_starts_within_is_half_open(self):
+        """The opening edge is inside the range and the closing edge is not."""
+        predicate = starts_within("09:00", "10:00")
+
+        assert predicate(to_minutes("09:00"), to_minutes("10:00"))
+        assert predicate(to_minutes("09:59"), to_minutes("10:59"))
+        assert not predicate(to_minutes("08:59"), to_minutes("09:59"))
+        assert not predicate(to_minutes("10:00"), to_minutes("11:00"))
+
+    def test_starts_within_ignores_where_the_slot_ends(self):
+        """A meeting may start inside the range and run well past it."""
+        predicate = starts_within("09:00", "10:00")
+
+        assert predicate(to_minutes("09:30"), to_minutes("17:00"))
 
 
 class TestCalendarFreedom:

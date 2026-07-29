@@ -67,6 +67,17 @@ def starts_at_or_after(time: str) -> Predicate:
     return lambda slot_start, _slot_end: slot_start >= limit
 
 
+def starts_within(start: str, end: str) -> Predicate:
+    """Build a predicate requiring the slot to begin inside ``[start, end)``.
+
+    This constrains only where the meeting begins, unlike :func:`within`, which
+    requires the whole meeting to fit. Use it for a preferred time of day that a
+    long meeting is allowed to run past, such as "first thing in the morning".
+    """
+    lower, upper = to_minutes(start), to_minutes(end)
+    return lambda slot_start, _slot_end: lower <= slot_start < upper
+
+
 def _busy_intervals(calendar: list[LabeledMeeting]) -> list[tuple[int, int]]:
     """Return each meeting as a ``(start_minutes, end_minutes)`` pair."""
     return [(to_minutes(m.start_time), to_minutes(m.end_time)) for m in calendar]
