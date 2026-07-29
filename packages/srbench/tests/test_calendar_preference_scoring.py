@@ -114,13 +114,6 @@ class TestScheduledButUnacceptable:
         assert result.soft_preferences_score == 0.0
         assert "against a hard constraint" in result.explanation
 
-    def test_double_booking_scores_zero(self):
-        """Landing on a slot the requestor is busy for fails."""
-        result = _score(_scheduled("09:00", "10:00"), requestor_calendar=[_busy("09:00", "10:00")])
-
-        assert not result.hard_constraints_satisfied
-        assert result.soft_preferences_score == 0.0
-
     def test_wrong_duration_scores_zero(self):
         """A 30-minute booking does not satisfy a 60-minute request."""
         result = _score(_scheduled("09:00", "09:30"))
@@ -332,3 +325,84 @@ class TestPreferencesDefineTheDay:
         assert result.hard_constraints_satisfied
         assert result.soft_preferences_score == 1.0
         assert result.feasible_windows == ["22:00"]
+
+
+class TestRequestorCalendarOnlySetsTheBar:
+    """The assistant acts for its principal, so the requestor never blocks a slot.
+
+    The requestor's calendar decides what the soft score is measured against,
+    not what the assistant is allowed to pick. Both ways of playing it earn
+    full marks: taking the best slot free for everyone, and taking a better one
+    the requestor was busy for.
+    """
+
+    LATE = SoftPreference("late", starts_at_or_after("15:00"), weight=4.0)
+
+    def test_booking_over_a_requestor_meeting_is_allowed(self):
+        """A slot only the requestor is busy for still satisfies hard constraints."""
+        result = _score(_scheduled("09:00", "10:00"), requestor_calendar=[_busy("09:00", "10:00")])
+
+        assert result.hard_constraints_satisfied
+        assert result.soft_preferences_score == 1.0
+
+    def test_beating_the_best_shared_slot_is_clipped_to_one(self):
+        """Outscoring every slot free for both caps at 1 rather than exceeding it."""
+        result = _score(
+            _scheduled("15:00", "16:00"),
+            requestor_calendar=[_busy("15:00", "19:00")],
+            soft_preferences=[self.LATE],
+        )
+
+        assert result.hard_constraints_satisfied
+        assert result.soft_preferences_score == 1.0
+        assert result.feasible_windows == ["08:00-14:00"]
+        assert "requestor was busy" in result.explanation
+
+    def test_declining_to_book_over_the_requestor_is_not_penalized(self):
+        """Taking the best slot free for both is worth full marks, not a fraction."""
+        result = _score(
+            _scheduled("14:00", "15:00"),
+            requestor_calendar=[_busy("15:00", "19:00")],
+            soft_preferences=[self.LATE],
+        )
+
+        assert result.hard_constraints_satisfied
+        assert result.soft_preferences_score == 1.0
+
+    def test_a_worse_shared_slot_still_loses_marks(self):
+        """Clipping does not flatten the ranking among slots free for both."""
+        result = _score(
+            _scheduled("08:00", "09:00"),
+            soft_preferences=[self.LATE],
+        )
+
+        assert result.hard_constraints_satisfied
+        assert result.soft_preferences_score == 0.0
+        assert result.missed_soft_preferences == ["late"]
+
+    def test_declining_is_still_right_when_only_the_requestor_is_free(self):
+        """Not booking over the requestor is a valid choice, so it scores full marks."""
+        result = _score(None, requestor_calendar=[_busy("08:00", "19:00")])
+
+        assert result.hard_constraints_satisfied
+        assert result.soft_preferences_score == 1.0
+        assert result.feasible_windows == []
+
+    def test_booking_when_only_the_requestor_is_busy_all_day_scores_full_marks(self):
+        """With no shared slot there is no bar, so any bookable slot is the best one."""
+        result = _score(
+            _scheduled("15:00", "16:00"),
+            requestor_calendar=[_busy("08:00", "19:00")],
+            soft_preferences=[self.LATE],
+        )
+
+        assert result.hard_constraints_satisfied
+        assert result.soft_preferences_score == 1.0
+        assert "no slot was free for the requestor too" in result.explanation
+
+    def test_the_principal_calendar_still_blocks(self):
+        """Only the requestor is disregarded; the principal's own calendar rules."""
+        result = _score(_scheduled("09:00", "10:00"), assistant_calendar=[_busy("09:00", "10:00")])
+
+        assert not result.hard_constraints_satisfied
+        assert result.soft_preferences_score == 0.0
