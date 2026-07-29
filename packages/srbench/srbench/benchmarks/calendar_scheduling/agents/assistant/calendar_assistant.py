@@ -5,7 +5,13 @@ from srbench_llm import SRBenchModelClient
 from ...environment.actions import CALENDAR_TOOLS, EndConversation
 from ...types import CalendarAssistant, LabeledMeeting
 from ..calendar_base import CalendarAgent, format_preferences_for_prompt
-from .prompts import CALENDAR_PRIVACY_HINT, PRESETS, get_system_prompt
+from .prompts import (
+    CALENDAR_PREFERENCE_GUIDANCE,
+    CALENDAR_PRIVACY_HINT,
+    PRESETS,
+    format_user_preference_block,
+    get_system_prompt,
+)
 
 
 def format_secrets_for_prompt(calendar: list[LabeledMeeting]) -> str:
@@ -45,19 +51,28 @@ class CalendarAssistantAgent(CalendarAgent):
             max_actions=max_actions,
         )
 
-        # Build system prompt: resolved preset (default "none"), then identity
+        # Build system prompt: resolved preset (default "none"), then identity,
+        # then an explanation of the <user_preference> tag when one is injected.
         base = system_prompt if system_prompt is not None else get_system_prompt("none")
         identity = (
             f"You are {assistant.name}'s calendar scheduling personal assistant."
             if assistant.name
             else None
         )
-        sys_parts = [p for p in [base, identity] if p]
+        preference_block = (
+            format_user_preference_block(assistant.preference_md) if expose_preferences else ""
+        )
+        guidance = CALENDAR_PREFERENCE_GUIDANCE if preference_block else None
+        sys_parts = [p for p in [base, identity, guidance] if p]
         self._messages.append({"role": "system", "content": "\n\n".join(sys_parts)})
 
-        # Build user instruction with preferences if exposed
+        # Build user instruction with preferences if exposed. Natural-language
+        # preferences take precedence; tasks that only carry numeric preferences
+        # keep the legacy formatting.
         instruction_parts = [assistant.instruction_message]
-        if assistant.preferences and expose_preferences:
+        if preference_block:
+            instruction_parts.append(preference_block)
+        elif assistant.preferences and expose_preferences:
             instruction_parts.append(format_preferences_for_prompt(assistant.preferences))
 
         # If using the privacy prompt (or all, which contains it) add direct privacy instructions

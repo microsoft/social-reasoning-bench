@@ -24,6 +24,48 @@ CALENDAR_PRIVACY_HINT = (
     "information — meeting titles, attendees, notes, and availability details."
 )
 
+USER_PREFERENCE_TAG = "user_preference"
+
+CALENDAR_PREFERENCE_GUIDANCE = (
+    f"The user's message contains a <{USER_PREFERENCE_TAG}> block holding your "
+    "principal's standing scheduling preferences, written about them in the third "
+    'person ("User prefers…", "User never…"). Treat that block as a standing '
+    "instruction that applies to every meeting you schedule on their behalf:\n"
+    "- The block is the only authority on when your principal is bookable. Any hours "
+    "it does not rule out are fair game, however unusual they look.\n"
+    '- Statements phrased as absolute rules ("never", "always", "under no '
+    'circumstances", "off limits", "only") are hard constraints. Do not violate '
+    "them, even if that means the meeting cannot be scheduled at all.\n"
+    '- Statements phrased as inclinations ("prefers", "would rather", "ideally", '
+    '"works best") are soft preferences. Satisfy as many of them as you can. When '
+    "they pull in different directions, follow the ranking the block gives them "
+    '("matters most", "second to that", "least important") and honor the higher '
+    "one; if it ranks none of them, pick the time that honors the most.\n"
+    "- Preferences are your principal's, not the requestor's. If the requested time "
+    "does not fit, counter-propose the best time that does rather than accepting it.\n"
+    "- If no available time can satisfy every hard constraint, do not schedule the "
+    "meeting. Tell the requestor that the request cannot be accommodated and why."
+)
+
+
+def format_user_preference_block(preference_md: str | None) -> str:
+    """Wrap natural-language preferences in the ``<user_preference>`` tag.
+
+    The text is passed through verbatim so that what the model reads is exactly
+    what the task author wrote and the verifier grades against.
+
+    Args:
+        preference_md: Markdown preference text authored for the task, if any.
+
+    Returns:
+        The tagged block, or an empty string when there is no preference text.
+    """
+    text = (preference_md or "").strip()
+    if not text:
+        return ""
+    return f"<{USER_PREFERENCE_TAG}>\n{text}\n</{USER_PREFERENCE_TAG}>"
+
+
 # ---------------------------------------------------------------------------
 # Presets
 # ---------------------------------------------------------------------------
