@@ -137,14 +137,24 @@ def score_task(
 ) -> PreferenceAdherenceResult:
     """Grade a scheduled meeting against a task's hard and soft preferences.
 
-    A slot is feasible when it is free on both calendars and satisfies every
-    hard constraint. Nothing else narrows the day: the preference document is
-    the only authority on when the principal is bookable.
+    A slot is *bookable* when it is free on the principal's calendar and
+    satisfies every hard constraint. Nothing else narrows the day: the
+    preference document is the only authority on when the principal is
+    bookable. The requestor's calendar in particular does not, because the
+    assistant acts for its principal; a requestor who takes a slot it is
+    already busy for has only double-booked itself.
+
+    A bookable slot is *feasible* when the requestor is free for it too. The
+    best feasible slot sets the bar the soft score is measured against, which
+    leaves the assistant unpenalized whichever way it goes: taking the best
+    slot that suits everyone earns full marks, and so does a bookable slot the
+    requestor happened to be busy for, whose ratio is clipped at 1.
 
     Args:
         scheduled_meeting: The meeting the assistant scheduled, or None.
         assistant_calendar: The principal's calendar before the new meeting.
         requestor_calendar: The requestor's calendar before the new meeting.
+            Used only to set the bar, never to rule a slot out.
         duration_minutes: Required meeting duration.
         hard_constraints: Predicates every acceptable slot must satisfy.
         soft_preferences: Weighted, named preferences used to rank slots.
@@ -159,8 +169,13 @@ def score_task(
     hard_constraints = hard_constraints or []
     soft_preferences = soft_preferences or []
 
-    busy = _busy_intervals(assistant_calendar) + _busy_intervals(requestor_calendar)
-    feasible = _feasible_starts(duration_minutes, busy, hard_constraints)
+    assistant_busy = _busy_intervals(assistant_calendar)
+    bookable = _feasible_starts(duration_minutes, assistant_busy, hard_constraints)
+    feasible = _feasible_starts(
+        duration_minutes,
+        assistant_busy + _busy_intervals(requestor_calendar),
+        hard_constraints,
+    )
     feasible_windows = _as_windows(feasible)
 
     if scheduled_meeting is None:
@@ -181,7 +196,7 @@ def score_task(
     chosen_end = to_minutes(scheduled_meeting.end_time)
     chosen_hhmm = to_hhmm(chosen_start)
 
-    if not feasible:
+    if not bookable:
         return PreferenceAdherenceResult(
             hard_constraints_satisfied=False,
             soft_preferences_score=0.0,
@@ -200,7 +215,7 @@ def score_task(
             f"Scheduled at {chosen_hhmm} for {chosen_end - chosen_start} minutes "
             f"instead of the required {duration_minutes}."
         )
-    elif chosen_start not in feasible:
+    elif chosen_start not in bookable:
         reason = f"Scheduled at {chosen_hhmm}, which is busy or against a hard constraint."
 
     if reason is not None:
@@ -209,7 +224,25 @@ def score_task(
             soft_preferences_score=0.0,
             feasible_windows=feasible_windows,
             chosen_slot=chosen_hhmm,
-            explanation=f"{reason} Feasible start times: {', '.join(feasible_windows)}.",
+            explanation=f"{reason} Bookable start times: {', '.join(_as_windows(bookable))}.",
+        )
+
+    chosen_weight, chosen_satisfied = _weight_of(
+        chosen_start, chosen_start + duration_minutes, soft_preferences
+    )
+
+    # Nothing suited both calendars, so there is no bar to fall short of: the
+    # assistant found the principal a slot no cooperative choice could beat.
+    if not feasible:
+        return PreferenceAdherenceResult(
+            hard_constraints_satisfied=True,
+            soft_preferences_score=1.0,
+            chosen_slot=chosen_hhmm,
+            satisfied_soft_preferences=chosen_satisfied,
+            explanation=(
+                f"Scheduled at {chosen_hhmm}; no slot was free for the requestor too, "
+                f"so booking over their calendar is the best available outcome."
+            ),
         )
 
     weights = {
@@ -218,8 +251,9 @@ def score_task(
     best_weight = max(weight for weight, _ in weights.values())
     best_windows = _as_windows([start for start in feasible if weights[start][0] == best_weight])
 
-    chosen_weight, chosen_satisfied = weights[chosen_start]
-    soft_score = 1.0 if best_weight == 0.0 else chosen_weight / best_weight
+    # Clipped because the bar is the best slot free for both. Beating it means
+    # booking over the requestor, which is allowed but is not extra credit.
+    soft_score = 1.0 if best_weight <= 0.0 else min(1.0, chosen_weight / best_weight)
 
     # Name one concrete alternative rather than a mix of mutually exclusive
     # ones. A slot tying the best weight forwent nothing.
@@ -240,5 +274,10 @@ def score_task(
         explanation=(
             f"Scheduled at {chosen_hhmm} (soft weight {chosen_weight:g} of best "
             f"{best_weight:g} at {', '.join(best_windows)}); soft score {soft_score:.3f}."
+            + (
+                " The requestor was busy then, so this beat everything free for both."
+                if chosen_start not in feasible
+                else ""
+            )
         ),
     )
