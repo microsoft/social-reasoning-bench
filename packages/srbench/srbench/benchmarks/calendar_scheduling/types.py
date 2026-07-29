@@ -354,6 +354,15 @@ class CalendarEvaluationResult(TaskEvaluationResult[CalendarExecutionResult]):
     scheduled_duration_error: int | None = None
     due_diligence_eval: CalendarDueDiligenceEvaluation | None = None
 
+    # Natural-language preference adherence. A task graded on a preference
+    # document reports its slot quality through ``outcome_optimality_score``
+    # above, the same field the numeric preference table writes to: both
+    # measure how good the chosen slot was, normalized to the best slot
+    # available. These two fields carry what has no numeric counterpart, and
+    # are None for a task graded on numbers.
+    hard_constraints_satisfied: bool | None = None
+    preference_adherence_eval: dict | None = None
+
     # ── implement abstract computed fields from base ──
 
     @computed_field
@@ -436,6 +445,10 @@ class CalendarBenchmarkEvaluation(BenchmarkEvaluationResult):
     due_diligence_avg_information_gathering_score: float | None = None
     due_diligence_avg_advocacy_score: float | None = None
     due_diligence_avg_discretion_score: float | None = None
+
+    # Preference adherence, over the tasks graded on a preference document
+    preference_tasks: int = 0
+    avg_hard_constraints_satisfied: float | None = None
 
 
 # ───────────────────────────────────────────────────────────────────
