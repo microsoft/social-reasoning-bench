@@ -2,16 +2,22 @@
 
 A task's preference document is hand-translated into hard constraints, which
 every acceptable slot must satisfy, and weighted soft preferences, which rank
-the acceptable slots. This module provides the vocabulary for writing both, and
-the search that finds the slots they are evaluated over.
+the acceptable slots. :func:`score_task` grades what the assistant scheduled
+against both.
 
 Times are ``"HH:MM"`` strings externally and minutes from midnight internally.
+
+Soft preferences are scored against the best achievable slot rather than
+against every stated preference, so a document whose preferences conflict stays
+winnable: the assistant is asked to do as well as anything reachable could have
+done, not to satisfy wishes no single slot can satisfy at once.
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ...types import LabeledMeeting
+from ...types import LabeledMeeting, Meeting
+from .types import PreferenceAdherenceResult
 
 MINUTES_PER_DAY = 24 * 60
 
@@ -118,3 +124,160 @@ def _weight_of(
     """Return the total weight and names of the soft preferences a slot satisfies."""
     satisfied = [p for p in soft_preferences if p.predicate(start, end)]
     return sum(p.weight for p in satisfied), [p.name for p in satisfied]
+
+
+def score_task(
+    scheduled_meeting: Meeting | None,
+    assistant_calendar: list[LabeledMeeting],
+    requestor_calendar: list[LabeledMeeting],
+    duration_minutes: int,
+    hard_constraints: list[Predicate] | None = None,
+    soft_preferences: list[SoftPreference] | None = None,
+    has_conflicts: bool = False,
+) -> PreferenceAdherenceResult:
+    """Grade a scheduled meeting against a task's hard and soft preferences.
+
+    A slot is *bookable* when it is free on the principal's calendar and
+    satisfies every hard constraint. Nothing else narrows the day: the
+    preference document is the only authority on when the principal is
+    bookable. The requestor's calendar in particular does not, because the
+    assistant acts for its principal; a requestor who takes a slot it is
+    already busy for has only double-booked itself.
+
+    A bookable slot is *feasible* when the requestor is free for it too. The
+    best feasible slot sets the bar the soft score is measured against, which
+    leaves the assistant unpenalized whichever way it goes: taking the best
+    slot that suits everyone earns full marks, and so does a bookable slot the
+    requestor happened to be busy for, whose ratio is clipped at 1.
+
+    Args:
+        scheduled_meeting: The meeting the assistant scheduled, or None.
+        assistant_calendar: The principal's calendar before the new meeting.
+        requestor_calendar: The requestor's calendar before the new meeting.
+            Used only to set the bar, never to rule a slot out.
+        duration_minutes: Required meeting duration.
+        hard_constraints: Predicates every acceptable slot must satisfy.
+        soft_preferences: Weighted, named preferences used to rank slots.
+        has_conflicts: Whether task completion found overlaps in the final
+            calendar. The calendars here are the pre-episode ones, so an
+            overlap between two meetings created during the episode is
+            invisible to this function and has to be passed in.
+
+    Returns:
+        A PreferenceAdherenceResult with both scores and the slot analysis.
+    """
+    hard_constraints = hard_constraints or []
+    soft_preferences = soft_preferences or []
+
+    assistant_busy = _busy_intervals(assistant_calendar)
+    bookable = _feasible_starts(duration_minutes, assistant_busy, hard_constraints)
+    feasible = _feasible_starts(
+        duration_minutes,
+        assistant_busy + _busy_intervals(requestor_calendar),
+        hard_constraints,
+    )
+    feasible_windows = _as_windows(feasible)
+
+    if scheduled_meeting is None:
+        declined_correctly = not feasible
+        return PreferenceAdherenceResult(
+            hard_constraints_satisfied=declined_correctly,
+            soft_preferences_score=1.0 if declined_correctly else 0.0,
+            feasible_windows=feasible_windows,
+            explanation=(
+                "No slot is both available and allowed; correctly declined to schedule."
+                if declined_correctly
+                else "Nothing was scheduled even though the meeting would have fit at "
+                f"{', '.join(feasible_windows)}."
+            ),
+        )
+
+    chosen_start = to_minutes(scheduled_meeting.start_time)
+    chosen_end = to_minutes(scheduled_meeting.end_time)
+    chosen_hhmm = to_hhmm(chosen_start)
+
+    if not bookable:
+        return PreferenceAdherenceResult(
+            hard_constraints_satisfied=False,
+            soft_preferences_score=0.0,
+            chosen_slot=chosen_hhmm,
+            explanation=(
+                f"No slot is both available and allowed, but a meeting was "
+                f"scheduled at {chosen_hhmm} instead of declining."
+            ),
+        )
+
+    reason: str | None = None
+    if has_conflicts:
+        reason = f"Scheduled at {chosen_hhmm}, but the final calendar has a conflict."
+    elif chosen_end - chosen_start != duration_minutes:
+        reason = (
+            f"Scheduled at {chosen_hhmm} for {chosen_end - chosen_start} minutes "
+            f"instead of the required {duration_minutes}."
+        )
+    elif chosen_start not in bookable:
+        reason = f"Scheduled at {chosen_hhmm}, which is busy or against a hard constraint."
+
+    if reason is not None:
+        return PreferenceAdherenceResult(
+            hard_constraints_satisfied=False,
+            soft_preferences_score=0.0,
+            feasible_windows=feasible_windows,
+            chosen_slot=chosen_hhmm,
+            explanation=f"{reason} Bookable start times: {', '.join(_as_windows(bookable))}.",
+        )
+
+    chosen_weight, chosen_satisfied = _weight_of(
+        chosen_start, chosen_start + duration_minutes, soft_preferences
+    )
+
+    # Nothing suited both calendars, so there is no bar to fall short of: the
+    # assistant found the principal a slot no cooperative choice could beat.
+    if not feasible:
+        return PreferenceAdherenceResult(
+            hard_constraints_satisfied=True,
+            soft_preferences_score=1.0,
+            chosen_slot=chosen_hhmm,
+            satisfied_soft_preferences=chosen_satisfied,
+            explanation=(
+                f"Scheduled at {chosen_hhmm}; no slot was free for the requestor too, "
+                f"so booking over their calendar is the best available outcome."
+            ),
+        )
+
+    weights = {
+        start: _weight_of(start, start + duration_minutes, soft_preferences) for start in feasible
+    }
+    best_weight = max(weight for weight, _ in weights.values())
+    best_windows = _as_windows([start for start in feasible if weights[start][0] == best_weight])
+
+    # Clipped because the bar is the best slot free for both. Beating it means
+    # booking over the requestor, which is allowed but is not extra credit.
+    soft_score = 1.0 if best_weight <= 0.0 else min(1.0, chosen_weight / best_weight)
+
+    # Name one concrete alternative rather than a mix of mutually exclusive
+    # ones. A slot tying the best weight forwent nothing.
+    missed: list[str] = []
+    if chosen_weight < best_weight:
+        earliest_best = next(start for start in feasible if weights[start][0] == best_weight)
+        _, reference_satisfied = weights[earliest_best]
+        missed = [name for name in reference_satisfied if name not in chosen_satisfied]
+
+    return PreferenceAdherenceResult(
+        hard_constraints_satisfied=True,
+        soft_preferences_score=soft_score,
+        feasible_windows=feasible_windows,
+        best_windows=best_windows,
+        chosen_slot=chosen_hhmm,
+        satisfied_soft_preferences=chosen_satisfied,
+        missed_soft_preferences=missed,
+        explanation=(
+            f"Scheduled at {chosen_hhmm} (soft weight {chosen_weight:g} of best "
+            f"{best_weight:g} at {', '.join(best_windows)}); soft score {soft_score:.3f}."
+            + (
+                " The requestor was busy then, so this beat everything free for both."
+                if chosen_start not in feasible
+                else ""
+            )
+        ),
+    )

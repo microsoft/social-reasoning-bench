@@ -1,8 +1,7 @@
 """Programmatic preference-adherence evaluation for calendar scheduling.
 
-Provides the vocabulary a task's natural-language preference document is
-hand-translated into: hard constraints every acceptable slot must satisfy, and
-weighted soft preferences that rank the acceptable slots.
+Grades a scheduled meeting against hard constraints and weighted soft
+preferences hand-translated from a task's natural-language preference document.
 """
 
 from .helpers import (
@@ -10,13 +9,17 @@ from .helpers import (
     SoftPreference,
     ends_by,
     outside,
+    score_task,
     starts_at_or_after,
     to_hhmm,
     to_minutes,
     within,
 )
+from .types import PreferenceAdherenceResult
 
 __all__ = [
+    # Result type
+    "PreferenceAdherenceResult",
     # Declarations
     "Predicate",
     "SoftPreference",
@@ -25,6 +28,8 @@ __all__ = [
     "outside",
     "starts_at_or_after",
     "within",
+    # Scorer
+    "score_task",
     # Time helpers
     "to_hhmm",
     "to_minutes",
