@@ -22,11 +22,12 @@ def _resolve_preference_md(task_data: dict[str, Any], yaml_path: Path) -> dict[s
 
     Preference paths are interpreted relative to the YAML file that declares
     them, not the process working directory, so a dataset directory can be moved
-    or copied without rewriting every ``preference_file``::
+    or copied without rewriting every ``preference_file``, and two datasets in
+    one directory share the documents they both declare::
 
-        yaml_path       = data/calendar-scheduling/small_soft/tasks.yaml
-        preference_file = preferences/amara_okafor.md
-        resolved        = data/calendar-scheduling/small_soft/preferences/amara_okafor.md
+        yaml_path       = data/calendar-scheduling/soft/small.yaml
+        preference_file = preferences/task_000.md
+        resolved        = data/calendar-scheduling/soft/preferences/task_000.md
 
     Args:
         task_data: Raw task mapping parsed from YAML.
