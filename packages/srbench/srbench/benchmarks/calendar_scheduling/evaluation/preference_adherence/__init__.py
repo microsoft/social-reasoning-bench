@@ -16,6 +16,11 @@ from .helpers import (
     to_minutes,
     within,
 )
+from .registry import (
+    VerifierContext,
+    evaluate_preference_adherence,
+    register_verifier,
+)
 from .types import PreferenceAdherenceResult
 
 __all__ = [
@@ -32,6 +37,10 @@ __all__ = [
     "within",
     # Scorer
     "score_task",
+    # Registry
+    "VerifierContext",
+    "evaluate_preference_adherence",
+    "register_verifier",
     # Time helpers
     "to_hhmm",
     "to_minutes",
