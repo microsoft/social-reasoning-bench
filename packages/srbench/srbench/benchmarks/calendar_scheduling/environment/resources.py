@@ -16,6 +16,7 @@ from .actions import (
 from .calendar import AgentCalendar
 from .email import AgentEmail
 from .utils import (
+    BUSINESS_HOURS_WINDOW,
     format_emails,
     format_meeting_as_attachment,
     format_meetings,
@@ -42,6 +43,7 @@ class AgentResources:
         contacts: list[Contact] | None = None,
         *,
         signals: ConversationSignals,
+        free_block_window: tuple[str, str] = BUSINESS_HOURS_WINDOW,
     ) -> None:
         self.owner = owner
         self.calendar = calendar
@@ -49,6 +51,7 @@ class AgentResources:
         self.allowed_date = allowed_date
         self.contacts = contacts or []
         self._signals = signals
+        self.free_block_window = free_block_window
 
     async def execute(self, action: Tool) -> str:
         """Execute a tool action and return the result as a string.
@@ -136,7 +139,8 @@ class AgentResources:
             Formatted string of all meetings including free time blocks.
         """
         meetings = self.calendar.list_meetings()
-        return format_meetings(meetings)
+        start, end = self.free_block_window
+        return format_meetings(meetings, business_start=start, business_end=end)
 
     def _handle_list_contacts(self, action: ListContacts) -> str:
         """List all contacts in the address book.

@@ -208,6 +208,17 @@ Duration: {duration_str}
 ============"""
 
 
+BUSINESS_HOURS_WINDOW = ("09:00", "17:00")
+"""Hours over which free blocks are reported for tasks with numeric preferences."""
+
+WHOLE_DAY_WINDOW = ("00:00", "23:59")
+"""Hours over which free blocks are reported for tasks with a preference document.
+
+Such a task's bookable hours are declared by the document and enforced by its
+verifier, so the calendar reports the whole day and lets the document narrow it.
+"""
+
+
 def format_meetings(
     meetings: Sequence[Meeting], business_start: str = "09:00", business_end: str = "17:00"
 ) -> str:

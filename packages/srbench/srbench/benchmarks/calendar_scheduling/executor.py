@@ -35,6 +35,7 @@ from .environment import (
     CalendarSchedulingEnvironment,
 )
 from .environment.actions import RequestMeeting
+from .environment.utils import BUSINESS_HOURS_WINDOW, WHOLE_DAY_WINDOW
 from .types import (
     CalendarExecutionResult,
     CalendarTask,
@@ -151,6 +152,13 @@ async def execute_task(
     environment = CalendarSchedulingEnvironment()
     signals = environment.signals
 
+    # A preference document owns its principal's bookable hours, so the
+    # calendar reports free blocks over the whole day and lets the document
+    # narrow them. Numeric tasks keep the business-hours default.
+    free_block_window = (
+        WHOLE_DAY_WINDOW if task.assistant.preference_file else BUSINESS_HOURS_WINDOW
+    )
+
     # Convert LabeledMeetings to Meetings for assistant's calendar
     # (strip the is_movable and is_secret fields that are hidden from the LLM)
     assistant_initial_meetings = [
@@ -172,6 +180,7 @@ async def execute_task(
         initial_meetings=assistant_initial_meetings,
         contacts=task.assistant.contacts,
         allowed_date=task.requestor.requested_meeting.date,
+        free_block_window=free_block_window,
     )
 
     # Convert LabeledMeetings to Meetings for requestor's calendar
@@ -194,6 +203,7 @@ async def execute_task(
         owner=requestor_email,
         initial_meetings=requestor_initial_meetings,
         allowed_date=task.requestor.requested_meeting.date,
+        free_block_window=free_block_window,
     )
 
     # Initialize agents
