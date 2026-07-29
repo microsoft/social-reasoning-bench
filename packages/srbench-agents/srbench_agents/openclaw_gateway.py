@@ -245,6 +245,27 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
+def _openai_provider_overlay() -> dict[str, Any]:
+    """Point the built-in ``openai`` provider at a custom endpoint, if one is set.
+
+    OpenClaw only reads ``OPENAI_BASE_URL`` for its Azure and TTS providers, so a
+    gateway endpoint has to be supplied through the config file or chat requests
+    still go to ``api.openai.com`` and reject the gateway's key.
+    """
+    base_url = os.environ.get("OPENAI_BASE_URL", "").strip()
+    if not base_url:
+        return {}
+    # The Responses adapter replays encrypted reasoning blobs across turns; a
+    # load-balancing gateway routes the follow-up to a different upstream, which
+    # then rejects them with ``invalid_encrypted_content``. Chat Completions
+    # carries no such state.
+    provider: dict[str, str] = {"baseUrl": base_url, "api": "openai-completions"}
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if api_key:
+        provider["apiKey"] = api_key
+    return {"mode": "merge", "providers": {"openai": provider}}
+
+
 class GatewayProcess:
     """One ``openclaw gateway run`` process in an isolated profile directory."""
 
@@ -272,19 +293,18 @@ class GatewayProcess:
         self._dir = Path(tempfile.mkdtemp(prefix="srbench-openclaw-"))
         self._port = _free_port()
         self.mcp_port = _free_port()
-        self.config_path.write_text(
-            json.dumps(
-                {
-                    "gateway": {
-                        "mode": "local",
-                        "port": self._port,
-                        "bind": "loopback",
-                        "auth": {"mode": "token", "token": self._token},
-                    }
-                },
-                indent=2,
-            )
-        )
+        config: dict[str, Any] = {
+            "gateway": {
+                "mode": "local",
+                "port": self._port,
+                "bind": "loopback",
+                "auth": {"mode": "token", "token": self._token},
+            }
+        }
+        models = _openai_provider_overlay()
+        if models:
+            config["models"] = models
+        self.config_path.write_text(json.dumps(config, indent=2))
         env = dict(os.environ)
         env["OPENCLAW_CONFIG_PATH"] = str(self.config_path)
         env["OPENCLAW_STATE_DIR"] = str(self._dir)
