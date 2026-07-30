@@ -409,7 +409,7 @@ def test_gateways_are_torn_down_at_interpreter_exit(tmp_path: Path):
 @pytest.fixture
 def phyagi_env(monkeypatch: pytest.MonkeyPatch):
     """Clear every optional phyagi override so defaults are what is asserted."""
-    for name in ("SRBENCH_PHYAGI_MODELS", "SRBENCH_PHYAGI_API_KEY", "OPENAI_API_KEY"):
+    for name in ("SRBENCH_PHYAGI_MODELS", "OPENAI_API_KEY", *openclaw_gateway.PHYAGI_API_KEY_VARS):
         monkeypatch.delenv(name, raising=False)
     return monkeypatch
 
@@ -420,7 +420,11 @@ def test_phyagi_overlay_needs_no_environment(monkeypatch: pytest.MonkeyPatch):
     A provider that silently fails to appear when a variable happens to be unset
     surfaces much later as an unresolvable model id.
     """
-    for name in ("SRBENCH_PHYAGI_BASE_URL", "OPENAI_BASE_URL", "SRBENCH_PHYAGI_API_KEY"):
+    for name in (
+        "SRBENCH_PHYAGI_BASE_URL",
+        "OPENAI_BASE_URL",
+        *openclaw_gateway.PHYAGI_API_KEY_VARS,
+    ):
         monkeypatch.delenv(name, raising=False)
 
     provider = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]
@@ -487,14 +491,34 @@ def test_phyagi_model_catalog_is_overridable(phyagi_env):
     assert [entry["id"] for entry in models] == ["gpt-6", "gpt-6-mini"]
 
 
-def test_phyagi_api_key_prefers_the_dedicated_variable(phyagi_env):
-    """A phyagi-specific key must win over the generic OpenAI one."""
-    phyagi_env.setenv("OPENAI_API_KEY", "generic")
-    phyagi_env.setenv("SRBENCH_PHYAGI_API_KEY", "dedicated")
+def test_phyagi_api_key_prefers_gateway_over_phyagi(phyagi_env):
+    """``GATEWAY_API_KEY`` wins, so a host-wide key can override a per-tool one."""
+    phyagi_env.setenv("PHYAGI_API_KEY", "second")
+    phyagi_env.setenv("GATEWAY_API_KEY", "first")
 
     provider = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]
 
-    assert provider["apiKey"] == "dedicated"
+    assert provider["apiKey"] == "first"
+
+
+def test_phyagi_api_key_falls_back_to_phyagi_variable(phyagi_env):
+    phyagi_env.setenv("PHYAGI_API_KEY", "second")
+
+    provider = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]
+
+    assert provider["apiKey"] == "second"
+
+
+def test_phyagi_ignores_the_openai_api_key(phyagi_env):
+    """``OPENAI_API_KEY`` authenticates real OpenAI, which is a different host.
+
+    Borrowing it would ship an OpenAI credential to the gateway.
+    """
+    phyagi_env.setenv("OPENAI_API_KEY", "openai-secret")
+
+    provider = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]
+
+    assert "apiKey" not in provider
 
 
 def test_affinity_key_is_stable_per_process_and_unique_across_them():

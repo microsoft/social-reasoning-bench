@@ -57,6 +57,22 @@ Reasoning effort maps to the Claude SDK `effort` option and to OpenClaw's
 thinking level respectively. Leave a variable unset to use the backend's own
 default.
 
+### The `phyagi` provider
+
+`OpenClawAgent` always registers a `phyagi` provider at a fixed gateway
+endpoint, so `phyagi/<model>` ids (e.g. `phyagi/gpt-5.5`) resolve with no setup
+beyond a credential. It runs on the **Responses API**, and a bundled OpenClaw
+plugin pins each Gateway's requests to one upstream via the gateway's
+`session_id` / `strict_session` parameters — without that pin, replayed
+encrypted reasoning is rejected. `openai/*` ids are untouched and still mean
+real OpenAI.
+
+| Variable | Purpose |
+| --- | --- |
+| `GATEWAY_API_KEY`, then `PHYAGI_API_KEY` | Credential, in precedence order. `OPENAI_API_KEY` is *not* consulted — it belongs to real OpenAI. Only needed for `phyagi/*` models. |
+| `SRBENCH_PHYAGI_MODELS` | Comma-separated catalog (default `gpt-5.4,gpt-5.5`). The gateway serves no `/models` endpoint, so the catalog is declared rather than discovered. |
+| `SRBENCH_PHYAGI_STRICT_SESSION` | Set `false` to let the gateway silently rebind when a pinned endpoint disappears instead of failing fast. |
+
 ## How it works
 
 The agents reuse `srbench.mcp.build_server`, which turns the environment's

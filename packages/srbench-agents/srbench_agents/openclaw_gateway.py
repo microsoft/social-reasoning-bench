@@ -64,7 +64,8 @@ silently becomes a no-op.
 
 Environment:
 
-- ``SRBENCH_PHYAGI_API_KEY`` — credential (defaults to ``OPENAI_API_KEY``).
+- ``GATEWAY_API_KEY``, then ``PHYAGI_API_KEY`` — credential. ``OPENAI_API_KEY``
+  is not consulted; it belongs to real OpenAI.
 - ``SRBENCH_PHYAGI_MODELS`` — comma-separated catalog (defaults to
   :data:`PHYAGI_DEFAULT_MODELS`); the gateway serves no ``/models`` endpoint, so
   the catalog is declared rather than discovered.
@@ -111,9 +112,13 @@ PHYAGI_PROVIDER_ID = "phyagi"
 #: The gateway endpoint. Hardcoded rather than configured: it is the one
 #: endpoint this provider exists to talk to, and a provider that silently fails
 #: to register when a variable is unset is worse than one that is simply always
-#: there. It is a routable address, not a credential — ``SRBENCH_PHYAGI_API_KEY``
-#: (or ``OPENAI_API_KEY``) still gates access.
+#: there. It is a routable address, not a credential — :data:`PHYAGI_API_KEY_VARS`
+#: still gates access.
 PHYAGI_BASE_URL = "https://gateway.phyagi.net/api"
+
+#: Credential variables, in precedence order. ``OPENAI_API_KEY`` is not among
+#: them: it belongs to real OpenAI, which this provider does not replace.
+PHYAGI_API_KEY_VARS = ("GATEWAY_API_KEY", "PHYAGI_API_KEY")
 
 #: The bundled OpenClaw plugin that injects phyagi's ``session_id`` /
 #: ``strict_session`` affinity parameters into every request body (see
@@ -301,6 +306,23 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
+def _phyagi_api_key() -> str:
+    """The gateway credential, or ``""`` when none is configured.
+
+    ``OPENAI_API_KEY`` is deliberately not consulted: it is the credential for
+    real OpenAI, which :func:`_phyagi_overlay` leaves pointed at real OpenAI, so
+    borrowing it here would send an OpenAI key to a different host.
+
+    An absent key is not an error — the provider is always registered, and a run
+    that only uses ``anthropic/*`` models never touches this endpoint.
+    """
+    for name in PHYAGI_API_KEY_VARS:
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+    return ""
+
+
 def _phyagi_models() -> list[dict[str, Any]]:
     """Build the ``phyagi`` model catalog.
 
@@ -350,10 +372,7 @@ def _phyagi_overlay() -> dict[str, Any]:
         "api": "openai-responses",
         "models": _phyagi_models(),
     }
-    api_key = (
-        os.environ.get("SRBENCH_PHYAGI_API_KEY", "").strip()
-        or os.environ.get("OPENAI_API_KEY", "").strip()
-    )
+    api_key = _phyagi_api_key()
     if api_key:
         provider["apiKey"] = api_key
     return {
