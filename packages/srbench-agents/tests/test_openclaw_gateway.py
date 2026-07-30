@@ -408,19 +408,37 @@ def test_gateways_are_torn_down_at_interpreter_exit(tmp_path: Path):
 
 @pytest.fixture
 def phyagi_env(monkeypatch: pytest.MonkeyPatch):
-    """Configure the phyagi endpoint and clear every optional override."""
-    monkeypatch.setenv("SRBENCH_PHYAGI_BASE_URL", "https://gateway.example.net/api")
+    """Clear every optional phyagi override so defaults are what is asserted."""
     for name in ("SRBENCH_PHYAGI_MODELS", "SRBENCH_PHYAGI_API_KEY", "OPENAI_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     return monkeypatch
 
 
-def test_phyagi_overlay_is_empty_without_a_base_url(monkeypatch: pytest.MonkeyPatch):
-    """No endpoint means no provider, rather than a provider pointed at nothing."""
-    monkeypatch.delenv("SRBENCH_PHYAGI_BASE_URL", raising=False)
-    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+def test_phyagi_overlay_needs_no_environment(monkeypatch: pytest.MonkeyPatch):
+    """The endpoint is a constant, so the provider always registers.
 
-    assert openclaw_gateway._phyagi_overlay() == {}
+    A provider that silently fails to appear when a variable happens to be unset
+    surfaces much later as an unresolvable model id.
+    """
+    for name in ("SRBENCH_PHYAGI_BASE_URL", "OPENAI_BASE_URL", "SRBENCH_PHYAGI_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+
+    provider = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]
+
+    assert provider["baseUrl"] == openclaw_gateway.PHYAGI_BASE_URL
+
+
+def test_phyagi_base_url_ignores_the_ambient_openai_endpoint(monkeypatch: pytest.MonkeyPatch):
+    """``OPENAI_BASE_URL`` points the built-in OpenAI client somewhere else.
+
+    It is read by ``srbench_llm`` for unprefixed models, so letting it also
+    steer this provider would silently couple two unrelated routes.
+    """
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://not-the-gateway.example.net/v1")
+
+    provider = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]
+
+    assert provider["baseUrl"] == openclaw_gateway.PHYAGI_BASE_URL
 
 
 def test_phyagi_overlay_targets_the_responses_api(phyagi_env):
@@ -434,7 +452,7 @@ def test_phyagi_overlay_targets_the_responses_api(phyagi_env):
     provider = overlay["models"]["providers"]["phyagi"]
 
     assert provider["api"] == "openai-responses"
-    assert provider["baseUrl"] == "https://gateway.example.net/api"
+    assert provider["baseUrl"] == openclaw_gateway.PHYAGI_BASE_URL
     assert overlay["models"]["mode"] == "merge"
     # The built-in openai provider must stay untouched: overlaying its baseUrl
     # made every openai/* id mean "whatever endpoint was configured".

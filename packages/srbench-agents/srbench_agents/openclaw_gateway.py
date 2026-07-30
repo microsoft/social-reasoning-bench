@@ -43,9 +43,10 @@ step.
 
 The phyagi gateway
 ------------------
-``OPENAI_BASE_URL`` (or ``SRBENCH_PHYAGI_BASE_URL``) registers a first-class
-``phyagi`` provider, so its models are addressed ``phyagi/<model>`` — never
-``openai/<model>``, which stays pointed at real OpenAI.
+The ``phyagi`` provider is always registered, at the fixed endpoint
+:data:`PHYAGI_BASE_URL`, so its models are addressed ``phyagi/<model>`` — never
+``openai/<model>``, which stays pointed at real OpenAI. No environment setup is
+needed beyond a credential.
 
 That provider runs on the **Responses API**. What makes that safe is the bundled
 OpenClaw plugin in ``openclaw_plugins/phyagi``: it injects the gateway's
@@ -63,7 +64,6 @@ silently becomes a no-op.
 
 Environment:
 
-- ``SRBENCH_PHYAGI_BASE_URL`` — endpoint (defaults to ``OPENAI_BASE_URL``).
 - ``SRBENCH_PHYAGI_API_KEY`` — credential (defaults to ``OPENAI_API_KEY``).
 - ``SRBENCH_PHYAGI_MODELS`` — comma-separated catalog (defaults to
   :data:`PHYAGI_DEFAULT_MODELS`); the gateway serves no ``/models`` endpoint, so
@@ -107,6 +107,13 @@ OPENCLAW_VERSION = "2026.5.28"
 
 #: Provider id for the phyagi gateway. Models are addressed ``phyagi/<model>``.
 PHYAGI_PROVIDER_ID = "phyagi"
+
+#: The gateway endpoint. Hardcoded rather than configured: it is the one
+#: endpoint this provider exists to talk to, and a provider that silently fails
+#: to register when a variable is unset is worse than one that is simply always
+#: there. It is a routable address, not a credential — ``SRBENCH_PHYAGI_API_KEY``
+#: (or ``OPENAI_API_KEY``) still gates access.
+PHYAGI_BASE_URL = "https://gateway.phyagi.net/api"
 
 #: The bundled OpenClaw plugin that injects phyagi's ``session_id`` /
 #: ``strict_session`` affinity parameters into every request body (see
@@ -294,14 +301,6 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def _phyagi_base_url() -> str:
-    """The phyagi endpoint, or ``""`` when the provider is not configured."""
-    return (
-        os.environ.get("SRBENCH_PHYAGI_BASE_URL", "").strip()
-        or os.environ.get("OPENAI_BASE_URL", "").strip()
-    )
-
-
 def _phyagi_models() -> list[dict[str, Any]]:
     """Build the ``phyagi`` model catalog.
 
@@ -332,10 +331,12 @@ def _phyagi_models() -> list[dict[str, Any]]:
 def _phyagi_overlay() -> dict[str, Any]:
     """Config fragment registering ``phyagi`` as a first-class provider.
 
-    Models are addressed as ``phyagi/<model>``. The built-in ``openai`` provider
-    is deliberately left alone: overlaying its ``baseUrl`` made every
-    ``openai/*`` id mean "whatever endpoint the environment happened to point
-    at", which is both surprising and impossible to report accurately.
+    Always registered: the endpoint is a constant, so ``phyagi/*`` resolves with
+    no environment setup. Models are addressed as ``phyagi/<model>``. The
+    built-in ``openai`` provider is deliberately left alone: overlaying its
+    ``baseUrl`` made every ``openai/*`` id mean "whatever endpoint the
+    environment happened to point at", which is both surprising and impossible
+    to report accurately.
 
     The endpoint is driven by ``api: "openai-responses"`` rather than Chat
     Completions. That is only safe because the bundled plugin pins each
@@ -344,11 +345,8 @@ def _phyagi_overlay() -> dict[str, Any]:
     reasoning blobs land on a different upstream and are rejected with
     ``invalid_encrypted_content``.
     """
-    base_url = _phyagi_base_url()
-    if not base_url:
-        return {}
     provider: dict[str, Any] = {
-        "baseUrl": base_url,
+        "baseUrl": PHYAGI_BASE_URL,
         "api": "openai-responses",
         "models": _phyagi_models(),
     }

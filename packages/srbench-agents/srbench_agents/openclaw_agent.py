@@ -33,9 +33,9 @@ reports that version at runtime. Install the pinned CLI with::
 Provider credentials are read from the environment (e.g. ``ANTHROPIC_API_KEY``);
 each Gateway runs in a throwaway profile, so no ``openclaw onboard`` step is
 needed. Models are ``provider/model`` ids such as ``anthropic/claude-sonnet-4-6``
-or ``phyagi/gpt-5.5``. Setting ``OPENAI_BASE_URL`` registers the phyagi gateway
-as the ``phyagi`` provider (Responses API, with per-Gateway session affinity);
-see :mod:`srbench_agents.openclaw_gateway`. ``openai/*`` ids are unaffected and
+or ``phyagi/gpt-5.5``. The phyagi gateway is always registered as the ``phyagi``
+provider (Responses API, with per-Gateway session affinity); see
+:mod:`srbench_agents.openclaw_gateway`. ``openai/*`` ids are unaffected and
 still mean real OpenAI.
 
 Optional environment overrides:
