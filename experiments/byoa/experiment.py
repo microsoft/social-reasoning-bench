@@ -69,8 +69,8 @@ ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
 #                                            xhigh / adaptive / max
 #
 # OpenClaw models are ``provider/model`` strings (a bare model id is rejected).
-# Setting OPENAI_BASE_URL points ``openai/*`` at that gateway instead of at real
-# OpenAI. Provider credentials come from the environment (e.g. OPENAI_API_KEY,
+# ``phyagi/*`` is the gateway in OPENAI_BASE_URL; ``openai/*`` is real OpenAI.
+# Provider credentials come from the environment (e.g. OPENAI_API_KEY,
 # ANTHROPIC_API_KEY); no ``openclaw onboard`` step is required.
 AGENTS: list[dict[str, Any]] = [
     # {
@@ -84,7 +84,7 @@ AGENTS: list[dict[str, Any]] = [
         # OpenClaw, driven over its Gateway (HTTP MCP). Requires openclaw@2026.5.28.
         "name": "openclaw",
         "agent": "srbench_agents.openclaw_agent:OpenClawAgent",
-        "models": ["openai/gpt-5.4", "openai/gpt-5.5"],
+        "models": ["phyagi/gpt-5.4", "phyagi/gpt-5.5"],
         "efforts": ["high"],
     },
 ]

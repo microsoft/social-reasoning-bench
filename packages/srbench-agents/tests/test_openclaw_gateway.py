@@ -403,82 +403,80 @@ def test_gateways_are_torn_down_at_interpreter_exit(tmp_path: Path):
     openclaw_gateway._stop_live_gateways()  # idempotent
 
 
-# --- openai gateway overlay -------------------------------------------------
+# --- phyagi provider --------------------------------------------------------
 
 
 @pytest.fixture
-def gateway_env(monkeypatch: pytest.MonkeyPatch):
-    """Point OPENAI_BASE_URL at a gateway and clear every optional override."""
-    monkeypatch.setenv("OPENAI_BASE_URL", "https://gateway.example.net/api")
-    for name in ("SRBENCH_OPENAI_MODELS", "OPENAI_API_KEY"):
+def phyagi_env(monkeypatch: pytest.MonkeyPatch):
+    """Configure the phyagi endpoint and clear every optional override."""
+    monkeypatch.setenv("SRBENCH_PHYAGI_BASE_URL", "https://gateway.example.net/api")
+    for name in ("SRBENCH_PHYAGI_MODELS", "SRBENCH_PHYAGI_API_KEY", "OPENAI_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     return monkeypatch
 
 
-def test_overlay_is_empty_without_a_base_url(monkeypatch: pytest.MonkeyPatch):
-    """With no base URL, OpenClaw must talk to real OpenAI untouched."""
+def test_phyagi_overlay_is_empty_without_a_base_url(monkeypatch: pytest.MonkeyPatch):
+    """No endpoint means no provider, rather than a provider pointed at nothing."""
+    monkeypatch.delenv("SRBENCH_PHYAGI_BASE_URL", raising=False)
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
 
-    assert openclaw_gateway._openai_provider_overlay() == {}
+    assert openclaw_gateway._phyagi_overlay() == {}
 
 
-def test_overlay_targets_the_responses_api(gateway_env):
+def test_phyagi_overlay_targets_the_responses_api(phyagi_env):
     """The provider must use Responses, not Chat Completions.
 
-    Chat Completions was the original overlay, and on that route OpenClaw emits
-    no ``reasoning_effort`` at all, so ``--assistant-reasoning-effort`` was
+    Chat Completions was the old ``openai`` overlay, and on that route OpenClaw
+    emits no ``reasoning_effort`` at all, so ``--assistant-reasoning-effort`` was
     silently a no-op.
     """
-    overlay = openclaw_gateway._openai_provider_overlay()
-    provider = overlay["models"]["providers"]["openai"]
+    overlay = openclaw_gateway._phyagi_overlay()
+    provider = overlay["models"]["providers"]["phyagi"]
 
     assert provider["api"] == "openai-responses"
     assert provider["baseUrl"] == "https://gateway.example.net/api"
     assert overlay["models"]["mode"] == "merge"
-    assert set(overlay["models"]["providers"]) == {"openai"}
+    # The built-in openai provider must stay untouched: overlaying its baseUrl
+    # made every openai/* id mean "whatever endpoint was configured".
+    assert set(overlay["models"]["providers"]) == {"phyagi"}
 
 
-def test_overlay_loads_the_bundled_plugin(gateway_env):
+def test_phyagi_overlay_loads_the_bundled_plugin(phyagi_env):
     """Affinity injection is only possible from the plugin, so it must load."""
-    overlay = openclaw_gateway._openai_provider_overlay()
+    overlay = openclaw_gateway._phyagi_overlay()
 
     assert overlay["plugins"]["enabled"] is True
-    assert overlay["plugins"]["load"]["paths"] == [str(openclaw_gateway.OPENAI_PLUGIN_DIR)]
-    assert (openclaw_gateway.OPENAI_PLUGIN_DIR / "openclaw.plugin.json").is_file()
-    assert (openclaw_gateway.OPENAI_PLUGIN_DIR / "index.mjs").is_file()
+    assert overlay["plugins"]["load"]["paths"] == [str(openclaw_gateway.PHYAGI_PLUGIN_DIR)]
+    assert (openclaw_gateway.PHYAGI_PLUGIN_DIR / "openclaw.plugin.json").is_file()
+    assert (openclaw_gateway.PHYAGI_PLUGIN_DIR / "index.mjs").is_file()
 
 
-def test_plugin_targets_the_openai_provider():
-    """The plugin's hooks only fire for the provider id it registers."""
-    manifest = json.loads((openclaw_gateway.OPENAI_PLUGIN_DIR / "openclaw.plugin.json").read_text())
+def test_phyagi_overlay_declares_a_model_catalog(phyagi_env):
+    """OpenClaw refuses to boot a custom provider that declares no models."""
+    models = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]["models"]
 
-    assert manifest["providers"] == [openclaw_gateway.OPENAI_PROVIDER_ID]
-
-
-def test_overlay_declares_a_model_catalog(gateway_env):
-    """The bundled openai catalog describes real OpenAI, not an arbitrary gateway."""
-    models = openclaw_gateway._openai_provider_overlay()["models"]["providers"]["openai"]["models"]
-
-    assert [entry["id"] for entry in models] == list(openclaw_gateway.OPENAI_DEFAULT_MODELS)
+    assert [entry["id"] for entry in models] == list(openclaw_gateway.PHYAGI_DEFAULT_MODELS)
     assert all(entry["reasoning"] is True for entry in models)
-    assert all(entry["contextWindow"] == openclaw_gateway.OPENAI_CONTEXT_WINDOW for entry in models)
+    assert all(entry["contextWindow"] == openclaw_gateway.PHYAGI_CONTEXT_WINDOW for entry in models)
 
 
-def test_model_catalog_is_overridable(gateway_env):
+def test_phyagi_model_catalog_is_overridable(phyagi_env):
     """A sweep can name models this build predates without a code change."""
-    gateway_env.setenv("SRBENCH_OPENAI_MODELS", " gpt-6, , gpt-6-mini ")
+    phyagi_env.setenv("SRBENCH_PHYAGI_MODELS", " gpt-6, , gpt-6-mini ")
 
-    models = openclaw_gateway._openai_provider_overlay()["models"]["providers"]["openai"]["models"]
+    models = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]["models"]
 
     assert [entry["id"] for entry in models] == ["gpt-6", "gpt-6-mini"]
 
 
-def test_overlay_carries_the_openai_api_key(gateway_env):
-    gateway_env.setenv("OPENAI_API_KEY", "secret")
+def test_phyagi_api_key_prefers_the_dedicated_variable(phyagi_env):
+    """A phyagi-specific key must win over the generic OpenAI one."""
+    phyagi_env.setenv("OPENAI_API_KEY", "generic")
+    phyagi_env.setenv("SRBENCH_PHYAGI_API_KEY", "dedicated")
 
-    provider = openclaw_gateway._openai_provider_overlay()["models"]["providers"]["openai"]
+    provider = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]
 
-    assert provider["apiKey"] == "secret"
+    assert provider["apiKey"] == "dedicated"
 
 
 def test_affinity_key_is_stable_per_process_and_unique_across_them():
@@ -496,19 +494,6 @@ def test_affinity_key_is_stable_per_process_and_unique_across_them():
     assert one.affinity_key.startswith("srbench-")
 
 
-def test_plugin_is_inert_without_an_affinity_key():
-    """Real OpenAI rejects ``session_id``, so the plugin must stay opt-in.
-
-    The key is exported only alongside the base-URL overlay, and an empty value
-    has to leave the stream path untouched.
-    """
-    source = (openclaw_gateway.OPENAI_PLUGIN_DIR / "index.mjs").read_text()
-
-    assert "SRBENCH_OPENAI_SESSION_ID" in source
-    assert "if (!SESSION_ID) return undefined;" in source
-    assert "if (!inner || !affinity) return undefined;" in source
-
-
 def test_plugin_maps_xhigh_so_it_is_not_clamped_to_high():
     """``thinkingLevelMap`` is the only thing that unlocks ``xhigh``.
 
@@ -519,7 +504,7 @@ def test_plugin_maps_xhigh_so_it_is_not_clamped_to_high():
     adapter never reads it — so dropping this map would quietly cap
     ``--assistant-reasoning-effort xhigh``.
     """
-    source = (openclaw_gateway.OPENAI_PLUGIN_DIR / "index.mjs").read_text()
+    source = (openclaw_gateway.PHYAGI_PLUGIN_DIR / "index.mjs").read_text()
 
     assert "normalizeResolvedModel" in source
     assert 'xhigh: "xhigh"' in source
