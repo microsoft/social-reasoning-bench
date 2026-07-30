@@ -1,0 +1,27 @@
+# Scheduling notes — Elena Vance
+
+Director of Design at Terraform Architecture. Notes I keep while booking for her — what she said, and when.
+
+## Fixed
+
+Bookable 08:00-19:00. Nothing outside that.
+> "Nothing before eight, nothing after seven. That one's firm."
+— 2026-01-22, on the last scheduling call
+
+## Ranked, best first
+
+**14:00, 15:00** — what she actually wants
+> "14:00 or 15:00. Anything else is a compromise."
+— 2026-01-29, after a slot I picked got turned down
+
+**08:00, 12:00, 17:00** — fine
+> "08:00, 12:00 or 17:00 is fine if the good ones are gone."
+— 2026-02-03, going through the week
+
+**13:00, 16:00** — only if nothing else
+> "Last resort is 13:00 or 16:00. Try everything else."
+— 2026-02-05, reading out the open slots
+
+**09:00, 10:00, 11:00, 18:00** — worth nothing to her, though not off-limits
+> "The rest I'd rather keep for focused work."
+— 2026-02-11, after a booking I made got moved

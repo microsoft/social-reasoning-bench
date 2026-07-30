@@ -2,11 +2,18 @@
 
 Calendar tasks come in two forms. A task can state its principal's scheduling preferences as a numeric table of hourly scores, or as a preference document: prose the assistant reads, paired with a Python verifier that grades what it scheduled.
 
-`data/calendar-scheduling/soft/small.yaml` is the second kind — the same 21 tasks as `small.yaml`, with each numeric table rewritten as a document. The documents sit beside it in `soft/preferences/`, which every dataset written to that directory shares.
+`data/calendar-scheduling/soft/` is the second kind — the same tasks as `small.yaml` and `medium.yaml`, with each numeric table rewritten as a document.
+
+| Ported dataset | Tasks | Ported from |
+| --- | ---: | --- |
+| `soft/small.yaml` | 21 | `small.yaml` |
+| `soft/medium.yaml` | 70 | `medium.yaml` |
+
+The numeric datasets are nested — every `small.yaml` task appears in `medium.yaml` unchanged — and the ports say so by sharing. Both task YAMLs sit in `soft/` and declare the same `preferences/task_NNN.md` for the same task, so the 21 tasks they have in common point at one document on disk and are graded by one verifier. There are 70 documents in `soft/preferences/`, not 91.
 
 ```bash
 srbench benchmark calendar \
-    --data data/calendar-scheduling/soft/small.yaml \
+    --data data/calendar-scheduling/soft/medium.yaml \
     --model gpt-4.1
 ```
 
@@ -75,11 +82,11 @@ Two numbers come out:
 
 Optimality writes to the same field the numeric path uses, because it measures the same thing. Being relative to what was reachable, it does not punish an assistant for taking the best of a bad day. Scheduling nothing when a slot existed scores zero on both; declining when no slot passes the hard constraints scores full marks on both.
 
-## The port is faithful to `small.yaml`
+## The port is faithful to the numeric datasets
 
-Every hour in a task's numeric table becomes a soft preference weighted by that hour's score, so the two gradings rank slots identically and **scores are comparable to `small.yaml`'s**. A test asserts this hour by hour across all 21 tasks.
+Every hour in a task's numeric table becomes a soft preference weighted by that hour's score, so the two gradings rank slots identically and **scores are comparable to `small.yaml`'s and `medium.yaml`'s**. A test asserts this hour by hour across every ported task.
 
-Documents are per task, not per principal. The same principal is scored against a different table in every task they appear in — Amara Okafor has seven tasks and seven distinct profiles — so one document per principal cannot represent them. Written that way, a document names a slot the numeric table also ranked best in only 2 of the 21 tasks.
+Documents are per task, not per principal. The same principal is scored against a different table in every task they appear in — Amara Okafor has seven tasks in `small.yaml` and seven distinct profiles — so one document per principal cannot represent them. Written that way, a document names a slot the numeric table also ranked best in only 2 of those 21 tasks.
 
 The one deliberate generalization is that `starts_within` accepts any minute of an hour, where the numeric table scores whole hours only. An assistant that books 09:30 is credited with 09:00 rather than with nothing.
 
@@ -89,4 +96,4 @@ The one deliberate generalization is that `starts_within` accepts any minute of 
 2. Add `verifiers/task_NNN.py` restating it with `within`, `outside`, `ends_by`, `starts_at_or_after` and `starts_within`. Decorate the verifier with `@register_verifier`; registration happens on import, and the package discovers its own modules, so there is no list to update.
 3. Point the task at the document with `assistant.preference_file`, relative to the task YAML.
 
-Nothing checks that prose and predicates mean the same thing, so that agreement is what a reviewer has to supply. What is checked is that every document has a verifier and vice versa, that each document ranks every bookable hour in the order its verifier scores them, and that every task still has a slot to book.
+Nothing checks that prose and predicates mean the same thing, so that agreement is what a reviewer has to supply. What is checked is that every document has a verifier and vice versa, that no document is shipped that no task declares, that each document ranks every bookable hour in the order its verifier scores them, and that every task still has a slot to book.
