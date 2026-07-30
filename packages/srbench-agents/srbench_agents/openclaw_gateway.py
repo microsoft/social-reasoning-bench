@@ -41,18 +41,21 @@ Credentials for the model provider come from the ambient environment (e.g.
 ``ANTHROPIC_API_KEY``); a fresh profile picks them up with no ``openclaw onboard``
 step.
 
-The phyagi gateway
-------------------
-``OPENAI_BASE_URL`` (or ``SRBENCH_PHYAGI_BASE_URL``) registers a first-class
-``phyagi`` provider, so its models are addressed ``phyagi/<model>`` — never
-``openai/<model>``, which stays pointed at real OpenAI.
+Custom OpenAI-compatible gateways
+---------------------------------
+Setting ``OPENAI_BASE_URL`` overlays the built-in ``openai`` provider onto that
+endpoint, exactly as it would for any other OpenAI-compatible client. Models
+stay addressed ``openai/<model>``; with the variable unset OpenClaw talks to
+real OpenAI unchanged.
 
-That provider runs on the **Responses API**. What makes that safe is the bundled
-OpenClaw plugin in ``openclaw_plugins/phyagi``: it injects the gateway's
-top-level ``session_id`` / ``strict_session`` parameters into every request body,
+The overlay runs on the **Responses API**. What makes that safe is the bundled
+OpenClaw plugin in ``openclaw_plugins/openai_affinity``: it adds the gateway's
+top-level ``session_id`` / ``strict_session`` parameters to every request body,
 which pins a Gateway's requests to one upstream endpoint. Without the pin, the
-Responses adapter's replayed encrypted reasoning blobs reach a different upstream
-and are rejected with ``invalid_encrypted_content``.
+Responses adapter's replayed encrypted reasoning blobs reach a different
+upstream and are rejected with ``invalid_encrypted_content``. The plugin is
+inert unless a base URL is configured, since real OpenAI rejects those
+parameters.
 
 The plugin is required because OpenClaw's only config-level body passthrough
 (``params.extra_body``) is gated on ``api: "openai-completions"`` and never
@@ -63,12 +66,12 @@ silently becomes a no-op.
 
 Environment:
 
-- ``SRBENCH_PHYAGI_BASE_URL`` — endpoint (defaults to ``OPENAI_BASE_URL``).
-- ``SRBENCH_PHYAGI_API_KEY`` — credential (defaults to ``OPENAI_API_KEY``).
-- ``SRBENCH_PHYAGI_MODELS`` — comma-separated catalog (defaults to
-  :data:`PHYAGI_DEFAULT_MODELS`); the gateway serves no ``/models`` endpoint, so
-  the catalog is declared rather than discovered.
-- ``SRBENCH_PHYAGI_STRICT_SESSION`` — set ``false`` to let the gateway silently
+- ``OPENAI_BASE_URL`` — gateway endpoint; unset leaves the provider untouched.
+- ``OPENAI_API_KEY`` — credential.
+- ``SRBENCH_OPENAI_MODELS`` — comma-separated catalog (defaults to
+  :data:`OPENAI_DEFAULT_MODELS`). A gateway usually serves no ``/models``
+  endpoint, so the catalog is declared rather than discovered.
+- ``SRBENCH_OPENAI_STRICT_SESSION`` — set ``false`` to let the gateway silently
   rebind when a pinned endpoint disappears instead of failing fast.
 
 This module targets **OpenClaw v2026.5.28**.
@@ -105,24 +108,27 @@ except ImportError as exc:  # pragma: no cover - exercised only without the dep
 #: ``openclaw@2026.5.28``, git ``e93216080aa1f425d3ab127014603eba8e365b2d``).
 OPENCLAW_VERSION = "2026.5.28"
 
-#: Provider id for the phyagi gateway. Models are addressed ``phyagi/<model>``.
-PHYAGI_PROVIDER_ID = "phyagi"
+#: Provider overlaid when ``OPENAI_BASE_URL`` is set. Models stay addressed
+#: ``openai/<model>``; only the endpoint (and catalog) change.
+OPENAI_PROVIDER_ID = "openai"
 
-#: The bundled OpenClaw plugin that injects phyagi's ``session_id`` /
-#: ``strict_session`` affinity parameters into every request body (see
-#: ``openclaw_plugins/phyagi``).
-PHYAGI_PLUGIN_DIR = Path(__file__).parent / "openclaw_plugins" / "phyagi"
+#: The bundled OpenClaw plugin that adds the gateway's ``session_id`` /
+#: ``strict_session`` affinity parameters to every request body (see
+#: ``openclaw_plugins/openai_affinity``).
+OPENAI_PLUGIN_DIR = Path(__file__).parent / "openclaw_plugins" / "openai_affinity"
 
-#: Catalog used when ``SRBENCH_PHYAGI_MODELS`` is unset. The gateway exposes no
-#: ``/models`` endpoint, so the catalog cannot be discovered at runtime.
-PHYAGI_DEFAULT_MODELS = ("gpt-5.4", "gpt-5.5")
+#: Catalog used when ``SRBENCH_OPENAI_MODELS`` is unset. A gateway generally
+#: serves no ``/models`` endpoint, so the catalog cannot be discovered, and the
+#: bundled ``openai`` catalog is pinned to whatever models that OpenClaw release
+#: shipped with — neither is a match for an arbitrary gateway.
+OPENAI_DEFAULT_MODELS = ("gpt-5.4", "gpt-5.5")
 
-PHYAGI_CONTEXT_WINDOW = 400_000
-PHYAGI_MAX_TOKENS = 128_000
+OPENAI_CONTEXT_WINDOW = 400_000
+OPENAI_MAX_TOKENS = 128_000
 
-#: Thinking levels offered for phyagi models. OpenClaw only exposes ``xhigh``
-#: for a configured provider that advertises it.
-PHYAGI_REASONING_EFFORTS = ("minimal", "low", "medium", "high", "xhigh")
+#: Thinking levels offered for overlaid models. OpenClaw only exposes ``xhigh``
+#: for a provider that advertises it.
+OPENAI_REASONING_EFFORTS = ("minimal", "low", "medium", "high", "xhigh")
 
 #: Operator scopes requested at handshake. All of them are requested up front:
 #: under token auth they are granted outright, and requesting them lazily is what
@@ -294,23 +300,21 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def _phyagi_base_url() -> str:
-    """The phyagi endpoint, or ``""`` when the provider is not configured."""
-    return (
-        os.environ.get("SRBENCH_PHYAGI_BASE_URL", "").strip()
-        or os.environ.get("OPENAI_BASE_URL", "").strip()
-    )
+def _openai_base_url() -> str:
+    """The OpenAI-compatible endpoint, or ``""`` to leave the provider alone."""
+    return os.environ.get("OPENAI_BASE_URL", "").strip()
 
 
-def _phyagi_models() -> list[dict[str, Any]]:
-    """Build the ``phyagi`` model catalog.
+def _openai_models() -> list[dict[str, Any]]:
+    """Build the catalog the ``openai`` overlay declares.
 
-    The gateway serves no ``/models`` endpoint, and OpenClaw rejects a custom
-    provider that declares none ("custom model providers must declare models"),
-    so the catalog is supplied here and overridable per sweep.
+    The bundled ``openai`` catalog is frozen to whatever models
+    :data:`OPENCLAW_VERSION` shipped with, and its metadata describes real
+    OpenAI, so it does not describe an arbitrary gateway. Declaring the catalog
+    also lets a sweep name models the bundled one has never heard of.
     """
-    raw = os.environ.get("SRBENCH_PHYAGI_MODELS", "").strip()
-    ids = [part.strip() for part in raw.split(",") if part.strip()] or list(PHYAGI_DEFAULT_MODELS)
+    raw = os.environ.get("SRBENCH_OPENAI_MODELS", "").strip()
+    ids = [part.strip() for part in raw.split(",") if part.strip()] or list(OPENAI_DEFAULT_MODELS)
     return [
         {
             "id": model_id,
@@ -318,24 +322,25 @@ def _phyagi_models() -> list[dict[str, Any]]:
             "reasoning": True,
             "input": ["text"],
             "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
-            "contextWindow": PHYAGI_CONTEXT_WINDOW,
-            "maxTokens": PHYAGI_MAX_TOKENS,
+            "contextWindow": OPENAI_CONTEXT_WINDOW,
+            "maxTokens": OPENAI_MAX_TOKENS,
             # Advertised for the completions-shaped code paths (the Responses
             # adapter ignores it and reads ``thinkingLevelMap``, which only the
             # bundled plugin can set).
-            "compat": {"supportedReasoningEfforts": list(PHYAGI_REASONING_EFFORTS)},
+            "compat": {"supportedReasoningEfforts": list(OPENAI_REASONING_EFFORTS)},
         }
         for model_id in ids
     ]
 
 
-def _phyagi_overlay() -> dict[str, Any]:
-    """Config fragment registering ``phyagi`` as a first-class provider.
+def _openai_provider_overlay() -> dict[str, Any]:
+    """Config fragment pointing the built-in ``openai`` provider at a gateway.
 
-    Models are addressed as ``phyagi/<model>``. The built-in ``openai`` provider
-    is deliberately left alone: overlaying its ``baseUrl`` made every
-    ``openai/*`` id mean "whatever endpoint the environment happened to point
-    at", which is both surprising and impossible to report accurately.
+    Activated only by ``OPENAI_BASE_URL``; with it unset OpenClaw talks to real
+    OpenAI exactly as it would out of the box. Models stay addressed
+    ``openai/<model>``, so ``openai/*`` means "whatever endpoint this
+    environment is configured for" — the same thing it means to every other
+    OpenAI-compatible client that reads ``OPENAI_BASE_URL``.
 
     The endpoint is driven by ``api: "openai-responses"`` rather than Chat
     Completions. That is only safe because the bundled plugin pins each
@@ -344,23 +349,20 @@ def _phyagi_overlay() -> dict[str, Any]:
     reasoning blobs land on a different upstream and are rejected with
     ``invalid_encrypted_content``.
     """
-    base_url = _phyagi_base_url()
+    base_url = _openai_base_url()
     if not base_url:
         return {}
     provider: dict[str, Any] = {
         "baseUrl": base_url,
         "api": "openai-responses",
-        "models": _phyagi_models(),
+        "models": _openai_models(),
     }
-    api_key = (
-        os.environ.get("SRBENCH_PHYAGI_API_KEY", "").strip()
-        or os.environ.get("OPENAI_API_KEY", "").strip()
-    )
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if api_key:
         provider["apiKey"] = api_key
     return {
-        "models": {"mode": "merge", "providers": {PHYAGI_PROVIDER_ID: provider}},
-        "plugins": {"enabled": True, "load": {"paths": [str(PHYAGI_PLUGIN_DIR)]}},
+        "models": {"mode": "merge", "providers": {OPENAI_PROVIDER_ID: provider}},
+        "plugins": {"enabled": True, "load": {"paths": [str(OPENAI_PLUGIN_DIR)]}},
     }
 
 
@@ -378,7 +380,7 @@ class GatewayProcess:
         #: Fixed for the process lifetime so the registration never has to be
         #: rewritten (see :meth:`GatewayWorker.ensure_registered`).
         self.mcp_port = 0
-        #: phyagi session-affinity key. Its value is arbitrary; what matters is
+        #: Gateway session-affinity key. Its value is arbitrary; what matters is
         #: that it is *stable for this process* and unique to it. Stability
         #: keeps every turn of a session on the upstream that holds its
         #: encrypted reasoning state (and its warm prompt cache); uniqueness
@@ -405,15 +407,18 @@ class GatewayProcess:
                 "auth": {"mode": "token", "token": self._token},
             }
         }
-        models = _phyagi_overlay()
-        config.update(models)
+        overlay = _openai_provider_overlay()
+        config.update(overlay)
         self.config_path.write_text(json.dumps(config, indent=2))
         env = dict(os.environ)
         env["OPENCLAW_CONFIG_PATH"] = str(self.config_path)
         env["OPENCLAW_STATE_DIR"] = str(self._dir)
-        # Read by the bundled phyagi plugin, which cannot see this process's
-        # state any other way.
-        env["SRBENCH_PHYAGI_SESSION_ID"] = self.affinity_key
+        if overlay:
+            # Read by the bundled affinity plugin, which cannot see this
+            # process's state any other way. Set only alongside the overlay:
+            # real OpenAI rejects `session_id` as an unknown parameter, and an
+            # empty value makes the plugin inert.
+            env["SRBENCH_OPENAI_SESSION_ID"] = self.affinity_key
         self._proc = await asyncio.create_subprocess_exec(
             self._binary,
             "gateway",
@@ -715,13 +720,14 @@ class GatewayWorker:
             return
         if same_name:
             hint = f"Did you mean {' or '.join(sorted(same_name))}?"
-        elif provider == PHYAGI_PROVIDER_ID:
-            # The phyagi catalog is declared, not discovered, so an unknown id
-            # usually means the sweep wants a model outside the default list.
+        elif provider == OPENAI_PROVIDER_ID and _openai_base_url():
+            # With OPENAI_BASE_URL set the catalog is declared, not discovered,
+            # so an unknown id usually means the sweep wants a model outside the
+            # default list.
             hint = (
-                f"The {PHYAGI_PROVIDER_ID!r} catalog is declared by srbench, not discovered "
-                f"(the gateway serves no /models endpoint). Add {name!r} to "
-                "SRBENCH_PHYAGI_MODELS (comma-separated) to use it."
+                f"With OPENAI_BASE_URL set, the {OPENAI_PROVIDER_ID!r} catalog is declared by "
+                f"srbench rather than discovered. Add {name!r} to SRBENCH_OPENAI_MODELS "
+                "(comma-separated) to use it."
             )
         else:
             hint = (

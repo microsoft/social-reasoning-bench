@@ -683,11 +683,11 @@ def test_base_assistant_agent_stores_the_harness_run_configuration():
             pass
 
     agent = Minimal(
-        task="TASK", model="phyagi/gpt-5.5", reasoning_effort="xhigh", system_prompt="PROMPT"
+        task="TASK", model="openai/gpt-5.5", reasoning_effort="xhigh", system_prompt="PROMPT"
     )
 
     assert agent.task == "TASK"
-    assert agent.model == "phyagi/gpt-5.5"
+    assert agent.model == "openai/gpt-5.5"
     assert agent.reasoning_effort == "xhigh"
     assert agent.system_prompt == "PROMPT"
 
@@ -736,7 +736,7 @@ def test_calendar_setup_forwards_the_run_configuration(tmp_path, monkeypatch):
     config = CalendarRunConfig(
         paths=["x"],
         assistant_agent=spec,
-        assistant_model="phyagi/gpt-5.5",
+        assistant_model="openai/gpt-5.5",
         assistant_reasoning_effort="xhigh",
     )
 
@@ -744,7 +744,7 @@ def test_calendar_setup_forwards_the_run_configuration(tmp_path, monkeypatch):
     bench.setup(config)
     agent = bench.assistant_agent_factory(task="TASK")
 
-    assert agent.model == "phyagi/gpt-5.5"
+    assert agent.model == "openai/gpt-5.5"
     assert agent.reasoning_effort == "xhigh"
     assert agent.system_prompt == bench.system_prompt
 
@@ -758,7 +758,7 @@ def test_calendar_agent_kwargs_override_the_run_configuration(tmp_path, monkeypa
     config = CalendarRunConfig(
         paths=["x"],
         assistant_agent=spec,
-        assistant_model="phyagi/gpt-5.5",
+        assistant_model="openai/gpt-5.5",
         assistant_agent_kwargs={"model": "anthropic/claude-opus-4-6"},
     )
 
@@ -777,7 +777,7 @@ def test_marketplace_setup_forwards_the_run_configuration(tmp_path, monkeypatch)
     config = MarketplaceRunConfig(
         paths=["x"],
         buyer_agent=spec,
-        buyer_model="phyagi/gpt-5.4",
+        buyer_model="openai/gpt-5.4",
         buyer_reasoning_effort="medium",
     )
 
@@ -785,6 +785,6 @@ def test_marketplace_setup_forwards_the_run_configuration(tmp_path, monkeypatch)
     bench.setup(config)
     agent = bench.buyer_agent_factory(task="TASK")
 
-    assert agent.model == "phyagi/gpt-5.4"
+    assert agent.model == "openai/gpt-5.4"
     assert agent.reasoning_effort == "medium"
     assert agent.system_prompt == bench.system_prompt

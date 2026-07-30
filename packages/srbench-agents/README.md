@@ -57,6 +57,23 @@ Reasoning effort maps to the Claude SDK `effort` option and to OpenClaw's
 thinking level respectively. Leave a variable unset to use the backend's own
 default.
 
+### Pointing `openai/*` at a gateway
+
+Setting `OPENAI_BASE_URL` overlays OpenClaw's built-in `openai` provider onto
+that endpoint, so `openai/<model>` ids resolve there instead of at real OpenAI.
+The overlay runs on the **Responses API**, and a bundled OpenClaw plugin adds
+the gateway's `session_id` / `strict_session` parameters to every request so a
+Gateway's turns stay pinned to one upstream — without that pin, replayed
+encrypted reasoning is rejected. Leave `OPENAI_BASE_URL` unset and OpenClaw
+talks to OpenAI unchanged.
+
+| Variable | Purpose |
+| --- | --- |
+| `OPENAI_BASE_URL` | Gateway endpoint. Unset leaves the provider untouched. |
+| `OPENAI_API_KEY` | Credential for that endpoint. |
+| `SRBENCH_OPENAI_MODELS` | Comma-separated catalog (default `gpt-5.4,gpt-5.5`). A gateway usually serves no `/models` endpoint, so the catalog is declared rather than discovered. |
+| `SRBENCH_OPENAI_STRICT_SESSION` | Set `false` to let the gateway silently rebind when a pinned endpoint disappears instead of failing fast. |
+
 ## How it works
 
 The agents reuse `srbench.mcp.build_server`, which turns the environment's
