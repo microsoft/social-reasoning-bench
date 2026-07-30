@@ -28,6 +28,9 @@ class CalendarRunConfig(BaseRunConfig):
 
     # Calendar-specific
     expose_preferences: bool = Field(default=True)
+    # When False, the <user_preference> block is still injected into the user
+    # turn but the system prompt gets no explanation of it. Ablation only.
+    preference_guidance: bool = Field(default=True)
 
     # --- Assistant resolved properties ---
 

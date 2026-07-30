@@ -139,6 +139,7 @@ class CalendarBenchmark(
             config.expose_preferences,
             cancel_event,
             benchmark_logger=self._benchmark_logger,
+            preference_guidance=config.preference_guidance,
         )
 
     def make_execution_error_result(
