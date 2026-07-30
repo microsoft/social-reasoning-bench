@@ -40,6 +40,7 @@ class CalendarAssistantAgent(CalendarAgent):
         explicit_cot: bool = False,
         expose_preferences: bool = False,
         max_actions: int = 50,
+        preference_guidance: bool = True,
     ):
         super().__init__(
             model=model,
@@ -62,7 +63,9 @@ class CalendarAssistantAgent(CalendarAgent):
         preference_block = (
             format_user_preference_block(assistant.preference_md) if expose_preferences else ""
         )
-        guidance = CALENDAR_PREFERENCE_GUIDANCE if preference_block else None
+        guidance = (
+            CALENDAR_PREFERENCE_GUIDANCE if preference_block and preference_guidance else None
+        )
         sys_parts = [p for p in [base, identity, guidance] if p]
         self._messages.append({"role": "system", "content": "\n\n".join(sys_parts)})
 

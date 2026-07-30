@@ -116,6 +116,7 @@ async def execute_task(
     expose_preferences: bool,
     cancel_event: asyncio.Event | None = None,
     benchmark_logger: BenchmarkLogger | None = None,
+    preference_guidance: bool = True,
 ) -> CalendarExecutionResult:
     """Execute a single calendar scheduling task.
 
@@ -216,6 +217,7 @@ async def execute_task(
         explicit_cot=assistant_explicit_cot,
         expose_preferences=expose_preferences,
         max_actions=max_actions_per_agent,
+        preference_guidance=preference_guidance,
     )
 
     requestor_agent = CalendarRequestorAgent(

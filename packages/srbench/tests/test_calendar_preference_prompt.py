@@ -80,12 +80,17 @@ def _make_assistant(
     )
 
 
-def _messages(assistant: CalendarAssistant, expose_preferences: bool = True):
+def _messages(
+    assistant: CalendarAssistant,
+    expose_preferences: bool = True,
+    preference_guidance: bool = True,
+):
     """Build an assistant agent and return its seeded system and user messages.
 
     Args:
         assistant: The principal the agent acts for.
         expose_preferences: Whether preferences are shown to the model.
+        preference_guidance: Whether the system prompt explains the tag.
 
     Returns:
         A ``(system_content, user_content)`` tuple.
@@ -96,6 +101,7 @@ def _messages(assistant: CalendarAssistant, expose_preferences: bool = True):
         assistant=assistant,
         allowed_contacts=["bob@external.com"],
         expose_preferences=expose_preferences,
+        preference_guidance=preference_guidance,
     )
     system_message, user_message = agent.messages[0], agent.messages[1]
     return system_message["content"], user_message["content"]
@@ -138,6 +144,16 @@ class TestNaturalLanguagePreferences:
 
         assert CALENDAR_PREFERENCE_GUIDANCE in system
         assert system.startswith(CALENDAR_ROLE)
+
+    def test_guidance_can_be_suppressed_without_dropping_the_block(self):
+        """The ablation keeps the tagged block but leaves the system prompt bare."""
+        system, user = _messages(
+            _make_assistant(preference_md=PREFERENCE_MD), preference_guidance=False
+        )
+
+        assert CALENDAR_PREFERENCE_GUIDANCE not in system
+        assert f"<{USER_PREFERENCE_TAG}>" in user
+        assert "User never takes meetings during the noon hour." in user
 
     def test_system_prompt_defers_to_the_block_for_bookable_hours(self):
         """No working day is hard-coded; the preference block decides."""
