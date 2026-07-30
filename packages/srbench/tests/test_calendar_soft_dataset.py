@@ -1,6 +1,6 @@
-"""Tests for the soft-preference port of ``small.yaml``.
+"""Tests for the soft-preference ports of the numeric calendar datasets.
 
-The port swaps each task's numeric preference table for a preference document
+A port swaps each task's numeric preference table for a preference document
 the assistant reads and a verifier that grades against it. That only works if
 the three agree, so these tests check the parts a machine can check: that the
 scenarios are otherwise untouched, that every document has a verifier and vice
@@ -8,12 +8,17 @@ versa, that each verifier ranks slots exactly as the numeric table it replaced,
 that each document states the ranking its verifier enforces, and that every
 task stays schedulable.
 
-These are properties of the whole dataset rather than assertions about
-individual tasks, so they hold for however many tasks the dataset grows to.
+These are properties of a whole dataset rather than assertions about individual
+tasks, so they hold for however many tasks a dataset grows to. Ports are
+discovered rather than listed, so they also hold for however many datasets are
+ported: every ``<name>_soft`` directory is found and run through the same
+checks against the ``<name>.yaml`` it came from.
 """
 
 import importlib
+import itertools
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -32,37 +37,74 @@ from srbench.benchmarks.calendar_scheduling.loader import load_tasks
 from srbench.benchmarks.calendar_scheduling.types import CalendarTask
 
 DATA_DIR = Path(__file__).parents[3] / "data" / "calendar-scheduling"
-SOFT_DIR = DATA_DIR / "small_soft"
-SOFT_YAML = SOFT_DIR / "tasks.yaml"
-LEGACY_YAML = DATA_DIR / "small.yaml"
 
 # The hours the numeric tables score, and so the hours the documents rank.
 GRID = [hour * 60 for hour in range(8, 19)]
 
 
+@dataclass(frozen=True)
+class SoftDataset:
+    """A ported dataset, paired with the numeric dataset it was ported from."""
+
+    name: str
+    directory: Path
+
+    @property
+    def tasks_yaml(self) -> Path:
+        return self.directory / "tasks.yaml"
+
+    @property
+    def legacy_yaml(self) -> Path:
+        return DATA_DIR / f"{self.name}.yaml"
+
+    @property
+    def documents(self) -> set[str]:
+        """Return every document the dataset ships, as tasks declare them."""
+        return {
+            f"preferences/{path.name}" for path in (self.directory / "preferences").glob("*.md")
+        }
+
+
+DATASETS = [
+    SoftDataset(directory.name.removesuffix("_soft"), directory)
+    for directory in sorted(DATA_DIR.glob("*_soft"))
+]
+
+
 def _verifier(task_id: int):
-    """Return the verifier module that grades a task."""
+    """Return the verifier module that grades a task.
+
+    Verifiers live in one package shared by every dataset, keyed by the
+    document path a task declares. Nested datasets can therefore reuse a task's
+    document and verifier rather than duplicating either.
+    """
     package = "srbench.benchmarks.calendar_scheduling.evaluation.preference_adherence.verifiers"
     return importlib.import_module(f"{package}.task_{task_id:03d}")
 
 
+@pytest.fixture(scope="module", params=DATASETS, ids=lambda dataset: dataset.name)
+def dataset(request) -> SoftDataset:
+    """Run each test once per ported dataset."""
+    return request.param
+
+
 @pytest.fixture(scope="module")
-def soft_tasks() -> dict[int, CalendarTask]:
+def soft_tasks(dataset) -> dict[int, CalendarTask]:
     """Return the soft-preference tasks keyed by id."""
-    return {task.id: task for task in load_tasks([str(SOFT_YAML)]).all_tasks}
+    return {task.id: task for task in load_tasks([str(dataset.tasks_yaml)]).all_tasks}
 
 
 @pytest.fixture(scope="module")
-def legacy_raw() -> dict[int, dict]:
-    """Return ``small.yaml``'s raw task mappings keyed by id."""
-    raw = yaml.safe_load(LEGACY_YAML.read_text(encoding="utf-8"))
+def legacy_raw(dataset) -> dict[int, dict]:
+    """Return the numeric dataset's raw task mappings keyed by id."""
+    raw = yaml.safe_load(dataset.legacy_yaml.read_text(encoding="utf-8"))
     return {task["id"]: task for task in raw["tasks"]}
 
 
 @pytest.fixture(scope="module")
-def soft_raw() -> dict[int, dict]:
+def soft_raw(dataset) -> dict[int, dict]:
     """Return the soft dataset's raw task mappings keyed by id."""
-    raw = yaml.safe_load(SOFT_YAML.read_text(encoding="utf-8"))
+    raw = yaml.safe_load(dataset.tasks_yaml.read_text(encoding="utf-8"))
     return {task["id"]: task for task in raw["tasks"]}
 
 
@@ -110,7 +152,7 @@ def _ranked_hours(document: str) -> list[list[int]]:
 
 
 class TestNothingButThePreferencesChanged:
-    """The port reuses ``small.yaml``'s scenarios verbatim."""
+    """A port reuses its numeric dataset's scenarios verbatim."""
 
     def test_every_task_was_ported(self, soft_raw, legacy_raw):
         assert sorted(soft_raw) == sorted(legacy_raw)
@@ -148,10 +190,34 @@ class TestTheDatasetIsWiredUp:
             assert task.assistant.preference_file in registry._VERIFIERS
 
     def test_every_document_and_verifier_has_its_counterpart(self):
-        """Either half alone fails at grading time, which is far too late to notice."""
-        on_disk = {f"preferences/{path.name}" for path in (SOFT_DIR / "preferences").glob("*.md")}
+        """Either half alone fails at grading time, which is far too late to notice.
+
+        The registry is shared, so this compares it against every dataset's
+        documents at once rather than one dataset's.
+        """
+        on_disk = set().union(*(dataset.documents for dataset in DATASETS))
 
         assert on_disk == set(registry._VERIFIERS)
+
+
+class TestPortsShareRatherThanDuplicate:
+    """Datasets are nested, so a task ported twice must be ported identically."""
+
+    def test_the_ports_cover_every_dataset_on_disk(self):
+        """A dataset these tests never discovered is a dataset nothing checks."""
+        assert DATASETS
+        for dataset in DATASETS:
+            assert dataset.tasks_yaml.is_file()
+            assert dataset.legacy_yaml.is_file(), dataset.name
+
+    def test_a_task_in_two_datasets_ships_the_same_document(self):
+        """One document path means one verifier, so two spellings of a task's
+        preferences would leave one of them graded against prose it never saw."""
+        for earlier, later in itertools.combinations(DATASETS, 2):
+            for document in earlier.documents & later.documents:
+                assert (earlier.directory / document).read_text(encoding="utf-8") == (
+                    later.directory / document
+                ).read_text(encoding="utf-8"), (earlier.name, later.name, document)
 
 
 class TestThePortIsFaithful:
@@ -230,5 +296,5 @@ class TestEveryTaskStaysSchedulable:
             assert task.satisfiable == bool(_feasible(task)), task.id
 
     def test_no_task_lost_its_bookable_slots_in_the_port(self, soft_tasks):
-        """Every task in ``small.yaml`` is satisfiable, and the port keeps it that way."""
+        """Every task in the numeric datasets is satisfiable, and a port keeps it that way."""
         assert all(_feasible(task) for task in soft_tasks.values())
