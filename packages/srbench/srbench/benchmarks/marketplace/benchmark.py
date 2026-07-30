@@ -95,10 +95,30 @@ class MarketplaceBenchmark(
         return MarketplaceRunConfig.from_args(args)
 
     def setup(self, config: MarketplaceRunConfig) -> None:
+        # Resolved before the agent factory: the system prompt is part of the
+        # BYOA constructor contract, so it has to exist when the factory binds.
+        from .prompts import get_system_prompt
+
+        prompt_preset = config.system_prompt
+        if prompt_preset and prompt_preset != "none":
+            self.system_prompt: str | None = get_system_prompt(prompt_preset)
+        else:
+            self.system_prompt = None
+
         self.buyer_agent_factory = (
             functools.partial(
                 load_agent_class(config.buyer_agent, expected=BaseAssistantAgent),
-                **config.buyer_agent_kwargs,
+                # The per-agent fields only, never the global ``--model`` /
+                # ``--reasoning-effort`` fallbacks: those configure the built-in
+                # clients (seller, judge), and feeding them to a BYOA agent
+                # would override its own default with a model id its backend
+                # may not even understand. Explicit agent kwargs still win.
+                **{
+                    "model": config.buyer_model,
+                    "reasoning_effort": config.buyer_reasoning_effort,
+                    "system_prompt": self.system_prompt,
+                    **config.buyer_agent_kwargs,
+                },
             )
             if config.buyer_agent
             else None
@@ -115,15 +135,6 @@ class MarketplaceBenchmark(
             config.resolved_judge_base_url,
             config.resolved_judge_reasoning_effort,
         )
-
-        # Resolve system prompt once (same for all tasks)
-        from .prompts import get_system_prompt
-
-        prompt_preset = config.system_prompt
-        if prompt_preset and prompt_preset != "none":
-            self.system_prompt: str | None = get_system_prompt(prompt_preset)
-        else:
-            self.system_prompt = None
 
     async def execute_task(
         self,

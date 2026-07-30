@@ -32,7 +32,11 @@ reports that version at runtime. Install the pinned CLI with::
 
 Provider credentials are read from the environment (e.g. ``ANTHROPIC_API_KEY``);
 each Gateway runs in a throwaway profile, so no ``openclaw onboard`` step is
-needed. Models are ``provider/model`` ids such as ``anthropic/claude-sonnet-4-6``.
+needed. Models are ``provider/model`` ids such as ``anthropic/claude-sonnet-4-6``
+or ``phyagi/gpt-5.5``. Setting ``OPENAI_BASE_URL`` registers the phyagi gateway
+as the ``phyagi`` provider (Responses API, with per-Gateway session affinity);
+see :mod:`srbench_agents.openclaw_gateway`. ``openai/*`` ids are unaffected and
+still mean real OpenAI.
 
 Optional environment overrides:
 
@@ -163,24 +167,35 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
         *,
         task: AssistantTask,
         model: str | None = None,
-        reasoning_effort: str | None = None,
+        reasoning_effort: str | int | None = None,
         system_prompt: str | None = None,
     ) -> None:
-        self.task = task
-        self._model = model or os.environ.get("SRBENCH_OPENCLAW_MODEL")
+        super().__init__(
+            task=task,
+            model=model,
+            reasoning_effort=reasoning_effort,
+            system_prompt=system_prompt,
+        )
+        self._model = self.model or os.environ.get("SRBENCH_OPENCLAW_MODEL")
         # Reasoning effort maps to OpenClaw's thinking level
         # (``off``/``minimal``/``low``/``medium``/``high``, plus
         # provider-supported ``xhigh``/``adaptive``/``max``); ``None`` uses the
-        # OpenClaw default.
-        self._reasoning_effort = reasoning_effort or os.environ.get(
-            "SRBENCH_OPENCLAW_REASONING_EFFORT"
-        )
+        # OpenClaw default. Levels are named, so a numeric effort cannot be
+        # honoured and is rejected rather than silently dropped.
+        effort = self.reasoning_effort
+        if isinstance(effort, int):
+            raise ValueError(
+                f"OpenClaw thinking levels are named, not numeric: got {effort!r}. "
+                "Use one of off/minimal/low/medium/high (or a provider-supported "
+                "xhigh/adaptive/max)."
+            )
+        self._reasoning_effort = effort or os.environ.get("SRBENCH_OPENCLAW_REASONING_EFFORT")
         # The harness may supply the operating system prompt; otherwise fall
         # back to this agent's built-in benchmark ground rules. The opening turn
         # has no separate system-prompt channel, so it is prepended to the
         # opening message.
         self._system_prompt = (
-            system_prompt
+            self.system_prompt
             or os.environ.get("SRBENCH_OPENCLAW_SYSTEM_PROMPT")
             or DEFAULT_ASSISTANT_SYSTEM_PROMPT
         )

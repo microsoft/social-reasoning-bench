@@ -119,10 +119,27 @@ class CalendarBenchmark(
         return CalendarRunConfig.from_args(args)
 
     def setup(self, config: CalendarRunConfig) -> None:
+        # Resolved before the agent factory: the system prompt is part of the
+        # BYOA constructor contract, so it has to exist when the factory binds.
+        if config.system_prompt:
+            self.system_prompt: str | None = get_system_prompt(config.system_prompt)
+        else:
+            self.system_prompt = None
+
         self.assistant_agent_factory = (
             functools.partial(
                 load_agent_class(config.assistant_agent, expected=BaseAssistantAgent),
-                **config.assistant_agent_kwargs,
+                # The per-agent fields only, never the global ``--model`` /
+                # ``--reasoning-effort`` fallbacks: those configure the built-in
+                # clients (requestor, judge), and feeding them to a BYOA agent
+                # would override its own default with a model id its backend
+                # may not even understand. Explicit agent kwargs still win.
+                **{
+                    "model": config.assistant_model,
+                    "reasoning_effort": config.assistant_reasoning_effort,
+                    "system_prompt": self.system_prompt,
+                    **config.assistant_agent_kwargs,
+                },
             )
             if config.assistant_agent
             else None
@@ -139,12 +156,6 @@ class CalendarBenchmark(
             config.resolved_judge_base_url,
             config.resolved_judge_reasoning_effort,
         )
-
-        # Resolve system prompt
-        if config.system_prompt:
-            self.system_prompt: str | None = get_system_prompt(config.system_prompt)
-        else:
-            self.system_prompt = None
 
     async def execute_task(
         self,

@@ -153,16 +153,52 @@ class BaseAssistantAgent(BaseAgent, Generic[TaskT]):
     transcript as OpenAI chat messages. When present, executors record it
     on the execution result as a debugging artifact.
 
-    Constructor convention (optional but recommended): in addition to the
-    typed ``task``, agents may accept keyword-only ``model``,
-    ``reasoning_effort`` and ``system_prompt`` parameters, supplied through the
-    CLI's ``--assistant-agent-kwargs`` / ``--buyer-agent-kwargs`` JSON. When
-    ``model`` / ``reasoning_effort`` are present in those kwargs, the harness
-    mirrors them onto the run config's ``assistant_model`` /
-    ``assistant_reasoning_effort`` (buyer equivalents) so results files and the
-    dashboard report the agent's model like any built-in run. ``system_prompt``
-    lets the harness own the agent's operating prompt instead of hardcoding it.
+    Constructor contract: :meth:`__init__` below *is* the contract. The harness
+    supplies ``task`` at execution time and ``model`` / ``reasoning_effort`` /
+    ``system_prompt`` when the run configures them, so an implementation that
+    accepts them participates in ``--assistant-model``,
+    ``--assistant-reasoning-effort`` and ``--system-prompt`` (buyer equivalents)
+    without any per-agent wiring. ``--assistant-agent-kwargs`` remains the
+    escape hatch for agent-specific extras and overrides these on conflict.
     """
+
+    #: The agent's private brief for this run.
+    task: TaskT
+    #: Model id, in whatever form the implementation's backend expects (e.g.
+    #: OpenClaw's ``provider/model``). ``None`` leaves the choice to the agent.
+    model: str | None
+    #: Reasoning/thinking effort, or ``None`` for the backend's default. Typed
+    #: loosely because backends disagree on both the scale and the spelling.
+    reasoning_effort: str | int | None
+    #: Operating system prompt owned by the harness, or ``None`` to let the
+    #: agent supply its own.
+    system_prompt: str | None
+
+    def __init__(
+        self,
+        *,
+        task: TaskT,
+        model: str | None = None,
+        reasoning_effort: str | int | None = None,
+        system_prompt: str | None = None,
+    ) -> None:
+        """Store the harness-supplied run configuration.
+
+        Subclasses that need to derive backend-specific fields (environment
+        fallbacks, narrowed literal types) should call ``super().__init__(...)``
+        first and then read the attributes it sets, so there is exactly one
+        place where the harness contract is spelled out.
+
+        Args:
+            task: The agent's private brief, typed per benchmark.
+            model: Model id, or ``None`` to let the agent decide.
+            reasoning_effort: Reasoning effort, or ``None`` for the default.
+            system_prompt: Harness-owned operating prompt, or ``None``.
+        """
+        self.task = task
+        self.model = model
+        self.reasoning_effort = reasoning_effort
+        self.system_prompt = system_prompt
 
 
 class BaseCounterpartAgent(BaseAgent):

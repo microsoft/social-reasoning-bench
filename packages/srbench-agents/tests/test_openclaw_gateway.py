@@ -401,3 +401,111 @@ def test_gateways_are_torn_down_at_interpreter_exit(tmp_path: Path):
     assert not profile.exists()
     assert process not in openclaw_gateway._LIVE
     openclaw_gateway._stop_live_gateways()  # idempotent
+
+
+# --- phyagi provider --------------------------------------------------------
+
+
+@pytest.fixture
+def phyagi_env(monkeypatch: pytest.MonkeyPatch):
+    """Configure the phyagi endpoint and clear every optional override."""
+    monkeypatch.setenv("SRBENCH_PHYAGI_BASE_URL", "https://gateway.example.net/api")
+    for name in ("SRBENCH_PHYAGI_MODELS", "SRBENCH_PHYAGI_API_KEY", "OPENAI_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    return monkeypatch
+
+
+def test_phyagi_overlay_is_empty_without_a_base_url(monkeypatch: pytest.MonkeyPatch):
+    """No endpoint means no provider, rather than a provider pointed at nothing."""
+    monkeypatch.delenv("SRBENCH_PHYAGI_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+
+    assert openclaw_gateway._phyagi_overlay() == {}
+
+
+def test_phyagi_overlay_targets_the_responses_api(phyagi_env):
+    """The provider must use Responses, not Chat Completions.
+
+    Chat Completions was the old ``openai`` overlay, and on that route OpenClaw
+    emits no ``reasoning_effort`` at all, so ``--assistant-reasoning-effort`` was
+    silently a no-op.
+    """
+    overlay = openclaw_gateway._phyagi_overlay()
+    provider = overlay["models"]["providers"]["phyagi"]
+
+    assert provider["api"] == "openai-responses"
+    assert provider["baseUrl"] == "https://gateway.example.net/api"
+    assert overlay["models"]["mode"] == "merge"
+    # The built-in openai provider must stay untouched: overlaying its baseUrl
+    # made every openai/* id mean "whatever endpoint was configured".
+    assert set(overlay["models"]["providers"]) == {"phyagi"}
+
+
+def test_phyagi_overlay_loads_the_bundled_plugin(phyagi_env):
+    """Affinity injection is only possible from the plugin, so it must load."""
+    overlay = openclaw_gateway._phyagi_overlay()
+
+    assert overlay["plugins"]["enabled"] is True
+    assert overlay["plugins"]["load"]["paths"] == [str(openclaw_gateway.PHYAGI_PLUGIN_DIR)]
+    assert (openclaw_gateway.PHYAGI_PLUGIN_DIR / "openclaw.plugin.json").is_file()
+    assert (openclaw_gateway.PHYAGI_PLUGIN_DIR / "index.mjs").is_file()
+
+
+def test_phyagi_overlay_declares_a_model_catalog(phyagi_env):
+    """OpenClaw refuses to boot a custom provider that declares no models."""
+    models = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]["models"]
+
+    assert [entry["id"] for entry in models] == list(openclaw_gateway.PHYAGI_DEFAULT_MODELS)
+    assert all(entry["reasoning"] is True for entry in models)
+    assert all(entry["contextWindow"] == openclaw_gateway.PHYAGI_CONTEXT_WINDOW for entry in models)
+
+
+def test_phyagi_model_catalog_is_overridable(phyagi_env):
+    """A sweep can name models this build predates without a code change."""
+    phyagi_env.setenv("SRBENCH_PHYAGI_MODELS", " gpt-6, , gpt-6-mini ")
+
+    models = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]["models"]
+
+    assert [entry["id"] for entry in models] == ["gpt-6", "gpt-6-mini"]
+
+
+def test_phyagi_api_key_prefers_the_dedicated_variable(phyagi_env):
+    """A phyagi-specific key must win over the generic OpenAI one."""
+    phyagi_env.setenv("OPENAI_API_KEY", "generic")
+    phyagi_env.setenv("SRBENCH_PHYAGI_API_KEY", "dedicated")
+
+    provider = openclaw_gateway._phyagi_overlay()["models"]["providers"]["phyagi"]
+
+    assert provider["apiKey"] == "dedicated"
+
+
+def test_affinity_key_is_stable_per_process_and_unique_across_them():
+    """Stability pins a session's turns to one upstream; uniqueness spreads a pool.
+
+    Every turn replays encrypted reasoning, which only the upstream that issued
+    it can decrypt, so the key must not change mid-session. Sharing one key
+    across Gateways would instead collapse a whole sweep onto a single upstream.
+    """
+    one = openclaw_gateway.GatewayProcess(verify_version=False)
+    two = openclaw_gateway.GatewayProcess(verify_version=False)
+
+    assert one.affinity_key == one.affinity_key
+    assert one.affinity_key != two.affinity_key
+    assert one.affinity_key.startswith("srbench-")
+
+
+def test_plugin_maps_xhigh_so_it_is_not_clamped_to_high():
+    """``thinkingLevelMap`` is the only thing that unlocks ``xhigh``.
+
+    OpenClaw's ``getSupportedThinkingLevels`` treats ``xhigh``/``max`` as
+    unavailable unless ``thinkingLevelMap`` has an entry for them, and
+    ``clampThinkingLevel`` then silently degrades a requested ``xhigh`` to
+    ``high``. ``compat.supportedReasoningEfforts`` does not help — the Responses
+    adapter never reads it — so dropping this map would quietly cap
+    ``--assistant-reasoning-effort xhigh``.
+    """
+    source = (openclaw_gateway.PHYAGI_PLUGIN_DIR / "index.mjs").read_text()
+
+    assert "normalizeResolvedModel" in source
+    assert 'xhigh: "xhigh"' in source
+    assert 'max: "xhigh"' in source

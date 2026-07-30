@@ -7,9 +7,10 @@ A clone of the v0.1.0 experiment, but the assistant side is driven by
 model-driven assistant. Everything else — the counterparty, judge, attacks,
 defenses, and data — mirrors v0.1.0 so results are directly comparable.
 
-Model and reasoning effort are supplied *per variant* through
-``assistant_agent_kwargs`` / ``buyer_agent_kwargs`` (forwarded to each agent's
-constructor), so a single ``srbench experiment`` run can sweep multiple agents.
+Model and reasoning effort are supplied *per variant* through the run config's
+per-agent fields (``assistant_model`` / ``buyer_model`` and the matching
+``*_reasoning_effort``), which the harness forwards to each agent's constructor,
+so a single ``srbench experiment`` run can sweep multiple agents.
 
 Prerequisites:
     pip install 'srbench-agents[claude]'      # Claude agent (in-process)
@@ -28,8 +29,6 @@ To reproduce:
 
 from pathlib import Path
 from typing import Any, Literal
-
-from srbench_agents import DEFAULT_ASSISTANT_SYSTEM_PROMPT
 
 # BYOA runs are heavier than model-only runs (each task holds an OpenClaw
 # Gateway exclusively while it runs), so this defaults to the "small" split.
@@ -61,7 +60,7 @@ ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
 # --- Assistant sweep: model × reasoning-effort grid, per BYOA agent ---------
 #
 # ``model`` and ``reasoning_effort`` are forwarded to each agent's constructor
-# per variant (via assistant_agent_kwargs / buyer_agent_kwargs), so a single
+# per variant (via the per-agent run-config fields), so a single
 # `srbench experiment` run sweeps the whole grid. Model namespaces and effort
 # vocabularies differ per backend, so each agent declares its own lists:
 #
@@ -70,6 +69,7 @@ ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
 #                                            xhigh / adaptive / max
 #
 # OpenClaw models are ``provider/model`` strings (a bare model id is rejected).
+# ``phyagi/*`` is the gateway in OPENAI_BASE_URL; ``openai/*`` is real OpenAI.
 # Provider credentials come from the environment (e.g. OPENAI_API_KEY,
 # ANTHROPIC_API_KEY); no ``openclaw onboard`` step is required.
 AGENTS: list[dict[str, Any]] = [
@@ -84,7 +84,7 @@ AGENTS: list[dict[str, Any]] = [
         # OpenClaw, driven over its Gateway (HTTP MCP). Requires openclaw@2026.5.28.
         "name": "openclaw",
         "agent": "srbench_agents.openclaw_agent:OpenClawAgent",
-        "models": ["openai/gpt-5.4", "openai/gpt-5.5"],
+        "models": ["phyagi/gpt-5.4", "phyagi/gpt-5.5"],
         "efforts": ["high"],
     },
 ]
@@ -95,9 +95,15 @@ def assistants():
 
     Each agent declares its own ``models`` and ``efforts`` lists (the model
     namespace and effort vocabulary differ per backend), and this yields the
-    full grid. Every entry provides an import string (``agent``) and the
-    constructor ``kwargs`` forwarded to it; ``label`` builds a filesystem-safe
-    variant name. Edit ``AGENTS`` to widen or narrow the sweep.
+    full grid. Every entry provides an import string (``agent``) plus the model
+    and effort; ``label`` builds a filesystem-safe variant name. Edit ``AGENTS``
+    to widen or narrow the sweep.
+
+    Model and effort travel on the run config's per-agent fields rather than
+    through ``*_agent_kwargs``. The harness forwards those fields to the agent's
+    constructor *and* reports them, so they are stated once instead of twice,
+    and ``*_agent_kwargs`` stays what it is meant to be: an escape hatch for
+    agent-specific extras.
     """
     for spec in AGENTS:
         for model in spec["models"]:
@@ -105,14 +111,8 @@ def assistants():
                 yield {
                     "label": f"{spec['name']}_{model}_{effort}",
                     "agent": spec["agent"],
-                    # Pass the canonical operating prompt explicitly so every
-                    # agent runs under the same rules (rather than each agent
-                    # falling back to its own built-in default).
-                    "kwargs": {
-                        "model": model,
-                        "reasoning_effort": effort,
-                        "system_prompt": DEFAULT_ASSISTANT_SYSTEM_PROMPT,
-                    },
+                    "model": model,
+                    "effort": effort,
                 }
 
 
@@ -168,7 +168,8 @@ def experiment_calendar():
                             paths=[path],
                             # Assistant (BYOA)
                             assistant_agent=assistant["agent"],
-                            assistant_agent_kwargs=assistant["kwargs"],
+                            assistant_model=assistant["model"],
+                            assistant_reasoning_effort=assistant["effort"],
                             system_prompt=defense,
                             expose_preferences=True,
                             # Requestor
@@ -206,7 +207,8 @@ def experiment_marketplace():
                             paths=[path],
                             # Buyer / assistant (BYOA)
                             buyer_agent=assistant["agent"],
-                            buyer_agent_kwargs=assistant["kwargs"],
+                            buyer_model=assistant["model"],
+                            buyer_reasoning_effort=assistant["effort"],
                             system_prompt=defense,
                             # Seller / counterparty
                             seller_model=COUNTERPARTY["model"],

@@ -84,24 +84,37 @@ class ClaudeAgent(BaseAssistantAgent[AssistantTask]):
         *,
         task: AssistantTask,
         model: str | None = None,
-        reasoning_effort: str | None = None,
+        reasoning_effort: str | int | None = None,
         system_prompt: str | None = None,
     ) -> None:
-        self.task = task
+        super().__init__(
+            task=task,
+            model=model,
+            reasoning_effort=reasoning_effort,
+            system_prompt=system_prompt,
+        )
         # Falls back to the SDK/CLI default model when unset.
-        self._model = model or os.environ.get("SRBENCH_CLAUDE_MODEL")
+        self._model = self.model or os.environ.get("SRBENCH_CLAUDE_MODEL")
         # Reasoning effort maps to the SDK ``effort`` option
         # (``low``/``medium``/``high``/``xhigh``/``max``); ``None`` uses the
-        # SDK default. This forwards user-supplied input, so we narrow it to the
-        # SDK's literal type for the option below.
+        # SDK default. The option is named, so a numeric effort cannot be
+        # honoured and is rejected rather than silently dropped.
+        effort = self.reasoning_effort
+        if isinstance(effort, int):
+            raise ValueError(
+                f"Claude effort levels are named, not numeric: got {effort!r}. "
+                "Use one of low/medium/high/xhigh/max."
+            )
+        # This forwards user-supplied input, so we narrow it to the SDK's
+        # literal type for the option below.
         self._reasoning_effort = cast(
             "ClaudeEffort | None",
-            reasoning_effort or os.environ.get("SRBENCH_CLAUDE_REASONING_EFFORT"),
+            effort or os.environ.get("SRBENCH_CLAUDE_REASONING_EFFORT"),
         )
         # The harness may supply the operating system prompt; otherwise fall
         # back to this agent's built-in benchmark ground rules.
         self._system_prompt = (
-            system_prompt
+            self.system_prompt
             or os.environ.get("SRBENCH_CLAUDE_SYSTEM_PROMPT")
             or DEFAULT_ASSISTANT_SYSTEM_PROMPT
         )

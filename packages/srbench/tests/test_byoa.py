@@ -10,7 +10,7 @@ still works from the environment's action trace.
 
 import asyncio
 import textwrap
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from srbench.benchmarks.calendar_scheduling.agents import (
@@ -432,11 +432,6 @@ def _write_recording_agent(tmp_path, monkeypatch) -> str:
 
 
             class RecordingAgent(BaseAssistantAgent):
-                def __init__(self, *, task, model=None, reasoning_effort=None):
-                    self.task = task
-                    self.model = model
-                    self.reasoning_effort = reasoning_effort
-
                 async def run(self, invoke_tool, tools):
                     pass
             """
@@ -669,3 +664,127 @@ def test_openclaw_does_not_retry_after_engaging(monkeypatch):
     with pytest.raises(RuntimeError, match="exited with code 1"):
         asyncio.run(agent._run_agent_with_retries("srbench-deadbeef"))
     assert spawned["n"] == 1  # no retry after engaging
+
+
+# --- constructor contract ---------------------------------------------------
+
+
+def test_base_assistant_agent_stores_the_harness_run_configuration():
+    """``BaseAssistantAgent.__init__`` is the contract, so it must be usable as-is.
+
+    An agent that only implements ``run`` should participate in
+    ``--assistant-model`` / ``--assistant-reasoning-effort`` / ``--system-prompt``
+    without writing any constructor boilerplate.
+    """
+    from srbench.shared import BaseAssistantAgent
+
+    class Minimal(BaseAssistantAgent):
+        async def run(self, invoke_tool, tools):
+            pass
+
+    agent = Minimal(
+        task="TASK", model="phyagi/gpt-5.5", reasoning_effort="xhigh", system_prompt="PROMPT"
+    )
+
+    assert agent.task == "TASK"
+    assert agent.model == "phyagi/gpt-5.5"
+    assert agent.reasoning_effort == "xhigh"
+    assert agent.system_prompt == "PROMPT"
+
+
+def test_base_assistant_agent_run_configuration_is_optional():
+    """Only ``task`` is always supplied; the rest default to "agent decides"."""
+    from srbench.shared import BaseAssistantAgent
+
+    class Minimal(BaseAssistantAgent):
+        async def run(self, invoke_tool, tools):
+            pass
+
+    agent = Minimal(task="TASK")
+
+    assert agent.model is None
+    assert agent.reasoning_effort is None
+    assert agent.system_prompt is None
+
+
+def test_base_assistant_agent_rejects_positional_arguments():
+    """Keyword-only arguments keep the contract extensible without breaking agents."""
+    from srbench.shared import BaseAssistantAgent
+
+    class Minimal(BaseAssistantAgent):
+        async def run(self, invoke_tool, tools):
+            pass
+
+    # Routed through an ``Any`` alias: the positional call is the thing under
+    # test, so it must reach the interpreter rather than be rejected statically.
+    factory: Any = Minimal
+    with pytest.raises(TypeError):
+        factory("TASK")
+
+
+def test_calendar_setup_forwards_the_run_configuration(tmp_path, monkeypatch):
+    """CLI run configuration reaches a BYOA agent without any per-agent wiring.
+
+    Before the constructor contract, ``--assistant-reasoning-effort`` and
+    ``--system-prompt`` reached only the built-in agents; a BYOA agent saw
+    nothing but ``assistant_agent_kwargs``.
+    """
+    from srbench.benchmarks.calendar_scheduling.benchmark import CalendarBenchmark
+    from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+
+    spec = _write_recording_agent(tmp_path, monkeypatch)
+    config = CalendarRunConfig(
+        paths=["x"],
+        assistant_agent=spec,
+        assistant_model="phyagi/gpt-5.5",
+        assistant_reasoning_effort="xhigh",
+    )
+
+    bench = CalendarBenchmark.__new__(CalendarBenchmark)
+    bench.setup(config)
+    agent = bench.assistant_agent_factory(task="TASK")
+
+    assert agent.model == "phyagi/gpt-5.5"
+    assert agent.reasoning_effort == "xhigh"
+    assert agent.system_prompt == bench.system_prompt
+
+
+def test_calendar_agent_kwargs_override_the_run_configuration(tmp_path, monkeypatch):
+    """``--assistant-agent-kwargs`` stays the escape hatch and wins on conflict."""
+    from srbench.benchmarks.calendar_scheduling.benchmark import CalendarBenchmark
+    from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+
+    spec = _write_recording_agent(tmp_path, monkeypatch)
+    config = CalendarRunConfig(
+        paths=["x"],
+        assistant_agent=spec,
+        assistant_model="phyagi/gpt-5.5",
+        assistant_agent_kwargs={"model": "anthropic/claude-opus-4-6"},
+    )
+
+    bench = CalendarBenchmark.__new__(CalendarBenchmark)
+    bench.setup(config)
+
+    assert bench.assistant_agent_factory(task="TASK").model == "anthropic/claude-opus-4-6"
+
+
+def test_marketplace_setup_forwards_the_run_configuration(tmp_path, monkeypatch):
+    """The buyer side carries the same contract as the calendar assistant."""
+    from srbench.benchmarks.marketplace.benchmark import MarketplaceBenchmark
+    from srbench.benchmarks.marketplace.config import MarketplaceRunConfig
+
+    spec = _write_recording_agent(tmp_path, monkeypatch)
+    config = MarketplaceRunConfig(
+        paths=["x"],
+        buyer_agent=spec,
+        buyer_model="phyagi/gpt-5.4",
+        buyer_reasoning_effort="medium",
+    )
+
+    bench = MarketplaceBenchmark.__new__(MarketplaceBenchmark)
+    bench.setup(config)
+    agent = bench.buyer_agent_factory(task="TASK")
+
+    assert agent.model == "phyagi/gpt-5.4"
+    assert agent.reasoning_effort == "medium"
+    assert agent.system_prompt == bench.system_prompt
