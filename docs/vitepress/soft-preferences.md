@@ -2,18 +2,19 @@
 
 Calendar tasks come in two forms. A task can state its principal's scheduling preferences as a numeric table of hourly scores, or as a preference document: prose the assistant reads, paired with a Python verifier that grades what it scheduled.
 
-`data/calendar-scheduling/soft/` is the second kind — the same tasks as `small.yaml` and `medium.yaml`, with each numeric table rewritten as a document.
+`data/calendar-scheduling/soft/` is the second kind — the same tasks as `small.yaml`, `medium.yaml` and `large.yaml`, with each numeric table rewritten as a document.
 
 | Ported dataset | Tasks | Ported from |
 | --- | ---: | --- |
 | `soft/small.yaml` | 21 | `small.yaml` |
 | `soft/medium.yaml` | 70 | `medium.yaml` |
+| `soft/large.yaml` | 140 | `large.yaml` |
 
-The numeric datasets are nested — every `small.yaml` task appears in `medium.yaml` unchanged — and the ports say so by sharing. Both task YAMLs sit in `soft/` and declare the same `preferences/task_NNN.md` for the same task, so the 21 tasks they have in common point at one document on disk and are graded by one verifier. There are 70 documents in `soft/preferences/`, not 91.
+The numeric datasets are nested — every `small.yaml` task appears in `medium.yaml` unchanged, and every `medium.yaml` task in `large.yaml` — and the ports say so by sharing. All three task YAMLs sit in `soft/` and declare the same `preferences/task_NNN.md` for the same task, so a task they have in common points at one document on disk and is graded by one verifier. There are 140 documents in `soft/preferences/`, not 231.
 
 ```bash
 srbench benchmark calendar \
-    --data data/calendar-scheduling/soft/medium.yaml \
+    --data data/calendar-scheduling/soft/large.yaml \
     --model gpt-4.1
 ```
 
@@ -84,7 +85,7 @@ Optimality writes to the same field the numeric path uses, because it measures t
 
 ## The port is faithful to the numeric datasets
 
-Every hour in a task's numeric table becomes a soft preference weighted by that hour's score, so the two gradings rank slots identically and **scores are comparable to `small.yaml`'s and `medium.yaml`'s**. A test asserts this hour by hour across every ported task.
+Every hour in a task's numeric table becomes a soft preference weighted by that hour's score, so the two gradings rank slots identically and **scores are comparable to the numeric datasets'**. A test asserts this hour by hour across every ported task.
 
 Documents are per task, not per principal. The same principal is scored against a different table in every task they appear in — Amara Okafor has seven tasks in `small.yaml` and seven distinct profiles — so one document per principal cannot represent them. Written that way, a document names a slot the numeric table also ranked best in only 2 of those 21 tasks.
 

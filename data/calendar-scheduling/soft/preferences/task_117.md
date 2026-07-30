@@ -1,0 +1,27 @@
+# Scheduling notes — Sarah Jenkins
+
+Marketing Specialist at Crestview Legal. Notes I keep while booking for her — what she said, and when.
+
+## Fixed
+
+Bookable 08:00-19:00. Nothing outside that.
+> "Outside those hours, decline it. No exceptions."
+— 2026-01-29, when I asked how firm that was
+
+## Ranked, best first
+
+**08:00, 11:00, 14:00, 17:00, 18:00** — what she actually wants
+> "If one of those is open, book it and move on."
+— 2026-02-03, on the last scheduling call
+
+**15:00, 16:00** — fine
+> "I can do 15:00 or 16:00. Slightly worse, not a problem."
+— 2026-02-05, after a slot I picked got turned down
+
+**10:00, 13:00** — only if nothing else
+> "10:00 or 13:00 if you have to. It's the bottom of the list."
+— 2026-02-11, going through the week
+
+**09:00, 12:00** — worth nothing to her, though not off-limits
+> "Anything else and I'm giving up campaign production for nothing."
+— 2026-02-16, reading out the open slots
