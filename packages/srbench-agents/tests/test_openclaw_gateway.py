@@ -18,6 +18,7 @@ from srbench_agents import openclaw_gateway
 from srbench_agents.openclaw_gateway import (
     GatewayClient,
     GatewayError,
+    _remove_sandbox_containers,
     _tools_overlay,
     is_error_message,
 )
@@ -552,3 +553,37 @@ def test_asking_for_srbench_tools_leaves_only_the_benchmark_mcp_server(monkeypat
     monkeypatch.setenv("SRBENCH_OPENCLAW_TOOLS", "srbench")
 
     assert _tools_overlay() == {"tools": {"profile": "minimal", "alsoAllow": ["bundle-mcp"]}}
+
+
+def test_the_sandbox_setting_keeps_the_builtins_but_jails_them(monkeypatch):
+    """Built-in tools are useful to study; running them on the host is not.
+
+    The Docker backend with no workspace access puts ``exec`` and ``read``
+    somewhere the repository is not. A sandboxed agent also filters bundled MCP
+    tools by default, so those are allowed back through the sandbox's own key.
+    """
+    monkeypatch.setenv("SRBENCH_OPENCLAW_TOOLS", "sandbox")
+
+    overlay = _tools_overlay()
+
+    assert overlay["tools"] == {"sandbox": {"tools": {"alsoAllow": ["bundle-mcp"]}}}
+    assert overlay["agents"]["defaults"]["sandbox"] == {
+        "mode": "all",
+        "backend": "docker",
+        "workspaceAccess": "none",
+        "scope": "session",
+    }
+
+
+def test_container_cleanup_does_nothing_when_no_sandbox_was_asked_for(monkeypatch, tmp_path):
+    """Teardown must not shell out to docker on runs that never used it."""
+    monkeypatch.delenv("SRBENCH_OPENCLAW_TOOLS", raising=False)
+    calls = []
+    monkeypatch.setattr(
+        "srbench_agents.openclaw_gateway.subprocess.run",
+        lambda *a, **k: calls.append(a) or (_ for _ in ()).throw(AssertionError("ran docker")),
+    )
+
+    _remove_sandbox_containers(tmp_path)
+
+    assert calls == []

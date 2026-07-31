@@ -18,13 +18,41 @@ two SRBench prompt pieces, so each contribution can be read off separately.
 | factor | values | mechanism |
 | --- | --- | --- |
 | OpenClaw system prompt | on / off | `OPENCLAW_SYSTEM_PROMPT_OVERRIDE` |
-| tools | all / srbench | `SRBENCH_OPENCLAW_TOOLS` |
+| tools | all / srbench / sandbox | `SRBENCH_OPENCLAW_TOOLS` |
 | SRBench system prompt | on / off | `assistant_agent_kwargs` |
 | preference guidance | on / off | `assistant_agent_kwargs` |
 
 Twelve cells: six prompt combinations (the two with *both* prompts off are
 skipped — the agent would have no standing instructions to interpret) times two
 tool settings. `ABLATION_REPEATS` runs each cell more than once.
+
+### Tool settings
+
+| value | built-ins | runs on | can read the answer key |
+| --- | --- | --- | --- |
+| `all` (default) | yes | the host, as you | **yes** |
+| `srbench` | no | — | no |
+| `sandbox` | yes | a Docker container | no |
+
+`sandbox` is the one to use to study a fully-equipped agent, since `srbench`
+answers a different question — how a deliberately minimal agent behaves.
+Verified: unsandboxed, the model ran `hostname` and got the host, then read
+`soft/large.yaml`; sandboxed, `exec` still works but reports a container ID and
+the read is denied. The container mounts only a scratch directory read-only —
+no repository, no Gateway config, no API key in its environment.
+
+It needs the sandbox image built once:
+
+```bash
+cd ~/openclaw-pinned
+docker build -t openclaw-sandbox:bookworm-slim -f scripts/docker/sandbox/Dockerfile scripts/docker/sandbox/
+```
+
+OpenClaw creates one container per task and prunes them on an idle timer
+measured in hours, so a sweep would leave hundreds running. Gateway teardown
+removes the ones it created, matched by their mount path.
+
+Add it to the sweep with `ABLATION_TOOLS="all srbench sandbox"` (18 cells).
 
 ## Setup
 
@@ -65,6 +93,9 @@ export SRBENCH_OPENCLAW_BIN=~/openclaw-pinned/openclaw.mjs
 
 experiments/openclaw-prompt-ablation/run.sh --set limit=3   # smoke test
 experiments/openclaw-prompt-ablation/run.sh                 # full 21-task run
+
+# include the sandboxed tool setting (18 cells)
+ABLATION_TOOLS="all srbench sandbox" experiments/openclaw-prompt-ablation/run.sh
 ```
 
 `run.sh` walks the four Gateway-level combinations one process at a time,

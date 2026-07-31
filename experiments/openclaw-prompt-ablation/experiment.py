@@ -114,8 +114,13 @@ def openclaw_prompt() -> str:
 
 
 def tools() -> str:
-    """Return which tools the agent can reach, as the Gateway will configure them."""
-    return "srbench" if os.environ.get("SRBENCH_OPENCLAW_TOOLS", "").lower() == "srbench" else "all"
+    """Return which tools the agent can reach, as the Gateway will configure them.
+
+    Normalized rather than echoed, so an unrecognized value is reported as what
+    it actually does — leave OpenClaw's built-ins enabled on the host.
+    """
+    setting = os.environ.get("SRBENCH_OPENCLAW_TOOLS", "").strip().lower()
+    return setting if setting in ("srbench", "sandbox") else "all"
 
 
 def prompt_cells():

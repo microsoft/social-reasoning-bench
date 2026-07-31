@@ -71,7 +71,9 @@ Environment:
 - ``SRBENCH_PHYAGI_STRICT_SESSION`` — set ``false`` to let the gateway silently
   rebind when a pinned endpoint disappears instead of failing fast.
 - ``SRBENCH_OPENCLAW_TOOLS`` — ``srbench`` restricts the agent to the
-  benchmark's own MCP tools; anything else leaves OpenClaw's built-ins enabled.
+  benchmark's own MCP tools; ``sandbox`` keeps OpenClaw's built-ins but runs
+  them in a Docker container that cannot see the repository; anything else
+  leaves the built-ins enabled on the host.
 
 This module targets **OpenClaw v2026.5.28**.
 """
@@ -88,6 +90,7 @@ import secrets
 import shutil
 import signal
 import socket
+import subprocess
 import sys
 import tempfile
 import time
@@ -365,23 +368,94 @@ def _phyagi_overlay() -> dict[str, Any]:
 
 
 def _tools_overlay() -> dict[str, Any]:
-    """Config fragment restricting which tools the agent may call.
+    """Config fragment deciding what the agent's tools can reach.
 
     A Gateway leaves ``tools`` unset by default, which OpenClaw reads as the
     ``full`` profile: the benchmark's MCP tools are *added* to built-ins like
-    ``exec`` and ``read`` rather than replacing them. That lets a task shell out
-    and read the benchmark's own ground-truth task files, so restricting this is
-    what makes a scored run trustworthy.
+    ``exec`` and ``read`` rather than replacing them, and those built-ins run on
+    the host as the user who started the run. A probe confirmed the obvious
+    consequence — the model read ``data/calendar-scheduling/soft/large.yaml``,
+    the graded ground truth. So the default is not safe to score, and there are
+    two ways out of it.
 
-    ``minimal`` drops the built-ins, but it drops the bundled MCP tools with
-    them, which leaves the agent unable to act at all. ``alsoAllow`` adds those
-    back without turning the policy into an explicit allowlist — an allowlist
-    naming only the MCP tools is rejected at start-up, because they are
-    registered per task and so match nothing when the policy is resolved.
+    ``srbench`` removes the built-ins. ``minimal`` alone would also drop the
+    bundled MCP tools and leave the agent unable to act, so ``alsoAllow`` adds
+    those back without turning the policy into an explicit allowlist — an
+    allowlist naming only the MCP tools is rejected at start-up, because they
+    are registered per task and so match nothing when the policy is resolved.
+
+    ``sandbox`` keeps the built-ins but runs them inside a Docker container with
+    no host mount, so ``read`` cannot see the repository. That is the setting to
+    use for measuring what a fully-equipped agent does, as opposed to measuring
+    a deliberately minimal one. A sandboxed agent filters bundled MCP tools out
+    by default, so those have to be allowed back in as well — through a
+    different key than the ``srbench`` case uses, since this one gates the
+    sandbox rather than the tool profile.
     """
-    if os.environ.get("SRBENCH_OPENCLAW_TOOLS", "").strip().lower() != "srbench":
-        return {}
-    return {"tools": {"profile": "minimal", "alsoAllow": ["bundle-mcp"]}}
+    setting = os.environ.get("SRBENCH_OPENCLAW_TOOLS", "").strip().lower()
+    if setting == "srbench":
+        return {"tools": {"profile": "minimal", "alsoAllow": ["bundle-mcp"]}}
+    if setting == "sandbox":
+        return {
+            "tools": {"sandbox": {"tools": {"alsoAllow": ["bundle-mcp"]}}},
+            "agents": {
+                "defaults": {
+                    "sandbox": {
+                        "mode": "all",
+                        "backend": "docker",
+                        # The container gets no view of the host filesystem at
+                        # all; the benchmark's answer key lives there.
+                        "workspaceAccess": "none",
+                        "scope": "session",
+                    }
+                }
+            },
+        }
+    return {}
+
+
+#: Prefix OpenClaw gives every sandbox container it creates.
+_SANDBOX_CONTAINER_PREFIX = "openclaw-sbx-"
+
+
+def _remove_sandbox_containers(state_dir: Path) -> None:
+    """Delete the sandbox containers this Gateway created.
+
+    OpenClaw prunes them on an idle timer measured in hours, and its scope is
+    one container per session, which for a sweep means one per task. A run of
+    any size would leave hundreds behind. Each container mounts a directory
+    under this Gateway's own profile, so the mount identifies ours exactly
+    rather than by guessing at names, which matters because Gateways in a pool
+    run concurrently.
+
+    Best-effort throughout: teardown must not fail a completed run.
+    """
+    if os.environ.get("SRBENCH_OPENCLAW_TOOLS", "").strip().lower() != "sandbox":
+        return
+
+    def docker(*args: str) -> str:
+        try:
+            done = subprocess.run(
+                ["docker", *args], capture_output=True, text=True, timeout=60, check=False
+            )
+        except (OSError, subprocess.SubprocessError):
+            return ""
+        return done.stdout
+
+    listed = docker("ps", "-aq", "--filter", f"name={_SANDBOX_CONTAINER_PREFIX}").split()
+    if not listed:
+        return
+    inspected = docker(
+        "inspect", "--format", "{{.Id}} {{range .Mounts}}{{.Source}} {{end}}", *listed
+    )
+    root = str(state_dir)
+    ours = [
+        fields[0]
+        for line in inspected.splitlines()
+        if (fields := line.split()) and any(m.startswith(root) for m in fields[1:])
+    ]
+    if ours:
+        docker("rm", "-f", *ours)
 
 
 class GatewayProcess:
@@ -527,6 +601,7 @@ class GatewayProcess:
         self._proc = None
         _LIVE.discard(self)
         if self._dir is not None:
+            _remove_sandbox_containers(self._dir)
             shutil.rmtree(self._dir, ignore_errors=True)
             self._dir = None
 
@@ -561,6 +636,7 @@ class GatewayProcess:
         self._proc = None
         _LIVE.discard(self)
         if self._dir is not None:
+            _remove_sandbox_containers(self._dir)
             shutil.rmtree(self._dir, ignore_errors=True)
             self._dir = None
 
