@@ -27,6 +27,63 @@ def format_secrets_for_prompt(calendar: list[LabeledMeeting]) -> str:
     return "\n".join(lines)
 
 
+def build_assistant_messages(
+    task: CalendarAssistantTask,
+    *,
+    system_prompt: str | None = None,
+    expose_preferences: bool = False,
+    preference_guidance: bool = True,
+) -> tuple[str, str]:
+    """Compose the assistant's opening system and user turns.
+
+    Pulled out of :class:`CalendarAssistantAgent` so a bring-your-own-agent
+    implementation can present a task exactly as the built-in agent does. A
+    BYOA backend that has no system-prompt channel can concatenate the two.
+
+    Args:
+        task: The assistant's private brief.
+        system_prompt: Resolved preset text; ``None`` falls back to ``"none"``.
+        expose_preferences: Whether preferences are shown to the model at all.
+        preference_guidance: Whether the system turn explains the
+            ``<user_preference>`` tag. Only applies when the task carries a
+            natural-language preference document.
+
+    Returns:
+        A ``(system, user)`` pair of message contents.
+    """
+    assistant = task.assistant
+
+    # Build system prompt: resolved preset (default "none"), then identity,
+    # then an explanation of the <user_preference> tag when one is injected.
+    base = system_prompt if system_prompt is not None else get_system_prompt("none")
+    identity = (
+        f"You are {assistant.name}'s calendar scheduling personal assistant."
+        if assistant.name
+        else None
+    )
+    preference_block = (
+        format_user_preference_block(assistant.preference_md) if expose_preferences else ""
+    )
+    guidance = CALENDAR_PREFERENCE_GUIDANCE if preference_block and preference_guidance else None
+    system = "\n\n".join(p for p in [base, identity, guidance] if p)
+
+    # Build user instruction with preferences if exposed. Natural-language
+    # preferences take precedence; tasks that only carry numeric preferences
+    # keep the legacy formatting.
+    instruction_parts = [assistant.instruction_message]
+    if preference_block:
+        instruction_parts.append(preference_block)
+    elif assistant.preferences and expose_preferences:
+        instruction_parts.append(format_preferences_for_prompt(assistant.preferences))
+
+    # If using the privacy prompt (or all, which contains it) add direct privacy instructions
+    if base and CALENDAR_PRIVACY_HINT in base:
+        # Build user instruction about private events
+        instruction_parts.append(format_secrets_for_prompt(assistant.calendar))
+
+    return system, "\n\n".join(p for p in instruction_parts if p)
+
+
 class CalendarAssistantAgent(CalendarAgent, BaseAssistantAgent[CalendarAssistantTask]):
     """Built-in assistant agent that responds to meeting requests."""
 
@@ -48,40 +105,11 @@ class CalendarAssistantAgent(CalendarAgent, BaseAssistantAgent[CalendarAssistant
             max_actions=task.max_actions,
         )
 
-        assistant = task.assistant
-
-        # Build system prompt: resolved preset (default "none"), then identity,
-        # then an explanation of the <user_preference> tag when one is injected.
-        base = system_prompt if system_prompt is not None else get_system_prompt("none")
-        identity = (
-            f"You are {assistant.name}'s calendar scheduling personal assistant."
-            if assistant.name
-            else None
+        system, instruction = build_assistant_messages(
+            task,
+            system_prompt=system_prompt,
+            expose_preferences=expose_preferences,
+            preference_guidance=preference_guidance,
         )
-        preference_block = (
-            format_user_preference_block(assistant.preference_md) if expose_preferences else ""
-        )
-        guidance = (
-            CALENDAR_PREFERENCE_GUIDANCE if preference_block and preference_guidance else None
-        )
-        sys_parts = [p for p in [base, identity, guidance] if p]
-        self._messages.append({"role": "system", "content": "\n\n".join(sys_parts)})
-
-        # Build user instruction with preferences if exposed. Natural-language
-        # preferences take precedence; tasks that only carry numeric preferences
-        # keep the legacy formatting.
-        instruction_parts = [assistant.instruction_message]
-        if preference_block:
-            instruction_parts.append(preference_block)
-        elif assistant.preferences and expose_preferences:
-            instruction_parts.append(format_preferences_for_prompt(assistant.preferences))
-
-        # If using the privacy prompt (or all, which contains it) add direct privacy instructions
-        if base and CALENDAR_PRIVACY_HINT in base:
-            # Build user instruction about private events
-            secrets_instruction = format_secrets_for_prompt(assistant.calendar)
-            instruction_parts.append(secrets_instruction)
-
-        instruction = "\n\n".join(p for p in instruction_parts if p)
-
+        self._messages.append({"role": "system", "content": system})
         self._messages.append({"role": "user", "content": instruction})
