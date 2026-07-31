@@ -129,3 +129,78 @@ def test_a_non_calendar_task_is_rejected():
 
     with pytest.raises(TypeError, match="only handles calendar scheduling tasks"):
         agent._opening_message()
+
+
+# --- Prompt ablation -------------------------------------------------------
+#
+# OpenClaw injects a large system prompt of its own that this agent cannot see.
+# These flags exist so a run can measure what the benchmark's framing adds on
+# top of it, and each cell of that ablation is only meaningful if the flag it is
+# named after actually removed the text it claims to remove.
+
+
+def test_dropping_the_srbench_prompt_leaves_only_the_ground_rules_and_the_task():
+    """With the benchmark's system text off, no part of it survives."""
+    task = _task(preference_md=PREFERENCE_MD)
+    agent = CalendarOpenClawAgent(
+        task=task,
+        model="anthropic/claude-opus-4-8",
+        srbench_system_prompt=False,
+    )
+    agent.system_prompt = get_system_prompt("none")
+
+    message = agent._opening_message()
+
+    base = get_system_prompt("none")
+    assert base is not None
+    assert base.strip() not in message
+    assert "calendar scheduling personal assistant" not in message
+    # The task itself is not part of the treatment and always survives.
+    assert "Please handle my scheduling." in message
+    assert "<user_preference>" in message
+
+
+def test_the_ground_rules_survive_every_setting():
+    """They are the harness protocol contract, not a prompt treatment."""
+    for srbench in (True, False):
+        for guidance in (True, False):
+            agent = CalendarOpenClawAgent(
+                task=_task(preference_md=PREFERENCE_MD),
+                model="anthropic/claude-opus-4-8",
+                srbench_system_prompt=srbench,
+                preference_guidance=guidance,
+            )
+            agent.system_prompt = get_system_prompt("none")
+
+            assert "call `EndConversation` with a brief reason" in agent._opening_message()
+
+
+def test_the_guidance_can_be_dropped_without_dropping_the_preference():
+    """The no-guidance arm still shows the document; only the explanation goes."""
+    agent = CalendarOpenClawAgent(
+        task=_task(preference_md=PREFERENCE_MD),
+        model="anthropic/claude-opus-4-8",
+        preference_guidance=False,
+    )
+    agent.system_prompt = get_system_prompt("none")
+
+    message = agent._opening_message()
+
+    assert CALENDAR_PREFERENCE_GUIDANCE not in message
+    assert f"<user_preference>\n{PREFERENCE_MD}" in message
+
+
+def test_both_flags_default_to_the_faithful_setting():
+    """An ordinary run must not have to know the ablation exists."""
+    task = _task(preference_md=PREFERENCE_MD)
+    plain = _agent(task)
+    plain.system_prompt = get_system_prompt("none")
+    explicit = CalendarOpenClawAgent(
+        task=task,
+        model="anthropic/claude-opus-4-8",
+        srbench_system_prompt=True,
+        preference_guidance=True,
+    )
+    explicit.system_prompt = get_system_prompt("none")
+
+    assert plain._opening_message() == explicit._opening_message()

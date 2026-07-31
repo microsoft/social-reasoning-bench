@@ -33,6 +33,7 @@ def build_assistant_messages(
     system_prompt: str | None = None,
     expose_preferences: bool = False,
     preference_guidance: bool = True,
+    include_identity: bool = True,
 ) -> tuple[str, str]:
     """Compose the assistant's opening system and user turns.
 
@@ -47,6 +48,10 @@ def build_assistant_messages(
         preference_guidance: Whether the system turn explains the
             ``<user_preference>`` tag. Only applies when the task carries a
             natural-language preference document.
+        include_identity: Whether the system turn names the principal the
+            assistant works for. Passing ``system_prompt=""`` together with
+            ``include_identity=False`` leaves no benchmark system text at all,
+            which a BYOA harness needs to measure its own prompt in isolation.
 
     Returns:
         A ``(system, user)`` pair of message contents.
@@ -58,7 +63,7 @@ def build_assistant_messages(
     base = system_prompt if system_prompt is not None else get_system_prompt("none")
     identity = (
         f"You are {assistant.name}'s calendar scheduling personal assistant."
-        if assistant.name
+        if assistant.name and include_identity
         else None
     )
     preference_block = (

@@ -20,6 +20,8 @@ that function is what keeps the two prompts from drifting apart.
 
 from __future__ import annotations
 
+from typing import Any
+
 from srbench.benchmarks.calendar_scheduling.agents.assistant import build_assistant_messages
 from srbench.benchmarks.calendar_scheduling.types import CalendarAssistantTask
 
@@ -62,10 +64,40 @@ def ground_rules() -> str:
 
 
 class CalendarOpenClawAgent(OpenClawAgent):
-    """OpenClaw agent whose opening turn mirrors the built-in calendar assistant."""
+    """OpenClaw agent whose opening turn mirrors the built-in calendar assistant.
+
+    The two constructor flags exist for a prompt ablation. OpenClaw always
+    injects a large system prompt of its own that this class cannot see, so
+    "how much does the benchmark's own framing add on top of it?" is only
+    answerable by being able to switch that framing off. Both default to the
+    faithful setting, so an ordinary run needs neither.
+
+    Args:
+        srbench_system_prompt: Whether to send the benchmark's system text (the
+            resolved preset and the identity line). ``False`` leaves OpenClaw's
+            own system prompt as the only standing instructions.
+        preference_guidance: Whether to explain the ``<user_preference>`` tag.
+            Only applies to tasks that carry a preference document.
+    """
+
+    def __init__(
+        self,
+        *,
+        srbench_system_prompt: bool = True,
+        preference_guidance: bool = True,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self._srbench_system_prompt = srbench_system_prompt
+        self._preference_guidance = preference_guidance
 
     def _opening_message(self) -> str:
         """Return the BYOA ground rules followed by the assistant's own two turns.
+
+        The ground rules are sent in every configuration: they are the harness
+        protocol contract (call ``Wait``, one action per turn, finish with
+        ``EndConversation``), not a prompt treatment, and an agent that has not
+        been told them cannot drive the environment at all.
 
         ``expose_preferences`` is fixed to ``True`` because a run that hides
         preferences has nothing to compare. Numeric and natural-language tasks
@@ -87,7 +119,9 @@ class CalendarOpenClawAgent(OpenClawAgent):
             )
         system, instruction = build_assistant_messages(
             task,
-            system_prompt=self.system_prompt,
+            system_prompt=self.system_prompt if self._srbench_system_prompt else "",
             expose_preferences=True,
+            preference_guidance=self._preference_guidance,
+            include_identity=self._srbench_system_prompt,
         )
         return "\n\n".join(part.strip() for part in [ground_rules(), system, instruction])

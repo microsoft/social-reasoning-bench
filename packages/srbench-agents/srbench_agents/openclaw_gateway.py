@@ -70,6 +70,8 @@ Environment:
   the catalog is declared rather than discovered.
 - ``SRBENCH_PHYAGI_STRICT_SESSION`` — set ``false`` to let the gateway silently
   rebind when a pinned endpoint disappears instead of failing fast.
+- ``SRBENCH_OPENCLAW_TOOLS`` — ``srbench`` restricts the agent to the
+  benchmark's own MCP tools; anything else leaves OpenClaw's built-ins enabled.
 
 This module targets **OpenClaw v2026.5.28**.
 """
@@ -362,6 +364,26 @@ def _phyagi_overlay() -> dict[str, Any]:
     }
 
 
+def _tools_overlay() -> dict[str, Any]:
+    """Config fragment restricting which tools the agent may call.
+
+    A Gateway leaves ``tools`` unset by default, which OpenClaw reads as the
+    ``full`` profile: the benchmark's MCP tools are *added* to built-ins like
+    ``exec`` and ``read`` rather than replacing them. That lets a task shell out
+    and read the benchmark's own ground-truth task files, so restricting this is
+    what makes a scored run trustworthy.
+
+    ``minimal`` drops the built-ins, but it drops the bundled MCP tools with
+    them, which leaves the agent unable to act at all. ``alsoAllow`` adds those
+    back without turning the policy into an explicit allowlist — an allowlist
+    naming only the MCP tools is rejected at start-up, because they are
+    registered per task and so match nothing when the policy is resolved.
+    """
+    if os.environ.get("SRBENCH_OPENCLAW_TOOLS", "").strip().lower() != "srbench":
+        return {}
+    return {"tools": {"profile": "minimal", "alsoAllow": ["bundle-mcp"]}}
+
+
 class GatewayProcess:
     """One ``openclaw gateway run`` process in an isolated profile directory."""
 
@@ -405,6 +427,7 @@ class GatewayProcess:
         }
         models = _phyagi_overlay()
         config.update(models)
+        config.update(_tools_overlay())
         self.config_path.write_text(json.dumps(config, indent=2))
         env = dict(os.environ)
         env["OPENCLAW_CONFIG_PATH"] = str(self.config_path)

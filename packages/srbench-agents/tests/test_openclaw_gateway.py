@@ -15,7 +15,12 @@ from pathlib import Path
 
 import pytest
 from srbench_agents import openclaw_gateway
-from srbench_agents.openclaw_gateway import GatewayClient, GatewayError, is_error_message
+from srbench_agents.openclaw_gateway import (
+    GatewayClient,
+    GatewayError,
+    _tools_overlay,
+    is_error_message,
+)
 from stub_gateway import MCP_PORT, StubGateway, connect_worker, merge_patch
 
 # --- RPC framing ------------------------------------------------------------
@@ -527,3 +532,23 @@ def test_plugin_maps_xhigh_so_it_is_not_clamped_to_high():
     assert "normalizeResolvedModel" in source
     assert 'xhigh: "xhigh"' in source
     assert 'max: "xhigh"' in source
+
+
+# --- Tool restriction ------------------------------------------------------
+
+
+def test_tools_are_unrestricted_by_default(monkeypatch):
+    """An unset variable must not silently change how existing runs behave."""
+    monkeypatch.delenv("SRBENCH_OPENCLAW_TOOLS", raising=False)
+
+    assert _tools_overlay() == {}
+
+
+def test_asking_for_srbench_tools_leaves_only_the_benchmark_mcp_server(monkeypatch):
+    """``full`` adds the benchmark's tools to OpenClaw's built-ins rather than
+    replacing them, so an unrestricted agent can shell out and read the graded
+    ground truth off disk. ``minimal`` drops the built-ins but takes the bundled
+    MCP tools with them, so those are added back explicitly."""
+    monkeypatch.setenv("SRBENCH_OPENCLAW_TOOLS", "srbench")
+
+    assert _tools_overlay() == {"tools": {"profile": "minimal", "alsoAllow": ["bundle-mcp"]}}
