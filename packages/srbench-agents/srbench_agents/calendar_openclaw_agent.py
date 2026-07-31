@@ -11,11 +11,15 @@ block explaining ``<user_preference>`` lives in the built-in agent's system
 turn, and it opens by referring to a ``<user_preference>`` block in the user's
 message — neither of which a JSON dump contains.
 
-So this subclass builds its opening turn from
+So this subclass builds both of its turns from
 :func:`~srbench.benchmarks.calendar_scheduling.agents.assistant.build_assistant_messages`,
-the same function the built-in agent uses, and prepends the BYOA ground rules
-because OpenClaw's opening turn has no separate system-prompt channel. Sharing
-that function is what keeps the two prompts from drifting apart.
+the same function the built-in agent uses, and sends them the same way it does:
+the system text as the system prompt, the brief as the user turn. Sharing that
+function is what keeps the two prompts from drifting apart.
+
+Sending a system prompt at all needs the patched OpenClaw build described in
+``experiments/openclaw-prompt-ablation/README.md``; stock OpenClaw always sends
+its own and offers no way to replace it.
 """
 
 from __future__ import annotations
@@ -37,8 +41,8 @@ _JSON_BRIEFING_RULE = (
     "carefully to understand who you are, your objective, and any constraints.\n"
 )
 _PROSE_BRIEFING_RULE = (
-    "- Your private task briefing follows these rules, in this same message. Read "
-    "it carefully to understand who you are, your objective, and any constraints.\n"
+    "- Your private task briefing arrives as prose in the first message. Read it "
+    "carefully to understand who you are, your objective, and any constraints.\n"
 )
 
 
@@ -50,7 +54,7 @@ def ground_rules() -> str:
     instead of leaving a false statement about JSON sitting in the prompt.
 
     Returns:
-        The ground rules to prepend to the opening message.
+        The ground rules to prepend to the system prompt.
 
     Raises:
         RuntimeError: If the shared prompt no longer contains the rule.
@@ -66,16 +70,15 @@ def ground_rules() -> str:
 class CalendarOpenClawAgent(OpenClawAgent):
     """OpenClaw agent whose opening turn mirrors the built-in calendar assistant.
 
-    The two constructor flags exist for a prompt ablation. OpenClaw always
-    injects a large system prompt of its own that this class cannot see, so
-    "how much does the benchmark's own framing add on top of it?" is only
-    answerable by being able to switch that framing off. Both default to the
-    faithful setting, so an ordinary run needs neither.
+    The two constructor flags exist for a prompt ablation: they answer "how much
+    of the behavior comes from the benchmark's own framing?" by switching parts
+    of it off. Both default to the faithful setting, so an ordinary run needs
+    neither.
 
     Args:
         srbench_system_prompt: Whether to send the benchmark's system text (the
-            resolved preset and the identity line). ``False`` leaves OpenClaw's
-            own system prompt as the only standing instructions.
+            resolved preset and the identity line). ``False`` leaves the harness
+            ground rules as the only standing instructions.
         preference_guidance: Whether to explain the ``<user_preference>`` tag.
             Only applies to tasks that carry a preference document.
     """
@@ -91,13 +94,8 @@ class CalendarOpenClawAgent(OpenClawAgent):
         self._srbench_system_prompt = srbench_system_prompt
         self._preference_guidance = preference_guidance
 
-    def _opening_message(self) -> str:
-        """Return the BYOA ground rules followed by the assistant's own two turns.
-
-        The ground rules are sent in every configuration: they are the harness
-        protocol contract (call ``Wait``, one action per turn, finish with
-        ``EndConversation``), not a prompt treatment, and an agent that has not
-        been told them cannot drive the environment at all.
+    def _build_messages(self) -> tuple[str, str]:
+        """Return the ``(system, user)`` pair for this task.
 
         ``expose_preferences`` is fixed to ``True`` because a run that hides
         preferences has nothing to compare. Numeric and natural-language tasks
@@ -106,7 +104,7 @@ class CalendarOpenClawAgent(OpenClawAgent):
         preference guidance.
 
         Returns:
-            The full opening message to send to OpenClaw.
+            The system prompt and the opening user message.
 
         Raises:
             TypeError: If this agent is used outside calendar scheduling.
@@ -124,4 +122,20 @@ class CalendarOpenClawAgent(OpenClawAgent):
             preference_guidance=self._preference_guidance,
             include_identity=self._srbench_system_prompt,
         )
-        return "\n\n".join(part.strip() for part in [ground_rules(), system, instruction])
+        return "\n\n".join(part.strip() for part in [ground_rules(), system] if part.strip()), (
+            instruction
+        )
+
+    def _system_prompt_message(self) -> str:
+        """Return the ground rules followed by the benchmark's own system text.
+
+        The ground rules are sent in every configuration: they are the harness
+        protocol contract (call ``Wait``, one action per turn, finish with
+        ``EndConversation``), not a prompt treatment, and an agent that has not
+        been told them cannot drive the environment at all.
+        """
+        return self._build_messages()[0]
+
+    def _opening_message(self) -> str:
+        """Return the assistant's brief, exactly as the built-in agent sends it."""
+        return self._build_messages()[1]

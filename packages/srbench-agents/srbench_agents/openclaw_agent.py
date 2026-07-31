@@ -241,6 +241,17 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
         brief = self.task.model_dump_json(indent=2)
         return f"{self._system_prompt}\n\nYour private task briefing (JSON):\n```json\n{brief}\n```"
 
+    def _system_prompt_message(self) -> str | None:
+        """Return the system prompt to send, or ``None`` to keep OpenClaw's own.
+
+        OpenClaw supplies a large system prompt of its own and offers no
+        supported way to replace it, so by default this agent leaves it in place
+        and puts the benchmark's framing in the opening user turn. A subclass
+        that returns text here has it sent as the actual system prompt instead,
+        and recorded in :attr:`messages`.
+        """
+        return None
+
     async def run(
         self,
         invoke_tool: InvokeTool,
@@ -252,6 +263,13 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
             # fail with an actionable message, not as a mysterious empty run.
             await worker.ensure_model(self._model)
             await worker.ensure_registered(mcp_name=_MCP_SERVER_NAME)
+            # Recorded as sent, so a result carries the exact prompt that
+            # produced it rather than a reconstruction of it.
+            system_prompt = self._system_prompt_message()
+            worker.set_system_prompt(system_prompt)
+            if system_prompt is not None:
+                self._transcript.append({"role": "system", "content": system_prompt})
+            self._transcript.append({"role": "user", "content": self._opening_message()})
             await self._serve_and_run(worker, invoke_tool, tools)
 
     async def _serve_and_run(

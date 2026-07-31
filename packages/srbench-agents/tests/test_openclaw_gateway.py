@@ -18,6 +18,8 @@ from srbench_agents import openclaw_gateway
 from srbench_agents.openclaw_gateway import (
     GatewayClient,
     GatewayError,
+    GatewayProcess,
+    GatewayWorker,
     _remove_sandbox_containers,
     _tools_overlay,
     is_error_message,
@@ -594,3 +596,51 @@ def test_container_cleanup_does_nothing_when_no_sandbox_was_asked_for(monkeypatc
     _remove_sandbox_containers(tmp_path)
 
     assert calls == []
+
+
+# --- System prompt file ----------------------------------------------------
+#
+# The patched OpenClaw build replaces its own system prompt with the contents of
+# OPENCLAW_SYSTEM_PROMPT_FILE, re-read on every prompt build. That file is per
+# Gateway, so a pooled run cannot have one task's prompt leak into another's.
+
+
+def _worker_with_dir(tmp_path: Path) -> GatewayWorker:
+    process = GatewayProcess()
+    process._dir = tmp_path
+    return GatewayWorker(process)
+
+
+def test_the_system_prompt_lives_in_the_gateways_own_state_dir(tmp_path: Path):
+    """Per Gateway, so pooled tasks cannot overwrite each other's prompt."""
+    process = GatewayProcess()
+    process._dir = tmp_path
+
+    assert process.system_prompt_path.parent == tmp_path
+    assert process.system_prompt_path != process.config_path
+
+
+def test_setting_a_prompt_writes_it_verbatim(tmp_path: Path):
+    """Verbatim because the recorded transcript claims to be what was sent."""
+    worker = _worker_with_dir(tmp_path)
+
+    worker.set_system_prompt("You are a calendar assistant.\n\nBe brief.")
+
+    assert worker._process.system_prompt_path.read_text() == (
+        "You are a calendar assistant.\n\nBe brief."
+    )
+
+
+def test_clearing_the_prompt_restores_stock_openclaw(tmp_path: Path):
+    """Absent file, not empty file: an empty prompt is a different condition."""
+    worker = _worker_with_dir(tmp_path)
+    worker.set_system_prompt("something")
+
+    worker.set_system_prompt(None)
+
+    assert not worker._process.system_prompt_path.exists()
+
+
+def test_clearing_an_unset_prompt_is_not_an_error(tmp_path: Path):
+    """The first task on a fresh Gateway clears a file that was never written."""
+    _worker_with_dir(tmp_path).set_system_prompt(None)

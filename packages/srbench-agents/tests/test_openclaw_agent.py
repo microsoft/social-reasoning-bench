@@ -72,6 +72,13 @@ class FakeWorker:
         #: Optional hook run inside :meth:`ensure_model`, to simulate preflight
         #: rejecting the requested model.
         self.on_ensure_model: Any = None
+        #: What the agent asked OpenClaw to use as its system prompt, if
+        #: anything. ``None`` means OpenClaw's own prompt was left in place.
+        self.system_prompt: str | None = None
+
+    def set_system_prompt(self, prompt: str | None) -> None:
+        self.events.append("set_system_prompt")
+        self.system_prompt = prompt
 
     async def ensure_model(self, model: str | None) -> None:
         self.events.append("ensure_model")
@@ -167,6 +174,7 @@ async def test_a_successful_run_serves_tools_and_passes_model_per_session(gatewa
     assert gateway.events == [
         "ensure_model",
         "ensure_registered",
+        "set_system_prompt",
         "run_turn",
         "delete_session",
     ]
@@ -347,3 +355,58 @@ async def test_retry_budget_is_configurable(gateway: FakeWorker, monkeypatch: py
     with pytest.raises(RuntimeError, match="openclaw run failed"):
         await agent.run(noop_invoke, TOOLS)
     assert gateway.events.count("run_turn") == 5
+
+
+# --- System prompt ---------------------------------------------------------
+
+
+async def _ended(name: str, arguments: Any) -> str:
+    return "ended"
+
+
+async def test_the_base_agent_leaves_openclaws_system_prompt_alone(gateway: FakeWorker):
+    """A task-agnostic agent has no prompt of its own, so it must not clear one.
+
+    ``set_system_prompt(None)`` is still called, because a pooled Gateway may
+    have served a task that did set one.
+    """
+    gateway.on_turn = _call_tool("EndConversation")
+    agent = OpenClawAgent(task=AssistantTask(), model="m")
+
+    await agent.run(_ended, TOOLS)
+
+    assert gateway.system_prompt is None
+    assert "set_system_prompt" in gateway.events
+    assert agent.messages[0]["role"] == "user"
+    assert not [m for m in agent.messages if m["role"] == "system"]
+
+
+async def test_a_subclass_prompt_is_sent_and_recorded_verbatim(gateway: FakeWorker):
+    """The recorded transcript is the evidence for what a run was actually told."""
+
+    class Prompted(OpenClawAgent):
+        def _system_prompt_message(self) -> str:
+            return "You are a calendar assistant."
+
+    gateway.on_turn = _call_tool("EndConversation")
+    agent = Prompted(task=AssistantTask(), model="m")
+
+    await agent.run(_ended, TOOLS)
+
+    assert gateway.system_prompt == "You are a calendar assistant."
+    assert agent.messages[0] == {"role": "system", "content": "You are a calendar assistant."}
+    assert agent.messages[1]["role"] == "user"
+
+
+async def test_the_prompt_is_set_before_the_first_turn(gateway: FakeWorker):
+    """Setting it after the model had already replied would change nothing."""
+
+    class Prompted(OpenClawAgent):
+        def _system_prompt_message(self) -> str:
+            return "You are a calendar assistant."
+
+    gateway.on_turn = _call_tool("EndConversation")
+
+    await Prompted(task=AssistantTask(), model="m").run(_ended, TOOLS)
+
+    assert gateway.events.index("set_system_prompt") < gateway.events.index("run_turn")

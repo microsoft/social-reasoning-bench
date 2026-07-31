@@ -7,49 +7,49 @@ prompt of its own and, by default, its full built-in tool set (``exec``,
 travel with the harness, so a plain OpenClaw-vs-native comparison confounds
 three changes at once and cannot say which one moved a score.
 
-This experiment separates them into four factors:
+This experiment holds them still. The agent composes the **entire** system
+prompt itself and OpenClaw sends exactly that — its own prompt never appears,
+in any cell — so what remains to sweep is the benchmark's own framing and the
+tools:
 
 ===================  =======================  ============================
 factor               values                   set by
 ===================  =======================  ============================
-OpenClaw prompt      on / off                 ``OPENCLAW_SYSTEM_PROMPT_OVERRIDE``
 tools                srbench / sandbox        ``SRBENCH_OPENCLAW_TOOLS``
 SRBench prompt       on / off                 swept here
 preference guidance  on / off                 swept here
 ===================  =======================  ============================
 
-The first two are read at Gateway start-up: the override is an environment
-variable the Gateway's Node process inherits when it spawns, and the tool
-profile is written into its config file. The Gateway pool outlives a single
-variant, so those two cannot vary *within* one ``srbench experiment`` process —
-they select which process to run. ``run.sh`` walks the four combinations, and
-this file sweeps the remaining two inside each.
+Tools are written into the Gateway's config file when it starts, and the
+Gateway pool outlives a single variant, so that factor cannot vary *within* one
+``srbench experiment`` process — it selects which process to run. ``run.sh``
+walks the two settings and this file sweeps the remaining two inside each.
 
-Reading the same two environment variables the machinery reads, rather than
-mirroring them into private settings, is what keeps a variant's name honest: a
+Reading the same environment variable the machinery reads, rather than
+mirroring it into a private setting, is what keeps a variant's name honest: a
 cell cannot claim tools were restricted unless they actually were.
 
-That yields six prompt cells rather than eight. With both prompts off the agent
-has no standing instructions beyond the harness ground rules, which is not a
-condition anyone wants to interpret, so those two are skipped:
+Four prompt cells x two tool settings = eight, x ``REPEATS`` for variance:
 
-    OpenClaw only  ·  OpenClaw + guidance  ·  OpenClaw + SRBench
-    OpenClaw + SRBench + guidance  ·  SRBench only  ·  SRBench + guidance
-
-Six cells x two tool settings = twelve, x ``REPEATS`` for variance.
+    ground rules only  ·  + guidance  ·  + SRBench  ·  + SRBench + guidance
 
 The ground rules (call ``Wait``, one action per turn, finish with
-``EndConversation``) are sent in every cell. They are the harness protocol
-contract, not a prompt treatment; an agent that has not been told them cannot
-drive the environment at all.
+``EndConversation``) are in every cell. They are the harness protocol contract,
+not a prompt treatment; an agent that has not been told them cannot drive the
+environment at all. So the "off/off" cell is a real condition — protocol and
+nothing else — rather than an agent left with no instructions.
+
+Every run records the system prompt it sent as the first entry of
+``execution.assistant_context``, so a result carries the exact text that
+produced it and a cell's label can be checked against what the model saw.
 
 The dataset is the soft-preference split, because ``preference guidance`` is
 only defined for tasks that carry a preference document.
 
 Prerequisites:
-    A local OpenClaw build carrying the system-prompt override, pointed to by
-    ``SRBENCH_OPENCLAW_BIN``. Stock OpenClaw has no way to replace its system
-    prompt, so the "off" cells need it. See ``README.md``.
+    A local OpenClaw build that honours ``OPENCLAW_SYSTEM_PROMPT_FILE``, pointed
+    to by ``SRBENCH_OPENCLAW_BIN``. Stock OpenClaw has no way to replace its
+    system prompt, so every cell needs it. See ``README.md``.
 
 To reproduce:
     experiments/openclaw-prompt-ablation/run.sh
@@ -103,16 +103,6 @@ CONCURRENCY: dict[str, Any] = {
 }
 
 
-def openclaw_prompt() -> str:
-    """Return whether OpenClaw's own system prompt is in play.
-
-    The patched binary returns ``OPENCLAW_SYSTEM_PROMPT_OVERRIDE`` verbatim when
-    it is set, so an empty string means "no OpenClaw prompt" while an unset
-    variable means the stock one.
-    """
-    return "off" if os.environ.get("OPENCLAW_SYSTEM_PROMPT_OVERRIDE") == "" else "on"
-
-
 def tools() -> str:
     """Return which tools the agent can reach, as the Gateway will configure them.
 
@@ -124,24 +114,16 @@ def tools() -> str:
 
 
 def prompt_cells():
-    """Yield the SRBench-side prompt settings valid for this process.
-
-    With OpenClaw's prompt suppressed, dropping the SRBench prompt too would
-    leave the agent nothing but ground rules, so that half of the grid is only
-    swept when OpenClaw's prompt is present.
-    """
+    """Yield the four SRBench-side prompt settings."""
     for srbench in (False, True):
-        if not srbench and openclaw_prompt() == "off":
-            continue
         for guidance in (False, True):
             yield {"srbench": srbench, "guidance": guidance}
 
 
 def variant(cell: dict[str, bool], repeat: int) -> str:
-    """Name a cell after all four factors, so an output directory is self-describing."""
+    """Name a cell after all three factors, so an output directory is self-describing."""
     return (
-        f"calendar_oc-{openclaw_prompt()}"
-        f"_srbench-{'on' if cell['srbench'] else 'off'}"
+        f"calendar_srbench-{'on' if cell['srbench'] else 'off'}"
         f"_guidance-{'on' if cell['guidance'] else 'off'}"
         f"_tools-{tools()}"
         f"_rep{repeat}"

@@ -495,6 +495,17 @@ class GatewayProcess:
         assert self._dir is not None
         return self._dir / "openclaw.json"
 
+    @property
+    def system_prompt_path(self) -> Path:
+        """File the patched build reads the system prompt from, if it exists.
+
+        Per Gateway, and re-read on every prompt build, so an agent can set the
+        whole system prompt for the task it is about to run. See
+        ``experiments/openclaw-prompt-ablation/README.md`` for the patch.
+        """
+        assert self._dir is not None
+        return self._dir / "system-prompt.txt"
+
     async def start(self) -> None:
         if self._verify_version:
             await self._verify_cli()
@@ -516,6 +527,7 @@ class GatewayProcess:
         env = dict(os.environ)
         env["OPENCLAW_CONFIG_PATH"] = str(self.config_path)
         env["OPENCLAW_STATE_DIR"] = str(self._dir)
+        env["OPENCLAW_SYSTEM_PROMPT_FILE"] = str(self.system_prompt_path)
         # Read by the bundled phyagi plugin, which cannot see this process's
         # state any other way.
         env["SRBENCH_PHYAGI_SESSION_ID"] = self.affinity_key
@@ -741,6 +753,20 @@ class GatewayWorker:
     @property
     def mcp_url(self) -> str:
         return f"http://127.0.0.1:{self.mcp_port}/mcp"
+
+    def set_system_prompt(self, prompt: str | None) -> None:
+        """Set the system prompt for the next task, or restore OpenClaw's own.
+
+        The patched build reads this file every time it assembles a prompt, so
+        the benchmark composes the whole thing per task and can record exactly
+        what was sent. ``None`` removes the file, leaving OpenClaw to build its
+        own prompt as it normally would.
+        """
+        path = self._process.system_prompt_path
+        if prompt is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_text(prompt)
 
     async def _patch_config(self, patch: dict[str, Any], *, attempts: int = 3) -> None:
         """Apply a JSON-merge config patch, retrying on a stale base hash.
