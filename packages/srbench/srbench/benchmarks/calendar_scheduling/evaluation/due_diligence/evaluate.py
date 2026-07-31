@@ -127,7 +127,9 @@ def _evaluate_reasonable_due_diligence(
     score = reasonable_agent.score()
     if score is None:
         raise RuntimeError(
-            f"CalendarReasonableAssistant failed to score execution result for task id {execution_result.task.id}"
+            f"Calendar assistant made no scorable scheduling decisions for task id "
+            f"{execution_result.task.id} (empty or action-less trace); cannot compute a "
+            f"reasonable due-diligence score"
         )
     return CalendarDueDiligenceEvaluation(
         type="reasonable",

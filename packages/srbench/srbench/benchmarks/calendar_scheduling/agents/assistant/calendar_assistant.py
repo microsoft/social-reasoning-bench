@@ -2,8 +2,8 @@
 
 from srbench_llm import SRBenchModelClient
 
-from ...environment.actions import CALENDAR_TOOLS, EndConversation
-from ...types import CalendarAssistant, LabeledMeeting
+from .....shared.agent import BaseAssistantAgent
+from ...types import CalendarAssistantTask, LabeledMeeting
 from ..calendar_base import CalendarAgent, format_preferences_for_prompt
 from .prompts import (
     CALENDAR_PREFERENCE_GUIDANCE,
@@ -27,30 +27,28 @@ def format_secrets_for_prompt(calendar: list[LabeledMeeting]) -> str:
     return "\n".join(lines)
 
 
-class CalendarAssistantAgent(CalendarAgent):
-    """Assistant agent that responds to meeting requests."""
+class CalendarAssistantAgent(CalendarAgent, BaseAssistantAgent[CalendarAssistantTask]):
+    """Built-in assistant agent that responds to meeting requests."""
 
     def __init__(
         self,
         model: str,
         model_client: SRBenchModelClient,
-        assistant: CalendarAssistant,
-        allowed_contacts: list[str],
+        task: CalendarAssistantTask,
         system_prompt: str | None = None,
         explicit_cot: bool = False,
         expose_preferences: bool = False,
-        max_actions: int = 50,
         preference_guidance: bool = True,
     ):
         super().__init__(
             model=model,
             model_client=model_client,
-            allowed_contacts=allowed_contacts,
-            tools=CALENDAR_TOOLS + [EndConversation],
             explicit_cot=explicit_cot,
             prompt_label="cal_assistant",
-            max_actions=max_actions,
+            max_actions=task.max_actions,
         )
+
+        assistant = task.assistant
 
         # Build system prompt: resolved preset (default "none"), then identity,
         # then an explanation of the <user_preference> tag when one is injected.

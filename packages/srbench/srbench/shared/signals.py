@@ -63,10 +63,11 @@ class ConversationSignals:
     def clear(self, owner: str) -> None:
         """Clear a pending :meth:`notify` for ``owner`` without waiting.
 
-        The inverse of :meth:`notify`. Used by the executor when it delivers
-        content to an agent out of band (injecting the counterpart's forced
-        opening into the agent's context at startup), so the agent's first
-        ``Wait`` does not wake spuriously for content it has already seen.
+        The inverse of :meth:`notify`. For a harness that surfaces content
+        to an agent out of band, this drops the pending wake so the agent's
+        next ``Wait`` does not fire spuriously for content it has already
+        seen. The executors deliver everything through tools and leave the
+        wake pending, so they no longer call this.
 
         Args:
             owner: Participant key whose pending notification to clear.
@@ -152,7 +153,8 @@ async def run_agents_until_end(
       ``"agent_stopped"``.
 
     Args:
-        agent_runs: One coroutine per agent, typically ``agent.run(invoke_tool)``.
+        agent_runs: One coroutine per agent, typically
+            ``agent.run(invoke_tool, tools)``.
         signals: The environment's conversation signals.
         cancel_event: Optional external cancellation signal to include in the race.
     """

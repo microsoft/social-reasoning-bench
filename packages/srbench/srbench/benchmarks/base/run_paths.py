@@ -24,6 +24,25 @@ def sanitize_model_name(model: str) -> str:
     return model.replace("/", "-")
 
 
+def agent_model_label(agent: str | None, model: str | None) -> str:
+    """Combine a BYOA agent spec with its underlying model for directory naming.
+
+    When both an agent and a model are known, the label is ``{agent}-{model}``
+    so the run directory identifies the agent under test *and* the model driving
+    it. Falls back to whichever is set, or ``"unknown"`` if neither is.
+
+    Args:
+        agent: BYOA agent import spec (e.g. ``pkg.mod:AgentClass``), or None.
+        model: Underlying model name driving the agent/role, or None.
+
+    Returns:
+        A label suitable for use in a run directory name.
+    """
+    if agent and model:
+        return f"{agent}-{model}"
+    return agent or model or "unknown"
+
+
 class RunPaths:
     """Manages all output paths for a benchmark run.
 

@@ -23,6 +23,7 @@ from srbench.benchmarks.calendar_scheduling.agents.calendar_base import (
 )
 from srbench.benchmarks.calendar_scheduling.types import (
     CalendarAssistant,
+    CalendarAssistantTask,
     LabeledMeeting,
     TimeSlotPreference,
 )
@@ -98,8 +99,7 @@ def _messages(
     agent = CalendarAssistantAgent(
         model="test",
         model_client=MagicMock(),
-        assistant=assistant,
-        allowed_contacts=["bob@external.com"],
+        task=CalendarAssistantTask(assistant=assistant),
         expose_preferences=expose_preferences,
         preference_guidance=preference_guidance,
     )
