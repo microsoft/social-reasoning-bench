@@ -13,14 +13,16 @@
 #     run.sh --set limit=3      # three tasks per cell, for a smoke test
 #     run.sh --collect          # list the runs without executing them
 #
-# ABLATION_TOOLS picks the tool settings to walk (default "all srbench"):
+# ABLATION_TOOLS picks the tool settings to walk (default "srbench sandbox"):
 #
-#   all      OpenClaw built-ins enabled, running on the host
 #   srbench  built-ins removed; only the benchmark's MCP tools
 #   sandbox  built-ins kept, but running in a Docker container that cannot
 #            see the repository (needs the openclaw-sandbox image; see README)
+#   all      built-ins running on the host, as you. Not swept by default: the
+#            agent can read the graded ground truth off disk, so its scores
+#            cannot be told apart from ones it earned. See README.
 #
-#     ABLATION_TOOLS="all srbench sandbox" run.sh
+#     ABLATION_TOOLS="all" run.sh
 #
 set -euo pipefail
 
@@ -38,7 +40,7 @@ export SRBENCH_OPENCLAW_POOL_SIZE="${SRBENCH_OPENCLAW_POOL_SIZE:-3}"
 
 cd "$ROOT"
 
-for tools in ${ABLATION_TOOLS:-all srbench}; do
+for tools in ${ABLATION_TOOLS:-srbench sandbox}; do
   for prompt in on off; do
     export SRBENCH_OPENCLAW_TOOLS="$tools"
     if [[ "$prompt" == "off" ]]; then

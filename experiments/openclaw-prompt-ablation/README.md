@@ -18,7 +18,7 @@ two SRBench prompt pieces, so each contribution can be read off separately.
 | factor | values | mechanism |
 | --- | --- | --- |
 | OpenClaw system prompt | on / off | `OPENCLAW_SYSTEM_PROMPT_OVERRIDE` |
-| tools | all / srbench / sandbox | `SRBENCH_OPENCLAW_TOOLS` |
+| tools | srbench / sandbox | `SRBENCH_OPENCLAW_TOOLS` |
 | SRBench system prompt | on / off | `assistant_agent_kwargs` |
 | preference guidance | on / off | `assistant_agent_kwargs` |
 
@@ -30,30 +30,30 @@ tool settings. `ABLATION_REPEATS` runs each cell more than once.
 
 | value | built-ins | runs on | can read the answer key |
 | --- | --- | --- | --- |
-| `all` (default) | yes | the host, as you | **yes** |
 | `srbench` | no | — | no |
 | `sandbox` | yes | a Docker container | no |
+| `all` | yes | the host, as you | **yes** |
 
-`sandbox` is the one to use to study a fully-equipped agent, since `srbench`
-answers a different question — how a deliberately minimal agent behaves.
+The two swept settings ask different questions: `srbench` measures a
+deliberately minimal agent, `sandbox` a fully equipped one.
+
+`all` is what OpenClaw does when nothing is configured, and it is not swept.
 Verified: unsandboxed, the model ran `hostname` and got the host, then read
-`soft/large.yaml`; sandboxed, `exec` still works but reports a container ID and
-the read is denied. The container's only mount is the Gateway's own scratch
-directory, writable so the agent has somewhere to work — no repository, no
-Gateway config, no API key in its environment.
+`soft/large.yaml` — so a good score there might have been read off disk rather
+than reasoned out, and nothing in the results distinguishes the two. Sandboxed,
+`exec` still works but reports a container ID and the read is denied. Ask for it
+with `ABLATION_TOOLS="all"` if the unrestricted default is itself the object of
+study; do not compare its scores with the others.
 
-It needs the sandbox image built once:
-
-```bash
-cd ~/openclaw-pinned
-docker build -t openclaw-sandbox:bookworm-slim -f scripts/docker/sandbox/Dockerfile scripts/docker/sandbox/
-```
+The container's only mount is the Gateway's own scratch directory, writable so
+the agent has somewhere to work — no repository, no Gateway config, no API key
+in its environment. Note it is a plain debian-bookworm-slim box with bash, curl,
+git, jq, python3, and ripgrep, so it is a different machine from the host rather
+than a walled-off copy of it.
 
 OpenClaw creates one container per task and prunes them on an idle timer
 measured in hours, so a sweep would leave hundreds running. Gateway teardown
 removes the ones it created, matched by their mount path.
-
-Add it to the sweep with `ABLATION_TOOLS="all srbench sandbox"` (18 cells).
 
 ## Setup
 
@@ -86,6 +86,13 @@ cd ~/openclaw-pinned && pnpm install --frozen-lockfile && pnpm build
 export SRBENCH_OPENCLAW_BIN=~/openclaw-pinned/openclaw.mjs
 ```
 
+The `sandbox` cells need the sandbox image, built once:
+
+```bash
+cd ~/openclaw-pinned
+docker build -t openclaw-sandbox:bookworm-slim -f scripts/docker/sandbox/Dockerfile scripts/docker/sandbox/
+```
+
 ## Running
 
 ```bash
@@ -95,8 +102,8 @@ export SRBENCH_OPENCLAW_BIN=~/openclaw-pinned/openclaw.mjs
 experiments/openclaw-prompt-ablation/run.sh --set limit=3   # smoke test
 experiments/openclaw-prompt-ablation/run.sh                 # full 21-task run
 
-# include the sandboxed tool setting (18 cells)
-ABLATION_TOOLS="all srbench sandbox" experiments/openclaw-prompt-ablation/run.sh
+# the unrestricted default, whose scores are not comparable (6 cells)
+ABLATION_TOOLS="all" experiments/openclaw-prompt-ablation/run.sh
 ```
 
 `run.sh` walks the four Gateway-level combinations one process at a time,

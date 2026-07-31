@@ -13,7 +13,7 @@ This experiment separates them into four factors:
 factor               values                   set by
 ===================  =======================  ============================
 OpenClaw prompt      on / off                 ``OPENCLAW_SYSTEM_PROMPT_OVERRIDE``
-tools                all / srbench            ``SRBENCH_OPENCLAW_TOOLS``
+tools                srbench / sandbox        ``SRBENCH_OPENCLAW_TOOLS``
 SRBench prompt       on / off                 swept here
 preference guidance  on / off                 swept here
 ===================  =======================  ============================
