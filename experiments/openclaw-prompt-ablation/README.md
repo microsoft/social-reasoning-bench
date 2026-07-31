@@ -38,8 +38,9 @@ tool settings. `ABLATION_REPEATS` runs each cell more than once.
 answers a different question — how a deliberately minimal agent behaves.
 Verified: unsandboxed, the model ran `hostname` and got the host, then read
 `soft/large.yaml`; sandboxed, `exec` still works but reports a container ID and
-the read is denied. The container mounts only a scratch directory read-only —
-no repository, no Gateway config, no API key in its environment.
+the read is denied. The container's only mount is the Gateway's own scratch
+directory, writable so the agent has somewhere to work — no repository, no
+Gateway config, no API key in its environment.
 
 It needs the sandbox image built once:
 

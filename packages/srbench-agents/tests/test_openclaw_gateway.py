@@ -538,41 +538,48 @@ def test_plugin_maps_xhigh_so_it_is_not_clamped_to_high():
 # --- Tool restriction ------------------------------------------------------
 
 
-def test_tools_are_unrestricted_by_default(monkeypatch):
+def test_tools_are_unrestricted_by_default(monkeypatch, tmp_path):
     """An unset variable must not silently change how existing runs behave."""
     monkeypatch.delenv("SRBENCH_OPENCLAW_TOOLS", raising=False)
 
-    assert _tools_overlay() == {}
+    assert _tools_overlay(tmp_path) == {}
 
 
-def test_asking_for_srbench_tools_leaves_only_the_benchmark_mcp_server(monkeypatch):
+def test_asking_for_srbench_tools_leaves_only_the_benchmark_mcp_server(monkeypatch, tmp_path):
     """``full`` adds the benchmark's tools to OpenClaw's built-ins rather than
     replacing them, so an unrestricted agent can shell out and read the graded
     ground truth off disk. ``minimal`` drops the built-ins but takes the bundled
     MCP tools with them, so those are added back explicitly."""
     monkeypatch.setenv("SRBENCH_OPENCLAW_TOOLS", "srbench")
 
-    assert _tools_overlay() == {"tools": {"profile": "minimal", "alsoAllow": ["bundle-mcp"]}}
+    assert _tools_overlay(tmp_path) == {
+        "tools": {"profile": "minimal", "alsoAllow": ["bundle-mcp"]}
+    }
 
 
-def test_the_sandbox_setting_keeps_the_builtins_but_jails_them(monkeypatch):
+def test_the_sandbox_setting_keeps_the_builtins_but_jails_them(monkeypatch, tmp_path):
     """Built-in tools are useful to study; running them on the host is not.
 
-    The Docker backend with no workspace access puts ``exec`` and ``read``
-    somewhere the repository is not. A sandboxed agent also filters bundled MCP
-    tools by default, so those are allowed back through the sandbox's own key.
+    The Docker backend puts ``exec`` and ``read`` somewhere the repository is
+    not. ``rw`` mounts the agent workspace and nothing else, so the agent has
+    somewhere to write — but only once that workspace is moved off the home
+    directory it defaults to. A sandboxed agent also filters bundled MCP tools
+    by default, so those are allowed back through the sandbox's own key.
     """
     monkeypatch.setenv("SRBENCH_OPENCLAW_TOOLS", "sandbox")
 
-    overlay = _tools_overlay()
+    overlay = _tools_overlay(tmp_path)
 
     assert overlay["tools"] == {"sandbox": {"tools": {"alsoAllow": ["bundle-mcp"]}}}
     assert overlay["agents"]["defaults"]["sandbox"] == {
         "mode": "all",
         "backend": "docker",
-        "workspaceAccess": "none",
+        "workspaceAccess": "rw",
         "scope": "session",
     }
+    scratch = Path(overlay["agents"]["defaults"]["workspace"])
+    assert scratch.parent == tmp_path
+    assert scratch.is_dir()
 
 
 def test_container_cleanup_does_nothing_when_no_sandbox_was_asked_for(monkeypatch, tmp_path):

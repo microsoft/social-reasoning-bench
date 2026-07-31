@@ -367,8 +367,13 @@ def _phyagi_overlay() -> dict[str, Any]:
     }
 
 
-def _tools_overlay() -> dict[str, Any]:
+def _tools_overlay(state_dir: Path) -> dict[str, Any]:
     """Config fragment deciding what the agent's tools can reach.
+
+    Args:
+        state_dir: This Gateway's temp profile. The sandbox setting puts its
+            scratch workspace in here so the container's one mount is a
+            directory that is deleted with the Gateway.
 
     A Gateway leaves ``tools`` unset by default, which OpenClaw reads as the
     ``full`` profile: the benchmark's MCP tools are *added* to built-ins like
@@ -384,30 +389,35 @@ def _tools_overlay() -> dict[str, Any]:
     allowlist naming only the MCP tools is rejected at start-up, because they
     are registered per task and so match nothing when the policy is resolved.
 
-    ``sandbox`` keeps the built-ins but runs them inside a Docker container with
-    no host mount, so ``read`` cannot see the repository. That is the setting to
-    use for measuring what a fully-equipped agent does, as opposed to measuring
-    a deliberately minimal one. A sandboxed agent filters bundled MCP tools out
-    by default, so those have to be allowed back in as well — through a
-    different key than the ``srbench`` case uses, since this one gates the
-    sandbox rather than the tool profile.
+    ``sandbox`` keeps the built-ins but runs them inside a Docker container
+    whose only mount is this Gateway's scratch workspace, so ``read`` cannot see
+    the repository. That is the setting to use for measuring what a fully
+    equipped agent does, as opposed to measuring a deliberately minimal one. A
+    sandboxed agent filters bundled MCP tools out by default, so those have to
+    be allowed back in as well — through a different key than the ``srbench``
+    case uses, since this one gates the sandbox rather than the tool profile.
     """
     setting = os.environ.get("SRBENCH_OPENCLAW_TOOLS", "").strip().lower()
     if setting == "srbench":
         return {"tools": {"profile": "minimal", "alsoAllow": ["bundle-mcp"]}}
     if setting == "sandbox":
+        # ``rw`` mounts the *agent* workspace, which defaults into the home
+        # directory of whoever runs the benchmark. Redirect it into this
+        # Gateway's temp profile first, so the container gets somewhere to write
+        # without the host — and the answer key on it — coming along.
+        scratch = state_dir / "workspace"
+        scratch.mkdir(parents=True, exist_ok=True)
         return {
             "tools": {"sandbox": {"tools": {"alsoAllow": ["bundle-mcp"]}}},
             "agents": {
                 "defaults": {
+                    "workspace": str(scratch),
                     "sandbox": {
                         "mode": "all",
                         "backend": "docker",
-                        # The container gets no view of the host filesystem at
-                        # all; the benchmark's answer key lives there.
-                        "workspaceAccess": "none",
+                        "workspaceAccess": "rw",
                         "scope": "session",
-                    }
+                    },
                 }
             },
         }
@@ -501,7 +511,7 @@ class GatewayProcess:
         }
         models = _phyagi_overlay()
         config.update(models)
-        config.update(_tools_overlay())
+        config.update(_tools_overlay(self._dir))
         self.config_path.write_text(json.dumps(config, indent=2))
         env = dict(os.environ)
         env["OPENCLAW_CONFIG_PATH"] = str(self.config_path)
