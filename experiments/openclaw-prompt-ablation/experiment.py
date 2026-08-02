@@ -7,15 +7,15 @@ prompt of its own and, by default, its full built-in tool set (``exec``,
 travel with the harness, so a plain OpenClaw-vs-native comparison confounds
 three changes at once and cannot say which one moved a score.
 
-This experiment holds them still. The agent composes the **entire** system
-prompt itself and OpenClaw sends exactly that — its own prompt never appears,
-in any cell — so what remains to sweep is the benchmark's own framing and the
-tools:
+This experiment holds them still. In most cells the agent composes the **entire**
+system prompt itself and OpenClaw sends exactly that, so its own prompt never
+appears and what remains to sweep is the benchmark's own framing and the tools:
 
 ===================  =======================  ============================
 factor               values                   set by
 ===================  =======================  ============================
 tools                srbench / sandbox        ``SRBENCH_OPENCLAW_TOOLS``
+delivery             system / user            swept here
 SRBench prompt       on / off                 swept here
 preference guidance  on / off                 swept here
 ===================  =======================  ============================
@@ -29,9 +29,19 @@ Reading the same environment variable the machinery reads, rather than
 mirroring it into a private setting, is what keeps a variant's name honest: a
 cell cannot claim tools were restricted unless they actually were.
 
-Four prompt cells x two tool settings = eight, x ``REPEATS`` for variance:
+``delivery`` is the exception, and the reason the grid is not a clean product.
+``system`` is the arrangement above. ``user`` is the harness **as it ships**:
+OpenClaw's own prompt stands and the benchmark's framing arrives in the opening
+user turn, which OpenClaw labels as untrusted sender metadata. That baseline is
+one configuration rather than four — the system text has nowhere else to go, and
+outside the container its scores would not be trustworthy — so it contributes
+two cells, guidance on and off, under ``sandbox`` only.
+
+Four prompt cells x two tool settings, plus two stock cells = ten, x ``REPEATS``
+for variance:
 
     ground rules only  ·  + guidance  ·  + SRBench  ·  + SRBench + guidance
+    stock OpenClaw  ·  stock OpenClaw + guidance
 
 The ground rules (call ``Wait``, one action per turn, finish with
 ``EndConversation``) are in every cell. They are the harness protocol contract,
@@ -41,7 +51,16 @@ nothing else — rather than an agent left with no instructions.
 
 Every run records the system prompt it sent as the first entry of
 ``execution.assistant_context``, so a result carries the exact text that
-produced it and a cell's label can be checked against what the model saw.
+produced it and a cell's label can be checked against what the model saw. In the
+stock cells that entry is a marker naming OpenClaw's prompt by length and
+digest, because pasting its ~36 KB operating manual into a graded transcript
+would change what the due-diligence judge sees in one arm only; the full text
+goes to the trace dump instead.
+
+``SRBENCH_OPENCLAW_TRACE_DIR`` (set by ``run.sh``) turns on OpenClaw's cache
+trace and dumps, per task, the system prompt and message array **as the provider
+received them** — including the untrusted-metadata wrapper. That is the artifact
+to read when checking what a cell actually did.
 
 The dataset is the soft-preference split, because ``preference guidance`` is
 only defined for tasks that carry a preference document.
@@ -67,8 +86,8 @@ DATA_PATH = "data/calendar-scheduling/soft/small.yaml"
 
 ASSISTANT: dict[str, Any] = {
     "agent": "srbench_agents.calendar_openclaw_agent:CalendarOpenClawAgent",
-    "model": "phyagi/gpt-5.5",
-    "effort": "high",
+    "model": "phyagi/gpt-5.4",
+    "effort": "xhigh",
 }
 
 JUDGE: dict[str, Any] = {
@@ -86,10 +105,15 @@ COUNTERPARTY: dict[str, Any] = {
 
 ROUNDS: dict[str, Any] = {"max_rounds": 10, "max_steps_per_turn": 3}
 
-# How many times to run each cell. Task completion is nondeterministic and the
-# benchmark exposes no seed, so a single run of a cell cannot be told apart from
-# noise; repeats are how the spread gets measured.
-REPEATS = int(os.environ.get("ABLATION_REPEATS", "1"))
+# Which repeat this process is running. Task completion is nondeterministic and
+# the benchmark exposes no seed, so a single run of a cell cannot be told apart
+# from noise; repeats are how the spread gets measured.
+#
+# One per process, driven by run.sh, because the collector deduplicates configs
+# by content and explicitly ignores ``variant`` — three identical cells yielded
+# from one generator collapse into one silently. Separate processes each get a
+# fresh dedup set.
+REPEAT = int(os.environ.get("ABLATION_REPEAT", "1"))
 
 # A task holds one Gateway exclusively while it runs, so tasks run in parallel
 # only up to the pool size. Deriving batch size from the pool rather than
@@ -114,16 +138,27 @@ def tools() -> str:
 
 
 def prompt_cells():
-    """Yield the four SRBench-side prompt settings."""
+    """Yield the prompt settings to sweep in this process.
+
+    The stock arm is not crossed with the rest. Its point is to measure the
+    harness as it ships, and "as it ships" is one configuration, not four: the
+    benchmark's system text has nowhere else to go, and running it without the
+    container would produce scores that cannot be told apart from ones read off
+    disk. So it contributes two cells, guidance on and off, under ``sandbox``.
+    """
     for srbench in (False, True):
         for guidance in (False, True):
-            yield {"srbench": srbench, "guidance": guidance}
+            yield {"delivery": "system", "srbench": srbench, "guidance": guidance}
+    if tools() == "sandbox":
+        for guidance in (False, True):
+            yield {"delivery": "user", "srbench": True, "guidance": guidance}
 
 
-def variant(cell: dict[str, bool], repeat: int) -> str:
-    """Name a cell after all three factors, so an output directory is self-describing."""
+def variant(cell: dict[str, Any], repeat: int) -> str:
+    """Name a cell after every factor, so an output directory is self-describing."""
     return (
-        f"calendar_srbench-{'on' if cell['srbench'] else 'off'}"
+        f"calendar_delivery-{cell['delivery']}"
+        f"_srbench-{'on' if cell['srbench'] else 'off'}"
         f"_guidance-{'on' if cell['guidance'] else 'off'}"
         f"_tools-{tools()}"
         f"_rep{repeat}"
@@ -136,37 +171,37 @@ def variant(cell: dict[str, bool], repeat: int) -> str:
 def experiment_calendar():
     from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
 
-    for repeat in range(1, REPEATS + 1):
-        for cell in prompt_cells():
-            yield CalendarRunConfig(
-                paths=[DATA_PATH],
-                # Assistant (BYOA, OpenClaw)
-                assistant_agent=ASSISTANT["agent"],
-                assistant_model=ASSISTANT["model"],
-                assistant_reasoning_effort=ASSISTANT["effort"],
-                assistant_agent_kwargs={
-                    "srbench_system_prompt": cell["srbench"],
-                    "preference_guidance": cell["guidance"],
-                },
-                system_prompt="none",
-                expose_preferences=True,
-                # Requestor
-                requestor_model=COUNTERPARTY["model"],
-                requestor_explicit_cot=COUNTERPARTY["explicit_cot"],
-                requestor_reasoning_effort=COUNTERPARTY["reasoning_effort"],
-                attack_types=[],
-                # Judge
-                judge_model=JUDGE["model"],
-                judge_reasoning_effort=JUDGE["reasoning_effort"],
-                # Concurrency
-                batch_size=CONCURRENCY["batch_size"],
-                task_concurrency=CONCURRENCY["task_concurrency"],
-                llm_concurrency=CONCURRENCY["llm_concurrency"],
-                # Rounds
-                max_rounds=ROUNDS["max_rounds"],
-                max_steps_per_turn=ROUNDS["max_steps_per_turn"],
-                variant=variant(cell, repeat),
-            )
+    for cell in prompt_cells():
+        yield CalendarRunConfig(
+            paths=[DATA_PATH],
+            # Assistant (BYOA, OpenClaw)
+            assistant_agent=ASSISTANT["agent"],
+            assistant_model=ASSISTANT["model"],
+            assistant_reasoning_effort=ASSISTANT["effort"],
+            assistant_agent_kwargs={
+                "srbench_system_prompt": cell["srbench"],
+                "preference_guidance": cell["guidance"],
+                "prompt_delivery": cell["delivery"],
+            },
+            system_prompt="none",
+            expose_preferences=True,
+            # Requestor
+            requestor_model=COUNTERPARTY["model"],
+            requestor_explicit_cot=COUNTERPARTY["explicit_cot"],
+            requestor_reasoning_effort=COUNTERPARTY["reasoning_effort"],
+            attack_types=[],
+            # Judge
+            judge_model=JUDGE["model"],
+            judge_reasoning_effort=JUDGE["reasoning_effort"],
+            # Concurrency
+            batch_size=CONCURRENCY["batch_size"],
+            task_concurrency=CONCURRENCY["task_concurrency"],
+            llm_concurrency=CONCURRENCY["llm_concurrency"],
+            # Rounds
+            max_rounds=ROUNDS["max_rounds"],
+            max_steps_per_turn=ROUNDS["max_steps_per_turn"],
+            variant=variant(cell, REPEAT),
+        )
 
 
 # --- Marketplace ---

@@ -367,6 +367,26 @@ def _phyagi_overlay() -> dict[str, Any]:
     }
 
 
+def _trace_overlay() -> dict[str, Any]:
+    """Turn on OpenClaw's cache trace when a run wants a record of what was sent.
+
+    OpenClaw assembles the prompt inside the Gateway, so the benchmark cannot
+    otherwise see the system prompt it wrote, the untrusted-metadata wrapper it
+    adds to every user turn, or the message array as the provider received it.
+    The trace is the only channel that exposes them.
+
+    Off unless ``SRBENCH_OPENCLAW_TRACE_DIR`` is set, because it writes the whole
+    prompt to disk on every model call.
+    """
+    if not os.environ.get("SRBENCH_OPENCLAW_TRACE_DIR", "").strip():
+        return {}
+    return {
+        "diagnostics": {
+            "cacheTrace": {"enabled": True, "includeSystem": True, "includePrompt": True}
+        }
+    }
+
+
 def _tools_overlay(state_dir: Path) -> dict[str, Any]:
     """Config fragment deciding what the agent's tools can reach.
 
@@ -523,6 +543,7 @@ class GatewayProcess:
         models = _phyagi_overlay()
         config.update(models)
         config.update(_tools_overlay(self._dir))
+        config.update(_trace_overlay())
         self.config_path.write_text(json.dumps(config, indent=2))
         env = dict(os.environ)
         env["OPENCLAW_CONFIG_PATH"] = str(self.config_path)
@@ -753,6 +774,42 @@ class GatewayWorker:
     @property
     def mcp_url(self) -> str:
         return f"http://127.0.0.1:{self.mcp_port}/mcp"
+
+    def captured_context(self, session_key: str) -> dict[str, Any] | None:
+        """Return what the provider was actually sent for ``session_key``.
+
+        OpenClaw builds the final prompt inside the Gateway, so a run's own
+        record of it is a reconstruction. This reads the cache trace instead and
+        returns the last context assembled for the session, which carries the
+        system prompt verbatim and the message array as the provider saw it —
+        including the untrusted-metadata wrapper OpenClaw adds to user turns.
+
+        Returns ``None`` when tracing is off (see :func:`_trace_overlay`) or the
+        session produced no context, so a caller can treat it as best effort.
+        """
+        state_dir = self._process._dir
+        if state_dir is None:
+            return None
+        latest: dict[str, Any] | None = None
+        for trace in sorted(state_dir.rglob("cache-trace.jsonl")):
+            with trace.open() as handle:
+                for line in handle:
+                    line = line.strip()
+                    if not line or session_key not in line:
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    # Session keys are namespaced by OpenClaw ("agent:main:<key>"),
+                    # and only this stage carries the assembled prompt.
+                    if entry.get("stage") != "stream:context":
+                        continue
+                    if not str(entry.get("sessionKey", "")).endswith(session_key):
+                        continue
+                    if latest is None or entry.get("seq", 0) >= latest.get("seq", 0):
+                        latest = entry
+        return latest
 
     def set_system_prompt(self, prompt: str | None) -> None:
         """Set the system prompt for the next task, or restore OpenClaw's own.

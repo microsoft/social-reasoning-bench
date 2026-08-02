@@ -236,3 +236,52 @@ def test_both_flags_default_to_the_faithful_setting():
     )
 
     assert _sent(_agent(task)) == _sent(explicit)
+
+
+# --- Stock OpenClaw arm -----------------------------------------------------
+#
+# prompt_delivery="user" is the harness as it ships: OpenClaw's own ~36 KB
+# system prompt stands and the benchmark says everything it has to say in the
+# opening user turn, which OpenClaw labels as untrusted sender metadata. It is
+# the baseline the system-prompt arms are measured against.
+
+
+def _stock(**kwargs) -> CalendarOpenClawAgent:
+    agent = CalendarOpenClawAgent(
+        task=_task(preference_md=PREFERENCE_MD),
+        model="anthropic/claude-opus-4-8",
+        prompt_delivery="user",
+        **kwargs,
+    )
+    agent.system_prompt = get_system_prompt("none")
+    return agent
+
+
+def test_the_stock_arm_sends_no_system_prompt():
+    """Returning None is what leaves OpenClaw's own prompt in place."""
+    assert _stock()._system_prompt_message() is None
+
+
+def test_the_stock_arm_moves_the_same_text_into_the_user_turn():
+    """Only the channel changes: no instruction is added, dropped, or reworded."""
+    system, user = _sent(_agent(_task(preference_md=PREFERENCE_MD)))
+
+    stock_user = _stock()._opening_message()
+
+    assert stock_user == f"{system.strip()}\n\n{user}"
+
+
+def test_the_stock_arm_still_honors_the_guidance_flag():
+    """It is the one prompt factor swept in this arm, so it has to bite."""
+    with_guidance = _stock(preference_guidance=True)._opening_message()
+    without = _stock(preference_guidance=False)._opening_message()
+
+    assert CALENDAR_PREFERENCE_GUIDANCE in with_guidance
+    assert CALENDAR_PREFERENCE_GUIDANCE not in without
+    # The preference itself is not part of that treatment.
+    assert "<user_preference>" in without
+
+
+def test_delivery_defaults_to_the_system_channel():
+    """The stock arm is the deviation, so it has to be asked for explicitly."""
+    assert _agent(_task(preference_md=PREFERENCE_MD))._system_prompt_message() is not None

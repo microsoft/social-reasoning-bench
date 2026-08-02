@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import socket
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -75,6 +77,13 @@ class FakeWorker:
         #: What the agent asked OpenClaw to use as its system prompt, if
         #: anything. ``None`` means OpenClaw's own prompt was left in place.
         self.system_prompt: str | None = None
+        #: What the trace would report the provider was sent. ``None`` mirrors
+        #: tracing being off, which is the default.
+        self.context: dict[str, Any] | None = None
+
+    def captured_context(self, session_key: str) -> dict[str, Any] | None:
+        self.events.append("captured_context")
+        return self.context
 
     def set_system_prompt(self, prompt: str | None) -> None:
         self.events.append("set_system_prompt")
@@ -176,6 +185,7 @@ async def test_a_successful_run_serves_tools_and_passes_model_per_session(gatewa
         "ensure_registered",
         "set_system_prompt",
         "run_turn",
+        "captured_context",
         "delete_session",
     ]
     # Model and thinking ride on the session, not on the rate-limited config.
@@ -255,6 +265,33 @@ async def test_cancelling_a_run_shuts_the_server_down_cleanly(
     # regression fails the suite instead of wedging it.
     gateway.on_turn = _call_tool("EndConversation")
     await asyncio.wait_for(OpenClawAgent(task=make_task()).run(noop_invoke, TOOLS), timeout=30)
+
+
+async def test_context_is_captured_when_the_harness_cancels_the_run(gateway: FakeWorker):
+    """Cancellation is how a real run ends, so capture has to survive it.
+
+    The harness cancels the agent as soon as the conversation is over, so a
+    turn that returns normally is the exception rather than the rule. A capture
+    placed only after a returning turn silently never fires on a live run.
+    """
+    started = asyncio.Event()
+
+    async def engage_then_hang(worker: FakeWorker) -> None:
+        # Engaging first pins this to a single attempt, so the capture under
+        # test is the cancelled one and not a retry's tidy return.
+        await _call_tool("ListMeetings")(worker)
+        started.set()
+        await _real_sleep(3600)
+
+    gateway.on_turn = engage_then_hang
+    run = asyncio.create_task(OpenClawAgent(task=make_task()).run(noop_invoke, TOOLS))
+    await asyncio.wait_for(started.wait(), timeout=10)
+    run.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await run
+
+    assert gateway.events.count("run_turn") == 1
+    assert "captured_context" in gateway.events
 
 
 async def test_two_sequential_tasks_reuse_one_registration_and_one_port(
@@ -410,3 +447,95 @@ async def test_the_prompt_is_set_before_the_first_turn(gateway: FakeWorker):
     await Prompted(task=AssistantTask(), model="m").run(_ended, TOOLS)
 
     assert gateway.events.index("set_system_prompt") < gateway.events.index("run_turn")
+
+
+# --- Trace dumps -----------------------------------------------------------
+
+
+async def test_the_trace_dump_names_the_cell_it_came_from(
+    gateway: FakeWorker, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    """A dump carries no variant label, so it has to identify itself.
+
+    Several cells share an opening turn, so the tool setting and the prompt
+    srbench composed are what tell two dumps apart after the fact.
+    """
+
+    class Prompted(OpenClawAgent):
+        def _system_prompt_message(self) -> str:
+            return "You are a calendar assistant."
+
+    monkeypatch.setenv("SRBENCH_OPENCLAW_TRACE_DIR", str(tmp_path))
+    monkeypatch.setenv("SRBENCH_OPENCLAW_TOOLS", "sandbox")
+    gateway.context = {"system": "openclaw's own", "messages": [{"role": "user"}], "modelId": "m"}
+    gateway.on_turn = _call_tool("EndConversation")
+
+    await Prompted(task=AssistantTask(), model="m").run(_ended, TOOLS)
+
+    dumps = list(tmp_path.glob("*.json"))
+    assert len(dumps) == 1
+    payload = json.loads(dumps[0].read_text())
+    assert payload["tools"] == "sandbox"
+    assert payload["srbench_system_prompt"] == "You are a calendar assistant."
+    assert payload["system"] == "openclaw's own"
+    assert payload["messages"] == [{"role": "user"}]
+
+
+async def test_openclaws_own_prompt_is_recorded_as_a_marker_not_pasted_in(
+    gateway: FakeWorker, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    """The transcript is graded, so one arm must not carry a 36 KB manual.
+
+    The judge reads ``assistant_context``. Pasting OpenClaw's operating manual
+    into the stock arm alone would change what it sees for reasons that have
+    nothing to do with how the assistant behaved.
+    """
+    monkeypatch.setenv("SRBENCH_OPENCLAW_TRACE_DIR", str(tmp_path))
+    gateway.context = {"system": "openclaw's own prompt", "messages": [], "modelId": "m"}
+    gateway.on_turn = _call_tool("EndConversation")
+    agent = OpenClawAgent(task=AssistantTask(), model="m")
+
+    await agent.run(_ended, TOOLS)
+
+    first = agent.messages[0]
+    assert first["role"] == "system"
+    assert first["content"].startswith("[OpenClaw's own system prompt, not composed by srbench:")
+    assert "openclaw's own prompt" not in first["content"]
+    # The full text is still recoverable, just not from the graded transcript.
+    assert json.loads(next(tmp_path.glob("*.json")).read_text())["system"] == (
+        "openclaw's own prompt"
+    )
+
+
+async def test_tracing_is_off_unless_a_directory_is_set(
+    gateway: FakeWorker, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    monkeypatch.delenv("SRBENCH_OPENCLAW_TRACE_DIR", raising=False)
+    gateway.context = {"system": "openclaw's own", "messages": [], "modelId": "m"}
+    gateway.on_turn = _call_tool("EndConversation")
+
+    await OpenClawAgent(task=AssistantTask(), model="m").run(_ended, TOOLS)
+
+    assert not list(tmp_path.glob("*.json"))
+
+
+async def test_a_retry_does_not_add_a_second_marker(
+    gateway: FakeWorker, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    """Every attempt captures, but the transcript describes one run."""
+    monkeypatch.setenv("SRBENCH_OPENCLAW_TRACE_DIR", str(tmp_path))
+    gateway.context = {"system": "openclaw's own", "messages": [], "modelId": "m"}
+    gateway.turns = [RuntimeError("rate limited"), [assistant_text("done")]]
+
+    # Only the second attempt engages, which is what makes the first retryable.
+    async def hook(worker: FakeWorker) -> None:
+        if len(worker.session_keys) == 2:
+            await _call_tool("EndConversation")(worker)
+
+    gateway.on_turn = hook
+    agent = OpenClawAgent(task=AssistantTask(), model="m")
+
+    await agent.run(_ended, TOOLS)
+
+    assert gateway.events.count("run_turn") == 2
+    assert sum(m["role"] == "system" for m in agent.messages) == 1

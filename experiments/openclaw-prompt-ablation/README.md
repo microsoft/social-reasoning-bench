@@ -12,19 +12,32 @@ at once, not one:
    `exec` a shell and `read` files. It will: a probe run had the model read
    `data/calendar-scheduling/soft/large.yaml`, the graded ground truth.
 
-This experiment removes (2) entirely and varies the rest. **SRBench composes the
-whole system prompt and OpenClaw sends exactly that**, in every cell, so
-OpenClaw's own prompt is never a variable — which leaves the benchmark's own
+This experiment removes (2) in most cells and varies the rest. Where it does,
+**SRBench composes the whole system prompt and OpenClaw sends exactly that**, so
+OpenClaw's own prompt is not a variable and what remains is the benchmark's own
 framing and the tools:
 
 | factor | values | mechanism |
 | --- | --- | --- |
 | tools | srbench / sandbox | `SRBENCH_OPENCLAW_TOOLS` |
+| delivery | system / user | `assistant_agent_kwargs` |
 | SRBench system prompt | on / off | `assistant_agent_kwargs` |
 | preference guidance | on / off | `assistant_agent_kwargs` |
 
-Eight cells: four prompt combinations times two tool settings.
-`ABLATION_REPEATS` runs each cell more than once.
+`delivery` is why the grid is not a clean product. `system` is the arrangement
+above. `user` is **OpenClaw as it ships**: its own ~36 KB prompt stands and the
+benchmark's framing arrives in the opening user turn, which OpenClaw labels as
+untrusted sender metadata. That baseline is one configuration rather than four —
+the system text has nowhere else to go, and outside the container its scores
+would not be trustworthy — so it contributes two cells, guidance on and off,
+under `sandbox` only.
+
+**Ten cells**: four prompt combinations times two tool settings, plus two stock
+cells. `ABLATION_REPEATS` (default 3) runs each cell more than once, so the
+default sweep is 30 runs.
+
+The assistant is `phyagi/gpt-5.4` at `xhigh` reasoning effort, against the same
+counterparty and judge as the published native runs.
 
 ### What the system prompt contains
 
@@ -44,9 +57,32 @@ treatment, and an agent that has not been told them cannot drive the
 environment at all. So `srbench-off_guidance-off` is a real condition — protocol
 and nothing else — rather than an agent left with no instructions.
 
+In the stock (`delivery-user`) cells this same text is composed identically and
+then prepended to the opening user turn instead, since OpenClaw's own prompt
+occupies the system slot.
+
 Each run records what it sent as the first entry of
 `execution.assistant_context`, so a result carries the exact prompt that
-produced it and can be checked against its own label.
+produced it and can be checked against its own label. In the stock (`user`)
+cells that entry is a marker naming OpenClaw's prompt by length and digest — its
+operating manual is not pasted into a transcript the due-diligence judge reads,
+because that would change what the judge sees in one arm only.
+
+### Trace dumps
+
+`run.sh` sets `SRBENCH_OPENCLAW_TRACE_DIR` to `<output base>/openclaw-traces`,
+which turns on OpenClaw's cache trace and writes one JSON per task:
+
+| key | what it holds |
+| --- | --- |
+| `system` | the system prompt as the provider received it, verbatim |
+| `messages` | the full message array as sent, including OpenClaw's untrusted-sender wrapper and every tool call and result |
+| `srbench_transcript` | the same run as the benchmark recorded it |
+
+That is the only record of what the stock cells ran under, since OpenClaw builds
+their prompt internally. Capture happens on cancellation too: the harness
+cancels the agent the moment the conversation ends, so that — not a returning
+turn — is the ordinary end of a run.
 
 ### Tool settings
 
@@ -79,12 +115,12 @@ removes the ones it created, matched by their mount path.
 
 ## Setup
 
-Every cell needs an OpenClaw build that can have its system prompt replaced.
-Stock OpenClaw cannot: `sessions.create` accepts only a key and a model,
-`agents.defaults` has no system-prompt field, and the one config value that
-suppresses the prompt (`promptMode: "none"`) also disables tools. So build it
-from source with a small patch, pinned to the version the agent asserts at
-runtime:
+The eight `delivery-system` cells need an OpenClaw build that can have its
+system prompt replaced. Stock OpenClaw cannot: `sessions.create` accepts only a
+key and a model, `agents.defaults` has no system-prompt field, and the one
+config value that suppresses the prompt (`promptMode: "none"`) also disables
+tools. So build it from source with a small patch, pinned to the version the
+agent asserts at runtime:
 
 ```bash
 git clone https://github.com/openclaw/openclaw ~/openclaw          # if needed
@@ -150,10 +186,13 @@ docker build -t openclaw-sandbox:bookworm-slim -f scripts/docker/sandbox/Dockerf
 cd ~/social-reasoning-bench && set -a && source ~/.env && set +a
 export SRBENCH_OPENCLAW_BIN=~/openclaw-pinned/openclaw.mjs
 
-experiments/openclaw-prompt-ablation/run.sh --set limit=3   # smoke test
-experiments/openclaw-prompt-ablation/run.sh                 # full 21-task run
+# smoke test: 3 tasks, one repeat, all ten cells
+ABLATION_REPEATS=1 experiments/openclaw-prompt-ablation/run.sh --set limit=3
 
-# the unrestricted default, whose scores are not comparable (4 cells)
+# full run: 21 tasks x 10 cells x 3 repeats
+experiments/openclaw-prompt-ablation/run.sh
+
+# the unrestricted default, whose scores are not comparable
 ABLATION_TOOLS="all" experiments/openclaw-prompt-ablation/run.sh
 ```
 
@@ -161,5 +200,9 @@ ABLATION_TOOLS="all" experiments/openclaw-prompt-ablation/run.sh
 written into a Gateway's config when it starts and the pool outlives a single
 variant. The prompt factors are swept inside each process.
 
-Each cell's three factors are in its output directory name, e.g.
-`calendar_srbench-off_guidance-on_tools-srbench_rep1`.
+Repeats are walked by `run.sh` as well, one process each. The collector
+deduplicates configs by content and ignores the variant label, so three
+identical cells yielded from one generator would silently collapse into one.
+
+Each cell's factors are in its output directory name, e.g.
+`calendar_delivery-system_srbench-off_guidance-on_tools-srbench_rep1`.

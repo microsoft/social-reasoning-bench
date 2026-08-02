@@ -59,9 +59,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import json
 import os
+import re
 import socket
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -208,11 +211,17 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
         # appear once a sweep has been running for a few minutes.
         self._max_retries = int(os.environ.get("SRBENCH_OPENCLAW_MAX_RETRIES", "2"))
         self._ended = False
-        self._transcript: list[dict[str, str]] = []
+        #: What srbench told OpenClaw to use as its system prompt. ``None``
+        #: means OpenClaw's own prompt stood, which is also how a trace dump
+        #: says which arm it came from.
+        self._sent_system_prompt: str | None = None
+        #: The prompt the provider actually received, when tracing is enabled.
+        self._sent_context: dict[str, Any] | None = None
+        self._transcript: list[dict[str, Any]] = []
         self._tool_calls = 0
 
     @property
-    def messages(self) -> list[dict[str, str]]:
+    def messages(self) -> list[dict[str, Any]]:
         """Optional debugging transcript recorded by the executors."""
         return self._transcript
 
@@ -228,8 +237,25 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
             args = arguments or {}
             result = await invoke_tool(name, args)
             self._tool_calls += 1
+            # Native OpenAI shape, matching what the built-in agents record.
+            # The due-diligence judge reads this transcript and renders
+            # ``tool_calls`` and ``role: "tool"`` entries specially, so a
+            # flattened string would show it a different trace for the same run.
+            tool_call_id = str(len(self._transcript))
             self._transcript.append(
-                {"role": "assistant", "content": f"{name}({json.dumps(args)}) -> {result}"}
+                {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {
+                            "id": tool_call_id,
+                            "type": "function",
+                            "function": {"name": name, "arguments": json.dumps(dict(args))},
+                        }
+                    ],
+                }
+            )
+            self._transcript.append(
+                {"role": "tool", "tool_call_id": tool_call_id, "content": result}
             )
             if name == "EndConversation":
                 self._ended = True
@@ -267,6 +293,7 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
             # produced it rather than a reconstruction of it.
             system_prompt = self._system_prompt_message()
             worker.set_system_prompt(system_prompt)
+            self._sent_system_prompt = system_prompt
             if system_prompt is not None:
                 self._transcript.append({"role": "system", "content": system_prompt})
             self._transcript.append({"role": "user", "content": self._opening_message()})
@@ -331,11 +358,16 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
                 )
                 last_error = self._record(messages)
             except asyncio.CancelledError:
+                # The harness cancels the agent the moment the conversation
+                # ends, so this is the ordinary exit path rather than a fault:
+                # capture here too, or a normal run records nothing.
+                self._capture_sent_context(worker, session_key)
                 await worker.abort(session_key=session_key, run_id=run_id)
                 await worker.delete_session(session_key)
                 raise
             except Exception as exc:
                 last_error = str(exc)
+            self._capture_sent_context(worker, session_key)
             await worker.delete_session(session_key)
 
             engaged = self._tool_calls > calls_before
@@ -349,6 +381,68 @@ class OpenClawAgent(BaseAssistantAgent[AssistantTask]):
             await asyncio.sleep(2.0 * (attempt + 1))
 
         raise RuntimeError(self._failure_message(last_error))
+
+    def _capture_sent_context(self, worker: GatewayWorker, session_key: str) -> None:
+        """Record what the provider was actually sent, when tracing is on.
+
+        Best effort: tracing is off unless ``SRBENCH_OPENCLAW_TRACE_DIR`` is set,
+        and a run that produced no context leaves the transcript alone.
+
+        When OpenClaw supplied its own system prompt, the transcript gets a
+        *marker* naming its length and digest rather than the ~36 KB itself. The
+        transcript is graded — the due-diligence judge reads it — so pasting
+        OpenClaw's operating manual into one arm would change what the judge sees
+        for reasons unrelated to the assistant's behavior. The full text goes to
+        the dump, where it can be inspected without perturbing a score.
+        """
+        context = worker.captured_context(session_key)
+        if context is None:
+            return
+        self._sent_context = context
+        self._dump_sent_context(context, session_key)
+        system = context.get("system")
+        already_marked = bool(self._transcript) and self._transcript[0].get("role") == "system"
+        if self._sent_system_prompt is None and isinstance(system, str) and system:
+            if already_marked:
+                # A retry captures again; one marker per run, not one per attempt.
+                return
+            digest = hashlib.sha256(system.encode()).hexdigest()[:12]
+            self._transcript.insert(
+                0,
+                {
+                    "role": "system",
+                    "content": (
+                        f"[OpenClaw's own system prompt, not composed by srbench: "
+                        f"{len(system):,} chars, sha256:{digest}. Full text in the "
+                        f"run's openclaw trace dump.]"
+                    ),
+                },
+            )
+
+    def _dump_sent_context(self, context: dict[str, Any], session_key: str) -> None:
+        """Write the assembled prompt to ``SRBENCH_OPENCLAW_TRACE_DIR``, if set."""
+        directory = os.environ.get("SRBENCH_OPENCLAW_TRACE_DIR", "").strip()
+        if not directory:
+            return
+        target = Path(directory)
+        target.mkdir(parents=True, exist_ok=True)
+        task_id = str(getattr(self.task, "id", None) or "task")
+        safe = re.sub(r"[^A-Za-z0-9_.-]", "_", f"{task_id}-{session_key}")
+        payload = {
+            "task_id": task_id,
+            "session_key": session_key,
+            "model": context.get("modelId"),
+            # The two settings that identify which ablation cell wrote this
+            # dump: a dump carries no variant label of its own, and several
+            # cells can share an opening turn.
+            "tools": os.environ.get("SRBENCH_OPENCLAW_TOOLS", "") or None,
+            "srbench_system_prompt": self._sent_system_prompt,
+            "system": context.get("system"),
+            "system_chars": len(str(context.get("system") or "")),
+            "messages": context.get("messages"),
+            "srbench_transcript": self._transcript,
+        }
+        (target / f"{safe}.json").write_text(json.dumps(payload, indent=2, default=str))
 
     def _record(self, messages: list[dict[str, Any]]) -> str | None:
         """Append assistant text to the transcript, returning any failure text.

@@ -13,6 +13,8 @@
 #     run.sh --set limit=3      # three tasks per cell, for a smoke test
 #     run.sh --collect          # list the runs without executing them
 #
+# ABLATION_REPEATS is how many times each cell runs (default 3).
+#
 # ABLATION_TOOLS picks the tool settings to walk (default "srbench sandbox"):
 #
 #   srbench  built-ins removed; only the benchmark's MCP tools
@@ -41,8 +43,20 @@ export SRBENCH_OPENCLAW_POOL_SIZE="${SRBENCH_OPENCLAW_POOL_SIZE:-3}"
 
 cd "$ROOT"
 
-for tools in ${ABLATION_TOOLS:-srbench sandbox}; do
-  export SRBENCH_OPENCLAW_TOOLS="$tools"
-  echo "=== tools: $tools ==="
-  .venv/bin/srbench experiment "$HERE" --output-base "$OUTPUT_BASE" "$@"
+# Turns on OpenClaw's cache trace and dumps, per task, the system prompt and
+# message array as the provider received them. Without this the stock cells have
+# no record of the prompt they ran under, since OpenClaw builds it internally.
+export SRBENCH_OPENCLAW_TRACE_DIR="${SRBENCH_OPENCLAW_TRACE_DIR:-$ROOT/$OUTPUT_BASE/openclaw-traces}"
+mkdir -p "$SRBENCH_OPENCLAW_TRACE_DIR"
+
+# Repeats are walked here, not inside experiment.py: the collector deduplicates
+# configs by content and ignores the variant label, so three identical cells
+# yielded from one generator collapse into one. A fresh process resets that.
+for rep in $(seq 1 "${ABLATION_REPEATS:-3}"); do
+  for tools in ${ABLATION_TOOLS:-srbench sandbox}; do
+    export ABLATION_REPEAT="$rep"
+    export SRBENCH_OPENCLAW_TOOLS="$tools"
+    echo "=== repeat: $rep | tools: $tools ==="
+    .venv/bin/srbench experiment "$HERE" --output-base "$OUTPUT_BASE" "$@"
+  done
 done

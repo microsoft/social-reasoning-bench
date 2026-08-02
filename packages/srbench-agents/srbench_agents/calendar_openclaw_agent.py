@@ -70,10 +70,10 @@ def ground_rules() -> str:
 class CalendarOpenClawAgent(OpenClawAgent):
     """OpenClaw agent whose opening turn mirrors the built-in calendar assistant.
 
-    The two constructor flags exist for a prompt ablation: they answer "how much
-    of the behavior comes from the benchmark's own framing?" by switching parts
-    of it off. Both default to the faithful setting, so an ordinary run needs
-    neither.
+    The constructor flags exist for a prompt ablation: they answer "how much of
+    the behavior comes from the benchmark's own framing, and from delivering it
+    as a system prompt?" by switching parts of it off. All default to the
+    faithful setting, so an ordinary run needs none of them.
 
     Args:
         srbench_system_prompt: Whether to send the benchmark's system text (the
@@ -81,6 +81,14 @@ class CalendarOpenClawAgent(OpenClawAgent):
             ground rules as the only standing instructions.
         preference_guidance: Whether to explain the ``<user_preference>`` tag.
             Only applies to tasks that carry a preference document.
+        prompt_delivery: Where the benchmark's framing goes. ``"system"`` sends
+            it as the actual system prompt, replacing OpenClaw's. ``"user"`` is
+            the stock OpenClaw setup: OpenClaw's own ~36 KB prompt stands, and
+            everything the benchmark has to say arrives in the opening user turn
+            — which OpenClaw labels as untrusted metadata from a sender.
+
+    Raises:
+        ValueError: If ``prompt_delivery`` is not one of the two settings.
     """
 
     def __init__(
@@ -88,11 +96,17 @@ class CalendarOpenClawAgent(OpenClawAgent):
         *,
         srbench_system_prompt: bool = True,
         preference_guidance: bool = True,
+        prompt_delivery: str = "system",
         **kwargs: Any,
     ) -> None:
+        if prompt_delivery not in ("system", "user"):
+            raise ValueError(
+                f"prompt_delivery must be 'system' or 'user', got {prompt_delivery!r}."
+            )
         super().__init__(**kwargs)
         self._srbench_system_prompt = srbench_system_prompt
         self._preference_guidance = preference_guidance
+        self._prompt_delivery = prompt_delivery
 
     def _build_messages(self) -> tuple[str, str]:
         """Return the ``(system, user)`` pair for this task.
@@ -126,16 +140,29 @@ class CalendarOpenClawAgent(OpenClawAgent):
             instruction
         )
 
-    def _system_prompt_message(self) -> str:
+    def _system_prompt_message(self) -> str | None:
         """Return the ground rules followed by the benchmark's own system text.
 
         The ground rules are sent in every configuration: they are the harness
         protocol contract (call ``Wait``, one action per turn, finish with
         ``EndConversation``), not a prompt treatment, and an agent that has not
         been told them cannot drive the environment at all.
+
+        ``None`` under ``prompt_delivery="user"``, which leaves OpenClaw's own
+        system prompt in place; the same text then opens the user turn instead,
+        so no instruction is lost, only its channel changes.
         """
+        if self._prompt_delivery == "user":
+            return None
         return self._build_messages()[0]
 
     def _opening_message(self) -> str:
-        """Return the assistant's brief, exactly as the built-in agent sends it."""
-        return self._build_messages()[1]
+        """Return the assistant's brief, exactly as the built-in agent sends it.
+
+        Under ``prompt_delivery="user"`` the system text is prepended to it,
+        because OpenClaw is keeping the system channel for itself.
+        """
+        system, instruction = self._build_messages()
+        if self._prompt_delivery == "user":
+            return "\n\n".join(part for part in [system.strip(), instruction] if part)
+        return instruction
