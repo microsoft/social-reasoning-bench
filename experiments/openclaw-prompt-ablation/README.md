@@ -33,8 +33,8 @@ would not be trustworthy — so it contributes two cells, guidance on and off,
 under `sandbox` only.
 
 **Ten cells**: four prompt combinations times two tool settings, plus two stock
-cells. `ABLATION_REPEATS` (default 3) runs each cell more than once, so the
-default sweep is 30 runs.
+cells. `ABLATION_REPEATS` (default 3) runs each cell more than once. The dataset
+is `soft/large.yaml`, 140 tasks, so a default sweep is **4,200 runs**.
 
 The assistant is `phyagi/gpt-5.4` at `xhigh` reasoning effort, against the same
 counterparty and judge as the published native runs.

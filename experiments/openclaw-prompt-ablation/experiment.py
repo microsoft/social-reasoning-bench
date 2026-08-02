@@ -63,7 +63,8 @@ received them** — including the untrusted-metadata wrapper. That is the artifa
 to read when checking what a cell actually did.
 
 The dataset is the soft-preference split, because ``preference guidance`` is
-only defined for tasks that carry a preference document.
+only defined for tasks that carry a preference document. ``large.yaml`` is 140
+tasks, so a default sweep is 140 x 10 cells x 3 repeats = 4,200 runs.
 
 Prerequisites:
     A local OpenClaw build that honours ``OPENCLAW_SYSTEM_PROMPT_FILE``, pointed
@@ -82,7 +83,7 @@ To reproduce:
 import os
 from typing import Any
 
-DATA_PATH = "data/calendar-scheduling/soft/small.yaml"
+DATA_PATH = "data/calendar-scheduling/soft/large.yaml"
 
 ASSISTANT: dict[str, Any] = {
     "agent": "srbench_agents.calendar_openclaw_agent:CalendarOpenClawAgent",
