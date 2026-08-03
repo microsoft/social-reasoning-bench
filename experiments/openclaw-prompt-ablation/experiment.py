@@ -32,13 +32,14 @@ cell cannot claim tools were restricted unless they actually were.
 ``delivery`` is the exception, and the reason the grid is not a clean product.
 ``system`` is the arrangement above. ``user`` is the harness **as it ships**:
 OpenClaw's own prompt stands and the benchmark's framing arrives in the opening
-user turn, which OpenClaw labels as untrusted sender metadata. That baseline is
-one configuration rather than four — the system text has nowhere else to go, and
-outside the container its scores would not be trustworthy — so it contributes
-two cells, guidance on and off, under ``sandbox`` only.
+user turn, which OpenClaw labels as untrusted sender metadata. The benchmark's
+system text has nowhere else to go there, so ``srbench-off`` is not a condition
+that arm can express and it contributes two cells rather than four. Those two
+run under both tool settings, and are skipped only under ``all``, where the
+agent could read the graded ground truth off disk.
 
-Four prompt cells x two tool settings, plus two stock cells = ten, x ``REPEATS``
-for variance:
+Four prompt cells x two tool settings, plus two stock cells per tool setting =
+twelve, x ``REPEATS`` for variance:
 
     ground rules only  ·  + guidance  ·  + SRBench  ·  + SRBench + guidance
     stock OpenClaw  ·  stock OpenClaw + guidance
@@ -64,7 +65,7 @@ to read when checking what a cell actually did.
 
 The dataset is the soft-preference split, because ``preference guidance`` is
 only defined for tasks that carry a preference document. ``large.yaml`` is 140
-tasks, so a default sweep is 140 x 10 cells x 3 repeats = 4,200 runs.
+tasks, so a default sweep is 140 x 12 cells x 3 repeats = 5,040 runs.
 
 Prerequisites:
     A local OpenClaw build that honours ``OPENCLAW_SYSTEM_PROMPT_FILE``, pointed
@@ -141,16 +142,22 @@ def tools() -> str:
 def prompt_cells():
     """Yield the prompt settings to sweep in this process.
 
-    The stock arm is not crossed with the rest. Its point is to measure the
-    harness as it ships, and "as it ships" is one configuration, not four: the
-    benchmark's system text has nowhere else to go, and running it without the
-    container would produce scores that cannot be told apart from ones read off
-    disk. So it contributes two cells, guidance on and off, under ``sandbox``.
+    The stock arm varies guidance only. The benchmark's system text has nowhere
+    else to go once OpenClaw's own prompt occupies the system slot, so
+    ``srbench-off`` is not a condition it can express, and it contributes two
+    cells rather than four.
+
+    It is skipped under ``all``, where the built-ins run on the host and the
+    agent can read the graded ground truth off disk, making a score
+    indistinguishable from one it looked up. That risk is specific to ``all``:
+    ``sandbox`` confines the built-ins to a container that cannot see the
+    repository, and ``srbench`` removes them outright, leaving nothing that can
+    read a file.
     """
     for srbench in (False, True):
         for guidance in (False, True):
             yield {"delivery": "system", "srbench": srbench, "guidance": guidance}
-    if tools() == "sandbox":
+    if tools() != "all":
         for guidance in (False, True):
             yield {"delivery": "user", "srbench": True, "guidance": guidance}
 

@@ -27,14 +27,20 @@ framing and the tools:
 `delivery` is why the grid is not a clean product. `system` is the arrangement
 above. `user` is **OpenClaw as it ships**: its own ~36 KB prompt stands and the
 benchmark's framing arrives in the opening user turn, which OpenClaw labels as
-untrusted sender metadata. That baseline is one configuration rather than four —
-the system text has nowhere else to go, and outside the container its scores
-would not be trustworthy — so it contributes two cells, guidance on and off,
-under `sandbox` only.
+untrusted sender metadata. The benchmark's system text has nowhere else to go in
+that arm, so `srbench-off` is not a condition it can express and it contributes
+two cells, guidance on and off, rather than four.
 
-**Ten cells**: four prompt combinations times two tool settings, plus two stock
-cells. `ABLATION_REPEATS` (default 3) runs each cell more than once. The dataset
-is `soft/large.yaml`, 140 tasks, so a default sweep is **4,200 runs**.
+Those two cells run under both `srbench` and `sandbox`. They are skipped only
+under `all`, where the built-ins run on the host and the agent can read the
+graded ground truth off disk. That risk belongs to `all` alone: `sandbox`
+confines the built-ins to a container that cannot see the repository, and
+`srbench` removes them outright, leaving nothing that can read a file.
+
+**Twelve cells**: four prompt combinations times two tool settings, plus two
+stock cells per tool setting. `ABLATION_REPEATS` (default 3) runs each cell more
+than once. The dataset is `soft/large.yaml`, 140 tasks, so a default sweep is
+**5,040 runs**.
 
 The assistant is `phyagi/gpt-5.4` at `xhigh` reasoning effort, against the same
 counterparty and judge as the published native runs.
@@ -186,10 +192,10 @@ docker build -t openclaw-sandbox:bookworm-slim -f scripts/docker/sandbox/Dockerf
 cd ~/social-reasoning-bench && set -a && source ~/.env && set +a
 export SRBENCH_OPENCLAW_BIN=~/openclaw-pinned/openclaw.mjs
 
-# smoke test: 3 tasks, one repeat, all ten cells
+# smoke test: 3 tasks, one repeat, all twelve cells
 ABLATION_REPEATS=1 experiments/openclaw-prompt-ablation/run.sh --set limit=3
 
-# full run: 21 tasks x 10 cells x 3 repeats
+# full run: 140 tasks x 12 cells x 3 repeats
 experiments/openclaw-prompt-ablation/run.sh
 
 # the unrestricted default, whose scores are not comparable
