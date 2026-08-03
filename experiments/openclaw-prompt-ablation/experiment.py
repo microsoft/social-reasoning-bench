@@ -86,10 +86,17 @@ from typing import Any
 
 DATA_PATH = "data/calendar-scheduling/soft/large.yaml"
 
+# The assistant under test. Model and effort are overridable because the harness
+# is only half the question — a prompt or tool change that costs one model points
+# may cost another none, and that cannot be told apart from a fixed-model sweep.
+#
+# They are not part of the variant name, so one sweep is one model and different
+# models need different ``--output-base`` values. Each run records the model it
+# used in its own config, which is what any analysis should read.
 ASSISTANT: dict[str, Any] = {
     "agent": "srbench_agents.calendar_openclaw_agent:CalendarOpenClawAgent",
-    "model": "phyagi/gpt-5.4",
-    "effort": "xhigh",
+    "model": os.environ.get("ABLATION_ASSISTANT_MODEL", "phyagi/gpt-5.4"),
+    "effort": os.environ.get("ABLATION_ASSISTANT_EFFORT", "xhigh"),
 }
 
 JUDGE: dict[str, Any] = {

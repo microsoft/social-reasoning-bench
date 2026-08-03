@@ -43,7 +43,12 @@ than once. The dataset is `soft/large.yaml`, 140 tasks, so a default sweep is
 **5,040 runs**.
 
 The assistant is `phyagi/gpt-5.4` at `xhigh` reasoning effort, against the same
-counterparty and judge as the published native runs.
+counterparty and judge as the published native runs. Override it with
+`ABLATION_ASSISTANT_MODEL` and `ABLATION_ASSISTANT_EFFORT` to ablate the model
+as well as the harness — a prompt or tool change that costs one model points may
+cost another none, and a fixed-model sweep cannot tell the two apart. The model
+is not part of a cell's name, so give each model its own `ABLATION_OUTPUT_BASE`;
+every run records the model it used in its own config.
 
 ### What the system prompt contains
 
@@ -200,6 +205,12 @@ experiments/openclaw-prompt-ablation/run.sh
 
 # the unrestricted default, whose scores are not comparable
 ABLATION_TOOLS="all" experiments/openclaw-prompt-ablation/run.sh
+
+# a second model, into its own output base; -k srbench-on drops the
+# ground_rules probe and leaves the eight cells that are a full 2x2x2
+ABLATION_ASSISTANT_MODEL=phyagi/gpt-5.5 \
+  ABLATION_OUTPUT_BASE=outputs/oc_gpt55_8cell \
+  experiments/openclaw-prompt-ablation/run.sh -k srbench-on
 ```
 
 `run.sh` walks the tool settings one process at a time, because the profile is
