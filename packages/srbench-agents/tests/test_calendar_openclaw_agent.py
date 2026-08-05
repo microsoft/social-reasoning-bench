@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 from srbench.benchmarks.calendar_scheduling.agents.assistant import CalendarAssistantAgent
 from srbench.benchmarks.calendar_scheduling.agents.assistant.prompts import (
+    CALENDAR_ADVOCACY_GUIDANCE,
     CALENDAR_PREFERENCE_GUIDANCE,
     get_system_prompt,
 )
@@ -44,8 +45,12 @@ def _task(*, preference_md: str | None) -> CalendarAssistantTask:
     )
 
 
-def _agent(task: CalendarAssistantTask) -> CalendarOpenClawAgent:
-    return CalendarOpenClawAgent(task=task, model="anthropic/claude-opus-4-8")
+def _agent(task: CalendarAssistantTask, **kwargs) -> CalendarOpenClawAgent:
+    return CalendarOpenClawAgent(
+        task=task,
+        model="anthropic/claude-opus-4-8",
+        **kwargs,
+    )
 
 
 def _native_turns(task: CalendarAssistantTask) -> tuple[str, str]:
@@ -126,6 +131,17 @@ def test_a_numeric_task_carries_neither():
     assert "09:00" in user  # the numeric table is still shown
 
 
+def test_advocacy_guidance_is_opt_in_and_scoped_to_document_tasks():
+    """Only an enabled natural-language preference task gets the procedure."""
+    default_system, _ = _sent(_agent(_task(preference_md=PREFERENCE_MD)))
+    advocacy_system, _ = _sent(_agent(_task(preference_md=PREFERENCE_MD), advocacy_guidance=True))
+    numeric_system, _ = _sent(_agent(_task(preference_md=None), advocacy_guidance=True))
+
+    assert CALENDAR_ADVOCACY_GUIDANCE not in default_system
+    assert advocacy_system.count(CALENDAR_ADVOCACY_GUIDANCE) == 1
+    assert CALENDAR_ADVOCACY_GUIDANCE not in numeric_system
+
+
 def test_the_raw_json_briefing_is_not_sent():
     """The base class dumps the task as JSON; this agent must not.
 
@@ -195,6 +211,21 @@ def test_the_two_prompt_flags_are_independent():
     assert "calendar scheduling personal assistant" not in system
 
 
+def test_advocacy_and_preference_guidance_are_independent():
+    """The procedure remains testable when the tag explanation is absent."""
+    agent = CalendarOpenClawAgent(
+        task=_task(preference_md=PREFERENCE_MD),
+        model="anthropic/claude-opus-4-8",
+        preference_guidance=False,
+        advocacy_guidance=True,
+    )
+
+    system, _ = _sent(agent)
+
+    assert CALENDAR_ADVOCACY_GUIDANCE in system
+    assert CALENDAR_PREFERENCE_GUIDANCE not in system
+
+
 def test_the_ground_rules_survive_every_setting():
     """They are the harness protocol contract, not a prompt treatment."""
     for srbench in (True, False):
@@ -233,6 +264,7 @@ def test_both_flags_default_to_the_faithful_setting():
         model="anthropic/claude-opus-4-8",
         srbench_system_prompt=True,
         preference_guidance=True,
+        advocacy_guidance=False,
     )
 
     assert _sent(_agent(task)) == _sent(explicit)
@@ -280,6 +312,14 @@ def test_the_stock_arm_still_honors_the_guidance_flag():
     assert CALENDAR_PREFERENCE_GUIDANCE not in without
     # The preference itself is not part of that treatment.
     assert "<user_preference>" in without
+
+
+def test_the_stock_arm_moves_advocacy_guidance_into_the_user_turn():
+    """The treatment follows the existing delivery factor rather than patching stock."""
+    agent = _stock(advocacy_guidance=True)
+
+    assert agent._system_prompt_message() is None
+    assert agent._opening_message().count(CALENDAR_ADVOCACY_GUIDANCE) == 1
 
 
 def test_delivery_defaults_to_the_system_channel():

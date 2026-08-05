@@ -15,6 +15,10 @@
 #
 # ABLATION_REPEATS is how many times each cell runs (default 3).
 #
+# ABLATION_ADVOCACY_GUIDANCE is "off" (default) or "on". The completed
+# historical GPT-5.4 sweep is the off arm; set it to "on" and filter with
+# ``-k srbench-on`` to run the eight treatment cells.
+#
 # ABLATION_TOOLS picks the tool settings to walk (default "srbench sandbox"):
 #
 #   srbench  built-ins removed; only the benchmark's MCP tools
@@ -56,7 +60,7 @@ for rep in $(seq 1 "${ABLATION_REPEATS:-3}"); do
   for tools in ${ABLATION_TOOLS:-srbench sandbox}; do
     export ABLATION_REPEAT="$rep"
     export SRBENCH_OPENCLAW_TOOLS="$tools"
-    echo "=== repeat: $rep | tools: $tools ==="
+    echo "=== repeat: $rep | tools: $tools | advocacy: ${ABLATION_ADVOCACY_GUIDANCE:-off} ==="
     .venv/bin/srbench experiment "$HERE" --output-base "$OUTPUT_BASE" "$@"
   done
 done

@@ -12,6 +12,7 @@ from srbench.benchmarks.calendar_scheduling.agents.assistant.calendar_assistant 
     CalendarAssistantAgent,
 )
 from srbench.benchmarks.calendar_scheduling.agents.assistant.prompts import (
+    CALENDAR_ADVOCACY_GUIDANCE,
     CALENDAR_PREFERENCE_GUIDANCE,
     CALENDAR_ROLE,
     USER_PREFERENCE_TAG,
@@ -85,6 +86,7 @@ def _messages(
     assistant: CalendarAssistant,
     expose_preferences: bool = True,
     preference_guidance: bool = True,
+    advocacy_guidance: bool = False,
 ):
     """Build an assistant agent and return its seeded system and user messages.
 
@@ -92,6 +94,8 @@ def _messages(
         assistant: The principal the agent acts for.
         expose_preferences: Whether preferences are shown to the model.
         preference_guidance: Whether the system prompt explains the tag.
+        advocacy_guidance: Whether the system prompt adds the negotiation
+            procedure.
 
     Returns:
         A ``(system_content, user_content)`` tuple.
@@ -102,6 +106,7 @@ def _messages(
         task=CalendarAssistantTask(assistant=assistant),
         expose_preferences=expose_preferences,
         preference_guidance=preference_guidance,
+        advocacy_guidance=advocacy_guidance,
     )
     system_message, user_message = agent.messages[0], agent.messages[1]
     return system_message["content"], user_message["content"]
@@ -167,6 +172,27 @@ class TestNaturalLanguagePreferences:
 
         assert "follow the ranking the block gives them" in system
 
+    def test_advocacy_guidance_is_opt_in(self):
+        """The existing prompt stays unchanged unless the new treatment is enabled."""
+        default_system, _ = _messages(_make_assistant(preference_md=PREFERENCE_MD))
+        advocacy_system, _ = _messages(
+            _make_assistant(preference_md=PREFERENCE_MD), advocacy_guidance=True
+        )
+
+        assert CALENDAR_ADVOCACY_GUIDANCE not in default_system
+        assert advocacy_system.count(CALENDAR_ADVOCACY_GUIDANCE) == 1
+
+    def test_advocacy_and_preference_guidance_are_independent(self):
+        """The negotiation procedure can be tested without the tag explanation."""
+        system, _ = _messages(
+            _make_assistant(preference_md=PREFERENCE_MD),
+            preference_guidance=False,
+            advocacy_guidance=True,
+        )
+
+        assert CALENDAR_ADVOCACY_GUIDANCE in system
+        assert CALENDAR_PREFERENCE_GUIDANCE not in system
+
     def test_numeric_preferences_are_not_also_injected(self):
         """Natural-language preferences take precedence over numeric ones."""
         assistant = _make_assistant(preference_md=PREFERENCE_MD, preferences=NUMERIC_PREFERENCES)
@@ -201,6 +227,14 @@ class TestNumericPreferencesUnchanged:
         system, _ = _messages(_make_assistant(preferences=NUMERIC_PREFERENCES))
 
         assert CALENDAR_PREFERENCE_GUIDANCE not in system
+
+    def test_numeric_tasks_do_not_get_advocacy_guidance(self):
+        """The treatment is scoped to tasks with natural-language preferences."""
+        system, _ = _messages(
+            _make_assistant(preferences=NUMERIC_PREFERENCES), advocacy_guidance=True
+        )
+
+        assert CALENDAR_ADVOCACY_GUIDANCE not in system
 
     def test_messages_match_the_pre_change_prompt_exactly(self):
         """Regression guard: the legacy prompt is reproduced byte for byte.

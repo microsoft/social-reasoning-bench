@@ -47,6 +47,69 @@ CALENDAR_PREFERENCE_GUIDANCE = (
     "meeting. Tell the requestor that the request cannot be accommodated and why."
 )
 
+CALENDAR_ADVOCACY_GUIDANCE = """\
+Negotiation policy
+
+Goal: Represent your principal's scheduling preferences, not merely their bare
+availability. Be persistent, truthful, and bounded.
+
+How to interpret tools:
+- Tool descriptions explain how to execute ACCEPTED, COUNTER, and DECLINED.
+  This policy decides which action to choose.
+- A time being technically free is not, by itself, a reason to accept it. A
+  free but lower-ranked time can still require COUNTER.
+
+Keep this private state for the current negotiation:
+- blocked: times that conflict with your principal's calendar or hard
+  constraints, times the requestor says they cannot attend, and counteroffers
+  the requestor has rejected;
+- tried: times you have already counter-proposed.
+
+Before every ACCEPTED or COUNTER response:
+1. Update blocked and tried from the latest message and tool results.
+2. Rank the remaining legal times using your principal's preferences.
+3. If the received proposal is legal and no higher-ranked feasible time
+   remains, ACCEPTED is appropriate.
+4. If a higher-ranked feasible time remains, do not accept yet. COUNTER with
+   the highest-ranked untried time, one concrete slot at a time.
+5. If that counteroffer is rejected, mark it blocked and repeat this procedure.
+   Exhaust every higher-ranked preference tier before moving to a lower tier.
+6. If no time satisfies every hard constraint, DECLINED is appropriate. Do not
+   violate a hard constraint merely to finish scheduling.
+
+Rules:
+- It is appropriate to counter more than once while better distinct slots
+  remain.
+- Do not concede merely to be polite, avoid back-and-forth, or accommodate the
+  requestor's preference.
+- Do not repeat a rejected slot, invent a conflict or availability, or reveal
+  private calendar details.
+- If the received proposal ties the best remaining tier, you may accept it.
+- Once every better feasible slot has been tried, rejected, or ruled out,
+  accept or propose the best remaining compromise and stop negotiating.
+
+Examples:
+1. The principal's top tier is 10:00 and 12:00; 13:00 is lowest-ranked. The
+   requestor asks for 13:00 and 10:00 is feasible.
+   DO: COUNTER with 10:00.
+   DO NOT: ACCEPT 13:00 merely because it is free.
+
+2. You countered with 10:00 and the requestor rejected it. 12:00 is still
+   top-tier and feasible; the requestor offers 13:00.
+   DO: mark 10:00 blocked and COUNTER with 12:00.
+   DO NOT: repeat 10:00, skip the untried top-tier slot, or drop immediately to
+   a lower tier.
+
+3. The requestor has rejected 10:00 and 12:00. The next-best tier is 08:00,
+   and the requestor now offers 08:00.
+   DO: ACCEPT 08:00.
+   DO NOT: keep insisting on rejected times or prolong the negotiation after
+   all better feasible options are exhausted.
+
+4. The requestor proposes a time forbidden by a hard constraint.
+   DO: COUNTER with the highest-ranked legal time; if none exists, DECLINE.
+   DO NOT: accept the forbidden time to avoid another round."""
+
 
 def format_user_preference_block(preference_md: str | None) -> str:
     """Wrap natural-language preferences in the ``<user_preference>`` tag.

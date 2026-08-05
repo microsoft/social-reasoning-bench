@@ -18,12 +18,16 @@ tools                srbench / sandbox        ``SRBENCH_OPENCLAW_TOOLS``
 delivery             system / user            swept here
 SRBench prompt       on / off                 swept here
 preference guidance  on / off                 swept here
+advocacy guidance    off / on                 ``ABLATION_ADVOCACY_GUIDANCE``
 ===================  =======================  ============================
 
 Tools are written into the Gateway's config file when it starts, and the
 Gateway pool outlives a single variant, so that factor cannot vary *within* one
 ``srbench experiment`` process — it selects which process to run. ``run.sh``
-walks the two settings and this file sweeps the remaining two inside each.
+walks the two tool settings and this file sweeps the benchmark framing and
+preference guidance inside each. Advocacy guidance is held fixed for one output
+sweep so the completed historical cells can serve as its ``off`` arm without
+being rerun.
 
 Reading the same environment variable the machinery reads, rather than
 mirroring it into a private setting, is what keeps a variant's name honest: a
@@ -66,6 +70,10 @@ to read when checking what a cell actually did.
 The dataset is the soft-preference split, because ``preference guidance`` is
 only defined for tasks that carry a preference document. ``large.yaml`` is 140
 tasks, so a default sweep is 140 x 12 cells x 3 repeats = 5,040 runs.
+
+Set ``ABLATION_ADVOCACY_GUIDANCE=on`` and filter to ``srbench-on`` to run the
+eight treatment cells. Combined with the existing eight-cell GPT-5.4 baseline,
+that produces a balanced 2 x 2 x 2 x 2 design with 6,720 runs.
 
 Prerequisites:
     A local OpenClaw build that honours ``OPENCLAW_SYSTEM_PROMPT_FILE``, pointed
@@ -146,6 +154,22 @@ def tools() -> str:
     return setting if setting in ("srbench", "sandbox") else "all"
 
 
+def advocacy_guidance() -> bool:
+    """Return whether the opt-in advocacy policy should be added.
+
+    The historical GPT-5.4 sweep is the ``off`` arm. Keeping that as the
+    default preserves its variant names and serialized configs, so those cells
+    remain resumable and need not be rerun.
+
+    Raises:
+        ValueError: If ``ABLATION_ADVOCACY_GUIDANCE`` is not ``off`` or ``on``.
+    """
+    setting = os.environ.get("ABLATION_ADVOCACY_GUIDANCE", "off").strip().lower()
+    if setting not in ("off", "on"):
+        raise ValueError(f"ABLATION_ADVOCACY_GUIDANCE must be 'off' or 'on', got {setting!r}.")
+    return setting == "on"
+
+
 def prompt_cells():
     """Yield the prompt settings to sweep in this process.
 
@@ -171,11 +195,13 @@ def prompt_cells():
 
 def variant(cell: dict[str, Any], repeat: int) -> str:
     """Name a cell after every factor, so an output directory is self-describing."""
+    advocacy = "_advocacy-on" if advocacy_guidance() else ""
     return (
         f"calendar_delivery-{cell['delivery']}"
         f"_srbench-{'on' if cell['srbench'] else 'off'}"
         f"_guidance-{'on' if cell['guidance'] else 'off'}"
         f"_tools-{tools()}"
+        f"{advocacy}"
         f"_rep{repeat}"
     )
 
@@ -187,17 +213,21 @@ def experiment_calendar():
     from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
 
     for cell in prompt_cells():
+        agent_kwargs: dict[str, Any] = {
+            "srbench_system_prompt": cell["srbench"],
+            "preference_guidance": cell["guidance"],
+            "prompt_delivery": cell["delivery"],
+        }
+        if advocacy_guidance():
+            agent_kwargs["advocacy_guidance"] = True
+
         yield CalendarRunConfig(
             paths=[DATA_PATH],
             # Assistant (BYOA, OpenClaw)
             assistant_agent=ASSISTANT["agent"],
             assistant_model=ASSISTANT["model"],
             assistant_reasoning_effort=ASSISTANT["effort"],
-            assistant_agent_kwargs={
-                "srbench_system_prompt": cell["srbench"],
-                "preference_guidance": cell["guidance"],
-                "prompt_delivery": cell["delivery"],
-            },
+            assistant_agent_kwargs=agent_kwargs,
             system_prompt="none",
             expose_preferences=True,
             # Requestor

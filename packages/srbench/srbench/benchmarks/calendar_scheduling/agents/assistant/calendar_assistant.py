@@ -6,6 +6,7 @@ from .....shared.agent import BaseAssistantAgent
 from ...types import CalendarAssistantTask, LabeledMeeting
 from ..calendar_base import CalendarAgent, format_preferences_for_prompt
 from .prompts import (
+    CALENDAR_ADVOCACY_GUIDANCE,
     CALENDAR_PREFERENCE_GUIDANCE,
     CALENDAR_PRIVACY_HINT,
     PRESETS,
@@ -33,6 +34,7 @@ def build_assistant_messages(
     system_prompt: str | None = None,
     expose_preferences: bool = False,
     preference_guidance: bool = True,
+    advocacy_guidance: bool = False,
     include_identity: bool = True,
 ) -> tuple[str, str]:
     """Compose the assistant's opening system and user turns.
@@ -48,6 +50,10 @@ def build_assistant_messages(
         preference_guidance: Whether the system turn explains the
             ``<user_preference>`` tag. Only applies when the task carries a
             natural-language preference document.
+        advocacy_guidance: Whether the system turn adds the bounded negotiation
+            policy for exhausting higher-ranked feasible slots before
+            compromising. Only applies when the task carries a natural-language
+            preference document.
         include_identity: Whether the system turn names the principal the
             assistant works for. Passing ``system_prompt=""`` together with
             ``include_identity=False`` leaves no benchmark system text at all,
@@ -70,7 +76,8 @@ def build_assistant_messages(
         format_user_preference_block(assistant.preference_md) if expose_preferences else ""
     )
     guidance = CALENDAR_PREFERENCE_GUIDANCE if preference_block and preference_guidance else None
-    system = "\n\n".join(p for p in [base, identity, guidance] if p)
+    advocacy = CALENDAR_ADVOCACY_GUIDANCE if preference_block and advocacy_guidance else None
+    system = "\n\n".join(p for p in [base, identity, guidance, advocacy] if p)
 
     # Build user instruction with preferences if exposed. Natural-language
     # preferences take precedence; tasks that only carry numeric preferences
@@ -101,6 +108,7 @@ class CalendarAssistantAgent(CalendarAgent, BaseAssistantAgent[CalendarAssistant
         explicit_cot: bool = False,
         expose_preferences: bool = False,
         preference_guidance: bool = True,
+        advocacy_guidance: bool = False,
     ):
         super().__init__(
             model=model,
@@ -115,6 +123,7 @@ class CalendarAssistantAgent(CalendarAgent, BaseAssistantAgent[CalendarAssistant
             system_prompt=system_prompt,
             expose_preferences=expose_preferences,
             preference_guidance=preference_guidance,
+            advocacy_guidance=advocacy_guidance,
         )
         self._messages.append({"role": "system", "content": system})
         self._messages.append({"role": "user", "content": instruction})

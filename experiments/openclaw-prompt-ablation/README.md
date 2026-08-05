@@ -23,6 +23,7 @@ framing and the tools:
 | delivery | system / user | `assistant_agent_kwargs` |
 | SRBench system prompt | on / off | `assistant_agent_kwargs` |
 | preference guidance | on / off | `assistant_agent_kwargs` |
+| advocacy guidance | off / on | `ABLATION_ADVOCACY_GUIDANCE` |
 
 `delivery` is why the grid is not a clean product. `system` is the arrangement
 above. `user` is **OpenClaw as it ships**: its own ~36 KB prompt stands and the
@@ -41,6 +42,12 @@ confines the built-ins to a container that cannot see the repository, and
 stock cells per tool setting. `ABLATION_REPEATS` (default 3) runs each cell more
 than once. The dataset is `soft/large.yaml`, 140 tasks, so a default sweep is
 **5,040 runs**.
+
+Advocacy guidance is an opt-in fourth factor. The completed GPT-5.4 eight-cell
+comparison is its `off` arm. Running the same eight cells with
+`ABLATION_ADVOCACY_GUIDANCE=on` adds only the treatment arm: 3,360 new runs,
+6,720 total, and a balanced 2×2×2×2 design. Historical off-cell directory names
+remain unchanged; treatment directories add `_advocacy-on`.
 
 The assistant is `phyagi/gpt-5.4` at `xhigh` reasoning effort, against the same
 counterparty and judge as the published native runs. Override it with
@@ -61,6 +68,7 @@ drift apart:
 | harness ground rules | always | `srbench_agents.prompts` |
 | preset + `You are <name>'s calendar scheduling personal assistant.` | `srbench-on` | `build_assistant_messages` |
 | `<user_preference>` explanation | `guidance-on`, soft tasks only | `CALENDAR_PREFERENCE_GUIDANCE` |
+| bounded negotiation procedure + examples | `advocacy-on`, soft tasks only | `CALENDAR_ADVOCACY_GUIDANCE` |
 
 The ground rules are in every cell. They are the harness protocol contract
 (call `Wait`, one action per turn, finish with `EndConversation`), not a prompt
@@ -71,6 +79,11 @@ and nothing else — rather than an agent left with no instructions.
 In the stock (`delivery-user`) cells this same text is composed identically and
 then prepended to the opening user turn instead, since OpenClaw's own prompt
 occupies the system slot.
+
+The advocacy treatment follows the same channel rule: it is true system text in
+`delivery-system` cells and part of the opening user turn in `delivery-user`
+cells. This preserves the existing delivery factor instead of patching stock
+OpenClaw to create a different system-prompt condition.
 
 Each run records what it sent as the first entry of
 `execution.assistant_context`, so a result carries the exact prompt that
@@ -211,6 +224,17 @@ ABLATION_TOOLS="all" experiments/openclaw-prompt-ablation/run.sh
 ABLATION_ASSISTANT_MODEL=phyagi/gpt-5.5 \
   ABLATION_OUTPUT_BASE=outputs/oc_gpt55_8cell \
   experiments/openclaw-prompt-ablation/run.sh -k srbench-on
+
+# one-task smoke of the eight new GPT-5.4 advocacy cells
+ABLATION_ADVOCACY_GUIDANCE=on \
+  ABLATION_REPEATS=1 \
+  ABLATION_OUTPUT_BASE=outputs/oc_gpt54_advocacy_smoke \
+  experiments/openclaw-prompt-ablation/run.sh -k srbench-on --set limit=1
+
+# full treatment arm: 8 cells x 140 tasks x 3 repeats = 3,360 new runs
+ABLATION_ADVOCACY_GUIDANCE=on \
+  ABLATION_OUTPUT_BASE=outputs/oc_gpt54_advocacy_8cell \
+  experiments/openclaw-prompt-ablation/run.sh -k srbench-on
 ```
 
 `run.sh` walks the tool settings one process at a time, because the profile is
@@ -223,3 +247,5 @@ identical cells yielded from one generator would silently collapse into one.
 
 Each cell's factors are in its output directory name, e.g.
 `calendar_delivery-system_srbench-off_guidance-on_tools-srbench_rep1`.
+An advocacy-treatment cell adds the suffix before the repeat, e.g.
+`calendar_delivery-system_srbench-on_guidance-on_tools-srbench_advocacy-on_rep1`.
