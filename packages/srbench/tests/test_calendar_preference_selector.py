@@ -134,6 +134,7 @@ def test_tool_input_is_a_flat_canonical_string_list():
 
     assert action.blocked_starts == ["08:00", "10:00"]
     assert "$defs" not in FindNextBestSlot.get_parameters_schema()
+    assert 'never start="2026-02-20 14:00"' in FindNextBestSlot.get_description()
     with pytest.raises(ValueError, match="whole-hour"):
         FindNextBestSlot.model_validate({"blocked_starts": ["08:30"]})
 

@@ -186,8 +186,10 @@ class FindNextBestSlot(Tool):
     does not inspect either party's live calendar.
 
     If the current proposal matches the returned slot, accept it. Otherwise
-    counter with exactly the returned slot. If all returned fields are null,
-    decline because no candidate remains.
+    counter with exactly the returned slot. Copy each returned value into the
+    same-named ReplyMeeting field verbatim: for example, pass start="14:00",
+    never start="2026-02-20 14:00". If all returned fields are null, decline
+    because no candidate remains.
 
     Returns:
         JSON with ``date``, ``start``, and ``end`` for the next-best slot, or

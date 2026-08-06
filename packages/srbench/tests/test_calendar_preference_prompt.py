@@ -208,6 +208,7 @@ class TestNaturalLanguagePreferences:
 
         assert CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE not in default_system
         assert tool_system.count(CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE) == 1
+        assert "pass those three strings separately" in tool_system
 
     def test_programmatic_tool_is_independent_of_both_other_guidance_blocks(self):
         """The fifth factor remains crossed with guidance and advocacy."""

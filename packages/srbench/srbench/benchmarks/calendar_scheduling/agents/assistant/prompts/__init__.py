@@ -130,6 +130,11 @@ Follow the result exactly:
 - Otherwise COUNTER with exactly the returned date, start, and end.
 - If all three returned fields are null, DECLINE.
 
+For COUNTER, copy each JSON value verbatim into the same-named ReplyMeeting
+field. For example, if the tool returns date="2026-02-20", start="14:00", and
+end="15:00", pass those three strings separately. Never put the date inside the
+start or end field.
+
 Call the tool again after every requestor response. Do not reuse an old result."""
 
 

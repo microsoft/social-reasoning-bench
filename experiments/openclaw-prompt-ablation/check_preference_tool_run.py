@@ -87,6 +87,8 @@ def _audit_record(record: dict[str, Any]) -> list[str]:
             "DECLINED",
         }:
             status = payload["status"]
+            if not valid:
+                failures.append(f"task {task_id}: {status} ReplyMeeting call was rejected")
             if current_helper is None:
                 failures.append(f"task {task_id}: {status} had no fresh successful helper call")
             elif status == "COUNTER":
