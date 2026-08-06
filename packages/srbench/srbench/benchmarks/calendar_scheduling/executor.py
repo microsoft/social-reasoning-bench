@@ -43,8 +43,14 @@ from .environment import (
     AgentResources,
     CalendarSchedulingEnvironment,
 )
-from .environment.actions import CALENDAR_TOOLS, EndConversation, RequestMeeting
+from .environment.actions import (
+    CALENDAR_TOOLS,
+    EndConversation,
+    FindNextBestSlot,
+    RequestMeeting,
+)
 from .environment.utils import BUSINESS_HOURS_WINDOW, WHOLE_DAY_WINDOW
+from .evaluation.preference_adherence import PreferenceSlotSelector
 from .types import (
     CalendarAssistantTask,
     CalendarExecutionResult,
@@ -142,6 +148,7 @@ async def execute_task(
     cancel_event: asyncio.Event | None = None,
     benchmark_logger: BenchmarkLogger | None = None,
     preference_guidance: bool = True,
+    programmatic_preference_tool: bool = False,
     *,
     assistant_agent_factory: Callable[..., BaseAssistantAgent] | None = None,
 ) -> CalendarExecutionResult:
@@ -166,7 +173,10 @@ async def execute_task(
         expose_preferences: Whether to expose scheduling preferences
         cancel_event: Optional event to signal cancellation
         benchmark_logger: Optional logger for progress tracking
-        assistant_agent_factory: Optional factory for a user-provided
+        preference_guidance: Whether the built-in assistant receives the
+            preference-document guidance.
+        programmatic_preference_tool: Whether the assistant receives the
+            task-specific next-best-slot tool and its prompt instructions.
         assistant_agent_factory: Optional factory for a user-provided
             assistant agent (bring your own agent). Called with the keyword
             argument ``task`` (a ``CalendarAssistantTask`` carrying the
@@ -196,6 +206,21 @@ async def execute_task(
     free_block_window = (
         WHOLE_DAY_WINDOW if task.assistant.preference_file else BUSINESS_HOURS_WINDOW
     )
+    assistant_tools = list(ASSISTANT_TOOLS)
+    next_best_slot = None
+    if programmatic_preference_tool:
+        preference_file = task.assistant.preference_file
+        if not preference_file:
+            raise ValueError(
+                "programmatic_preference_tool requires a natural-language preference document."
+            )
+        assistant_tools.insert(-1, FindNextBestSlot)
+        selector = PreferenceSlotSelector.from_preference(
+            preference_file,
+            task.requestor.requested_meeting,
+        )
+        next_best_slot = selector.select
+    assistant_tool_space = [tool.get_openai_function_tool_param() for tool in assistant_tools]
 
     # Convert LabeledMeetings to Meetings for assistant's calendar
     # (strip the is_movable and is_secret fields that are hidden from the LLM)
@@ -219,8 +244,9 @@ async def execute_task(
         contacts=task.assistant.contacts,
         allowed_date=task.requestor.requested_meeting.date,
         free_block_window=free_block_window,
-        tools=ASSISTANT_TOOLS,
+        tools=assistant_tools,
         allowed_contacts=[requestor_email],
+        next_best_slot=next_best_slot,
     )
 
     # Convert LabeledMeetings to Meetings for requestor's calendar
@@ -271,6 +297,7 @@ async def execute_task(
             explicit_cot=assistant_explicit_cot,
             expose_preferences=expose_preferences,
             preference_guidance=preference_guidance,
+            programmatic_preference_tool=programmatic_preference_tool,
         )
 
     requestor_agent = CalendarRequestorAgent(
@@ -298,7 +325,7 @@ async def execute_task(
         # by pushing context into the agent.
         await run_agents_until_end(
             [
-                assistant_agent.run(assistant_resources.invoke_tool, ASSISTANT_TOOL_SPACE),
+                assistant_agent.run(assistant_resources.invoke_tool, assistant_tool_space),
                 requestor_agent.run(requestor_resources.invoke_tool, REQUESTOR_TOOL_SPACE),
             ],
             signals=signals,
@@ -332,7 +359,7 @@ async def execute_task(
         # exposes them. Evaluation reads the environment's action trace.
         assistant_context=list(getattr(assistant_agent, "messages", [])),
         requestor_context=list(requestor_agent.messages),
-        assistant_tools=list(ASSISTANT_TOOL_SPACE),
+        assistant_tools=list(assistant_tool_space),
         requestor_tools=list(REQUESTOR_TOOL_SPACE),
         max_rounds_reached=signals.end_reason in _HARNESS_STOP_REASONS,
         error=exec_error,

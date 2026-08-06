@@ -19,6 +19,7 @@ delivery             system / user            swept here
 SRBench prompt       on / off                 swept here
 preference guidance  on / off                 swept here
 advocacy guidance    off / on                 ``ABLATION_ADVOCACY_GUIDANCE``
+preference tool      off / on                 ``ABLATION_PREFERENCE_TOOL``
 ===================  =======================  ============================
 
 Tools are written into the Gateway's config file when it starts, and the
@@ -74,6 +75,10 @@ tasks, so a default sweep is 140 x 12 cells x 3 repeats = 5,040 runs.
 Set ``ABLATION_ADVOCACY_GUIDANCE=on`` and filter to ``srbench-on`` to run the
 eight treatment cells. Combined with the existing eight-cell GPT-5.4 baseline,
 that produces a balanced 2 x 2 x 2 x 2 design with 6,720 runs.
+
+Set ``ABLATION_PREFERENCE_TOOL=on`` and walk both advocacy settings to run the
+16 new helper cells. Combined with the existing 16 helper-off cells, that
+produces a balanced five-factor design with 13,440 runs.
 
 Prerequisites:
     A local OpenClaw build that honours ``OPENCLAW_SYSTEM_PROMPT_FILE``, pointed
@@ -170,6 +175,22 @@ def advocacy_guidance() -> bool:
     return setting == "on"
 
 
+def programmatic_preference_tool() -> bool:
+    """Return whether the deterministic next-best-slot tool is enabled.
+
+    The completed GPT-5.4 cells are the ``off`` arm. The false setting is kept
+    out of agent kwargs and serialized config so those historical cells retain
+    their exact names and configuration shape.
+
+    Raises:
+        ValueError: If ``ABLATION_PREFERENCE_TOOL`` is not ``off`` or ``on``.
+    """
+    setting = os.environ.get("ABLATION_PREFERENCE_TOOL", "off").strip().lower()
+    if setting not in ("off", "on"):
+        raise ValueError(f"ABLATION_PREFERENCE_TOOL must be 'off' or 'on', got {setting!r}.")
+    return setting == "on"
+
+
 def prompt_cells():
     """Yield the prompt settings to sweep in this process.
 
@@ -196,12 +217,14 @@ def prompt_cells():
 def variant(cell: dict[str, Any], repeat: int) -> str:
     """Name a cell after every factor, so an output directory is self-describing."""
     advocacy = "_advocacy-on" if advocacy_guidance() else ""
+    preference_tool = "_preference-tool-on" if programmatic_preference_tool() else ""
     return (
         f"calendar_delivery-{cell['delivery']}"
         f"_srbench-{'on' if cell['srbench'] else 'off'}"
         f"_guidance-{'on' if cell['guidance'] else 'off'}"
         f"_tools-{tools()}"
         f"{advocacy}"
+        f"{preference_tool}"
         f"_rep{repeat}"
     )
 
@@ -220,6 +243,8 @@ def experiment_calendar():
         }
         if advocacy_guidance():
             agent_kwargs["advocacy_guidance"] = True
+        if programmatic_preference_tool():
+            agent_kwargs["programmatic_preference_tool"] = True
 
         yield CalendarRunConfig(
             paths=[DATA_PATH],
@@ -230,6 +255,7 @@ def experiment_calendar():
             assistant_agent_kwargs=agent_kwargs,
             system_prompt="none",
             expose_preferences=True,
+            programmatic_preference_tool=programmatic_preference_tool(),
             # Requestor
             requestor_model=COUNTERPARTY["model"],
             requestor_explicit_cot=COUNTERPARTY["explicit_cot"],

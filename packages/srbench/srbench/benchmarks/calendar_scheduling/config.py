@@ -55,6 +55,15 @@ class CalendarRunConfig(BaseRunConfig):
     # When False, the <user_preference> block is still injected into the user
     # turn but the system prompt gets no explanation of it. Ablation only.
     preference_guidance: bool = Field(default=True)
+    programmatic_preference_tool: bool = Field(
+        default=False,
+        exclude_if=lambda enabled: not enabled,
+        description=(
+            "Expose the task-specific FindNextBestSlot tool and require its use "
+            "through the assistant prompt. False is omitted from serialized configs "
+            "so historical runs remain byte-compatible."
+        ),
+    )
 
     @model_validator(mode="after")
     def _mirror_assistant_agent_model(self) -> CalendarRunConfig:

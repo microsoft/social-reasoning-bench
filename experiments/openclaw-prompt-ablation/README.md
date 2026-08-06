@@ -24,6 +24,7 @@ framing and the tools:
 | SRBench system prompt | on / off | `assistant_agent_kwargs` |
 | preference guidance | on / off | `assistant_agent_kwargs` |
 | advocacy guidance | off / on | `ABLATION_ADVOCACY_GUIDANCE` |
+| programmatic preference tool | off / on | `ABLATION_PREFERENCE_TOOL` |
 
 `delivery` is why the grid is not a clean product. `system` is the arrangement
 above. `user` is **OpenClaw as it ships**: its own ~36 KB prompt stands and the
@@ -49,6 +50,18 @@ comparison is its `off` arm. Running the same eight cells with
 6,720 total, and a balanced 2×2×2×2 design. Historical off-cell directory names
 remain unchanged; treatment directories add `_advocacy-on`.
 
+The programmatic preference tool is a fifth factor. It adds
+`FindNextBestSlot`, which stores each task's fixed preference ordering and
+returns the highest-ranked hourly start absent from the model-supplied
+`blocked_starts`. It never receives the hidden requestor calendar. The prompt
+requires a fresh call before every acceptance or counteroffer, but the
+environment does not mechanically reject noncompliance; the run audit measures
+whether the model called the tool and followed its output.
+
+Run only the 16 helper-on cells and reuse the existing 16 helper-off cells:
+6,720 new runs and 13,440 total across a balanced 2×2×2×2×2 design. Helper-on
+cells add `_preference-tool-on` to their directory names.
+
 The assistant is `phyagi/gpt-5.4` at `xhigh` reasoning effort, against the same
 counterparty and judge as the published native runs. Override it with
 `ABLATION_ASSISTANT_MODEL` and `ABLATION_ASSISTANT_EFFORT` to ablate the model
@@ -69,6 +82,7 @@ drift apart:
 | preset + `You are <name>'s calendar scheduling personal assistant.` | `srbench-on` | `build_assistant_messages` |
 | `<user_preference>` explanation | `guidance-on`, soft tasks only | `CALENDAR_PREFERENCE_GUIDANCE` |
 | bounded negotiation procedure + examples | `advocacy-on`, soft tasks only | `CALENDAR_ADVOCACY_GUIDANCE` |
+| required next-best-slot procedure | `preference-tool-on`, soft tasks only | `CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE` |
 
 The ground rules are in every cell. They are the harness protocol contract
 (call `Wait`, one action per turn, finish with `EndConversation`), not a prompt
@@ -84,6 +98,9 @@ The advocacy treatment follows the same channel rule: it is true system text in
 `delivery-system` cells and part of the opening user turn in `delivery-user`
 cells. This preserves the existing delivery factor instead of patching stock
 OpenClaw to create a different system-prompt condition.
+
+The preference-tool requirement follows that channel rule too. The tool schema
+itself is provider-visible in every helper-on cell.
 
 Each run records what it sent as the first entry of
 `execution.assistant_context`, so a result carries the exact prompt that
@@ -118,6 +135,11 @@ turn — is the ordinary end of a run.
 
 The two swept settings ask different questions: `srbench` measures a
 deliberately minimal agent, `sandbox` a fully equipped one.
+
+Without the helper, the provider-visible surfaces are 8 tools under `srbench`
+and 20 under `sandbox`. Helper-on adds one relevant benchmark schema to both,
+for 9 and 21 respectively; the expanded-minus-restricted difference remains
+12.
 
 `all` is what OpenClaw does when nothing is configured, and it is not swept.
 Verified: unsandboxed, the model ran `hostname` and got the host, then read
@@ -234,6 +256,23 @@ ABLATION_ADVOCACY_GUIDANCE=on \
 # full treatment arm: 8 cells x 140 tasks x 3 repeats = 3,360 new runs
 ABLATION_ADVOCACY_GUIDANCE=on \
   ABLATION_OUTPUT_BASE=outputs/oc_gpt54_advocacy_8cell \
+  experiments/openclaw-prompt-ablation/run.sh -k srbench-on
+
+# one-task smoke of all 16 helper-on cells; this must pass the compliance audit
+# before the full run starts
+ABLATION_PREFERENCE_TOOL=on \
+  ABLATION_ADVOCACY_SETTINGS="off on" \
+  ABLATION_REPEATS=1 \
+  ABLATION_OUTPUT_BASE=outputs/oc_gpt54_preference_tool_smoke \
+  experiments/openclaw-prompt-ablation/run.sh -k srbench-on --set limit=1
+
+.venv/bin/python experiments/openclaw-prompt-ablation/check_preference_tool_run.py \
+  outputs/oc_gpt54_preference_tool_smoke --expected-runs 16 --expected-traces 16
+
+# full helper treatment: 16 cells x 140 tasks x 3 repeats = 6,720 new runs
+ABLATION_PREFERENCE_TOOL=on \
+  ABLATION_ADVOCACY_SETTINGS="off on" \
+  ABLATION_OUTPUT_BASE=outputs/oc_gpt54_preference_tool_16cell \
   experiments/openclaw-prompt-ablation/run.sh -k srbench-on
 ```
 

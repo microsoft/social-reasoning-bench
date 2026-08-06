@@ -14,6 +14,7 @@ from srbench.benchmarks.calendar_scheduling.agents.assistant import CalendarAssi
 from srbench.benchmarks.calendar_scheduling.agents.assistant.prompts import (
     CALENDAR_ADVOCACY_GUIDANCE,
     CALENDAR_PREFERENCE_GUIDANCE,
+    CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE,
     get_system_prompt,
 )
 from srbench.benchmarks.calendar_scheduling.types import (
@@ -142,6 +143,27 @@ def test_advocacy_guidance_is_opt_in_and_scoped_to_document_tasks():
     assert CALENDAR_ADVOCACY_GUIDANCE not in numeric_system
 
 
+def test_programmatic_tool_guidance_is_opt_in_and_scoped_to_document_tasks():
+    """Only an enabled verifier-backed task receives the tool requirement."""
+    default_system, _ = _sent(_agent(_task(preference_md=PREFERENCE_MD)))
+    tool_system, _ = _sent(
+        _agent(
+            _task(preference_md=PREFERENCE_MD),
+            programmatic_preference_tool=True,
+        )
+    )
+    numeric_system, _ = _sent(
+        _agent(
+            _task(preference_md=None),
+            programmatic_preference_tool=True,
+        )
+    )
+
+    assert CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE not in default_system
+    assert tool_system.count(CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE) == 1
+    assert CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE not in numeric_system
+
+
 def test_the_raw_json_briefing_is_not_sent():
     """The base class dumps the task as JSON; this agent must not.
 
@@ -223,6 +245,21 @@ def test_advocacy_and_preference_guidance_are_independent():
     system, _ = _sent(agent)
 
     assert CALENDAR_ADVOCACY_GUIDANCE in system
+    assert CALENDAR_PREFERENCE_GUIDANCE not in system
+
+
+def test_programmatic_tool_and_preference_guidance_are_independent():
+    """The helper requirement remains when tag guidance is removed."""
+    agent = CalendarOpenClawAgent(
+        task=_task(preference_md=PREFERENCE_MD),
+        model="anthropic/claude-opus-4-8",
+        preference_guidance=False,
+        programmatic_preference_tool=True,
+    )
+
+    system, _ = _sent(agent)
+
+    assert CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE in system
     assert CALENDAR_PREFERENCE_GUIDANCE not in system
 
 
@@ -320,6 +357,14 @@ def test_the_stock_arm_moves_advocacy_guidance_into_the_user_turn():
 
     assert agent._system_prompt_message() is None
     assert agent._opening_message().count(CALENDAR_ADVOCACY_GUIDANCE) == 1
+
+
+def test_the_stock_arm_moves_programmatic_tool_guidance_into_the_user_turn():
+    """The helper requirement follows the existing delivery treatment."""
+    agent = _stock(programmatic_preference_tool=True)
+
+    assert agent._system_prompt_message() is None
+    assert agent._opening_message().count(CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE) == 1
 
 
 def test_delivery_defaults_to_the_system_channel():

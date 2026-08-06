@@ -1,6 +1,7 @@
 """AgentResources class that encapsulates all resources available to an agent."""
 
-from typing import Any, Mapping
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -17,6 +18,7 @@ from ..types import (
 from .actions import (
     CancelMeeting,
     EndConversation,
+    FindNextBestSlot,
     GetEmails,
     ListContacts,
     ListMeetings,
@@ -64,6 +66,7 @@ class AgentResources:
         action_trace: list[CalendarActionTrace] | None = None,
         tools: list[type[Tool]] | None = None,
         allowed_contacts: list[str] | None = None,
+        next_best_slot: Callable[[list[str]], str] | None = None,
     ) -> None:
         self.owner = owner
         self.calendar = calendar
@@ -80,6 +83,7 @@ class AgentResources:
         self._tool_registry: dict[str, type[Tool]] = {t.get_name(): t for t in (tools or [])}
         # Environment policy: recipients this agent is allowed to email.
         self._allowed_contacts: list[str] = list(allowed_contacts or [])
+        self._next_best_slot = next_best_slot
 
     async def invoke_tool(self, name: str, arguments: Mapping[str, Any]) -> str:
         """Validate and execute a named tool call, returning a result string.
@@ -179,12 +183,23 @@ class AgentResources:
             return self._handle_cancel_meeting(action)
         elif isinstance(action, ReplyMeeting):
             return self._handle_reply_meeting(action)
+        elif isinstance(action, FindNextBestSlot):
+            return self._handle_find_next_best_slot(action)
         elif isinstance(action, Wait):
             return self._handle_wait(action)
         elif isinstance(action, EndConversation):
             return self._handle_end_conversation(action)
         else:
             raise ValueError(f"Unknown action: {type(action).__name__}")
+
+    def _handle_find_next_best_slot(self, action: FindNextBestSlot) -> str:
+        """Return the task-specific highest-ranked unblocked slot."""
+        if self._next_best_slot is None:
+            raise ToolError("FindNextBestSlot is not configured for this task.")
+        try:
+            return self._next_best_slot(action.blocked_starts)
+        except ValueError as error:
+            raise ToolError(str(error)) from error
 
     def _handle_send_email(self, action: SendEmail) -> str:
         """Send a simple email without calendar attachment.

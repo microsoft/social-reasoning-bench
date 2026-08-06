@@ -182,6 +182,7 @@ class CalendarBenchmark(
             cancel_event,
             benchmark_logger=self._benchmark_logger,
             preference_guidance=config.preference_guidance,
+            programmatic_preference_tool=config.programmatic_preference_tool,
             assistant_agent_factory=self.assistant_agent_factory,
         )
 

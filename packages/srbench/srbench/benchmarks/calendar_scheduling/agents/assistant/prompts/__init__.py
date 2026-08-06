@@ -110,6 +110,28 @@ Examples:
    DO: COUNTER with the highest-ranked legal time; if none exists, DECLINE.
    DO NOT: accept the forbidden time to avoid another round."""
 
+CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE = """\
+Programmatic preference tool
+
+Before every ReplyMeeting response with status ACCEPTED or COUNTER, call
+FindNextBestSlot with a fresh blocked_starts list.
+
+Build blocked_starts from every hourly candidate that is currently unusable:
+- starts whose one-hour interval overlaps your principal's visible calendar;
+- starts the requestor explicitly says they cannot attend;
+- counteroffers the requestor has already rejected.
+
+Do not block a start merely because the requestor prefers another time. The
+tool already applies your principal's fixed hard constraints and ranked soft
+preferences; it does not inspect either party's live calendar.
+
+Follow the result exactly:
+- If the current proposal matches the returned date, start, and end, ACCEPT it.
+- Otherwise COUNTER with exactly the returned date, start, and end.
+- If all three returned fields are null, DECLINE.
+
+Call the tool again after every requestor response. Do not reuse an old result."""
+
 
 def format_user_preference_block(preference_md: str | None) -> str:
     """Wrap natural-language preferences in the ``<user_preference>`` tag.

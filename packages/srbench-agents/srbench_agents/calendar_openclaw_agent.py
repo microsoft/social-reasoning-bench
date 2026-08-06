@@ -84,6 +84,8 @@ class CalendarOpenClawAgent(OpenClawAgent):
         advocacy_guidance: Whether to add a bounded negotiation policy that
             exhausts higher-ranked feasible slots before compromising. Only
             applies to tasks that carry a preference document.
+        programmatic_preference_tool: Whether to require a fresh
+            ``FindNextBestSlot`` call before every acceptance or counteroffer.
         prompt_delivery: Where the benchmark's framing goes. ``"system"`` sends
             it as the actual system prompt, replacing OpenClaw's. ``"user"`` is
             the stock OpenClaw setup: OpenClaw's own ~36 KB prompt stands, and
@@ -100,6 +102,7 @@ class CalendarOpenClawAgent(OpenClawAgent):
         srbench_system_prompt: bool = True,
         preference_guidance: bool = True,
         advocacy_guidance: bool = False,
+        programmatic_preference_tool: bool = False,
         prompt_delivery: str = "system",
         **kwargs: Any,
     ) -> None:
@@ -111,6 +114,7 @@ class CalendarOpenClawAgent(OpenClawAgent):
         self._srbench_system_prompt = srbench_system_prompt
         self._preference_guidance = preference_guidance
         self._advocacy_guidance = advocacy_guidance
+        self._programmatic_preference_tool = programmatic_preference_tool
         self._prompt_delivery = prompt_delivery
 
     def _build_messages(self) -> tuple[str, str]:
@@ -140,6 +144,7 @@ class CalendarOpenClawAgent(OpenClawAgent):
             expose_preferences=True,
             preference_guidance=self._preference_guidance,
             advocacy_guidance=self._advocacy_guidance,
+            programmatic_preference_tool=self._programmatic_preference_tool,
             include_identity=self._srbench_system_prompt,
         )
         return "\n\n".join(part.strip() for part in [ground_rules(), system] if part.strip()), (

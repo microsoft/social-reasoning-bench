@@ -19,6 +19,14 @@
 # historical GPT-5.4 sweep is the off arm; set it to "on" and filter with
 # ``-k srbench-on`` to run the eight treatment cells.
 #
+# ABLATION_ADVOCACY_SETTINGS optionally walks more than one advocacy setting in
+# the same sweep, e.g. "off on" for the 16 preference-tool treatment cells. It
+# defaults to the single ABLATION_ADVOCACY_GUIDANCE value above.
+#
+# ABLATION_PREFERENCE_TOOL is "off" (default) or "on". Treatment cells expose
+# FindNextBestSlot and add the requirement to call it before accepting or
+# countering.
+#
 # ABLATION_TOOLS picks the tool settings to walk (default "srbench sandbox"):
 #
 #   srbench  built-ins removed; only the benchmark's MCP tools
@@ -57,10 +65,13 @@ mkdir -p "$SRBENCH_OPENCLAW_TRACE_DIR"
 # configs by content and ignores the variant label, so three identical cells
 # yielded from one generator collapse into one. A fresh process resets that.
 for rep in $(seq 1 "${ABLATION_REPEATS:-3}"); do
-  for tools in ${ABLATION_TOOLS:-srbench sandbox}; do
-    export ABLATION_REPEAT="$rep"
-    export SRBENCH_OPENCLAW_TOOLS="$tools"
-    echo "=== repeat: $rep | tools: $tools | advocacy: ${ABLATION_ADVOCACY_GUIDANCE:-off} ==="
-    .venv/bin/srbench experiment "$HERE" --output-base "$OUTPUT_BASE" "$@"
+  for advocacy in ${ABLATION_ADVOCACY_SETTINGS:-${ABLATION_ADVOCACY_GUIDANCE:-off}}; do
+    for tools in ${ABLATION_TOOLS:-srbench sandbox}; do
+      export ABLATION_REPEAT="$rep"
+      export ABLATION_ADVOCACY_GUIDANCE="$advocacy"
+      export SRBENCH_OPENCLAW_TOOLS="$tools"
+      echo "=== repeat: $rep | tools: $tools | advocacy: $advocacy | preference tool: ${ABLATION_PREFERENCE_TOOL:-off} ==="
+      .venv/bin/srbench experiment "$HERE" --output-base "$OUTPUT_BASE" "$@"
+    done
   done
 done

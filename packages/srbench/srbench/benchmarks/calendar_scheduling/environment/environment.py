@@ -1,5 +1,7 @@
 """CalendarSchedulingEnvironment factory for creating agent resources."""
 
+from collections.abc import Callable
+
 from ....shared.signals import ConversationSignals
 from ..types import CalendarActionTrace, Contact, Email, Meeting, Tool
 from .calendar import CalendarManager
@@ -35,6 +37,7 @@ class CalendarSchedulingEnvironment:
         free_block_window: tuple[str, str] = BUSINESS_HOURS_WINDOW,
         tools: list[type[Tool]] | None = None,
         allowed_contacts: list[str] | None = None,
+        next_best_slot: Callable[[list[str]], str] | None = None,
     ) -> AgentResources:
         """Create AgentResources for an agent.
 
@@ -49,6 +52,8 @@ class CalendarSchedulingEnvironment:
                 ``invoke_tool``.
             allowed_contacts: Recipients this agent is permitted to email;
                 enforced by the environment in ``invoke_tool``.
+            next_best_slot: Optional task-specific selector backing
+                ``FindNextBestSlot``.
 
         Returns:
             AgentResources with calendar, email, and contacts configured
@@ -70,6 +75,7 @@ class CalendarSchedulingEnvironment:
             action_trace=self.action_trace,
             tools=tools,
             allowed_contacts=allowed_contacts,
+            next_best_slot=next_best_slot,
         )
 
     def get_all_emails(self) -> list[Email]:

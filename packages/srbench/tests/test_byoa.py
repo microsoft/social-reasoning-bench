@@ -460,6 +460,20 @@ def test_agent_kwargs_default_to_empty_dict():
     assert MarketplaceRunConfig(paths=["x"]).buyer_agent_kwargs == {}
 
 
+def test_disabled_programmatic_tool_is_omitted_from_serialized_config():
+    """Historical helper-off configs remain unchanged when the field is false."""
+    from srbench.benchmarks.calendar_scheduling.config import CalendarRunConfig
+
+    disabled = CalendarRunConfig(paths=["x"]).model_dump()
+    enabled = CalendarRunConfig(
+        paths=["x"],
+        programmatic_preference_tool=True,
+    ).model_dump()
+
+    assert "programmatic_preference_tool" not in disabled
+    assert enabled["programmatic_preference_tool"] is True
+
+
 def test_calendar_setup_forwards_agent_kwargs(tmp_path, monkeypatch):
     """CalendarBenchmark.setup binds assistant_agent_kwargs into the factory."""
     from srbench.benchmarks.calendar_scheduling.benchmark import CalendarBenchmark

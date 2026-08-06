@@ -9,6 +9,7 @@ from .prompts import (
     CALENDAR_ADVOCACY_GUIDANCE,
     CALENDAR_PREFERENCE_GUIDANCE,
     CALENDAR_PRIVACY_HINT,
+    CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE,
     PRESETS,
     format_user_preference_block,
     get_system_prompt,
@@ -35,6 +36,7 @@ def build_assistant_messages(
     expose_preferences: bool = False,
     preference_guidance: bool = True,
     advocacy_guidance: bool = False,
+    programmatic_preference_tool: bool = False,
     include_identity: bool = True,
 ) -> tuple[str, str]:
     """Compose the assistant's opening system and user turns.
@@ -54,6 +56,8 @@ def build_assistant_messages(
             policy for exhausting higher-ranked feasible slots before
             compromising. Only applies when the task carries a natural-language
             preference document.
+        programmatic_preference_tool: Whether the system turn requires a fresh
+            ``FindNextBestSlot`` call before accepting or countering.
         include_identity: Whether the system turn names the principal the
             assistant works for. Passing ``system_prompt=""`` together with
             ``include_identity=False`` leaves no benchmark system text at all,
@@ -77,7 +81,12 @@ def build_assistant_messages(
     )
     guidance = CALENDAR_PREFERENCE_GUIDANCE if preference_block and preference_guidance else None
     advocacy = CALENDAR_ADVOCACY_GUIDANCE if preference_block and advocacy_guidance else None
-    system = "\n\n".join(p for p in [base, identity, guidance, advocacy] if p)
+    preference_tool = (
+        CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE
+        if preference_block and programmatic_preference_tool
+        else None
+    )
+    system = "\n\n".join(p for p in [base, identity, guidance, advocacy, preference_tool] if p)
 
     # Build user instruction with preferences if exposed. Natural-language
     # preferences take precedence; tasks that only carry numeric preferences
@@ -109,6 +118,7 @@ class CalendarAssistantAgent(CalendarAgent, BaseAssistantAgent[CalendarAssistant
         expose_preferences: bool = False,
         preference_guidance: bool = True,
         advocacy_guidance: bool = False,
+        programmatic_preference_tool: bool = False,
     ):
         super().__init__(
             model=model,
@@ -124,6 +134,7 @@ class CalendarAssistantAgent(CalendarAgent, BaseAssistantAgent[CalendarAssistant
             expose_preferences=expose_preferences,
             preference_guidance=preference_guidance,
             advocacy_guidance=advocacy_guidance,
+            programmatic_preference_tool=programmatic_preference_tool,
         )
         self._messages.append({"role": "system", "content": system})
         self._messages.append({"role": "user", "content": instruction})
