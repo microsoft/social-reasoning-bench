@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import functools
+import json
 import logging
 from collections.abc import Sequence
 
 from srbench_llm import SRBenchModelClient
 
+from ...shared import BaseAssistantAgent, load_agent_class
 from ..base import Benchmark
 from .agents.assistant import get_system_prompt
 from .config import CalendarRunConfig
@@ -67,6 +70,24 @@ class CalendarBenchmark(
     @classmethod
     def add_benchmark_args(cls, parser: argparse.ArgumentParser) -> None:
         g = parser.add_argument_group("calendar agents")
+        g.add_argument(
+            "--assistant-agent",
+            default=None,
+            help=(
+                "Import string for a user-provided assistant agent class, "
+                "e.g. 'my_pkg.my_mod:MyClass'. Must subclass BaseAssistantAgent."
+            ),
+        )
+        g.add_argument(
+            "--assistant-agent-kwargs",
+            default=None,
+            type=json.loads,
+            metavar="JSON",
+            help=(
+                "JSON object of extra kwargs for the assistant agent constructor, "
+                'e.g. \'{"model": "claude-sonnet-4-6", "reasoning_effort": "high"}\'.'
+            ),
+        )
         g.add_argument("--assistant-model", default=None)
         g.add_argument("--assistant-base-url", default=None)
         g.add_argument("--assistant-api-version", default=None)
@@ -98,6 +119,31 @@ class CalendarBenchmark(
         return CalendarRunConfig.from_args(args)
 
     def setup(self, config: CalendarRunConfig) -> None:
+        # Resolved before the agent factory: the system prompt is part of the
+        # BYOA constructor contract, so it has to exist when the factory binds.
+        if config.system_prompt:
+            self.system_prompt: str | None = get_system_prompt(config.system_prompt)
+        else:
+            self.system_prompt = None
+
+        self.assistant_agent_factory = (
+            functools.partial(
+                load_agent_class(config.assistant_agent, expected=BaseAssistantAgent),
+                # The per-agent fields only, never the global ``--model`` /
+                # ``--reasoning-effort`` fallbacks: those configure the built-in
+                # clients (requestor, judge), and feeding them to a BYOA agent
+                # would override its own default with a model id its backend
+                # may not even understand. Explicit agent kwargs still win.
+                **{
+                    "model": config.assistant_model,
+                    "reasoning_effort": config.assistant_reasoning_effort,
+                    "system_prompt": self.system_prompt,
+                    **config.assistant_agent_kwargs,
+                },
+            )
+            if config.assistant_agent
+            else None
+        )
         self.assistant_client = _create_client(
             config.resolved_assistant_base_url,
             config.resolved_assistant_reasoning_effort,
@@ -111,20 +157,16 @@ class CalendarBenchmark(
             config.resolved_judge_reasoning_effort,
         )
 
-        # Resolve system prompt
-        if config.system_prompt:
-            self.system_prompt: str | None = get_system_prompt(config.system_prompt)
-        else:
-            self.system_prompt = None
-
     async def execute_task(
         self,
         task: CalendarTask,
         cancel_event: asyncio.Event | None = None,
     ) -> CalendarExecutionResult:
         config = self.config
-        if not config.resolved_assistant_model or not config.resolved_requestor_model:
-            raise RuntimeError("Assistant and requestor models must be configured")
+        if not config.resolved_requestor_model:
+            raise RuntimeError("Requestor model must be configured")
+        if self.assistant_agent_factory is None and not config.resolved_assistant_model:
+            raise RuntimeError("Assistant model must be configured (or provide --assistant-agent)")
 
         return await _execute_task(
             task,
@@ -140,6 +182,8 @@ class CalendarBenchmark(
             cancel_event,
             benchmark_logger=self._benchmark_logger,
             preference_guidance=config.preference_guidance,
+            programmatic_preference_tool=config.programmatic_preference_tool,
+            assistant_agent_factory=self.assistant_agent_factory,
         )
 
     def make_execution_error_result(
@@ -324,8 +368,13 @@ class CalendarBenchmark(
     # ==================================================================
 
     def get_run_path_models(self) -> list[str]:
+        from ..base.run_paths import agent_model_label
+
+        assistant = agent_model_label(
+            self.config.assistant_agent, self.config.resolved_assistant_model
+        )
         return [
-            self.config.resolved_assistant_model or "unknown",
+            assistant,
             self.config.resolved_requestor_model or "unknown",
         ]
 

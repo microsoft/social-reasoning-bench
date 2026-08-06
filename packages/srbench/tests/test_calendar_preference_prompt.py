@@ -12,7 +12,9 @@ from srbench.benchmarks.calendar_scheduling.agents.assistant.calendar_assistant 
     CalendarAssistantAgent,
 )
 from srbench.benchmarks.calendar_scheduling.agents.assistant.prompts import (
+    CALENDAR_ADVOCACY_GUIDANCE,
     CALENDAR_PREFERENCE_GUIDANCE,
+    CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE,
     CALENDAR_ROLE,
     USER_PREFERENCE_TAG,
     format_user_preference_block,
@@ -23,6 +25,7 @@ from srbench.benchmarks.calendar_scheduling.agents.calendar_base import (
 )
 from srbench.benchmarks.calendar_scheduling.types import (
     CalendarAssistant,
+    CalendarAssistantTask,
     LabeledMeeting,
     TimeSlotPreference,
 )
@@ -84,6 +87,8 @@ def _messages(
     assistant: CalendarAssistant,
     expose_preferences: bool = True,
     preference_guidance: bool = True,
+    advocacy_guidance: bool = False,
+    programmatic_preference_tool: bool = False,
 ):
     """Build an assistant agent and return its seeded system and user messages.
 
@@ -91,6 +96,10 @@ def _messages(
         assistant: The principal the agent acts for.
         expose_preferences: Whether preferences are shown to the model.
         preference_guidance: Whether the system prompt explains the tag.
+        advocacy_guidance: Whether the system prompt adds the negotiation
+            procedure.
+        programmatic_preference_tool: Whether the system prompt requires
+            ``FindNextBestSlot``.
 
     Returns:
         A ``(system_content, user_content)`` tuple.
@@ -98,10 +107,11 @@ def _messages(
     agent = CalendarAssistantAgent(
         model="test",
         model_client=MagicMock(),
-        assistant=assistant,
-        allowed_contacts=["bob@external.com"],
+        task=CalendarAssistantTask(assistant=assistant),
         expose_preferences=expose_preferences,
         preference_guidance=preference_guidance,
+        advocacy_guidance=advocacy_guidance,
+        programmatic_preference_tool=programmatic_preference_tool,
     )
     system_message, user_message = agent.messages[0], agent.messages[1]
     return system_message["content"], user_message["content"]
@@ -167,6 +177,52 @@ class TestNaturalLanguagePreferences:
 
         assert "follow the ranking the block gives them" in system
 
+    def test_advocacy_guidance_is_opt_in(self):
+        """The existing prompt stays unchanged unless the new treatment is enabled."""
+        default_system, _ = _messages(_make_assistant(preference_md=PREFERENCE_MD))
+        advocacy_system, _ = _messages(
+            _make_assistant(preference_md=PREFERENCE_MD), advocacy_guidance=True
+        )
+
+        assert CALENDAR_ADVOCACY_GUIDANCE not in default_system
+        assert advocacy_system.count(CALENDAR_ADVOCACY_GUIDANCE) == 1
+
+    def test_advocacy_and_preference_guidance_are_independent(self):
+        """The negotiation procedure can be tested without the tag explanation."""
+        system, _ = _messages(
+            _make_assistant(preference_md=PREFERENCE_MD),
+            preference_guidance=False,
+            advocacy_guidance=True,
+        )
+
+        assert CALENDAR_ADVOCACY_GUIDANCE in system
+        assert CALENDAR_PREFERENCE_GUIDANCE not in system
+
+    def test_programmatic_tool_guidance_is_opt_in(self):
+        """The existing prompt stays unchanged unless the tool is enabled."""
+        default_system, _ = _messages(_make_assistant(preference_md=PREFERENCE_MD))
+        tool_system, _ = _messages(
+            _make_assistant(preference_md=PREFERENCE_MD),
+            programmatic_preference_tool=True,
+        )
+
+        assert CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE not in default_system
+        assert tool_system.count(CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE) == 1
+        assert "pass those three strings separately" in tool_system
+
+    def test_programmatic_tool_is_independent_of_both_other_guidance_blocks(self):
+        """The fifth factor remains crossed with guidance and advocacy."""
+        system, _ = _messages(
+            _make_assistant(preference_md=PREFERENCE_MD),
+            preference_guidance=False,
+            advocacy_guidance=False,
+            programmatic_preference_tool=True,
+        )
+
+        assert CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE in system
+        assert CALENDAR_PREFERENCE_GUIDANCE not in system
+        assert CALENDAR_ADVOCACY_GUIDANCE not in system
+
     def test_numeric_preferences_are_not_also_injected(self):
         """Natural-language preferences take precedence over numeric ones."""
         assistant = _make_assistant(preference_md=PREFERENCE_MD, preferences=NUMERIC_PREFERENCES)
@@ -201,6 +257,23 @@ class TestNumericPreferencesUnchanged:
         system, _ = _messages(_make_assistant(preferences=NUMERIC_PREFERENCES))
 
         assert CALENDAR_PREFERENCE_GUIDANCE not in system
+
+    def test_numeric_tasks_do_not_get_advocacy_guidance(self):
+        """The treatment is scoped to tasks with natural-language preferences."""
+        system, _ = _messages(
+            _make_assistant(preferences=NUMERIC_PREFERENCES), advocacy_guidance=True
+        )
+
+        assert CALENDAR_ADVOCACY_GUIDANCE not in system
+
+    def test_numeric_tasks_do_not_get_programmatic_tool_guidance(self):
+        """The helper is defined only for verifier-backed preference tasks."""
+        system, _ = _messages(
+            _make_assistant(preferences=NUMERIC_PREFERENCES),
+            programmatic_preference_tool=True,
+        )
+
+        assert CALENDAR_PROGRAMMATIC_PREFERENCE_TOOL_GUIDANCE not in system
 
     def test_messages_match_the_pre_change_prompt_exactly(self):
         """Regression guard: the legacy prompt is reproduced byte for byte.

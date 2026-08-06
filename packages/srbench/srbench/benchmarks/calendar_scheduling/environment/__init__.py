@@ -3,6 +3,7 @@ from .actions import (
     CalendarAction,
     CancelMeeting,
     EndConversation,
+    FindNextBestSlot,
     GetEmails,
     ListContacts,
     ListMeetings,
@@ -27,6 +28,7 @@ __all__ = [
     "ReplyMeeting",
     "Wait",
     "EndConversation",
+    "FindNextBestSlot",
     "CalendarAction",
     "CALENDAR_TOOLS",
     # Calendar

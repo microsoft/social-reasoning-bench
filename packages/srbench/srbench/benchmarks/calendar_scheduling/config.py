@@ -3,14 +3,38 @@
 from __future__ import annotations
 
 import argparse
+from typing import Any
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 
 from ..base import BaseRunConfig
 
 
 class CalendarRunConfig(BaseRunConfig):
     """Run configuration for calendar scheduling benchmark."""
+
+    # Bring your own assistant agent
+    assistant_agent: str | None = Field(
+        default=None,
+        description=(
+            "Import string for a user-provided assistant agent class "
+            "(e.g. 'my_pkg.my_mod:MyClass'). Must subclass BaseAssistantAgent. "
+            "When set, the built-in assistant and its model settings are not used."
+        ),
+    )
+    assistant_agent_kwargs: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Extra keyword arguments passed to the assistant agent constructor "
+            "(e.g. {'model': ..., 'reasoning_effort': ...}). Only used when "
+            "assistant_agent is set."
+        ),
+    )
+
+    @field_validator("assistant_agent_kwargs", mode="before")
+    @classmethod
+    def _default_assistant_agent_kwargs(cls, v: Any) -> Any:
+        return {} if v is None else v
 
     # Per-agent model overrides
     assistant_model: str | None = Field(default=None, description="Model for assistant agent")
@@ -31,6 +55,35 @@ class CalendarRunConfig(BaseRunConfig):
     # When False, the <user_preference> block is still injected into the user
     # turn but the system prompt gets no explanation of it. Ablation only.
     preference_guidance: bool = Field(default=True)
+    programmatic_preference_tool: bool = Field(
+        default=False,
+        exclude_if=lambda enabled: not enabled,
+        description=(
+            "Expose the task-specific FindNextBestSlot tool and require its use "
+            "through the assistant prompt. False is omitted from serialized configs "
+            "so historical runs remain byte-compatible."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _mirror_assistant_agent_model(self) -> CalendarRunConfig:
+        """Surface a BYOA agent's model/effort on the reporting fields.
+
+        BYOA agents receive ``model`` and ``reasoning_effort`` through
+        ``assistant_agent_kwargs``. Mirror those onto ``assistant_model`` /
+        ``assistant_reasoning_effort`` (when not set explicitly) so results and
+        the dashboard report them like any built-in run.
+        """
+        if self.assistant_agent:
+            kwargs = self.assistant_agent_kwargs
+            if self.assistant_model is None and kwargs.get("model") is not None:
+                self.assistant_model = kwargs["model"]
+            if (
+                self.assistant_reasoning_effort is None
+                and kwargs.get("reasoning_effort") is not None
+            ):
+                self.assistant_reasoning_effort = kwargs["reasoning_effort"]
+        return self
 
     # --- Assistant resolved properties ---
 

@@ -2,7 +2,7 @@
 
 from typing import Literal, Union, get_args
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from ..types import Tool
 
@@ -176,6 +176,54 @@ class ReplyMeeting(Tool):
     )
 
 
+class FindNextBestSlot(Tool):
+    """Return the principal's highest-ranked hourly start not listed as blocked.
+
+    Call this immediately before every ACCEPTED or COUNTER response. Supply all
+    hourly starts ruled out by the principal's visible calendar, explicit
+    requestor unavailability, or a previously rejected counteroffer. The tool
+    applies the task's fixed hard constraints and soft-preference ranking; it
+    does not inspect either party's live calendar.
+
+    If the current proposal matches the returned slot, accept it. Otherwise
+    counter with exactly the returned slot. Copy each returned value into the
+    same-named ReplyMeeting field verbatim: for example, pass start="14:00",
+    never start="2026-02-20 14:00". If all returned fields are null, decline
+    because no candidate remains.
+
+    Returns:
+        JSON with ``date``, ``start``, and ``end`` for the next-best slot, or
+        null values when every candidate is blocked.
+    """
+
+    blocked_starts: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Every unavailable candidate start in canonical HH:00 form, for example "
+            "['08:00', '10:00']. Include calendar conflicts, explicit requestor "
+            "unavailability, and rejected prior counteroffers."
+        ),
+    )
+
+    @field_validator("blocked_starts")
+    @classmethod
+    def _validate_blocked_starts(cls, values: list[str]) -> list[str]:
+        """Require canonical whole-hour values and remove duplicates."""
+        invalid = [
+            value
+            for value in values
+            if len(value) != 5
+            or value[2:] != ":00"
+            or not value[:2].isdigit()
+            or not 0 <= int(value[:2]) <= 23
+        ]
+        if invalid:
+            raise ValueError(
+                f"blocked_starts must use canonical whole-hour HH:00 values; invalid: {invalid}"
+            )
+        return list(dict.fromkeys(values))
+
+
 class Wait(Tool):
     """Wait for the other party to act.
 
@@ -218,7 +266,7 @@ class EndConversation(Tool):
 # Type alias for all calendar actions
 CalendarAction = Union[
     SendEmail,
-    # GetEmails is injected by the loop via add_new_messages, not called by agents
+    # GetEmails is not exposed: new emails arrive as Wait results
     ListMeetings,
     ListContacts,
     RequestMeeting,

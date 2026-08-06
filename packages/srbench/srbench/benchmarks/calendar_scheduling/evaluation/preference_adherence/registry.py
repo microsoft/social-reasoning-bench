@@ -57,6 +57,34 @@ def register_verifier(preference_file: str) -> Callable[[Verifier], Verifier]:
     return decorator
 
 
+def resolve_verifier(preference_file: str | None) -> Verifier | None:
+    """Resolve a declared preference document to its verifier.
+
+    Args:
+        preference_file: Path to the preference document, as a task declares
+            it. ``None`` denotes a numeric-preference task.
+
+    Returns:
+        The registered verifier, or ``None`` for a task without a preference
+        document.
+
+    Raises:
+        LookupError: If a document is declared but has no registered verifier.
+    """
+    if not preference_file:
+        return None
+
+    key = _registry_key(preference_file)
+    verifier = _VERIFIERS.get(key)
+    if verifier is None:
+        raise LookupError(
+            f"Task declares preference file {key!r}, but no verifier is registered "
+            f"for it. Renaming a preference document requires updating the "
+            f"@register_verifier decorator that names it."
+        )
+    return verifier
+
+
 def evaluate_preference_adherence(
     task: CalendarTask,
     scheduled_meeting: Meeting | None,
@@ -78,18 +106,9 @@ def evaluate_preference_adherence(
         LookupError: If the task declares a document that has no verifier.
             Scoring such a task would silently grade prose nothing checks.
     """
-    preference_file = task.assistant.preference_file
-    if not preference_file:
-        return None
-
-    key = _registry_key(preference_file)
-    verifier = _VERIFIERS.get(key)
+    verifier = resolve_verifier(task.assistant.preference_file)
     if verifier is None:
-        raise LookupError(
-            f"Task declares preference file {key!r}, but no verifier is registered "
-            f"for it. Renaming a preference document requires updating the "
-            f"@register_verifier decorator that names it."
-        )
+        return None
 
     return verifier(
         VerifierContext(

@@ -2,10 +2,13 @@
 
 from srbench_llm import SRBenchModelClient
 
+from ....shared.agent import BaseCounterpartAgent
 from .marketplace_base import MarketplaceAgent
 
 
-class SellerAgent(MarketplaceAgent):
+class SellerAgent(MarketplaceAgent, BaseCounterpartAgent):
+    """Built-in seller agent, the simulated counterpart with the forced opening offer."""
+
     def __init__(
         self,
         *,

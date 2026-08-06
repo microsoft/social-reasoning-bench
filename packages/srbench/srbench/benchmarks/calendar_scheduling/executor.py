@@ -6,11 +6,18 @@ record of what happened, with no judgement.
     execute_task(task: HashedCalendarTask, ...) -> CalendarExecutionResult
 
 Each agent owns its run loop and touches the environment only through tools:
-``AgentResources.execute`` is the single execution path for every action, and
-the executor hands it directly to ``agent.run``, forces the requestor's
-opening meeting request, then races both loops against the environment's end
-signal and external cancellation. ``Wait`` blocks until the counterpart acts
-and returns any new emails, so no scheduler injects turns.
+``AgentResources.invoke_tool`` is the single execution path for every action —
+the environment owns all tool validation — and the executor hands it directly
+to ``agent.run``, forces the requestor's opening meeting request, then races
+both loops against the environment's end signal and external cancellation.
+``Wait`` blocks until the counterpart acts and returns any new emails, so no
+scheduler injects turns. The forced opening reaches the assistant the same
+way, from its first ``Wait``.
+
+The assistant side supports "bring your own agent". Pass
+``assistant_agent_factory`` (any callable returning a ``BaseAssistantAgent``,
+called with ``task=CalendarAssistantTask(...)``) to replace the built-in
+``CalendarAssistantAgent``.
 
 The execution result carries:
     - task: HashedCalendarTask (with .hash for checkpoint dedup)
@@ -23,9 +30,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import traceback
+from typing import Callable
 
 from srbench_llm import SRBenchModelClient
 
+from ...shared.agent import BaseAssistantAgent
 from ...shared.logging import BenchmarkLogger, VerboseLogger
 from ...shared.signals import run_agents_until_end
 from .agents.assistant import CalendarAssistantAgent
@@ -34,9 +43,16 @@ from .environment import (
     AgentResources,
     CalendarSchedulingEnvironment,
 )
-from .environment.actions import RequestMeeting
+from .environment.actions import (
+    CALENDAR_TOOLS,
+    EndConversation,
+    FindNextBestSlot,
+    RequestMeeting,
+)
 from .environment.utils import BUSINESS_HOURS_WINDOW, WHOLE_DAY_WINDOW
+from .evaluation.preference_adherence import PreferenceSlotSelector
 from .types import (
+    CalendarAssistantTask,
     CalendarExecutionResult,
     CalendarTask,
     Meeting,
@@ -51,6 +67,15 @@ logger = logging.getLogger(__name__)
 # End reasons recorded by the harness (rather than by an agent's
 # EndConversation) when a budget or coordination limit stops the run.
 _HARNESS_STOP_REASONS = {"agent_stopped", "stalemate"}
+
+# The environment owns each role's tool space and hands it to ``agent.run``.
+# The same Tool classes seed the environment's ``invoke_tool`` registry, and
+# their OpenAI schemas are what the agent sees. Only the assistant may end the
+# conversation.
+ASSISTANT_TOOLS: list[type[Tool]] = list(CALENDAR_TOOLS) + [EndConversation]
+REQUESTOR_TOOLS: list[type[Tool]] = list(CALENDAR_TOOLS)
+ASSISTANT_TOOL_SPACE = [t.get_openai_function_tool_param() for t in ASSISTANT_TOOLS]
+REQUESTOR_TOOL_SPACE = [t.get_openai_function_tool_param() for t in REQUESTOR_TOOLS]
 
 
 async def _force_initial_request(
@@ -97,15 +122,21 @@ async def _force_initial_request(
         attendees=[assistant_email],
     )
 
-    result = await requestor_resources.execute(request_action)
-    requestor_agent.add_forced_action(request_action, result)
+    # Route the forced opening through the same name+arguments boundary every
+    # agent uses, so the environment owns its validation and execution.
+    result = await requestor_resources.invoke_tool(
+        request_action.get_name(), request_action.model_dump()
+    )
+    requestor_agent.add_forced_action(
+        request_action.get_name(), request_action.model_dump(), result
+    )
 
     return request_action
 
 
 async def execute_task(
     task: HashedCalendarTask,
-    assistant_model: str,
+    assistant_model: str | None,
     assistant_client: SRBenchModelClient,
     requestor_model: str,
     requestor_client: SRBenchModelClient,
@@ -117,6 +148,9 @@ async def execute_task(
     cancel_event: asyncio.Event | None = None,
     benchmark_logger: BenchmarkLogger | None = None,
     preference_guidance: bool = True,
+    programmatic_preference_tool: bool = False,
+    *,
+    assistant_agent_factory: Callable[..., BaseAssistantAgent] | None = None,
 ) -> CalendarExecutionResult:
     """Execute a single calendar scheduling task.
 
@@ -127,7 +161,8 @@ async def execute_task(
 
     Args:
         task: The HashedCalendarTask to run (includes content hash for checkpointing)
-        assistant_model: Model to use for the assistant agent
+        assistant_model: Model to use for the built-in assistant agent. May be
+            ``None`` when ``assistant_agent_factory`` is provided.
         assistant_client: SRBenchModelClient for the assistant
         requestor_model: Model to use for the requestor agent
         requestor_client: SRBenchModelClient for the requestor
@@ -138,6 +173,18 @@ async def execute_task(
         expose_preferences: Whether to expose scheduling preferences
         cancel_event: Optional event to signal cancellation
         benchmark_logger: Optional logger for progress tracking
+        preference_guidance: Whether the built-in assistant receives the
+            preference-document guidance.
+        programmatic_preference_tool: Whether the assistant receives the
+            task-specific next-best-slot tool and its prompt instructions.
+        assistant_agent_factory: Optional factory for a user-provided
+            assistant agent (bring your own agent). Called with the keyword
+            argument ``task`` (a ``CalendarAssistantTask`` carrying the
+            assistant's brief and ``max_actions``). The tool space and
+            ``invoke_tool`` are delivered separately through ``agent.run``.
+            When provided, the built-in ``CalendarAssistantAgent`` and its LLM
+            configuration (``assistant_model``, ``system_prompt``,
+            ``assistant_explicit_cot``, ``expose_preferences``) are not used.
 
     Returns:
         CalendarExecutionResult with all execution data
@@ -159,6 +206,21 @@ async def execute_task(
     free_block_window = (
         WHOLE_DAY_WINDOW if task.assistant.preference_file else BUSINESS_HOURS_WINDOW
     )
+    assistant_tools = list(ASSISTANT_TOOLS)
+    next_best_slot = None
+    if programmatic_preference_tool:
+        preference_file = task.assistant.preference_file
+        if not preference_file:
+            raise ValueError(
+                "programmatic_preference_tool requires a natural-language preference document."
+            )
+        assistant_tools.insert(-1, FindNextBestSlot)
+        selector = PreferenceSlotSelector.from_preference(
+            preference_file,
+            task.requestor.requested_meeting,
+        )
+        next_best_slot = selector.select
+    assistant_tool_space = [tool.get_openai_function_tool_param() for tool in assistant_tools]
 
     # Convert LabeledMeetings to Meetings for assistant's calendar
     # (strip the is_movable and is_secret fields that are hidden from the LLM)
@@ -182,6 +244,9 @@ async def execute_task(
         contacts=task.assistant.contacts,
         allowed_date=task.requestor.requested_meeting.date,
         free_block_window=free_block_window,
+        tools=assistant_tools,
+        allowed_contacts=[requestor_email],
+        next_best_slot=next_best_slot,
     )
 
     # Convert LabeledMeetings to Meetings for requestor's calendar
@@ -205,26 +270,40 @@ async def execute_task(
         initial_meetings=requestor_initial_meetings,
         allowed_date=task.requestor.requested_meeting.date,
         free_block_window=free_block_window,
+        tools=REQUESTOR_TOOLS,
+        allowed_contacts=[assistant_email],
+    )
+
+    # The assistant's private brief, delivered through its constructor.
+    assistant_task = CalendarAssistantTask(
+        assistant=task.assistant,
+        max_actions=max_actions_per_agent,
     )
 
     # Initialize agents
-    assistant_agent = CalendarAssistantAgent(
-        model=assistant_model,
-        model_client=assistant_client,
-        assistant=task.assistant,
-        allowed_contacts=[requestor_email],
-        system_prompt=system_prompt,
-        explicit_cot=assistant_explicit_cot,
-        expose_preferences=expose_preferences,
-        max_actions=max_actions_per_agent,
-        preference_guidance=preference_guidance,
-    )
+    assistant_agent: BaseAssistantAgent
+    if assistant_agent_factory is not None:
+        assistant_agent = assistant_agent_factory(task=assistant_task)
+    else:
+        if assistant_model is None:
+            raise ValueError(
+                "assistant_model is required when no assistant_agent_factory is provided"
+            )
+        assistant_agent = CalendarAssistantAgent(
+            model=assistant_model,
+            model_client=assistant_client,
+            task=assistant_task,
+            system_prompt=system_prompt,
+            explicit_cot=assistant_explicit_cot,
+            expose_preferences=expose_preferences,
+            preference_guidance=preference_guidance,
+            programmatic_preference_tool=programmatic_preference_tool,
+        )
 
     requestor_agent = CalendarRequestorAgent(
         model=requestor_model,
         model_client=requestor_client,
         requestor=task.requestor,
-        allowed_contacts=[assistant_email],
         explicit_cot=requestor_explicit_cot,
         expose_preferences=expose_preferences,
         max_actions=max_actions_per_agent,
@@ -240,16 +319,14 @@ async def execute_task(
             assistant_email=assistant_email,
         )
 
-        # Surface the opening request in the assistant's context before its
-        # loop starts (exactly what the turn-based executor did at the start
-        # of each turn), and clear the wake signal that delivery produced.
-        assistant_agent.add_new_messages(assistant_resources.email.get_unread())
-        signals.clear(assistant_email)
-
+        # The forced request left the opening email unread and the
+        # assistant's wake signal set, so the assistant's first Wait returns
+        # immediately with the request. Delivery happens through tools, not
+        # by pushing context into the agent.
         await run_agents_until_end(
             [
-                assistant_agent.run(assistant_resources.execute),
-                requestor_agent.run(requestor_resources.execute),
+                assistant_agent.run(assistant_resources.invoke_tool, assistant_tool_space),
+                requestor_agent.run(requestor_resources.invoke_tool, REQUESTOR_TOOL_SPACE),
             ],
             signals=signals,
             cancel_event=cancel_event,
@@ -277,10 +354,13 @@ async def execute_task(
         emails=environment.get_all_emails(),
         final_assistant_calendar=list(assistant_resources.calendar.list_meetings()),
         final_requestor_calendar=list(requestor_resources.calendar.list_meetings()),
-        assistant_context=list(assistant_agent._messages),
-        requestor_context=list(requestor_agent._messages),
-        assistant_tools=assistant_agent.tools,
-        requestor_tools=requestor_agent.tools,
+        action_trace=list(environment.action_trace),
+        # Transcripts are debugging artifacts, captured only when the agent
+        # exposes them. Evaluation reads the environment's action trace.
+        assistant_context=list(getattr(assistant_agent, "messages", [])),
+        requestor_context=list(requestor_agent.messages),
+        assistant_tools=list(assistant_tool_space),
+        requestor_tools=list(REQUESTOR_TOOL_SPACE),
         max_rounds_reached=signals.end_reason in _HARNESS_STOP_REASONS,
         error=exec_error,
     )

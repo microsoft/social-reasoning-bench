@@ -20,7 +20,9 @@ from .registry import (
     VerifierContext,
     evaluate_preference_adherence,
     register_verifier,
+    resolve_verifier,
 )
+from .selector import PreferenceSlotSelector
 from .types import PreferenceAdherenceResult
 
 # Imported for its side effect: registering every task verifier. Keep this
@@ -45,6 +47,8 @@ __all__ = [
     "VerifierContext",
     "evaluate_preference_adherence",
     "register_verifier",
+    "resolve_verifier",
+    "PreferenceSlotSelector",
     # Time helpers
     "to_hhmm",
     "to_minutes",

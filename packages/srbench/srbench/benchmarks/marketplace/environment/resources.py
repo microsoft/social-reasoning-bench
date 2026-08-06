@@ -1,4 +1,6 @@
-from typing import Literal
+from typing import Any, Literal, Mapping
+
+from pydantic import ValidationError
 
 from ....shared.signals import ConversationSignals
 from ..types import ActionTrace, MessageRecord, Tool, ToolError
@@ -17,19 +19,27 @@ class MarketplaceEnvironment:
         self.state = MarketplaceState()
         self.signals = ConversationSignals()
 
-    def create_agent_resources(self, role: Literal["buyer", "seller"]) -> "AgentResources":
+    def create_agent_resources(
+        self,
+        role: Literal["buyer", "seller"],
+        tools: list[type[Tool]] | None = None,
+    ) -> "AgentResources":
         self.signals.register(role)
-        return AgentResources(role=role, state=self.state, signals=self.signals)
+        return AgentResources(role=role, state=self.state, signals=self.signals, tools=tools)
 
 
 class AgentResources:
     """Executes actions for one role against shared marketplace state.
 
-    ``execute`` is the single execution path for every action. It records an
-    ``ActionTrace`` on the shared state for each executed action, wakes the
-    counterpart when an action produces content visible to them, blocks on
-    ``Wait`` until the counterpart acts, and fires the environment's end
-    signal on a successful ``EndConversation``.
+    This is the environment side of the agent/environment boundary and the
+    single owner of all tool logic and validation. ``invoke_tool(name,
+    arguments)`` is the agent-facing entry point: it looks up the named tool,
+    validates its arguments, and returns a result string for every outcome.
+    ``execute`` is the single internal execution path for a validated
+    ``Tool``. It records an ``ActionTrace`` on the shared state for each
+    executed action, wakes the counterpart when an action produces content
+    visible to them, blocks on ``Wait`` until the counterpart acts, and fires
+    the environment's end signal on a successful ``EndConversation``.
     """
 
     def __init__(
@@ -38,6 +48,7 @@ class AgentResources:
         state: MarketplaceState,
         *,
         signals: ConversationSignals,
+        tools: list[type[Tool]] | None = None,
     ):
         self.role = role
         self.state = state
@@ -45,6 +56,40 @@ class AgentResources:
         self._seen_offer_count = 0
         self._signals = signals
         self._counterpart: Literal["buyer", "seller"] = "seller" if role == "buyer" else "buyer"
+        # Registry of the tools this agent may call, name -> Tool class. The
+        # environment owns this; the agent only knows names and arguments.
+        self._tool_registry: dict[str, type[Tool]] = {t.get_name(): t for t in (tools or [])}
+
+    async def invoke_tool(self, name: str, arguments: Mapping[str, Any]) -> str:
+        """Validate and execute a named tool call, returning a result string.
+
+        The agent-facing execution boundary. It resolves the tool name against
+        the granted tool space, validates the arguments against the tool's
+        schema, and executes the action. Every expected outcome — including an
+        unknown tool name, invalid arguments, or a rejected action — is
+        returned as a result string rather than raised, so the agent can
+        surface it to the model and recover.
+
+        Args:
+            name: The tool name chosen by the agent.
+            arguments: The tool's arguments as a plain mapping.
+
+        Returns:
+            The result string of the action, or an ``"Error: ..."`` string
+            describing why the call was rejected.
+        """
+        tool_cls = self._tool_registry.get(name)
+        if tool_cls is None:
+            available = ", ".join(sorted(self._tool_registry)) or "(none)"
+            return f"Error: Unrecognized tool '{name}'. Available tools: {available}"
+        try:
+            action = tool_cls.model_validate(dict(arguments))
+        except ValidationError as e:
+            return f"Error: Invalid arguments for '{name}': {e}"
+        try:
+            return await self.execute(action)
+        except ToolError as e:
+            return f"Error: {e}"
 
     async def execute(self, action: Tool) -> str:
         """Execute a tool action, record its trace, and return the result.

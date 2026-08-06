@@ -1,10 +1,24 @@
 """AgentResources class that encapsulates all resources available to an agent."""
 
+from collections.abc import Callable, Mapping
+from typing import Any
+
+from pydantic import ValidationError
+
 from ....shared.signals import ConversationSignals
-from ..types import Attendee, AttendeeStatus, Contact, Meeting, Tool, ToolError
+from ..types import (
+    Attendee,
+    AttendeeStatus,
+    CalendarActionTrace,
+    Contact,
+    Meeting,
+    Tool,
+    ToolError,
+)
 from .actions import (
     CancelMeeting,
     EndConversation,
+    FindNextBestSlot,
     GetEmails,
     ListContacts,
     ListMeetings,
@@ -28,10 +42,15 @@ from .utils import (
 class AgentResources:
     """Encapsulates all resources available to an agent (calendar + email + contacts).
 
-    ``execute`` is the single execution path for every action, including the
-    conversation-level coordination: ``Wait`` blocks until the counterpart
-    acts, and a successful ``EndConversation`` fires the environment's end
-    signal.
+    This is the environment side of the agent/environment boundary and the
+    single owner of all tool logic and validation. ``invoke_tool(name,
+    arguments)`` is the agent-facing entry point: it looks up the named tool,
+    validates its arguments, enforces environment policy (such as the allowed
+    recipient list for ``SendEmail``), and returns a result string for every
+    outcome. ``execute`` is the single internal execution path for a validated
+    ``Tool``, including the conversation-level coordination: ``Wait`` blocks
+    until the counterpart acts, and a successful ``EndConversation`` fires the
+    environment's end signal.
     """
 
     def __init__(
@@ -44,6 +63,10 @@ class AgentResources:
         *,
         signals: ConversationSignals,
         free_block_window: tuple[str, str] = BUSINESS_HOURS_WINDOW,
+        action_trace: list[CalendarActionTrace] | None = None,
+        tools: list[type[Tool]] | None = None,
+        allowed_contacts: list[str] | None = None,
+        next_best_slot: Callable[[list[str]], str] | None = None,
     ) -> None:
         self.owner = owner
         self.calendar = calendar
@@ -52,9 +75,56 @@ class AgentResources:
         self.contacts = contacts or []
         self._signals = signals
         self.free_block_window = free_block_window
+        # Shared with the environment (and the counterpart's resources) so
+        # the trace records both agents' actions in execution order.
+        self._action_trace = action_trace if action_trace is not None else []
+        # Registry of the tools this agent may call, name -> Tool class. The
+        # environment owns this; the agent only knows names and arguments.
+        self._tool_registry: dict[str, type[Tool]] = {t.get_name(): t for t in (tools or [])}
+        # Environment policy: recipients this agent is allowed to email.
+        self._allowed_contacts: list[str] = list(allowed_contacts or [])
+        self._next_best_slot = next_best_slot
+
+    async def invoke_tool(self, name: str, arguments: Mapping[str, Any]) -> str:
+        """Validate and execute a named tool call, returning a result string.
+
+        The agent-facing execution boundary. It performs all tool logic the
+        agent must never do itself: resolving the tool name against the
+        granted tool space, validating the arguments against the tool's
+        schema, and enforcing environment policy. Every expected outcome —
+        including an unknown tool name, invalid arguments, or a policy
+        rejection — is returned as a result string rather than raised, so the
+        agent can surface it to the model and recover.
+
+        Args:
+            name: The tool name chosen by the agent.
+            arguments: The tool's arguments as a plain mapping.
+
+        Returns:
+            The result string of the action, or an ``"Error: ..."`` string
+            describing why the call was rejected.
+        """
+        tool_cls = self._tool_registry.get(name)
+        if tool_cls is None:
+            available = ", ".join(sorted(self._tool_registry)) or "(none)"
+            return f"Error: Unrecognized tool '{name}'. Available tools: {available}"
+        try:
+            action = tool_cls.model_validate(dict(arguments))
+        except ValidationError as e:
+            return f"Error: Invalid arguments for '{name}': {e}"
+        # Environment policy: the agent may only email allowed recipients.
+        if isinstance(action, SendEmail) and action.to not in self._allowed_contacts:
+            return (
+                f"Error: Cannot SendEmail to {action.to}. "
+                f"Supported recipients are: {self._allowed_contacts}"
+            )
+        try:
+            return await self.execute(action)
+        except ToolError as e:
+            return f"Error: {e}"
 
     async def execute(self, action: Tool) -> str:
-        """Execute a tool action and return the result as a string.
+        """Execute a tool action, record its trace, and return the result.
 
         Async because ``Wait`` blocks until the counterpart acts (or the
         conversation ends); every other action completes immediately.
@@ -66,18 +136,37 @@ class AgentResources:
             A string describing the result of the action.
 
         Raises:
-            ToolError: If the action was rejected; the agent's run loop
-                surfaces it as an error-string result.
+            ToolError: If the action was rejected; recorded as an invalid
+                trace entry, then re-raised for the agent's run loop to
+                surface as an error-string result.
             ValueError: If the action type is unknown.
         """
         if isinstance(action, Wait) and not await self._signals.wait_for_activity(self.owner):
-            return "Conversation has ended."
-        result = self._dispatch(action)
+            result = "Conversation has ended."
+            self._record_trace(action, result=result, valid=True)
+            return result
+        try:
+            result = self._dispatch(action)
+        except ToolError as e:
+            self._record_trace(action, result=f"Error: {e}", valid=False)
+            raise
+        self._record_trace(action, result=result, valid=True)
         if isinstance(action, EndConversation):
             # Reached only on success (a rejected EndConversation raises
             # ToolError out of _dispatch).
             self._signals.end(reason=action.reason)
         return result
+
+    def _record_trace(self, action: Tool, *, result: str, valid: bool) -> None:
+        self._action_trace.append(
+            CalendarActionTrace(
+                actor=self.owner,
+                action_type=type(action).__name__,
+                payload=action.model_dump(),
+                result=result,
+                valid=valid,
+            )
+        )
 
     def _dispatch(self, action: Tool) -> str:
         if isinstance(action, SendEmail):
@@ -94,12 +183,23 @@ class AgentResources:
             return self._handle_cancel_meeting(action)
         elif isinstance(action, ReplyMeeting):
             return self._handle_reply_meeting(action)
+        elif isinstance(action, FindNextBestSlot):
+            return self._handle_find_next_best_slot(action)
         elif isinstance(action, Wait):
             return self._handle_wait(action)
         elif isinstance(action, EndConversation):
             return self._handle_end_conversation(action)
         else:
             raise ValueError(f"Unknown action: {type(action).__name__}")
+
+    def _handle_find_next_best_slot(self, action: FindNextBestSlot) -> str:
+        """Return the task-specific highest-ranked unblocked slot."""
+        if self._next_best_slot is None:
+            raise ToolError("FindNextBestSlot is not configured for this task.")
+        try:
+            return self._next_best_slot(action.blocked_starts)
+        except ValueError as error:
+            raise ToolError(str(error)) from error
 
     def _handle_send_email(self, action: SendEmail) -> str:
         """Send a simple email without calendar attachment.
