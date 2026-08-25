@@ -74,6 +74,11 @@ async def evaluate_single_task(
             _t = prompt_label.set("cal_due_diligence_judge")
             try:
                 result = await evaluate_due_diligence(execution_result, judge_model, judge_client)
+            except Exception:
+                benchmark_logger.error(
+                    "Eval %d due_diligence failed: %s", task_id, traceback.format_exc()
+                )
+                result = None
             finally:
                 prompt_label.reset(_t)
             timings["due_diligence"] = time.monotonic() - t
