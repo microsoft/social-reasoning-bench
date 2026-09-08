@@ -25,6 +25,7 @@ from srbench.benchmarks.calendar_scheduling.types import (
     Attendee,
     AttendeeStatus,
     CalendarAssistant,
+    CalendarAssistantTask,
     CalendarRequestor,
     LabeledMeeting,
     Meeting,
@@ -39,6 +40,7 @@ from srbench.benchmarks.marketplace.prompts.system import (
 from srbench.benchmarks.marketplace.prompts.system import (
     get_system_prompt as mkt_get_system_prompt,
 )
+from srbench.benchmarks.marketplace.types import MarketplaceBuyerTask
 from srbench.shared.prompts.assistant_system_prompts import (
     SYSTEM_PROMPT_REGISTRY,
     SystemPrompt,
@@ -120,7 +122,7 @@ def mkt_agent_messages_all_conditions(request):
         agent = BuyerAgent(
             model="test",
             model_client=_mock_client(),
-            instruction_message=SAMPLE_INSTRUCTION,
+            task=MarketplaceBuyerTask(instruction_message=SAMPLE_INSTRUCTION),
             system_prompt=system_prompt,
         )
         return role, preset, False, agent.messages
@@ -141,7 +143,7 @@ def mkt_buyer_messages_default():
     agent = BuyerAgent(
         model="test",
         model_client=_mock_client(),
-        instruction_message=SAMPLE_INSTRUCTION,
+        task=MarketplaceBuyerTask(instruction_message=SAMPLE_INSTRUCTION),
     )
     return agent.messages
 
@@ -235,8 +237,7 @@ def cal_agent_messages_all_conditions(request):
         agent = CalendarAssistantAgent(
             model="test",
             model_client=_mock_client(),
-            assistant=assistant,
-            allowed_contacts=["bob@external.com"],
+            task=CalendarAssistantTask(assistant=assistant),
             system_prompt=system_prompt,
             expose_preferences=expose_prefs,
         )
@@ -258,7 +259,6 @@ def cal_agent_messages_all_conditions(request):
             model="test",
             model_client=_mock_client(),
             requestor=requestor,
-            allowed_contacts=["alice@example.com"],
             expose_preferences=expose_prefs,
         )
 

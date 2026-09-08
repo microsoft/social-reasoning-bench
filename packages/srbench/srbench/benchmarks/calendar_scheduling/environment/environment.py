@@ -1,7 +1,7 @@
 """CalendarSchedulingEnvironment factory for creating agent resources."""
 
 from ....shared.signals import ConversationSignals
-from ..types import Contact, Email, Meeting
+from ..types import CalendarActionTrace, Contact, Email, Meeting, Tool
 from .calendar import CalendarManager
 from .email import EmailManager
 from .resources import AgentResources
@@ -22,6 +22,8 @@ class CalendarSchedulingEnvironment:
         self._email_manager = EmailManager()
         self._calendar_manager = CalendarManager()
         self.signals = ConversationSignals()
+        # Single trace shared by every agent's resources, in execution order.
+        self.action_trace: list[CalendarActionTrace] = []
 
     def create_agent_resources(
         self,
@@ -29,6 +31,8 @@ class CalendarSchedulingEnvironment:
         allowed_date: str,
         initial_meetings: list[Meeting] | None = None,
         contacts: list[Contact] | None = None,
+        tools: list[type[Tool]] | None = None,
+        allowed_contacts: list[str] | None = None,
     ) -> AgentResources:
         """Create AgentResources for an agent.
 
@@ -37,6 +41,11 @@ class CalendarSchedulingEnvironment:
             initial_meetings: Optional list of meetings to pre-populate the calendar
             allowed_date: If set, RequestMeeting will only allow this date (ISO format)
             contacts: Optional list of contacts for the agent's address book
+            tools: The Tool classes this agent is granted, used by the
+                environment to resolve and validate the agent's tool calls in
+                ``invoke_tool``.
+            allowed_contacts: Recipients this agent is permitted to email;
+                enforced by the environment in ``invoke_tool``.
 
         Returns:
             AgentResources with calendar, email, and contacts configured
@@ -54,6 +63,9 @@ class CalendarSchedulingEnvironment:
             allowed_date=allowed_date,
             contacts=contacts,
             signals=self.signals,
+            action_trace=self.action_trace,
+            tools=tools,
+            allowed_contacts=allowed_contacts,
         )
 
     def get_all_emails(self) -> list[Email]:

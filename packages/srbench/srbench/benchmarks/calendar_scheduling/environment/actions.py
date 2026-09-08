@@ -218,7 +218,7 @@ class EndConversation(Tool):
 # Type alias for all calendar actions
 CalendarAction = Union[
     SendEmail,
-    # GetEmails is injected by the loop via add_new_messages, not called by agents
+    # GetEmails is not exposed: new emails arrive as Wait results
     ListMeetings,
     ListContacts,
     RequestMeeting,

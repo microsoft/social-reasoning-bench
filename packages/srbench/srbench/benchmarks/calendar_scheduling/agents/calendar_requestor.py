@@ -2,21 +2,20 @@
 
 from srbench_llm import SRBenchModelClient
 
-from ..environment.actions import CALENDAR_TOOLS
+from ....shared.agent import BaseCounterpartAgent
 from ..types import CalendarRequestor
 from .assistant.prompts import CALENDAR_ROLE
 from .calendar_base import CalendarAgent, format_preferences_for_prompt
 
 
-class CalendarRequestorAgent(CalendarAgent):
-    """Requestor agent that initiates meeting requests."""
+class CalendarRequestorAgent(CalendarAgent, BaseCounterpartAgent):
+    """Requestor agent that initiates meeting requests, the simulated counterpart."""
 
     def __init__(
         self,
         model: str,
         model_client: SRBenchModelClient,
         requestor: CalendarRequestor,
-        allowed_contacts: list[str],
         explicit_cot: bool = False,
         expose_preferences: bool = False,
         max_actions: int = 50,
@@ -24,8 +23,6 @@ class CalendarRequestorAgent(CalendarAgent):
         super().__init__(
             model=model,
             model_client=model_client,
-            allowed_contacts=allowed_contacts,
-            tools=CALENDAR_TOOLS,
             explicit_cot=explicit_cot,
             prompt_label="cal_requestor",
             max_actions=max_actions,

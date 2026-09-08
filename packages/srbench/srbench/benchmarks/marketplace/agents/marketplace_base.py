@@ -1,19 +1,14 @@
 """Base agent class for marketplace negotiation interactions."""
 
-from typing import Any
-
-from pydantic_core import to_json
 from srbench_llm import SRBenchModelClient
 
-from ....shared.agent import BaseAgent
-from ..environment.actions import GETMESSAGES_TOOL_NAME, MARKETPLACE_TOOLS
+from ....shared.agent import LLMAgent
 from ..prompts.system import (
     MKT_ROLE,
     PRESETS,
     get_system_prompt,
     list_available_presets,
 )
-from ..types import Tool
 
 # Re-export for backwards compatibility
 __all__ = [
@@ -25,13 +20,12 @@ __all__ = [
 ]
 
 
-class MarketplaceAgent(BaseAgent):
+class MarketplaceAgent(LLMAgent):
     """Base LLM agent for marketplace negotiation with function/tool calling.
 
-    Extends :class:`BaseAgent` with:
+    Extends :class:`LLMAgent` with:
     - System prompt and instruction message setup
     - ``add_turn_marker`` for round-based deadline awareness
-    - ``add_new_messages`` for injecting updates via simulated ``GetMessages``
     """
 
     def __init__(
@@ -41,7 +35,6 @@ class MarketplaceAgent(BaseAgent):
         model: str,
         model_client: SRBenchModelClient,
         instruction_message: str,
-        additional_tools: list[type[Tool]] | None = None,
         explicit_cot: bool = False,
         system_prompt: str | None = None,
         malicious_prompt: str | None = None,
@@ -50,7 +43,6 @@ class MarketplaceAgent(BaseAgent):
         super().__init__(
             model=model,
             model_client=model_client,
-            tools=list(MARKETPLACE_TOOLS) + (additional_tools or []),
             explicit_cot=explicit_cot,
             prompt_label=f"mkt_{role}",
             max_actions=max_actions,
@@ -95,33 +87,5 @@ class MarketplaceAgent(BaseAgent):
                     "Use GetMessages to read unread updates/offers, then act. "
                     "Use Wait to end your turn."
                 ),
-            }
-        )
-
-    def add_new_messages(self, updates: list[Any]) -> None:
-        """Inject unread updates by simulating a GetMessages tool call and response.
-
-        Args:
-            updates: List of unread update dicts (messages and offers) to inject
-                into the conversation as a simulated GetMessages result.
-        """
-        tool_call_id = str(len(self._messages))
-        self._messages.append(
-            {
-                "role": "assistant",
-                "tool_calls": [
-                    {
-                        "id": tool_call_id,
-                        "type": "function",
-                        "function": {"name": GETMESSAGES_TOOL_NAME, "arguments": "{}"},
-                    }
-                ],
-            }
-        )
-        self._messages.append(
-            {
-                "role": "tool",
-                "tool_call_id": tool_call_id,
-                "content": to_json(updates).decode(),
             }
         )

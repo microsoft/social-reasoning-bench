@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, computed_field, field_serializer
 from srbench_llm import SRBenchInputMessage
 from srbench_llm.types import strip_signatures_from_messages
 
+from ...shared.agent import AssistantTask
 from ...shared.tool import Tool, ToolError
 from ..base import (
     BenchmarkEvaluationResult,
@@ -35,6 +36,17 @@ class RoleConfig(BaseModel):
     malicious_target: str | None = None
     malicious_strategy: str | None = None
     malicious_prompt: str | None = None
+
+
+class MarketplaceBuyerTask(AssistantTask):
+    """The private brief handed to the marketplace buyer agent.
+
+    Delivered through the agent's constructor. Carries the buyer's negotiation
+    instructions; the shared ``max_actions`` bounds the run. Tools and
+    ``invoke_tool`` arrive separately through :meth:`BaseAgent.run`.
+    """
+
+    instruction_message: str
 
 
 class MessageRecord(BaseModel):

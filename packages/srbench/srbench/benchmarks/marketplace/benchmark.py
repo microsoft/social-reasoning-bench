@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import functools
+import json
 from collections.abc import Sequence
 
 from srbench_llm import SRBenchModelClient
 
+from ...shared import BaseAssistantAgent, load_agent_class
 from ..base import Benchmark
 from ..base.benchmark import _parse_bool
 from .config import MarketplaceRunConfig
@@ -60,6 +63,24 @@ class MarketplaceBenchmark(
     @classmethod
     def add_benchmark_args(cls, parser: argparse.ArgumentParser) -> None:
         g = parser.add_argument_group("marketplace agents")
+        g.add_argument(
+            "--buyer-agent",
+            default=None,
+            help=(
+                "Import string for a user-provided buyer agent class, "
+                "e.g. 'my_pkg.my_mod:MyClass'. Must subclass BaseAssistantAgent."
+            ),
+        )
+        g.add_argument(
+            "--buyer-agent-kwargs",
+            default=None,
+            type=json.loads,
+            metavar="JSON",
+            help=(
+                "JSON object of extra kwargs for the buyer agent constructor, "
+                'e.g. \'{"model": "claude-sonnet-4-6", "reasoning_effort": "high"}\'.'
+            ),
+        )
         g.add_argument("--buyer-model", default=None)
         g.add_argument("--buyer-base-url", default=None)
         g.add_argument("--buyer-api-version", default=None)
@@ -74,6 +95,34 @@ class MarketplaceBenchmark(
         return MarketplaceRunConfig.from_args(args)
 
     def setup(self, config: MarketplaceRunConfig) -> None:
+        # Resolved before the agent factory: the system prompt is part of the
+        # BYOA constructor contract, so it has to exist when the factory binds.
+        from .prompts import get_system_prompt
+
+        prompt_preset = config.system_prompt
+        if prompt_preset and prompt_preset != "none":
+            self.system_prompt: str | None = get_system_prompt(prompt_preset)
+        else:
+            self.system_prompt = None
+
+        self.buyer_agent_factory = (
+            functools.partial(
+                load_agent_class(config.buyer_agent, expected=BaseAssistantAgent),
+                # The per-agent fields only, never the global ``--model`` /
+                # ``--reasoning-effort`` fallbacks: those configure the built-in
+                # clients (seller, judge), and feeding them to a BYOA agent
+                # would override its own default with a model id its backend
+                # may not even understand. Explicit agent kwargs still win.
+                **{
+                    "model": config.buyer_model,
+                    "reasoning_effort": config.buyer_reasoning_effort,
+                    "system_prompt": self.system_prompt,
+                    **config.buyer_agent_kwargs,
+                },
+            )
+            if config.buyer_agent
+            else None
+        )
         self.buyer_client = _create_client(
             config.resolved_buyer_base_url,
             config.resolved_buyer_reasoning_effort,
@@ -87,23 +136,16 @@ class MarketplaceBenchmark(
             config.resolved_judge_reasoning_effort,
         )
 
-        # Resolve system prompt once (same for all tasks)
-        from .prompts import get_system_prompt
-
-        prompt_preset = config.system_prompt
-        if prompt_preset and prompt_preset != "none":
-            self.system_prompt: str | None = get_system_prompt(prompt_preset)
-        else:
-            self.system_prompt = None
-
     async def execute_task(
         self,
         task: MarketplaceTask,
         cancel_event: asyncio.Event | None = None,
     ) -> MarketplaceExecutionResult:
         config = self.config
-        if not config.resolved_buyer_model or not config.resolved_seller_model:
-            raise RuntimeError("Buyer and seller models must be configured")
+        if not config.resolved_seller_model:
+            raise RuntimeError("Seller model must be configured")
+        if self.buyer_agent_factory is None and not config.resolved_buyer_model:
+            raise RuntimeError("Buyer model must be configured (or provide --buyer-agent)")
 
         return await _execute_task(
             task,
@@ -116,6 +158,7 @@ class MarketplaceBenchmark(
             seller_explicit_cot=config.resolved_seller_explicit_cot,
             system_prompt=self.system_prompt,
             benchmark_logger=self._benchmark_logger,
+            buyer_agent_factory=self.buyer_agent_factory,
         )
 
     def make_execution_error_result(
@@ -233,8 +276,11 @@ class MarketplaceBenchmark(
     # ==================================================================
 
     def get_run_path_models(self) -> list[str]:
+        from ..base.run_paths import agent_model_label
+
+        buyer = agent_model_label(self.config.buyer_agent, self.config.resolved_buyer_model)
         return [
-            self.config.resolved_buyer_model or "unknown",
+            buyer,
             self.config.resolved_seller_model or "unknown",
         ]
 

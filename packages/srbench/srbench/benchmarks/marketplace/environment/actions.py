@@ -103,7 +103,7 @@ class EndConversation(Tool):
 
 MarketplaceAction = Union[
     SendMessage,
-    # GetMessages is injected by the loop via add_new_messages, not called by agents
+    # GetMessages is not exposed: new messages and offers arrive as Wait results
     MakeOffer,
     AcceptOffer,
     Wait,
